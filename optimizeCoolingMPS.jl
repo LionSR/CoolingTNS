@@ -62,46 +62,48 @@ for (arg, val) in parsed_args
     println("  $arg  =>  $val")
 end
 
-problem = parsed_args["problem"]  # Problem type: "Ising", "niIsing"
-
-global N = parsed_args["N"]  # Number of spins
-global k = parsed_args["k"]  # Number of energy densities to average
-global Dmax = parsed_args["Dmax"]  # Maximum bond dimension
-global cutoff = parsed_args["cutoff"]  # Truncation error cutoff
-
-global num_trials = parsed_args["num_trials"]  # Number of trials for the search
-global steps = parsed_args["steps"]  # Number of steps in the cooling simulation
-search_method = parsed_args["search_method"]  # Options: "Random", "Grid", "Bayesian"
+problem = parsed_args["problem"]
+N = parsed_args["N"]
+k = parsed_args["k"]
+Dmax = parsed_args["Dmax"]
+cutoff = parsed_args["cutoff"]
+num_trials = parsed_args["num_trials"]
+steps = parsed_args["steps"]
+search_method = parsed_args["search_method"]
 method = "MPS"
 
 ham_params, ham_name = CoolingTNS.extract_ham_params(problem, parsed_args)
 
+sim_params = Dict(
+    "cutoff" => cutoff,
+    "Dmax" => Dmax,
+    "k" => k
+)
+
+init_coupling_params = Dict(
+    "g" => 0.3,
+    "te" => 2.0,
+    "steps" => steps,
+    "coupling" => "XX"
+)
+
 function run_cooling_simulation(problem, ham_params, coupling_params)
-    """
-    Runs the CoolingTNS.jl simulation with the given parameters and returns the performance metric.
-    """
-    # Extract parameters from the dictionary
     g = coupling_params["g"]
     te = coupling_params["te"]
-
-    sites, H_sys, H_sys_bath, ϕ₀, e₀ =
-        CoolingTNS.setup_problem_mps(problem, N, ham_params, g)
-
+    
+    sites, H_sys, ϕ₀, e₀, H_sys_bath = CoolingTNS.setup_problem_mps(problem, N, ham_params, coupling_params, sim_params)
     ψ_s = CoolingTNS.setup_init_state_mps(sites)
 
     E_list, GS_overlap_list, nb_list = CoolingTNS.run_cooling_mps(
         sites,
         H_sys,
+        ϕ₀,
         H_sys_bath,
         ψ_s,
-        ϕ₀,
-        steps;
-        te=te,
-        cutoff=cutoff,
-        Dmax=Dmax,
+        coupling_params,
+        sim_params
     )
 
-    # Calculate the average of the last k energy densities and the last k ground state overlaps as the performance metrics
     Efinal_density_avg = mean(E_list[end-k+1:end]) / N
     GS_overlap_avg = mean(GS_overlap_list[end-k+1:end])
 
@@ -113,47 +115,32 @@ function objective_function(problem, coupling_params)
     return Efinal_density
 end
 
-# Initial guess for the parameters
-initial_params = Dict(
-    "g" => 0.3,
-    "te" => 2.0,
-)
-
-# Define the search space for control parameters
-search_space =
-    Dict("g" => range(0.1, 0.5, length=5), "te" => range(1.0, 3.0, length=5))
-
+search_space = Dict("g" => range(0.1, 0.5, length=5), "te" => range(1.0, 3.0, length=5))
 
 if search_method == "Random"
-    # best_coupling_params, best_objective = CoolingTNS.random_search(problem, objective_function, search_space, num_trials, initial_params)
-    best_coupling_params, best_objective = CoolingTNS.hyperopt_random_search(problem, objective_function, search_space, num_trials, initial_params)
+    best_coupling_params, best_objective = CoolingTNS.hyperopt_random_search(problem, objective_function, search_space, num_trials, init_coupling_params)
 elseif search_method == "Grid"
     num_iterations = 1
-    best_coupling_params, best_objective = CoolingTNS.iterative_grid_search(problem, objective_function, search_space, num_iterations, initial_params)
+    best_coupling_params, best_objective = CoolingTNS.iterative_grid_search(problem, objective_function, search_space, num_iterations, init_coupling_params)
 elseif search_method == "Bayesian"
-    best_coupling_params, best_objective = CoolingTNS.hyperopt_bayesian_optimization(problem, objective_function, search_space, num_trials, initial_params)
+    best_coupling_params, best_objective = CoolingTNS.hyperopt_bayesian_optimization(problem, objective_function, search_space, num_trials, init_coupling_params)
 else
     error("Invalid search method: $search_method")
 end
 
-
 println("Optimization Result:")
-
-
-# Save the optimization results to a hdf5 file
-filename = "OptimizedCooling_Problem$(ham_name)Ns$(N)Nb$(N)_Search$(search_method)trials$(num_trials)_Paramssteps$(steps)_Method$(method)Dmax$(Dmax)"
-
-# Perform the simulation with optimal control parameters
-global steps = steps * 4  # Increase the number of steps for a better estimate
-global k = k * 4
-Efinal_density, GS_overlap_final = run_cooling_simulation(problem, ham_params, best_coupling_params)
-
-println("Final energy density: ", Efinal_density)
-println("Final ground state overlap: ", GS_overlap_final)
-println("Optimal control parameters:")
 for (param, val) in best_coupling_params
     println("$param: $val")
 end
+
+filename = "OptimizedCooling_Problem$(ham_name)Ns$(N)Nb$(N)_Paramssteps$(steps)_Sim$(method)Dmax$(Dmax)_Search$(search_method)trials$(num_trials)"
+
+best_coupling_params["steps"] = steps * 4
+
+Efinal_density, GS_overlap_final = run_cooling_simulation(problem, ham_params, best_coupling_params)
+println("Final energy density: ", Efinal_density)
+println("Final ground state overlap: ", GS_overlap_final)
+println("Optimal control parameters:")
 
 h5open("ResultsOpt/$(filename).h5", "w") do file
     write(file, "Final energy density", Efinal_density)

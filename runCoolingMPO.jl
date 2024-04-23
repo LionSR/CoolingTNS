@@ -11,21 +11,32 @@ problem, N, steps, g, te, tau, cutoff =
 
 ham_params, ham_name = CoolingTNS.extract_ham_params(problem, parsed_args)
 
-sites, H_sys, ϕ₀, e₀, gates = CoolingTNS.setup_problem_mpo(problem, N, ham_params, g, tau)
+sim_params = Dict(
+    "cutoff" => cutoff,
+    "trotter_steps" => Int(te / tau),
+    "tau" => tau
+)
+
+coupling_params = Dict(
+    "g" => g,
+    "te" => te,
+    "steps" => steps,
+    "coupling" => "XX"
+)
+
+sites, H_sys, ϕ₀, e₀, gates = CoolingTNS.setup_problem_mpo(problem, N, ham_params, coupling_params, sim_params)
 println("The ground state energy density is e₀/N = $(e₀/N)")
 
 ρ_s = CoolingTNS.setup_init_state_mpo(sites)
 
-trotter_steps = Int(te / tau)
 E_list, GS_overlap_list = CoolingTNS.run_cooling_mpo(
     sites,
     H_sys,
-    ρ_s,
     ϕ₀,
-    steps,
-    trotter_steps=trotter_steps,
-    cutoff=cutoff,
-    gates=gates,
+    gates,
+    ρ_s,
+    coupling_params,
+    sim_params,
 )
 
 E_final = E_list[end]
@@ -33,7 +44,10 @@ Edensity_final = E_final / N
 GS_overlap_final = GS_overlap_list[end]
 println("After cooling: E_final/N=$Edensity_final, GS_overlap_final=$GS_overlap_final")
 
-filename = "Cooling_Ham$(ham_name)Ns$(N)Nb$(N)_Paramsg$(g)te$(te)steps$(steps)_Method$(method)tau$(tau)"
+ham_name_part = "Ham$(ham_name)Ns$(N)Nb$(N)"
+coupling_name_part = "Coupling$(coupling_params["coupling"])g$(g)te$(te)steps$(steps)"
+sim_name_part = "Sim$(method)tau$(tau)"
+filename = "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)"
 
 h5open("Results/$(filename).h5", "w") do file
     write(file, "E_list", E_list)

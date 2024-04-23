@@ -31,8 +31,11 @@ function ham_niising(N, sites, ham_params)
 end
 
 
-function ham_ising_sys_bath(N, sites, ham_params, g, Δ, coupling)
+function ham_ising_sys_bath(N, sites, ham_params, coupling_params)
     J, h = ham_params
+    g = coupling_params["g"]
+    Δ = coupling_params["Δ"]
+    coupling = coupling_params["coupling"]
     op1, op2 = if length(coupling) == 2
         string(coupling[1]), string(coupling[2])
     else
@@ -58,8 +61,11 @@ function ham_ising_sys_bath(N, sites, ham_params, g, Δ, coupling)
 end
 
 
-function ham_niising_sys_bath(N, sites, ham_params, g, Δ, coupling)
+function ham_niising_sys_bath(N, sites, ham_params, coupling_params)
     J, hx, hz = ham_params
+    g = coupling_params["g"]
+    Δ = coupling_params["Δ"]
+    coupling = coupling_params["coupling"]
     op1, op2 = if length(coupling) == 2
         string(coupling[1]), string(coupling[2])
     else

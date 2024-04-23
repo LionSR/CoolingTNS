@@ -1,8 +1,13 @@
 using ITensors
 
-function build_trotter_circuit_ising(sites_sys, sites_bath, ham_params, g, Δ, tau, coupling)
+function build_trotter_circuit_ising(sites_sys, sites_bath, ham_params, coupling_params, sim_params)
     N = length(sites_sys)
     J, h = ham_params
+    g = coupling_params["g"]
+    Δ = coupling_params["Δ"]
+    coupling = coupling_params["coupling"]
+    tau = sim_params["tau"]
+    
     op1, op2 = if length(coupling) == 2
         string(coupling[1]), string(coupling[2])
     else
@@ -37,10 +42,14 @@ function build_trotter_circuit_ising(sites_sys, sites_bath, ham_params, g, Δ, t
     append!(gates, reverse(gates))
 end
 
-
-function build_trotter_circuit_niising(sites_sys, sites_bath, ham_params, g, Δ, tau, coupling)
+function build_trotter_circuit_niising(sites_sys, sites_bath, ham_params, coupling_params, sim_params)
     N = length(sites_sys)
     J, hx, hz = ham_params
+    g = coupling_params["g"]
+    Δ = coupling_params["Δ"]
+    coupling = coupling_params["coupling"]
+    tau = sim_params["tau"]
+
     op1, op2 = if length(coupling) == 2
         string(coupling[1]), string(coupling[2])
     else
@@ -83,19 +92,26 @@ function setup_init_state_mpo(sites)
     return ρ_s
 end
 
-function setup_problem_mpo(problem, N, ham_params, g, tau)
+function setup_problem_mpo(problem, N, ham_params, coupling_params, sim_params)
     sites = siteinds("S=1/2", 2N)
     sites_sys = sites[1:2:2N-1]
     sites_bath = sites[2:2:2N]
 
-    H_sys, Δ, e₀, ϕ₀ = setup_system(problem, N, sites_sys, ham_params)
+    H_sys, Δ_dmrg, e₀, ϕ₀ = setup_system(problem, N, sites_sys, ham_params)
 
+    Δ = haskey(coupling_params, "Δ") ? coupling_params["Δ"] : Δ_dmrg
+    coupling_params["Δ"] = Δ
+    
     build_trotter_circuit_fn = problem == "Ising" ? build_trotter_circuit_ising : build_trotter_circuit_niising
-    gates = build_trotter_circuit_fn(sites_sys, sites_bath, ham_params, g, Δ, tau, "XX")
+    gates = build_trotter_circuit_fn(sites_sys, sites_bath, ham_params, coupling_params, sim_params)
     return sites, H_sys, ϕ₀, e₀, gates
 end
 
-function run_cooling_mpo(sites, H_sys, ρ_s, ϕ₀, steps; trotter_steps, cutoff, gates)
+function run_cooling_mpo(sites, H_sys, ϕ₀, gates, ρ_s, coupling_params, sim_params)
+    steps = coupling_params["steps"]
+    trotter_steps = sim_params["trotter_steps"]
+    cutoff = sim_params["cutoff"]
+
     N = length(sites) ÷ 2
     sites_sys = sites[1:2:2N-1]
 

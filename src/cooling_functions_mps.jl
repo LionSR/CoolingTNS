@@ -10,21 +10,27 @@ function setup_init_state_mps(sites)
 end
 
 
-function setup_problem_mps(problem, N, ham_params, g)
+function setup_problem_mps(problem, N, ham_params, coupling_params, sim_params)
     sites = siteinds("S=1/2", 2N)
     sites_sys = sites[1:2:2N-1]
 
-    H_sys, Δ, e₀, ϕ₀ = setup_system(problem, N, sites_sys, ham_params)
+    H_sys, Δ_dmrg, e₀, ϕ₀ = setup_system(problem, N, sites_sys, ham_params)
 
-    coupling = "XX"
+    Δ = haskey(coupling_params, "Δ") ? coupling_params["Δ"] : Δ_dmrg
+    coupling_params["Δ"] = Δ
+    
     ham_sys_bath_fn = problem == "Ising" ? ham_ising_sys_bath : ham_niising_sys_bath
-    H_sys_bath = ham_sys_bath_fn(N, sites, ham_params, g, Δ, coupling)
+    H_sys_bath = ham_sys_bath_fn(N, sites, ham_params, coupling_params)
 
-    return sites, H_sys, H_sys_bath, ϕ₀, e₀
+    return sites, H_sys, ϕ₀, e₀, H_sys_bath
 end
 
 
-function run_cooling_mps(sites, H_sys, H_sys_bath, ψ_s, ϕ₀, steps; te, cutoff, Dmax)
+function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params, sim_params)
+    steps = coupling_params["steps"]
+    te = coupling_params["te"]
+    cutoff = sim_params["cutoff"]
+    Dmax = sim_params["Dmax"]
     N = length(sites) ÷ 2
 
     E_list = zeros(steps + 1)
