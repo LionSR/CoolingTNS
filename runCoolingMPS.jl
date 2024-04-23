@@ -56,6 +56,7 @@ println("After cooling: E_final/N=$Edensity_final, GS_overlap_final=$GS_overlap_
 ham_name_part = "Ham$(ham_name)Ns$(N)Nb$(N)"
 coupling_name_part = "Coupling$(coupling_params["coupling"])g$(parsed_args["g"])te$(parsed_args["te"])steps$(parsed_args["steps"])"
 sim_name_part = "Sim$(method)Dmax$(parsed_args["Dmax"])"
+pe > 0 && (sim_name_part *= "pe$pe")
 filename = "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)"
 
 h5open("Results/$(filename).h5", "w") do file

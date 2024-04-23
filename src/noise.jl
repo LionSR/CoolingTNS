@@ -1,24 +1,28 @@
 using ITensors
 
 ITensors.op(::OpName"σx", ::SiteType"S=1/2", s::Index) = 2 * op("Sx", s)
-
 ITensors.op(::OpName"σy", ::SiteType"S=1/2", s::Index) = 2 * op("Sy", s)
-
 ITensors.op(::OpName"σz", ::SiteType"S=1/2", s::Index) = 2 * op("Sz", s)
 
 
-function apply_depolarizing_noise(ψ, sites, pe)
+function apply_depolarizing_noise(ψ::MPS, sites, pe)
+    # os = []
+    os = Tuple{String, Int64}[]
     for j in eachindex(sites)
         p = rand()
         if p < pe / 3
-            ψ = ITensors.product(Op(sites[j], "σx"), ψ)
+            append!(os, ("σx", j))
         elseif p < 2 * pe / 3
-            ψ = ITensors.product(Op(sites[j], "σy"), ψ)
+            append!(os, ("σy", j))
         elseif p < pe
-            ψ = ITensors.product(Op(sites[j], "σz"), ψ)
+            append!(os, ("σz", j))
         end
     end
-    return ψ
+    println("sites: ", typeof(sites))
+    println("os: ", typeof(os))
+    noise_gates = ITensors.ops(os, sites)
+    println("noise_gates: ", typeof(noise_gates))
+    return apply(noise_gates, ψ)
 end
 
 function depolarizing_noise(pe, s)
