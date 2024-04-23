@@ -1,0 +1,16 @@
+name = "CoolingTNS"
+uuid = "12345678-90ab-cdef-1234-567890abcdef"  # Use a generated UUID
+authors = ["Sirui Lu <sirui.lu@mpq.mpg.de>"]
+version = "0.0.1"
+
+[deps]
+ITensors = "9136182c-28ba-11e9-034c-db9fb085ebd5"
+ITensorTDVP = "25707e16-a4db-4a07-99d9-4d67b7af0342"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
+HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
+PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
+Hyperopt = "93e5fe13-2215-51db-baaf-2e9a34fb2712"
+
