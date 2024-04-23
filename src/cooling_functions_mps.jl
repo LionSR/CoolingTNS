@@ -2,6 +2,13 @@ using ITensors
 using ITensorTDVP
 using Statistics
 
+function setup_init_state_mps(sites)
+    N = length(sites) ÷ 2
+    sites_sys = sites[1:2:2N-1]
+    ψ_s = randomMPS(sites_sys, linkdims=1)
+    return ψ_s
+end
+
 
 function setup_problem_mps(problem, N, ham_params, g)
     sites = siteinds("S=1/2", 2N)
@@ -13,9 +20,7 @@ function setup_problem_mps(problem, N, ham_params, g)
     ham_sys_bath_fn = problem == "Ising" ? ham_ising_sys_bath : ham_niising_sys_bath
     H_sys_bath = ham_sys_bath_fn(N, sites, ham_params, g, Δ, coupling)
 
-    ψ_s = randomMPS(sites_sys, linkdims=1)
-
-    return sites, H_sys, H_sys_bath, ϕ₀, ψ_s, e₀
+    return sites, H_sys, H_sys_bath, ϕ₀, e₀
 end
 
 

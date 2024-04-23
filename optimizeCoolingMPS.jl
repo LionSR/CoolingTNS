@@ -1,4 +1,4 @@
-using JSON, Base64, Hyperopt, Random, Statistics, ArgParse, HDF5
+using Hyperopt, Random, Statistics, ArgParse, HDF5
 using CoolingTNS
 
 
@@ -76,23 +76,25 @@ method = "MPS"
 
 ham_params, ham_name = CoolingTNS.extract_ham_params(problem, parsed_args)
 
-function run_cooling_simulation(problem, ham_params, params)
+function run_cooling_simulation(problem, ham_params, coupling_params)
     """
     Runs the CoolingTNS.jl simulation with the given parameters and returns the performance metric.
     """
     # Extract parameters from the dictionary
-    g = params["g"]
-    te = params["te"]
+    g = coupling_params["g"]
+    te = coupling_params["te"]
 
-    sites, H_sys, H_sys_bath, ϕ0, ψ_s, e₀ =
+    sites, H_sys, H_sys_bath, ϕ₀, e₀ =
         CoolingTNS.setup_problem_mps(problem, N, ham_params, g)
+
+    ψ_s = CoolingTNS.setup_init_state_mps(sites)
 
     E_list, GS_overlap_list, nb_list = CoolingTNS.run_cooling_mps(
         sites,
         H_sys,
         H_sys_bath,
         ψ_s,
-        ϕ0,
+        ϕ₀,
         steps;
         te=te,
         cutoff=cutoff,
@@ -106,8 +108,8 @@ function run_cooling_simulation(problem, ham_params, params)
     return Efinal_density_avg, GS_overlap_avg
 end
 
-function objective_function(problem, params)
-    Efinal_density, _ = run_cooling_simulation(problem, ham_params, params)
+function objective_function(problem, coupling_params)
+    Efinal_density, _ = run_cooling_simulation(problem, ham_params, coupling_params)
     return Efinal_density
 end
 
@@ -123,13 +125,13 @@ search_space =
 
 
 if search_method == "Random"
-    # best_params, best_objective = CoolingTNS.random_search(problem, objective_function, search_space, num_trials, initial_params)
-    best_params, best_objective = CoolingTNS.hyperopt_random_search(problem, objective_function, search_space, num_trials, initial_params)
+    # best_coupling_params, best_objective = CoolingTNS.random_search(problem, objective_function, search_space, num_trials, initial_params)
+    best_coupling_params, best_objective = CoolingTNS.hyperopt_random_search(problem, objective_function, search_space, num_trials, initial_params)
 elseif search_method == "Grid"
     num_iterations = 1
-    best_params, best_objective = CoolingTNS.iterative_grid_search(problem, objective_function, search_space, num_iterations, initial_params)
+    best_coupling_params, best_objective = CoolingTNS.iterative_grid_search(problem, objective_function, search_space, num_iterations, initial_params)
 elseif search_method == "Bayesian"
-    best_params, best_objective = CoolingTNS.hyperopt_bayesian_optimization(problem, objective_function, search_space, num_trials, initial_params)
+    best_coupling_params, best_objective = CoolingTNS.hyperopt_bayesian_optimization(problem, objective_function, search_space, num_trials, initial_params)
 else
     error("Invalid search method: $search_method")
 end
@@ -139,17 +141,17 @@ println("Optimization Result:")
 
 
 # Save the optimization results to a hdf5 file
-filename = "OptimizedCooling_Problem$(ham_name)Ns$(N)Nb$(N)_Search$(search_method)trials$(num_trials)steps$(steps)_Method$(method)Dmax$(Dmax)"
+filename = "OptimizedCooling_Problem$(ham_name)Ns$(N)Nb$(N)_Search$(search_method)trials$(num_trials)_Paramssteps$(steps)_Method$(method)Dmax$(Dmax)"
 
 # Perform the simulation with optimal control parameters
 global steps = steps * 4  # Increase the number of steps for a better estimate
 global k = k * 4
-Efinal_density, GS_overlap_final = run_cooling_simulation(problem, ham_params, best_params)
+Efinal_density, GS_overlap_final = run_cooling_simulation(problem, ham_params, best_coupling_params)
 
 println("Final energy density: ", Efinal_density)
 println("Final ground state overlap: ", GS_overlap_final)
 println("Optimal control parameters:")
-for (param, val) in best_params
+for (param, val) in best_coupling_params
     println("$param: $val")
 end
 
@@ -161,7 +163,7 @@ h5open("ResultsOpt/$(filename).h5", "w") do file
     end
     
     group = create_group(file, "Optimal control parameters")
-    for (param, val) in best_params
+    for (param, val) in best_coupling_params
         write(group, param, val)
     end
 end

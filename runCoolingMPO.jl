@@ -1,6 +1,7 @@
 using ArgParse, HDF5
 using CoolingTNS
 
+method = "MPO"
 parsed_args = CoolingTNS.parse_commandline()
 
 # Unpack parsed arguments 
@@ -8,12 +9,12 @@ problem, N, steps, g, te, tau, cutoff =
     parsed_args["problem"], parsed_args["N"], parsed_args["steps"], parsed_args["g"],
     parsed_args["te"], parsed_args["tau"], parsed_args["cutoff"]
 
-method = "MPO"
-
 ham_params, ham_name = CoolingTNS.extract_ham_params(problem, parsed_args)
 
-sites, H_sys, ρ_s, e₀, ϕ₀, gates = CoolingTNS.setup_problem_mpo(problem, N, ham_params, g, tau)
+sites, H_sys, ϕ₀, e₀, gates = CoolingTNS.setup_problem_mpo(problem, N, ham_params, g, tau)
 println("The ground state energy density is e₀/N = $(e₀/N)")
+
+ρ_s = CoolingTNS.setup_init_state_mpo(sites)
 
 trotter_steps = Int(te / tau)
 E_list, GS_overlap_list = CoolingTNS.run_cooling_mpo(
@@ -23,7 +24,6 @@ E_list, GS_overlap_list = CoolingTNS.run_cooling_mpo(
     ϕ₀,
     steps,
     trotter_steps=trotter_steps,
-    tau=tau,
     cutoff=cutoff,
     gates=gates,
 )
@@ -33,7 +33,7 @@ Edensity_final = E_final / N
 GS_overlap_final = GS_overlap_list[end]
 println("After cooling: E_final/N=$Edensity_final, GS_overlap_final=$GS_overlap_final")
 
-filename = "Cooling_Ham$(ham_name)Ns$(N)Nb$(N)_Paramsg$(g)te$(te)Steps$(steps)_Method$(method)tau$(tau)"
+filename = "Cooling_Ham$(ham_name)Ns$(N)Nb$(N)_Paramsg$(g)te$(te)steps$(steps)_Method$(method)tau$(tau)"
 
 h5open("Results/$(filename).h5", "w") do file
     write(file, "E_list", E_list)
@@ -48,4 +48,5 @@ h5open("Results/$(filename).h5", "w") do file
 end
 println("Data saved to $(filename) with Hamiltonian information and argparse variables")
 
-CoolingTNS.plot_energy_and_overlap(E_list, GS_overlap_list, steps, filename, e₀, N)
+CoolingTNS.plot_energy_and_overlap(E_list, GS_overlap_list, steps, e₀, N, filename)
+

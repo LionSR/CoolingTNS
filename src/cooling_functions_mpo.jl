@@ -75,6 +75,14 @@ function build_trotter_circuit_niising(sites_sys, sites_bath, ham_params, g, Δ,
     append!(gates, reverse(gates))
 end
 
+function setup_init_state_mpo(sites)
+    N = length(sites) ÷ 2
+    sites_sys = sites[1:2:2N-1]
+    ρ_s = MPO(sites_sys, "Id")
+    ρ_s = ρ_s ./ √2
+    return ρ_s
+end
+
 function setup_problem_mpo(problem, N, ham_params, g, tau)
     sites = siteinds("S=1/2", 2N)
     sites_sys = sites[1:2:2N-1]
@@ -82,14 +90,12 @@ function setup_problem_mpo(problem, N, ham_params, g, tau)
 
     H_sys, Δ, e₀, ϕ₀ = setup_system(problem, N, sites_sys, ham_params)
 
-    ρ_s = MPO(sites_sys, "Id")
-    ρ_s = ρ_s ./ √2
     build_trotter_circuit_fn = problem == "Ising" ? build_trotter_circuit_ising : build_trotter_circuit_niising
     gates = build_trotter_circuit_fn(sites_sys, sites_bath, ham_params, g, Δ, tau, "XX")
-    return sites, H_sys, ρ_s, e₀, ϕ₀, gates
+    return sites, H_sys, ϕ₀, e₀, gates
 end
 
-function run_cooling_mpo(sites, H_sys, ρ_s, steps, ϕ₀; trotter_steps, tau, cutoff, gates)
+function run_cooling_mpo(sites, H_sys, ρ_s, ϕ₀, steps; trotter_steps, cutoff, gates)
     N = length(sites) ÷ 2
     sites_sys = sites[1:2:2N-1]
 
