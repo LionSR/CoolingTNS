@@ -108,10 +108,16 @@ function setup_problem_mpo(problem, N, ham_params, coupling_params, sim_params)
 end
 
 function run_cooling_mpo(sites, H_sys, ϕ₀, gates, ρ_s, coupling_params, sim_params)
+    N = length(sites) ÷ 2
+    sites_sys = sites[1:2:2N-1]
     steps = coupling_params["steps"]
     trotter_steps = sim_params["trotter_steps"]
     cutoff = sim_params["cutoff"]
-
+    pe = sim_params["pe"]
+    if pe > 0
+        noise_layer = [depolarizing_noise(pe, sites[i]) for i = 1:2N]
+    end
+    
     N = length(sites) ÷ 2
     sites_sys = sites[1:2:2N-1]
 
@@ -128,6 +134,9 @@ function run_cooling_mpo(sites, H_sys, ϕ₀, gates, ρ_s, coupling_params, sim_
         ρ_sb = appendzeros_MPO(ρ_s, sites)
         for j = 1:trotter_steps
             ρ_sb = apply(gates, ρ_sb; apply_dag=true, cutoff=cutoff, move_sites_back=true)
+        end
+        if pe > 0
+            ρ_sb = apply(noise_layer, ρ_sb; apply_dag=true, cutoff=cutoff, move_sites_back=true)
         end
         ρ_s = partial_trace_bath(ρ_sb, sites, sites_sys)
         ρ_s = ρ_s / tr(ρ_s)

@@ -5,23 +5,29 @@ method = "MPO"
 parsed_args = CoolingTNS.parse_commandline()
 
 # Unpack parsed arguments 
-problem, N, steps, g, te, tau, cutoff =
-    parsed_args["problem"], parsed_args["N"], parsed_args["steps"], parsed_args["g"],
-    parsed_args["te"], parsed_args["tau"], parsed_args["cutoff"]
+N = parsed_args["N"]
+problem = parsed_args["problem"]
 
 ham_params, ham_name = CoolingTNS.extract_ham_params(problem, parsed_args)
 
+pe = parsed_args["pe"]
+if parsed_args["peInt"] > 0
+    pe = parsed_args["peInt"] * 1e-3
+    pe = round(pe, digits=4)
+end
+
 sim_params = Dict(
-    "cutoff" => cutoff,
-    "trotter_steps" => Int(te / tau),
-    "tau" => tau
+    "cutoff" => parsed_args["cutoff"],
+    "trotter_steps" => Int(parsed_args["te"] / parsed_args["tau"]),
+    "tau" => parsed_args["tau"],
+    "pe" => pe
 )
 
 coupling_params = Dict(
-    "g" => g,
-    "te" => te,
-    "steps" => steps,
-    "coupling" => "XX"
+    "g" => parsed_args["g"],
+    "te" => parsed_args["te"],
+    "steps" => parsed_args["steps"],
+    "coupling" => parsed_args["coupling"]
 )
 
 sites, H_sys, ϕ₀, e₀, gates = CoolingTNS.setup_problem_mpo(problem, N, ham_params, coupling_params, sim_params)
@@ -45,8 +51,11 @@ GS_overlap_final = GS_overlap_list[end]
 println("After cooling: E_final/N=$Edensity_final, GS_overlap_final=$GS_overlap_final")
 
 ham_name_part = "Ham$(ham_name)Ns$(N)Nb$(N)"
-coupling_name_part = "Coupling$(coupling_params["coupling"])g$(g)te$(te)steps$(steps)"
-sim_name_part = "Sim$(method)tau$(tau)"
+coupling_name_part = "Coupling$(coupling_params["coupling"])g$(parsed_args["g"])te$(parsed_args["te"])steps$(parsed_args["steps"])"
+sim_name_part = "Sim$(method)tau$(parsed_args["tau"])"
+if pe>0
+    sim_name_part = "$(sim_name_part)pe$(pe)"
+end
 filename = "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)"
 
 h5open("Results/$(filename).h5", "w") do file
@@ -62,5 +71,4 @@ h5open("Results/$(filename).h5", "w") do file
 end
 println("Data saved to $(filename) with Hamiltonian information and argparse variables")
 
-CoolingTNS.plot_energy_and_overlap(E_list, GS_overlap_list, steps, e₀, N, filename)
-
+CoolingTNS.plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename)

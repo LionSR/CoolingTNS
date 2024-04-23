@@ -18,7 +18,7 @@ function setup_problem_mps(problem, N, ham_params, coupling_params, sim_params)
 
     Δ = haskey(coupling_params, "Δ") ? coupling_params["Δ"] : Δ_dmrg
     coupling_params["Δ"] = Δ
-    
+
     ham_sys_bath_fn = problem == "Ising" ? ham_ising_sys_bath : ham_niising_sys_bath
     H_sys_bath = ham_sys_bath_fn(N, sites, ham_params, coupling_params)
 
@@ -33,6 +33,8 @@ function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params,
     Dmax = sim_params["Dmax"]
     N = length(sites) ÷ 2
 
+    pe = sim_params["pe"]
+
     E_list = zeros(steps + 1)
     GS_overlap_list = zeros(steps + 1)
     nb_list = zeros(steps + 1)
@@ -46,6 +48,9 @@ function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params,
     for step = 2:steps+1
         ψ_sb = appendzeros_MPS(ψ_s, sites)
         ψ_sb_evolved = evolve_state(H_sys_bath, ψ_sb, te; Dmax, cutoff)
+        if pe > 0
+            ψ_sb_evolved = apply_depolarizing_noise(ψ_sb_evolved, sites, pe)
+        end
 
         v_b, ψ_s = sample_bath(ψ_sb_evolved)
         truncate!(ψ_s; cutoff)

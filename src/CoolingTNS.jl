@@ -10,6 +10,7 @@ include("cooling_functions_mpo.jl")
 include("plotting_functions.jl")
 include("policy.jl")
 include("argparse.jl")
+include("noise.jl")
 
 export setup_problem, run_cooling_mps
 export plot_data
