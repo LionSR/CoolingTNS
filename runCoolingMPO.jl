@@ -57,6 +57,7 @@ pe > 0 && (sim_name_part *= "pe$pe")
 filename = "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)"
 
 h5open("Results/$(filename).h5", "w") do file
+    write(file, "e₀", e₀)
     write(file, "E_list", E_list)
     write(file, "GS_overlap_list", GS_overlap_list)
     write(file, "E_final", E_final)

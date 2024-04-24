@@ -1,3 +1,4 @@
+using HDF5
 using PythonCall
 using LaTeXStrings
 
@@ -29,4 +30,48 @@ function plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename; mov
     ax.legend()
 
     fig.savefig("Results/$(filename).pdf", dpi=300)
+end
+
+
+function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_params, N_values)
+    plt = pyimport("matplotlib.pyplot")
+
+    energy_errors = Float64[]
+    final_overlaps = Float64[]
+
+    coupling_name_part = "Coupling$(coupling_params["coupling"])g$(coupling_params["g"])te$(coupling_params["te"])steps$(coupling_params["steps"])"
+    sim_name_part = "Sim$(sim_params["method"])Dmax$(sim_params["Dmax"])"
+    sim_params["pe"] > 0 && (sim_name_part *= "pe$(sim_params["pe"])")
+
+    for N in N_values
+        ham_name_part = "Ham$(ham_name)Ns$(N)Nb$(N)"
+        filename = "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part).h5"
+
+        h5open("Results/" * filename, "r") do file
+            e₀ = read(file, "e₀")
+            E_final = read(file, "E_final")
+            GS_overlap_final = read(file, "GS_overlap_final")
+            push!(energy_errors, abs(E_final / N - e₀ / N))
+            push!(final_overlaps, GS_overlap_final)
+        end
+    end
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+
+    ax1.plot(N_values, energy_errors, marker="o", linestyle="-", label="Energy error")
+    ax1.set_xlabel("System size (N)")
+    ax1.set_ylabel("Energy density error")
+    ax1.legend()
+
+    ax2.plot(N_values, final_overlaps, marker="o", linestyle="-", label="Final overlap")
+    ax2.set_xlabel("System size (N)")
+    ax2.set_ylabel("Ground state overlap")
+    ax2.legend()
+
+    plt.tight_layout()
+
+    ham_name_part = "Ham$(ham_name)"
+    filename_saveto = "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)_energy_error_and_overlap_vs_N.pdf"
+
+    fig.savefig("Results/" * filename_saveto, dpi=300)
 end
