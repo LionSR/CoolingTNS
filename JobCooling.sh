@@ -2,7 +2,7 @@
 
 #SBATCH --nodes=1 # node count
 #SBATCH --ntasks-per-node=1
-#SBATCH --mem=20000 # Memory
+#SBATCH --mem=10000 # Memory
 #SBATCH --cpus-per-task=2
 #SBATCH -o /dev/null
 #SBATCH -e /dev/null
@@ -15,7 +15,7 @@ export JID=$SLURM_JOB_ID
 export ID=${JOB_ID:-$JID}
 export N=$N
 export PE=$TASK_ID
-export OUTFILE="Log/${ID}_NoisyCooling${PROBLEM}Ns${N}Nb${N}_g${G_VALUE}te${TE_VALUE}_peInt${PE}"
+export OUTFILE="Log/${ID}_${METHOD}_$Cooling${PROBLEM}Ns${N}Nb${N}_g${G_VALUE}te${TE_VALUE}_peInt${PE}"
 export SLURM_JOB_OUTPUT="${OUTFILE}.out"
 export SLURM_JOB_ERROR="${OUTFILE}.err"
 
@@ -34,6 +34,6 @@ alias julia="/tqo/u/system/soft/SLE_15/packages/x86_64/julia/1.10.1/bin/julia"
 alias julia_itensors="julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so "
 
 # Run Julia script with parameters
-srun --export=ALL --output="${SLURM_JOB_OUTPUT}" --error="${SLURM_JOB_ERROR}" julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so CoolingMPO.jl --method=$METHOD --problem=$PROBLEM --N=$N --steps=${STEPS_VALUE} --te=${TE_VALUE} --g=${G_VALUE} --peInt=$PE
+srun --export=ALL --output="${SLURM_JOB_OUTPUT}" --error="${SLURM_JOB_ERROR}" julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so Cooling$METHOD.jl --method=$METHOD --problem=$PROBLEM --N=$N --steps=${STEPS_VALUE} --te=${TE_VALUE} --g=${G_VALUE} --peInt=$PE
 
 wait

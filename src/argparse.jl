@@ -45,7 +45,7 @@ function parse_commandline()
         "--cutoff"
         help = "truncation error cutoff"
         arg_type = Float64
-        default = 1E-4
+        default = 1E-5
         "--Dmax"
         help = "maximum bond dimension"
         arg_type = Int
