@@ -10,7 +10,7 @@ run_job() {
     export STEPS_VALUE=$2
     export TE_VALUE=$3
     export G_VALUE=$4
-    sbatch --job-name="${COMMON_NAME}" --export "N=$N,PROBLEM=$PROBLEM,METHOD=$METHOD,STEPS_VALUE=$2,TE_VALUE=$3,G_VALUE=$4" CoolingMPO.sh
+    sbatch --job-name="${COMMON_NAME}" --export "N=$N,PROBLEM=$PROBLEM,METHOD=$METHOD,STEPS_VALUE=$2,TE_VALUE=$3,G_VALUE=$4" JobCoolingMPO.sh
 }
 
 # Run jobs with different parameters
