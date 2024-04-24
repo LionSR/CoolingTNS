@@ -6,23 +6,22 @@ ITensors.op(::OpName"σz", ::SiteType"S=1/2", s::Index) = 2 * op("Sz", s)
 
 
 function apply_depolarizing_noise(ψ::MPS, sites, pe)
-    # os = []
     os = Tuple{String, Int64}[]
     for j in eachindex(sites)
         p = rand()
         if p < pe / 3
-            append!(os, ("σx", j))
-        elseif p < 2 * pe / 3
-            append!(os, ("σy", j))
-        elseif p < pe
-            append!(os, ("σz", j))
+            push!(os, ("σx", j))
+        elseif pe / 3 <= p < 2 * pe / 3
+            push!(os, ("σy", j))
+        elseif 2 * pe / 3 <= p < pe
+            push!(os, ("σz", j))
         end
     end
-    println("sites: ", typeof(sites))
-    println("os: ", typeof(os))
-    noise_gates = ITensors.ops(os, sites)
-    println("noise_gates: ", typeof(noise_gates))
-    return apply(noise_gates, ψ)
+    if length(os) > 0
+        noise_gates = ops(os, sites)
+        return apply(noise_gates, ψ)
+    end
+    return ψ
 end
 
 function depolarizing_noise(pe, s)

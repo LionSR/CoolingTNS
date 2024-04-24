@@ -81,5 +81,6 @@ function sample_bath(rng::AbstractRNG, m::MPS)
         end
         # println("iter $i, n=$n, pn=$pn, norm(m_rest)=$(norm(m_rest))")
     end
+    # normalize!(m_rest)
     return result, m_rest
 end

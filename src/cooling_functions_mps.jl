@@ -50,10 +50,12 @@ function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params,
         ψ_sb_evolved = evolve_state(H_sys_bath, ψ_sb, te; Dmax, cutoff)
         if pe > 0
             ψ_sb_evolved = apply_depolarizing_noise(ψ_sb_evolved, sites, pe)
+            orthogonalize!(ψ_sb_evolved, 2)
         end
 
         v_b, ψ_s = sample_bath(ψ_sb_evolved)
         truncate!(ψ_s; cutoff)
+        normalize!(ψ_s)
 
         E_list[step] = energy(ψ_s, H_sys)
         GS_overlap_list[step] = abs2(inner(ψ_s, ϕ₀))
