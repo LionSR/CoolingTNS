@@ -17,6 +17,7 @@ if parsed_args["peInt"] > 0
 end
 
 sim_params = Dict(
+    "Dmax" => parsed_args["Dmax"],
     "cutoff" => parsed_args["cutoff"],
     "trotter_steps" => Int(parsed_args["te"] / parsed_args["tau"]),
     "tau" => parsed_args["tau"],

@@ -88,9 +88,6 @@ init_coupling_params = Dict(
 )
 
 function run_cooling_simulation(problem, ham_params, coupling_params)
-    g = coupling_params["g"]
-    te = coupling_params["te"]
-    
     sites, H_sys, ϕ₀, e₀, H_sys_bath = CoolingTNS.setup_problem_mps(problem, N, ham_params, coupling_params, sim_params)
     ψ_s = CoolingTNS.setup_init_state_mps(sites)
 

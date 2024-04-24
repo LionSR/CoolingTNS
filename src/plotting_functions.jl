@@ -39,8 +39,14 @@ function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_param
     energy_errors = Float64[]
     final_overlaps = Float64[]
 
+    method = sim_params["method"]  # Ensure this key exists and correctly reflects the method used (MPS or MPO)
     coupling_name_part = "Coupling$(coupling_params["coupling"])g$(coupling_params["g"])te$(coupling_params["te"])steps$(coupling_params["steps"])"
-    sim_name_part = "Sim$(sim_params["method"])Dmax$(sim_params["Dmax"])"
+    
+    if method == "MPO"
+        sim_name_part = "Sim$(method)tau$(sim_params["tau"])"
+    else  # Assuming the other method is MPS
+        sim_name_part = "Sim$(method)Dmax$(sim_params["Dmax"])"
+    end
     sim_params["pe"] > 0 && (sim_name_part *= "pe$(sim_params["pe"])")
 
     for N in N_values

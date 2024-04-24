@@ -7,7 +7,7 @@ function build_trotter_circuit_ising(sites_sys, sites_bath, ham_params, coupling
     Δ = coupling_params["Δ"]
     coupling = coupling_params["coupling"]
     tau = sim_params["tau"]
-    
+
     op1, op2 = if length(coupling) == 2
         string(coupling[1]), string(coupling[2])
     else
@@ -101,7 +101,7 @@ function setup_problem_mpo(problem, N, ham_params, coupling_params, sim_params)
 
     Δ = haskey(coupling_params, "Δ") ? coupling_params["Δ"] : Δ_dmrg
     coupling_params["Δ"] = Δ
-    
+
     build_trotter_circuit_fn = problem == "Ising" ? build_trotter_circuit_ising : build_trotter_circuit_niising
     gates = build_trotter_circuit_fn(sites_sys, sites_bath, ham_params, coupling_params, sim_params)
     return sites, H_sys, ϕ₀, e₀, gates
@@ -113,11 +113,13 @@ function run_cooling_mpo(sites, H_sys, ϕ₀, gates, ρ_s, coupling_params, sim_
     steps = coupling_params["steps"]
     trotter_steps = sim_params["trotter_steps"]
     cutoff = sim_params["cutoff"]
+    Dmax = sim_params["Dmax"]
+
     pe = sim_params["pe"]
     if pe > 0
         noise_layer = [depolarizing_noise(pe, sites[i]) for i = 1:2N]
     end
-    
+
     N = length(sites) ÷ 2
     sites_sys = sites[1:2:2N-1]
 
@@ -133,17 +135,17 @@ function run_cooling_mpo(sites, H_sys, ϕ₀, gates, ρ_s, coupling_params, sim_
     for i = 2:steps+1
         ρ_sb = appendzeros_MPO(ρ_s, sites)
         for j = 1:trotter_steps
-            ρ_sb = apply(gates, ρ_sb; apply_dag=true, cutoff=cutoff, move_sites_back=true)
+            ρ_sb = apply(gates, ρ_sb; apply_dag=true, cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
         end
         if pe > 0
-            ρ_sb = apply(noise_layer, ρ_sb; apply_dag=true, cutoff=cutoff, move_sites_back=true)
+            ρ_sb = apply(noise_layer, ρ_sb; apply_dag=true, cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
         end
         ρ_s = partial_trace_bath(ρ_sb, sites, sites_sys)
         ρ_s = ρ_s / tr(ρ_s)
 
         E_list[i] = real(inner(H_sys, ρ_s))
         GS_overlap_list[i] = real(inner(ϕ₀', ρ_s, ϕ₀))
-        truncate!(ρ_s, cutoff=cutoff)
+        truncate!(ρ_s, cutoff=cutoff, maxdim=Dmax)
 
         println("Step $i: energy/N = $(E_list[i]/N), gs_overlap = $(GS_overlap_list[i]), Dmax=$(maxlinkdim(ρ_s))")
     end
