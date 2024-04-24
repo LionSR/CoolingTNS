@@ -1,4 +1,6 @@
-using MKL
+if Sys.islinux()
+    using MKL
+end
 using ArgParse, HDF5
 using CoolingTNS
 

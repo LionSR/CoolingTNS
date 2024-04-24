@@ -5,7 +5,11 @@ using Statistics
 function setup_init_state_mps(sites)
     N = length(sites) ÷ 2
     sites_sys = sites[1:2:2N-1]
-    ψ_s = randomMPS(sites_sys, linkdims=1)
+    # ψ_s = randomMPS(sites_sys, linkdims=1)
+    # ψ_s = MPS(sites_sys, "Dn")
+    # ψ_s = MPS(sites_sys, "X+")
+    # ψ_s = MPS(sites_sys, "X-")
+    ψ_s = MPS(sites_sys, [isodd(n) ? "Up" : "Dn" for n in 1:N])
     return ψ_s
 end
 
