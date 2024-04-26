@@ -1,7 +1,7 @@
 if Sys.islinux()
     using MKL
 end
-using ArgParse, HDF5
+using ArgParse, HDF5, Statistics
 using CoolingTNS
 
 method = "MPS"
@@ -51,9 +51,10 @@ E_list, GS_overlap_list, nb_list = CoolingTNS.run_cooling_mps(
     sim_params
 )
 
-E_final = E_list[end]
+k = 50  # Number of last elements to average
+E_final = mean(E_list[end-k+1:end])
 Edensity_final = E_final / N
-GS_overlap_final = GS_overlap_list[end]
+GS_overlap_final = mean(GS_overlap_list[end-k+1:end])
 println("After cooling: E_final/N=$Edensity_final, GS_overlap_final=$GS_overlap_final")
 
 ham_name_part = "Ham$(ham_name)Ns$(N)Nb$(N)"

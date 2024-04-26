@@ -87,6 +87,15 @@ function plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, 
     plt = pyimport("matplotlib.pyplot")
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
+    coupling_name_part = "Coupling$(coupling_params["coupling"])g$(coupling_params["g"])te$(coupling_params["te"])steps$(coupling_params["steps"])"
+
+    method = sim_params["method"]
+    if method == "MPO"
+        sim_name_part = "Sim$(method)tau$(sim_params["tau"])"
+    else  # Assuming the other method is MPS
+        sim_name_part = "Sim$(method)Dmax$(sim_params["Dmax"])"
+    end
+
     for peInt in peInt_range
         pe = peInt * 1e-3
         pe = round(pe, digits=4)
@@ -95,21 +104,15 @@ function plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, 
         energy_errors = Float64[]
         final_overlaps = Float64[]
 
-        method = sim_params["method"]
-        coupling_name_part = "Coupling$(coupling_params["coupling"])g$(coupling_params["g"])te$(coupling_params["te"])steps$(coupling_params["steps"])"
-
-        if method == "MPO"
-            sim_name_part = "Sim$(method)tau$(sim_params["tau"])"
-        else  # Assuming the other method is MPS
-            sim_name_part = "Sim$(method)Dmax$(sim_params["Dmax"])"
-        end
         if pe > 0
-            sim_name_part *= "pe$(pe)"
+            pe_part = "pe$(pe)"
+        else
+            pe_part = ""
         end
 
         for N in N_values
             ham_name_part = "Ham$(ham_name)Ns$(N)Nb$(N)"
-            filename = "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part).h5"
+            filename = "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)$(pe_part).h5"
 
             h5open("Results/" * filename, "r") do file
                 e₀ = read(file, "e₀")
@@ -126,7 +129,7 @@ function plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, 
 
     ax1.set_xlabel("System size (N)")
     ax1.set_ylabel("Energy density error")
-    ax1.legend()
+    # ax1.legend()
 
     ax2.set_xlabel("System size (N)")
     ax2.set_ylabel("Ground state overlap")
@@ -134,6 +137,8 @@ function plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, 
 
     plt.tight_layout()
 
-    filename_saveto = "Cooling_Ham$(ham_name)_energy_error_and_overlap_vs_N_multiple_pe.pdf"
+    ham_name_part = "Ham$(ham_name)"
+    filename_saveto = "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)_energy_error_and_overlap_vs_N_multiple_pe.pdf"
     fig.savefig("Results/" * filename_saveto, dpi=300)
 end
+
