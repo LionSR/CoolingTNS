@@ -43,4 +43,5 @@ N_values = [10, 30, 40, 50, 60, 70, 80, 90, 100]
 # CoolingTNS.plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_params, N_values)
 
 # Call the plotting function with a range of peInt values
-CoolingTNS.plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, sim_params, N_values, 0:10)
+CoolingTNS.plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, sim_params, N_values, 0:9)
+# CoolingTNS.plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, sim_params, N_values, 0:10)
