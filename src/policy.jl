@@ -1,7 +1,7 @@
 using Hyperopt
 using Random
 
-function random_search(problem, objective_function, search_space, num_trials, initial_params)
+function random_search(objective_function, search_space, num_trials, initial_params)
     best_params = nothing
     best_objective = Inf
 
@@ -13,7 +13,7 @@ function random_search(problem, objective_function, search_space, num_trials, in
 
         # Evaluate the objective function
         println("\nEvaluating params: g=", params["g"], ", te=", params["te"])
-        objective = objective_function(problem, params)
+        objective = objective_function(params)
 
         # Update best parameters if current objective is better
         if objective < best_objective
@@ -25,7 +25,7 @@ function random_search(problem, objective_function, search_space, num_trials, in
     return best_params, best_objective
 end
 
-function iterative_grid_search(problem, objective_function, search_space, num_iterations, initial_params)
+function iterative_grid_search(objective_function, search_space, num_iterations, initial_params)
     best_params = copy(initial_params)
     best_objective = Inf
 
@@ -37,7 +37,7 @@ function iterative_grid_search(problem, objective_function, search_space, num_it
                 params["te"] = te
 
                 println("\nEvaluating params: ", params["g"], ", ", params["te"])
-                objective = objective_function(problem, params)
+                objective = objective_function(params)
 
                 if objective < best_objective
                     best_objective = objective
@@ -62,14 +62,14 @@ function iterative_grid_search(problem, objective_function, search_space, num_it
     return best_params, best_objective
 end
 
-function hyperopt_random_search(problem, objective_function, search_space, num_trials, initial_params)
+function hyperopt_random_search(objective_function, search_space, num_trials, initial_params)
     ho = @hyperopt for iter = num_trials, sampler = RandomSampler(), g = search_space["g"], te = search_space["te"]
         # Create a new dictionary with the updated parameters
         updated_params = merge(initial_params, Dict("g" => g, "te" => te))
 
         # Evaluate the objective function with the updated parameters
         println("\nEvaluating params: g=", g, ", te=", te)
-        @show objective_function(problem, updated_params)
+        @show objective_function(updated_params)
     end
 
     best_params_tuple, min_f = ho.minimizer, ho.minimum
@@ -78,7 +78,7 @@ function hyperopt_random_search(problem, objective_function, search_space, num_t
     return best_params, min_f
 end
 
-function hyperopt_bayesian_optimization(problem, objective_function, search_space, num_trials, initial_params)
+function hyperopt_bayesian_optimization(objective_function, search_space, num_trials, initial_params)
     # Use BOHB with the appropriate dimensions specified for continuous variables
     bohb = @hyperopt for iter = num_trials, sampler = Hyperband(R=num_trials, η=3, inner=BOHB(dims=[Hyperopt.Continuous(), Hyperopt.Continuous()])), g = search_space["g"], te = search_space["te"]
         if state !== nothing
@@ -90,9 +90,9 @@ function hyperopt_bayesian_optimization(problem, objective_function, search_spac
 
         # Evaluate the objective function with the updated parameters
         println("\nEvaluating params: g=", g, ", te=", te)
-        # @show objective_function(problem, updated_params)
+        # @show objective_function(updated_params)
 
-        objective_function(problem, updated_params), (g, te)
+        objective_function(updated_params), (g, te)
     end
     best_params_tuple, min_f = bohb.minimizer, bohb.minimum
     best_params = merge(initial_params, Dict("g" => best_params_tuple[1], "te" => best_params_tuple[2]))

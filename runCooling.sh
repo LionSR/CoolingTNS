@@ -4,13 +4,19 @@
 export OPENBLAS_NUM_THREADS=1
 export JULIA_NUM_THREADS=1
 
-# Loop over N from 10 to 100 and run each in the background
-for N in $(seq 10 10 100)
+# Take input N
+if [ -z "$1" ]; then
+    echo "Usage: $0 <N>"
+    exit 1
+fi
+
+N=$1
+
+# Loop over peInt from 1 to 10 and run each in the background
+for peInt in $(seq 1 10)
 do
-    echo "Starting optimization for N=$N"
-    # julia runCoolingMPS.jl --N=$N --steps=50 &
-    # julia runCoolingMPS.jl --N=$N --steps=50 --pe=0.001 &
-    julia runCoolingMPO.jl --N=$N --steps=50 --cutoff=1e-4 --Dmax=20 &
+    echo "Starting optimization for N=$N, peInt=$peInt"
+    julia runCoolingMPO.jl --N=$N --num_trials=20 --steps=200 --cutoff=1e-5 --Dmax=20 --peInt=$peInt &
 done
 
 # Wait for all background jobs to finish

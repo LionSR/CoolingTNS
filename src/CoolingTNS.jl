@@ -14,5 +14,6 @@ include("noise.jl")
 
 export setup_problem, run_cooling_mps
 export plot_data
+export ham_ising_sys_bath, ham_niising_sys_bath
 
 end

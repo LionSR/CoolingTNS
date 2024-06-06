@@ -15,6 +15,9 @@ search_method = parsed_args["search_method"]
 
 N = parsed_args["N"]
 problem = parsed_args["problem"]
+k = parsed_args["k"]
+steps = parsed_args["steps"]
+Dmax = parsed_args["Dmax"]
 
 ham_params, ham_name = CoolingTNS.extract_ham_params(problem, parsed_args)
 
@@ -40,9 +43,11 @@ init_coupling_params = Dict(
 
 sites, H_sys, ϕ₀, e₀, H_sys_bath = CoolingTNS.setup_problem_mps(problem, N, ham_params, init_coupling_params, sim_params)
 println("The ground state energy density is e₀/N = $(e₀/N)")
+ham_sys_bath_fn = problem == "Ising" ? CoolingTNS.ham_ising_sys_bath : CoolingTNS.ham_niising_sys_bath
 
-function objective_function(problem, coupling_params)
+function objective_function(coupling_params)
     ψ_s = CoolingTNS.setup_init_state_mps(sites)
+    H_sys_bath = ham_sys_bath_fn(N, sites, ham_params, coupling_params)
 
     E_list, GS_overlap_list, nb_list = CoolingTNS.run_cooling_mps(
         sites,
@@ -63,12 +68,12 @@ end
 search_space = Dict("g" => range(0.1, 0.5, length=5), "te" => range(1.0, 3.0, length=5))
 
 if search_method == "Random"
-    best_coupling_params, best_objective = CoolingTNS.hyperopt_random_search(problem, objective_function, search_space, num_trials, init_coupling_params)
+    best_coupling_params, best_objective = CoolingTNS.hyperopt_random_search(objective_function, search_space, num_trials, init_coupling_params)
 elseif search_method == "Grid"
     num_iterations = 1
-    best_coupling_params, best_objective = CoolingTNS.iterative_grid_search(problem, objective_function, search_space, num_iterations, init_coupling_params)
+    best_coupling_params, best_objective = CoolingTNS.iterative_grid_search(objective_function, search_space, num_iterations, init_coupling_params)
 elseif search_method == "Bayesian"
-    best_coupling_params, best_objective = CoolingTNS.hyperopt_bayesian_optimization(problem, objective_function, search_space, num_trials, init_coupling_params)
+    best_coupling_params, best_objective = CoolingTNS.hyperopt_bayesian_optimization(objective_function, search_space, num_trials, init_coupling_params)
 else
     error("Invalid search method: $search_method")
 end
@@ -82,7 +87,11 @@ filename = "OptimizedCooling_Problem$(ham_name)Ns$(N)Nb$(N)_Paramssteps$(steps)_
 
 best_coupling_params["steps"] = steps * 4
 
-Efinal_density, GS_overlap_final = run_cooling_simulation(problem, ham_params, best_coupling_params)
+H_sys_bath = ham_sys_bath_fn(N, sites, ham_params, best_coupling_params)
+ψ_s = CoolingTNS.setup_init_state_mps(sites)
+Efinal_density_list, GS_overlap_final_list, _ = CoolingTNS.run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, best_coupling_params, sim_params)
+Efinal_density = mean(Efinal_density_list[end-k+1:end]) / N
+GS_overlap_final = mean(GS_overlap_final_list[end-k+1:end])
 println("Final energy density: ", Efinal_density)
 println("Final ground state overlap: ", GS_overlap_final)
 println("Optimal control parameters:")
@@ -93,9 +102,19 @@ h5open("ResultsOpt/$(filename).h5", "w") do file
     for (key, value) in parsed_args
         write(file, string(key), value)
     end
-    
+
     group = create_group(file, "Optimal control parameters")
     for (param, val) in best_coupling_params
+        write(group, param, val)
+    end
+
+    group = create_group(file, "Simulation parameters")
+    for (param, val) in sim_params
+        write(group, param, val)
+    end
+
+    group = create_group(file, "Parsed arguments")
+    for (param, val) in parsed_args
         write(group, param, val)
     end
 end
