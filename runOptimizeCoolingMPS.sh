@@ -15,8 +15,8 @@ N=$1
 # Loop over peInt from 0 to 10 and run each in the background
 for peInt in $(seq 0 10)
 do
-    echo "Starting optimization for N=$N"
-    julia runOptimizeCoolingMPS.jl --N=$N --search_method=Bayesian --num_trials=20 --steps=200 --cutoff=1e-5 --Dmax=20 --peInt=$peInt &
+    echo "Starting optimization for N=$N, peInt=$peInt"
+    julia OptimizeCoolingMPS.jl --N=$N --search_method=Bayesian --num_trials=20 --steps=200 --cutoff=1e-5 --Dmax=20 --peInt=$peInt &
 done
 
 # Wait for all background jobs to finish

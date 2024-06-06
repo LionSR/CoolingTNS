@@ -16,7 +16,7 @@ N=$1
 for peInt in $(seq 1 10)
 do
     echo "Starting optimization for N=$N, peInt=$peInt"
-    julia runCoolingMPO.jl --N=$N --num_trials=20 --steps=200 --cutoff=1e-5 --Dmax=20 --peInt=$peInt &
+    julia CoolingMPO.jl --N=$N --num_trials=20 --steps=200 --cutoff=1e-5 --Dmax=20 --peInt=$peInt &
 done
 
 # Wait for all background jobs to finish
