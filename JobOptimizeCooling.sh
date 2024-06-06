@@ -13,9 +13,8 @@ export TASK_ID=$SLURM_ARRAY_TASK_ID
 export JOB_ID=$SLURM_ARRAY_JOB_ID
 export JID=$SLURM_JOB_ID
 export ID=${JOB_ID:-$JID}
-export N=$N
 export PE=$TASK_ID
-export OUTFILE="Log/${ID}_${METHOD}_OptimizedCooling${PROBLEM}Ns${N}Nb${N}_Dmax${DMAX}_Search${SEARCH_METHOD}trials${NUM_TRIALS}"
+export OUTFILE="LogOptimize/${ID}_${METHOD}_OptimizedCooling${PROBLEM}Ns${N}Nb${N}_Dmax${DMAX}_Search${SEARCH_METHOD}trials${NUM_TRIALS}_peInt${PE}"
 export SLURM_JOB_OUTPUT="${OUTFILE}.out"
 export SLURM_JOB_ERROR="${OUTFILE}.err"
 
@@ -34,6 +33,6 @@ alias julia="/tqo/u/system/soft/SLE_15/packages/x86_64/julia/1.10.1/bin/julia"
 alias julia_itensors="julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so "
 
 # Run Julia script with parameters
-srun --export=ALL --output="${SLURM_JOB_OUTPUT}" --error="${SLURM_JOB_ERROR}" julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so optimizeCoolingMPS.jl --method=$METHOD --problem=$PROBLEM --N=$N --steps=${STEPS_VALUE} --te=${TE_VALUE} --g=${G_VALUE} --Dmax=${DMAX} --search_method=${SEARCH_METHOD} --num_trials=${NUM_TRIALS} --peInt=$PE
+srun --export=ALL --output="${SLURM_JOB_OUTPUT}" --error="${SLURM_JOB_ERROR}" julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so optimizeCoolingMPS.jl --method=$METHOD --problem=$PROBLEM --N=$N --steps=${STEPS_VALUE} --Dmax=${DMAX} --search_method=${SEARCH_METHOD} --num_trials=${NUM_TRIALS} --peInt=$PE
 
 wait

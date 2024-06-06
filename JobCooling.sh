@@ -15,7 +15,7 @@ export JID=$SLURM_JOB_ID
 export ID=${JOB_ID:-$JID}
 export N=$N
 export PE=$TASK_ID
-export OUTFILE="Log/${ID}_${METHOD}_$Cooling${PROBLEM}Ns${N}Nb${N}_g${G_VALUE}te${TE_VALUE}_peInt${PE}"
+export OUTFILE="Log/${ID}_${METHOD}_Cooling${PROBLEM}Ns${N}Nb${N}_g${G_VALUE}te${TE_VALUE}_peInt${PE}"
 export SLURM_JOB_OUTPUT="${OUTFILE}.out"
 export SLURM_JOB_ERROR="${OUTFILE}.err"
 

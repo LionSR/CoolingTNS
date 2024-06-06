@@ -83,7 +83,7 @@ for (param, val) in best_coupling_params
     println("$param: $val")
 end
 
-filename = "OptimizedCooling_Problem$(ham_name)Ns$(N)Nb$(N)_Paramssteps$(steps)_Sim$(method)Dmax$(Dmax)_Search$(search_method)trials$(num_trials)"
+filename = "OptimizedCooling_Problem$(ham_name)Ns$(N)Nb$(N)_Paramssteps$(steps)_Sim$(method)Dmax$(Dmax)_Search$(search_method)trials$(num_trials)_peInt$(peInt)"
 
 best_coupling_params["steps"] = steps * 4
 
