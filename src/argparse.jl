@@ -3,6 +3,13 @@ using ArgParse
 function parse_commandline()
     s = ArgParseSettings()
     @add_arg_table! s begin
+        "--search_method"
+        help = "method for hyperparameter search (valid choices: Random, Grid, Bayesian)"
+        default = "Random"
+        "--k"
+        help = "number of energy densities to average"
+        default = 50
+        arg_type = Int
         "--problem"
         help = "type of problem to solve (valid choices: Ising, niIsing)"
         default = "niIsing"
@@ -46,6 +53,10 @@ function parse_commandline()
         help = "truncation error cutoff"
         arg_type = Float64
         default = 1E-5
+        "--num_trials"
+        help = "number of trials for the search"
+        default = 10
+        arg_type = Int
         "--Dmax"
         help = "maximum bond dimension"
         arg_type = Int
