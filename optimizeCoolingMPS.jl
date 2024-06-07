@@ -1,3 +1,7 @@
+if Sys.islinux()
+    println("Using MKL")
+    using MKL
+end
 using Hyperopt, Random, Statistics, ArgParse, HDF5
 using CoolingTNS
 
@@ -84,7 +88,7 @@ for (param, val) in best_coupling_params
     println("$param: $val")
 end
 
-filename = "OptimizedCooling_Problem$(ham_name)Ns$(N)Nb$(N)_Paramssteps$(steps)_Sim$(method)Dmax$(Dmax)_Search$(search_method)trials$(num_trials)_peInt$(peInt)"
+filename = "OptimizedCooling_Ham$(ham_name)Ns$(N)Nb$(N)_ParamsSteps$(steps)_Sim$(method)Dmax$(Dmax)peInt$(peInt)_Search$(search_method)trials$(num_trials)"
 
 best_coupling_params["steps"] = steps * 4
 
@@ -103,7 +107,7 @@ h5open("ResultsOpt/$(filename).h5", "w") do file
     write(file, "Final energy density", Efinal_density)
     write(file, "Final ground state overlap", GS_overlap_final)
     write(file, "e₀", e₀)
-    write(file, "N", N)
+    # write(file, "N", N)
     for (key, value) in parsed_args
         write(file, string(key), value)
     end
@@ -130,3 +134,4 @@ h5open("ResultsOpt/$(filename).h5", "w") do file
     write(group, "GS_overlap_final_list", GS_overlap_final_list)
 end
 println("Optimization results saved to: ", filename)
+
