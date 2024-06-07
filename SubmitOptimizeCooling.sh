@@ -2,9 +2,11 @@
 
 export PROBLEM=niIsing
 export METHOD=MPS
-export DMAX=30
+export DMAX=20
 export SEARCH_METHOD=Bayesian
 export NUM_TRIALS=20
+export OPENBLAS_NUM_THREADS=1
+export JULIA_NUM_THREADS=1
 COMMON_NAME="$(basename $0)(${PROBLEM},${METHOD},${SEARCH_METHOD})"
 
 # Define a function to run the generalized script with specific parameters
@@ -16,9 +18,9 @@ run_job() {
 
 # Run jobs with different parameters
 
-run_job 10 200
+# run_job 10 200
 
-# for N in $(seq 10 10 100); do
-#     run_job $N 200
-# done
+for N in $(seq 10 10 100); do
+    run_job $N 200
+done
 

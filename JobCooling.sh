@@ -30,7 +30,7 @@ echo "I ran on:"
 cd $SLURM_SUBMIT_DIR
 echo $SLURM_NODELIST
 
-alias julia="/tqo/u/system/soft/SLE_15/packages/x86_64/julia/1.10.1/bin/julia"
+alias julia="/tqo/u/system/soft/SLE_15/packages/x86_64/julia/1.10.3/bin/julia"
 alias julia_itensors="julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so "
 
 # Run Julia script with parameters
