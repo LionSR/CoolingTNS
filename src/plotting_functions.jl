@@ -29,7 +29,7 @@ function plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename; mov
     ax.set_ylabel("Ground state overlap")
     ax.legend()
 
-    fig.savefig("Results/$(filename).pdf", dpi=300)
+    fig.savefig("ResultsOpt/$(filename).pdf", dpi=300)
 end
 
 
