@@ -22,8 +22,9 @@ Dmax = parsed_args["Dmax"]
 ham_params, ham_name = CoolingTNS.extract_ham_params(problem, parsed_args)
 
 pe = parsed_args["pe"]
-if parsed_args["peInt"] > 0
-    pe = parsed_args["peInt"] * 1e-3
+peInt = parsed_args["peInt"]
+if peInt > 0
+    pe = peInt * 1e-3
     pe = round(pe, digits=4)
 end
 
@@ -96,9 +97,13 @@ println("Final energy density: ", Efinal_density)
 println("Final ground state overlap: ", GS_overlap_final)
 println("Optimal control parameters:")
 
+CoolingTNS.plot_energy_and_overlap(Efinal_density_list, GS_overlap_final_list, e₀, N, filename)
+
 h5open("ResultsOpt/$(filename).h5", "w") do file
     write(file, "Final energy density", Efinal_density)
     write(file, "Final ground state overlap", GS_overlap_final)
+    write(file, "e₀", e₀)
+    write(file, "N", N)
     for (key, value) in parsed_args
         write(file, string(key), value)
     end
@@ -117,5 +122,11 @@ h5open("ResultsOpt/$(filename).h5", "w") do file
     for (param, val) in parsed_args
         write(group, param, val)
     end
+
+    group = create_group(file, "Energy density list")
+    write(group, "Efinal_density_list", Efinal_density_list)
+
+    group = create_group(file, "Ground state overlap list")
+    write(group, "GS_overlap_final_list", GS_overlap_final_list)
 end
 println("Optimization results saved to: ", filename)
