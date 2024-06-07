@@ -1,4 +1,5 @@
 if Sys.islinux()
+    println("Using MKL")
     using MKL
 end
 using ArgParse, HDF5, Statistics
