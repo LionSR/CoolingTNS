@@ -45,15 +45,16 @@ search_params = Dict(
 )
 
 # Set the desired system sizes for plotting
-# N_values = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
-N_values = [10, 20, 30, 40, 50, 60, 70]
+N_values = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+# N_values = [10, 20, 30, 40, 50, 60, 70]
 # N_values = [10, 20, 30, 40, 50, 60]
 # N_values = [20, 30, 40, 50, 60]
 
 # Plot energy error and final overlap vs system size
 CoolingTNS.plotOptimal_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_params, search_params, N_values, e₀)
 
+# pe_values = [0,1,3,4,5,6,9]
+
 # Call the plotting function with a range of peInt values
-# coupling_params, sim_params, search_params, N_values, [1,2,3,5,6,8], e₀)
-# CoolingTNS.plotOptimal_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, sim_params, search_params, N_values, [1,2,3], e₀)
+# CoolingTNS.plotOptimal_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, sim_params, search_params, N_values, pe_values, e₀)
 

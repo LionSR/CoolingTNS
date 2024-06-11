@@ -32,7 +32,7 @@ function plotOptimal_energy_error_and_overlap_vs_N(ham_name, coupling_params, si
             push!(energies, E_final_density)
             push!(final_overlaps, GS_overlap_final)
         end
-    end
+    end 
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
@@ -52,7 +52,7 @@ function plotOptimal_energy_error_and_overlap_vs_N(ham_name, coupling_params, si
     ham_name_part = "Ham$(ham_name)"
     filename_saveto = "OptimizedCooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)_$(search_name_part)_energy_and_overlap_vs_N.pdf"
 
-    fig.savefig("ResultsOpt/" * filename_saveto, dpi=300)
+    fig.savefig("ResultsOpt/Figs/" * filename_saveto, dpi=300)
 end
 
 function plotOptimal_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, sim_params, search_params, N_values, peInt_range, e₀)
@@ -94,7 +94,7 @@ function plotOptimal_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_p
                 # e₀ = read(file, "e₀")
                 E_final_density = read(file, "Final energy density")
                 GS_overlap_final = read(file, "Final ground state overlap")
-                push!(energy_errors, abs(E_final_density - e₀ / N))
+                push!(energy_errors, abs(E_final_density - e₀ / 100))
                 push!(final_overlaps, GS_overlap_final)
             end
         end
@@ -115,5 +115,5 @@ function plotOptimal_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_p
 
     ham_name_part = "Ham$(ham_name)"
     filename_saveto = "OptimizedCooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)_$(search_name_part)_energy_error_and_overlap_vs_N_multiple_pe.pdf"
-    fig.savefig("ResultsOpt/" * filename_saveto, dpi=300)
+    fig.savefig("ResultsOpt/Figs/" * filename_saveto, dpi=300)
 end
