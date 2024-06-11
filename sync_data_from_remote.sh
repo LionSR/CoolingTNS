@@ -2,8 +2,10 @@
 
 while true; do
   # Sync directories from tqog01
-  rsync -avzu --progress tqog01.opt.rzg.mpg.de:/ptmp/mpq/siruilu/CoolingTNS/Results .
-  rsync -avzu --progress tqog01.opt.rzg.mpg.de:/ptmp/mpq/siruilu/CoolingTNS/ResultsOpt .
+  rsync -avzu --progress tqog01:/ptmp/mpq/siruilu/CoolingTNS/Results .
+  rsync -avzu --progress tqog01:/ptmp/mpq/siruilu/CoolingTNS/ResultsOpt .
+  rsync -avzu --progress tqog01:/ptmp/mpq/siruilu/CoolingTNS/Log .
+  rsync -avzu --progress tqog01:/ptmp/mpq/siruilu/CoolingTNS/LogOptimize .
 
   # Print the current time
   current_time=$(date +"%H:%M:%S")

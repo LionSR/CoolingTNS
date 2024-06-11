@@ -9,7 +9,7 @@ function plotOptimal_energy_error_and_overlap_vs_N(ham_name, coupling_params, si
     final_overlaps = Float64[]
 
     method = sim_params["method"]  # Ensure this key exists and correctly reflects the method used (MPS or MPO)
-    coupling_name_part = "Coupling$(coupling_params["coupling"])g$(coupling_params["g"])te$(coupling_params["te"])steps$(coupling_params["steps"])"
+    coupling_name_part = "Coupling$(coupling_params["coupling"])steps$(coupling_params["steps"])"
 
     if method == "MPO"
         sim_name_part = "Sim$(method)tau$(sim_params["tau"])"
@@ -32,7 +32,7 @@ function plotOptimal_energy_error_and_overlap_vs_N(ham_name, coupling_params, si
             push!(energies, E_final_density)
             push!(final_overlaps, GS_overlap_final)
         end
-    end 
+    end
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
@@ -59,7 +59,7 @@ function plotOptimal_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_p
     plt = pyimport("matplotlib.pyplot")
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
-    coupling_name_part = "Coupling$(coupling_params["coupling"])g$(coupling_params["g"])te$(coupling_params["te"])steps$(coupling_params["steps"])"
+    coupling_name_part = "Coupling$(coupling_params["coupling"])steps$(coupling_params["steps"])"
 
     method = sim_params["method"]
 

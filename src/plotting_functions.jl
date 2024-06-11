@@ -29,7 +29,7 @@ function plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename; mov
     ax.set_ylabel("Ground state overlap")
     ax.legend()
 
-    fig.savefig("ResultsOpt/$(filename).pdf", dpi=300)
+    fig.savefig("Results/$(filename).pdf", dpi=300)
 end
 
 
@@ -79,7 +79,7 @@ function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_param
     ham_name_part = "Ham$(ham_name)"
     filename_saveto = "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)_energy_error_and_overlap_vs_N.pdf"
 
-    fig.savefig("Results/" * filename_saveto, dpi=300)
+    fig.savefig("Results/Figs/" * filename_saveto, dpi=300)
 end
 
 
@@ -139,5 +139,5 @@ function plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, 
 
     ham_name_part = "$(ham_name)"
     filename_saveto = "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)_energy_error_and_overlap_vs_N_multiple_pe.pdf"
-    fig.savefig("Results/" * filename_saveto, dpi=300)
+    fig.savefig("Results/Figs/" * filename_saveto, dpi=300)
 end

@@ -49,7 +49,7 @@ E_list, GS_overlap_list, nb_list = CoolingTNS.run_cooling_mps(
     sim_params
 )
 
-k = 50  # Number of last elements to average
+k = parsed_args["k"]
 E_final = mean(E_list[end-k+1:end])
 Edensity_final = E_final / N
 GS_overlap_final = mean(GS_overlap_list[end-k+1:end])

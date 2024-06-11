@@ -1,12 +1,12 @@
 #!/bin/bash
 
-#SBATCH --nodes=1 # node count
+#SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --mem=10000 # Memory
 #SBATCH --cpus-per-task=2
+#SBATCH --mem=10000
 #SBATCH -o /dev/null
 #SBATCH -e /dev/null
-#SBATCH -t 0-100:00 # Runtime in D-HH:MM format
+#SBATCH -t 0-100:00
 #SBATCH --array=0-10
 
 export TASK_ID=$SLURM_ARRAY_TASK_ID

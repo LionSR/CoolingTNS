@@ -25,5 +25,9 @@ Manifest.toml
 
 Results/Log/
 Log/
+LogOptimize/
 Results/
 ResultsOpt/
+*.ipynb_checkpoints
+Log*
+Results*

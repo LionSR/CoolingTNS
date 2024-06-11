@@ -8,7 +8,7 @@ function parse_commandline()
         default = "Random"
         "--k"
         help = "number of energy densities to average"
-        default = 50
+        default = 100
         arg_type = Int
         "--problem"
         help = "type of problem to solve (valid choices: Ising, niIsing)"
