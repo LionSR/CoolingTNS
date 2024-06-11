@@ -2,7 +2,7 @@
 
 export PROBLEM=niIsing
 export METHOD=MPS
-export DMAX=20
+export DMAX=60
 export SEARCH_METHOD=Bayesian
 export NUM_TRIALS=20
 export OPENBLAS_NUM_THREADS=1

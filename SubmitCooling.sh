@@ -19,5 +19,5 @@ run_job() {
 # run_job 10 500 2.0 0.3
 
 for N in $(seq 10 10 100); do
-    run_job $N 500 2.0 0.3
+    run_job $N 1000 2.0 0.3
 done
