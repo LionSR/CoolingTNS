@@ -101,7 +101,7 @@ println("Final energy density: ", Efinal_density)
 println("Final ground state overlap: ", GS_overlap_final)
 println("Optimal control parameters:")
 
-CoolingTNS.plot_energy_and_overlap(Efinal_density_list, GS_overlap_final_list, e₀, N, filename)
+CoolingTNS.plot_energy_and_overlap(Efinal_density_list, GS_overlap_final_list, e₀, N, filename; moving_average=true)
 
 h5open("ResultsOpt/$(filename).h5", "w") do file
     write(file, "Final energy density", Efinal_density)
