@@ -2,7 +2,7 @@ using HDF5
 using PythonCall
 using LaTeXStrings
 
-function plotOptimal_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_params, search_params, N_values, e₀)
+function plotOptimized_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_params, search_params, N_values, e₀)
     plt = pyimport("matplotlib.pyplot")
 
     energies = Float64[]
@@ -44,7 +44,7 @@ function plotOptimal_energy_error_and_overlap_vs_N(ham_name, coupling_params, si
     fig.savefig("ResultsOpt/Figs/" * filename_saveto, dpi=300)
 end
 
-function plotOptimal_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, sim_params, search_params, N_values, peInt_range, e₀)
+function plotOptimized_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, sim_params, search_params, N_values, peInt_range, e₀)
     plt = pyimport("matplotlib.pyplot")
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
