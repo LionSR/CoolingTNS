@@ -1,37 +1,14 @@
 if Sys.islinux()
     using MKL
 end
-using ArgParse, HDF5, Statistics
 using CoolingTNS
+include("src/cooling_utils.jl")
 
 method = "MPS"
 parsed_args = CoolingTNS.parse_commandline()
 
-# Unpack parsed arguments 
-N = parsed_args["N"]
-problem = parsed_args["problem"]
-
-ham_params, ham_name = CoolingTNS.extract_ham_params(problem, parsed_args)
-
-pe = parsed_args["pe"]
-if parsed_args["peInt"] > 0
-    pe = parsed_args["peInt"] * 1e-3
-    pe = round(pe, digits=4)
-end
-
-sim_params = Dict(
-    "cutoff" => parsed_args["cutoff"],
-    "Dmax" => parsed_args["Dmax"],
-    "pe" => pe,
-    "method" => method
-)
-
-coupling_params = Dict(
-    "g" => parsed_args["g"],
-    "te" => parsed_args["te"],
-    "steps" => parsed_args["steps"],
-    "coupling" => parsed_args["coupling"]
-)
+N, problem, ham_params, ham_name, pe, coupling_params = setup_common_parameters(parsed_args)
+sim_params = create_sim_params(parsed_args, pe, method)
 
 sites, H_sys, ϕ₀, e₀, H_sys_bath = CoolingTNS.setup_problem_mps(problem, N, ham_params, coupling_params, sim_params)
 println("The ground state energy density is e₀/N = $(e₀/N)")
@@ -54,25 +31,7 @@ Edensity_final = E_final / N
 GS_overlap_final = mean(GS_overlap_list[end-k+1:end])
 println("After cooling: E_final/N=$Edensity_final, GS_overlap_final=$GS_overlap_final")
 
-ham_name_part = "Ham$(ham_name)Ns$(N)Nb$(N)"
-coupling_name_part = "Coupling$(coupling_params["coupling"])g$(parsed_args["g"])te$(parsed_args["te"])steps$(parsed_args["steps"])"
-sim_name_part = "Sim$(method)Dmax$(parsed_args["Dmax"])"
-pe > 0 && (sim_name_part *= "pe$pe")
-filename = "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)"
-
-h5open("Results/$(filename).h5", "w") do file
-    write(file, "e₀", e₀)
-    write(file, "E_list", E_list)
-    write(file, "GS_overlap_list", GS_overlap_list)
-    write(file, "nb_list", nb_list)
-    write(file, "E_final", E_final)
-    write(file, "Edensity_final", Edensity_final)
-    write(file, "GS_overlap_final", GS_overlap_final)
-    write(file, "ham_name", ham_name)
-    for (key, value) in parsed_args
-        write(file, string(key), value)
-    end
-end
-println("Data saved to $(filename) with Hamiltonian information and argparse variables")
+filename = create_filename(ham_name, N, coupling_params, sim_params)
+save_results(filename, e₀, E_list, GS_overlap_list, E_final, Edensity_final, GS_overlap_final, ham_name, parsed_args, nb_list)
 
 CoolingTNS.plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename; moving_average=true)
