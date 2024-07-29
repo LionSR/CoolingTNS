@@ -83,6 +83,10 @@ function save_results(filename, e₀, E_list, GS_overlap_list, E_final, Edensity
     println("Data saved to $(filename) with Hamiltonian information and argparse variables")
 end
 
+function create_search_name_part(search_params)
+    return "Search$(search_params["search_method"])trials$(search_params["num_trials"])"
+end
+
 function create_filename(ham_name, N, coupling_params, sim_params)
     ham_name_part = "Ham$(ham_name)Ns$(N)Nb$(N)"
     coupling_name_part = "Coupling$(coupling_params["coupling"])g$(coupling_params["g"])te$(coupling_params["te"])steps$(coupling_params["steps"])"

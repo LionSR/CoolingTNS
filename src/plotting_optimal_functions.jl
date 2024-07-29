@@ -8,7 +8,7 @@ function plotOptimal_energy_error_and_overlap_vs_N(ham_name, coupling_params, si
     energies = Float64[]
     final_overlaps = Float64[]
 
-    search_name_part = "Search$(search_params["search_method"])trials$(search_params["num_trials"])"
+    search_name_part = create_search_name_part(search_params)
 
     for N in N_values
         filename = create_filename(ham_name, N, coupling_params, sim_params)
