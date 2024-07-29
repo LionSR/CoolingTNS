@@ -106,7 +106,7 @@ function create_filename(ham_name, N, coupling_params, sim_params)
         sim_name_part *= "Dmax$(sim_params["Dmax"])"
     end
     
-    sim_params["pe"] > 0 && (sim_name_part *= "pe$(sim_params["pe"])")
+    sim_params["peInt"] > 0 && (sim_name_part *= "peInt$(sim_params["peInt"])")
     
     return "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)"
 end
