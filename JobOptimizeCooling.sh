@@ -26,11 +26,6 @@ print_node_info
 
 # Hamiltonian parameters
 HAM_PARAMS="--problem=$PROBLEM --N=$N"
-if [ "$PROBLEM" = "Ising" ]; then
-    HAM_PARAMS="$HAM_PARAMS --J=$J --h=$H"
-elif [ "$PROBLEM" = "niIsing" ]; then
-    HAM_PARAMS="$HAM_PARAMS --J=$J --hx=$HX --hz=$HZ"
-fi
 
 # Simulation parameters
 SIM_PARAMS="--method=$METHOD --steps=$STEPS --peInt=$PE"
@@ -47,8 +42,6 @@ COUPLING_PARAMS="--coupling=$COUPLING"
 OPT_PARAMS="--search_method=$SEARCH_METHOD --num_trials=$NUM_TRIALS"
 
 # Run Julia script with parameters
-srun --export=ALL --output="${SLURM_JOB_OUTPUT}" --error="${SLURM_JOB_ERROR}" \
-    julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so \
-    optimizeCooling${METHOD}.jl $HAM_PARAMS $SIM_PARAMS $COUPLING_PARAMS $OPT_PARAMS
+srun --export=ALL --output="${SLURM_JOB_OUTPUT}" --error="${SLURM_JOB_ERROR}" julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so optimizeCooling${METHOD}.jl $HAM_PARAMS $SIM_PARAMS $COUPLING_PARAMS $OPT_PARAMS
 
 wait
