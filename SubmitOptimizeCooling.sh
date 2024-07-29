@@ -18,7 +18,8 @@ run_job() {
         export TAU=${5:-0.1}
     fi
 
-    sbatch --job-name="${COMMON_NAME}" --export=ALL --array=0-10 JobOptimizeCooling.sh
+    PE_ARRAY=0-10
+    sbatch --job-name="${COMMON_NAME}" --export=ALL --array=${PE_ARRAY} JobOptimizeCooling.sh
 }
 
 # Run jobs with different parameters
