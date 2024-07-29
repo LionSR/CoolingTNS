@@ -52,6 +52,7 @@ function create_sim_params(parsed_args, pe, method)
         "cutoff" => parsed_args["cutoff"],
         "Dmax" => parsed_args["Dmax"],
         "pe" => pe,
+        "peInt" => parsed_args["peInt"],
         "method" => method
     )
     
