@@ -47,9 +47,9 @@ end
 
 function hyperopt_random_search(objective_function, search_space, num_trials, initial_params)
     ho = @hyperopt for _ in 1:num_trials,
-                     sampler = RandomSampler(),
-                     g = search_space["g"],
-                     te = search_space["te"]
+        sampler = RandomSampler(),
+        g = search_space["g"],
+        te = search_space["te"]
 
         params = merge(initial_params, Dict("g" => g, "te" => te))
         evaluate_params(objective_function, params)
@@ -61,9 +61,9 @@ end
 
 function hyperopt_bayesian_optimization(objective_function, search_space, num_trials, initial_params)
     bohb = @hyperopt for _ in 1:num_trials,
-                       sampler = Hyperband(R=num_trials, η=3, inner=BOHB(dims=[Hyperopt.Continuous(), Hyperopt.Continuous()])),
-                       g = search_space["g"],
-                       te = search_space["te"]
+        sampler = Hyperband(R=num_trials, η=3, inner=BOHB(dims=[Hyperopt.Continuous(), Hyperopt.Continuous()])),
+        g = search_space["g"],
+        te = search_space["te"]
 
         params = merge(initial_params, Dict("g" => g, "te" => te))
         objective = evaluate_params(objective_function, params)
