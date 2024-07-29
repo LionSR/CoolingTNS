@@ -27,11 +27,9 @@ print_node_info
 HAM_PARAMS="--problem=$PROBLEM --N=$N"
 
 # Simulation parameters
-SIM_PARAMS="--method=$METHOD --steps=$STEPS --peInt=$PE"
+SIM_PARAMS="--method=$METHOD --steps=$STEPS --peInt=$PE --Dmax=$DMAX"
 if [ "$METHOD" = "MPO" ]; then
     SIM_PARAMS="$SIM_PARAMS --tau=$TAU"
-else
-    SIM_PARAMS="$SIM_PARAMS --Dmax=$DMAX"
 fi
 
 # Coupling parameters
