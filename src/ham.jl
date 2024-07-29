@@ -1,5 +1,13 @@
 using ITensors
 
+function parse_coupling(coupling)
+    if length(coupling) == 2 && all(c -> c in ["X", "Y", "Z"], coupling)
+        return string(coupling[1]), string(coupling[2])
+    else
+        throw(ArgumentError("Invalid coupling: $coupling. Expected two-character string with X, Y, or Z."))
+    end
+end
+
 function ham_ising(N, sites, ham_params)
     J, h = ham_params
     ampo = OpSum()
@@ -59,12 +67,7 @@ function ham_ising_sys_bath(N, sites, ham_params, coupling_params)
     J, h = ham_params
     g = coupling_params["g"]
     Δ = coupling_params["Δ"]
-    coupling = coupling_params["coupling"]
-    op1, op2 = if length(coupling) == 2
-        string(coupling[1]), string(coupling[2])
-    else
-        error("Invalid coupling: $coupling")
-    end
+    op1, op2 = parse_coupling(coupling_params["coupling"])
 
     ampo = OpSum()
     for ind = 1:(N-1)
@@ -89,12 +92,7 @@ function ham_niising_sys_bath(N, sites, ham_params, coupling_params)
     J, hx, hz = ham_params
     g = coupling_params["g"]
     Δ = coupling_params["Δ"]
-    coupling = coupling_params["coupling"]
-    op1, op2 = if length(coupling) == 2
-        string(coupling[1]), string(coupling[2])
-    else
-        error("Invalid coupling: $coupling")
-    end
+    op1, op2 = parse_coupling(coupling_params["coupling"])
 
     ampo = OpSum()
     for ind = 1:(N-1)
@@ -113,5 +111,40 @@ function ham_niising_sys_bath(N, sites, ham_params, coupling_params)
     ampo += hz, "Z", sN
     ampo += -Δ / 2, "Z", bN
     ampo += g, op1, sN, op2, bN
+    return MPO(ampo, sites)
+end
+
+function ham_rydberg_dressed_ising_sys_bath(N, sites, ham_params, coupling_params)
+    Ω, Δ, V0, Rc = ham_params
+    g = coupling_params["g"]
+    Δb = coupling_params["Δ"]
+    op1, op2 = parse_coupling(coupling_params["coupling"])
+
+    ampo = OpSum()
+
+    # Precompute distances and interaction strengths
+    Vij = [V0 / (1 + (d/Rc)^6) for d in 1:(N-1)]
+
+    # System terms (Rydberg dressed Ising)
+    for i = 1:N
+        s = 2i - 1
+        ampo += Ω/2, "X", s
+        ampo += -Δ, "ProjUp", s
+        
+        # Long-range interactions
+        for j = (i+1):N
+            s2 = 2j - 1
+            ampo += Vij[j-i], "ProjUp", s, "ProjUp", s2
+        end
+    end
+
+    # Bath terms and system-bath coupling
+    for i = 1:N
+        s = 2i - 1
+        b = 2i
+        ampo += -Δb/2, "Z", b
+        ampo += g, op1, s, op2, b
+    end
+
     return MPO(ampo, sites)
 end
