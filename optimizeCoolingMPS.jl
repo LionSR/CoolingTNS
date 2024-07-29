@@ -13,7 +13,7 @@ sim_params = CoolingTNS.create_sim_params(parsed_args, pe, method)
 # Additional parameters specific to optimization
 num_trials = parsed_args["num_trials"]
 search_method = parsed_args["search_method"]
-k = parsed_args["k"]
+window_size = parsed_args["window_size"]
 steps = parsed_args["steps"]
 Dmax = parsed_args["Dmax"]
 
@@ -65,9 +65,9 @@ best_coupling_params["steps"] = steps * 4
 H_sys_bath = ham_sys_bath_fn(N, sites, ham_params, best_coupling_params)
 ψ_s = CoolingTNS.setup_init_state_mps(sites)
 E_list, GS_overlap_list, nb_list = CoolingTNS.run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, best_coupling_params, sim_params)
-E_final = CoolingTNS.mean_last_window(E_list, k)
+E_final = CoolingTNS.mean_last_window(E_list, window_size)
 Edensity_final = E_final / N
-GS_overlap_final = CoolingTNS.mean_last_window(GS_overlap_list, k)
+GS_overlap_final = CoolingTNS.mean_last_window(GS_overlap_list, window_size)
 println("Final energy density: ", Edensity_final)
 println("Final ground state overlap: ", GS_overlap_final)
 
