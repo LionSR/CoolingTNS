@@ -29,7 +29,7 @@ Edensity_final = E_final / N
 GS_overlap_final = GS_overlap_list[end]
 println("After cooling: E_final/N=$Edensity_final, GS_overlap_final=$GS_overlap_final")
 
-filename = create_filename(ham_name, N, coupling_params, sim_params)
-save_results(filename, e₀, E_list, GS_overlap_list, E_final, Edensity_final, GS_overlap_final, ham_name, parsed_args)
+filename = CoolingTNS.create_filename(ham_name, N, coupling_params, sim_params)
+CoolingTNS.save_results(filename, e₀, E_list, GS_overlap_list, E_final, Edensity_final, GS_overlap_final, ham_name, parsed_args)
 
 CoolingTNS.plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename)
