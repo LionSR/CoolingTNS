@@ -88,7 +88,11 @@ function create_search_name_part(search_params)
 end
 
 function create_filename(ham_name, N, coupling_params, sim_params)
-    ham_name_part = "Ham$(ham_name)Ns$(N)Nb$(N)"
+    ham_name_part = if isa(N, Array)
+        "Ham$(ham_name)Nmin$(minimum(N))Nmax$(maximum(N))"
+    else
+        "Ham$(ham_name)Ns$(N)Nb$(N)"
+    end
     coupling_name_part = "Coupling$(coupling_params["coupling"])g$(coupling_params["g"])te$(coupling_params["te"])steps$(coupling_params["steps"])"
     sim_name_part = "Sim$(sim_params["method"])"
     
