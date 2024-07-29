@@ -5,6 +5,7 @@ using Statistics
 function setup_init_state_mps(sites)
     N = length(sites) ÷ 2
     sites_sys = sites[1:2:2N-1]
+
     # ψ_s = randomMPS(sites_sys, linkdims=1)
     # ψ_s = MPS(sites_sys, "Dn")
     # ψ_s = MPS(sites_sys, "X+")
@@ -27,6 +28,14 @@ function setup_problem_mps(problem, N, ham_params, coupling_params, sim_params)
     H_sys_bath = ham_sys_bath_fn(N, sites, ham_params, coupling_params)
 
     return sites, H_sys, ϕ₀, e₀, H_sys_bath
+end
+
+
+function evolve_state(H, ψ, t; Dmax, cutoff)
+    ψ_evolved = tdvp(H, -im * t, ψ; nsweeps=1, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
+    normalize!(ψ_evolved)
+    orthogonalize!(ψ_evolved, 2)
+    return ψ_evolved
 end
 
 
@@ -73,9 +82,3 @@ function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params,
     return E_list, GS_overlap_list, nb_list
 end
 
-function evolve_state(H, ψ, t; Dmax, cutoff)
-    ψ_evolved = tdvp(H, -im * t, ψ; nsweeps=1, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
-    normalize!(ψ_evolved)
-    orthogonalize!(ψ_evolved, 2)
-    return ψ_evolved
-end

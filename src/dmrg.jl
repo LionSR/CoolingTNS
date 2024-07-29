@@ -1,14 +1,22 @@
 using ITensors
 
+PROJ_WEIGHT = 15.0
+MAXDIM = [10, 10, 10, 20, 20]
+SWEEPS = Sweeps(30)
+CUTOFF = 1E-8
+NOISE = 1E-6
+
+
+
 function compute_energy_gap_and_ground_state(
     H_sys, 
     sites_sys; 
     excite_num=1, 
-    proj_weight=15.0, 
-    sweeps=Sweeps(30), 
-    maxdim=[10, 10, 10, 20, 20], 
-    cutoff=1E-8, 
-    noise=1E-6
+    proj_weight=PROJ_WEIGHT, 
+    sweeps=SWEEPS, 
+    maxdim=MAXDIM, 
+    cutoff=CUTOFF, 
+    noise=NOISE
 )
     # Set sweep parameters
     maxdim!(sweeps, maxdim...)
@@ -28,10 +36,10 @@ end
 function compute_ground_state(
     H_sys, 
     sites_sys; 
-    sweeps=Sweeps(30), 
-    maxdim=[10, 10, 10, 20, 20], 
-    cutoff=1E-8, 
-    noise=1E-6
+    sweeps=SWEEPS, 
+    maxdim=MAXDIM, 
+    cutoff=CUTOFF, 
+    noise=NOISE
 )
     # Set sweep parameters
     maxdim!(sweeps, maxdim...)

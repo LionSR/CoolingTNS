@@ -117,7 +117,7 @@ function run_cooling_mpo(sites, H_sys, ϕ₀, gates, ρ_s, coupling_params, sim_
 
     pe = sim_params["pe"]
     if pe > 0
-        noise_layer = [depolarizing_noise(pe, sites[i]) for i = 1:2N]
+        noise_layer = [depolarizing_noise(sites[i], pe) for i = 1:2N]
     end
 
     N = length(sites) ÷ 2

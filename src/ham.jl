@@ -31,6 +31,30 @@ function ham_niising(N, sites, ham_params)
 end
 
 
+function ham_rydberg_dressed_ising(N, sites, ham_params)
+    Ω, Δ, V0, Rc = ham_params
+    ampo = OpSum()
+
+    # Rabi oscillation terms
+    for i = 1:N
+        ampo += Ω / 2, "X", i
+        ampo += -Δ, "ProjUp", i
+    end
+
+    # Long-range Ising interaction
+    for i = 1:N
+        for j = (i+1):N
+            distance = abs(i - j)
+            Vij = V0 / (1 + (distance / Rc)^6)
+            ampo += Vij, "ProjUp", i, "ProjUp", j
+        end
+    end
+
+    H = MPO(ampo, sites)
+    return H
+end
+
+
 function ham_ising_sys_bath(N, sites, ham_params, coupling_params)
     J, h = ham_params
     g = coupling_params["g"]
@@ -90,15 +114,4 @@ function ham_niising_sys_bath(N, sites, ham_params, coupling_params)
     ampo += -Δ / 2, "Z", bN
     ampo += g, op1, sN, op2, bN
     return MPO(ampo, sites)
-end
-
-
-function heisenberg(N)
-    os = OpSum()
-    for j = 1:(N-1)
-        os += 0.5, "S+", j, "S-", j + 1
-        os += 0.5, "S-", j, "S+", j + 1
-        os += "Sz", j, "Sz", j + 1
-    end
-    return os
 end

@@ -44,7 +44,7 @@ function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_param
 
     if method == "MPO"
         sim_name_part = "Sim$(method)tau$(sim_params["tau"])"
-    else  # Assuming the other method is MPS
+    elseif method == "MPS"
         sim_name_part = "Sim$(method)Dmax$(sim_params["Dmax"])"
     end
     sim_params["pe"] > 0 && (sim_name_part *= "pe$(sim_params["pe"])")
@@ -92,7 +92,7 @@ function plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, 
     method = sim_params["method"]
     if method == "MPO"
         sim_name_part = "Sim$(method)tau$(sim_params["tau"])"
-    else  # Assuming the other method is MPS
+    elseif method == "MPS"
         sim_name_part = "Sim$(method)Dmax$(sim_params["Dmax"])"
     end
 

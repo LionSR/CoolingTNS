@@ -24,7 +24,7 @@ function apply_depolarizing_noise(ψ::MPS, sites, pe)
     return ψ
 end
 
-function depolarizing_noise(pe, s)
+function depolarizing_noise(site, pe)
     kraus = zeros(Complex{Float64}, 2, 2, 4)
     kraus[:, :, 1] = sqrt(1 - 3 / 4 * pe) * [
         1 0
@@ -43,6 +43,6 @@ function depolarizing_noise(pe, s)
         0 -1
     ]
     krausind = Index(size(kraus, 3); tags="kraus")
-    depl_op = ITensors.itensor(kraus, prime.(s), ITensors.dag.(s), krausind)
+    depl_op = ITensors.itensor(kraus, prime.(site), ITensors.dag.(site), krausind)
     return depl_op
 end

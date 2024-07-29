@@ -8,12 +8,12 @@ function plotOptimal_energy_error_and_overlap_vs_N(ham_name, coupling_params, si
     energies = Float64[]
     final_overlaps = Float64[]
 
-    method = sim_params["method"]  # Ensure this key exists and correctly reflects the method used (MPS or MPO)
+    method = sim_params["method"]
     coupling_name_part = "Coupling$(coupling_params["coupling"])steps$(coupling_params["steps"])"
 
     if method == "MPO"
         sim_name_part = "Sim$(method)tau$(sim_params["tau"])"
-    else  # Assuming the other method is MPS
+    elseif method == "MPS"
         sim_name_part = "Sim$(method)Dmax$(sim_params["Dmax"])"
     end
     # sim_params["pe"] > 0 && (sim_name_part *= "pe$(sim_params["pe"])")
@@ -67,7 +67,7 @@ function plotOptimal_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_p
 
     if method == "MPO"
         sim_name_part = "Sim$(method)tau$(sim_params["tau"])"
-    else  # Assuming the other method is MPS
+    elseif method == "MPS"
         sim_name_part = "Sim$(method)Dmax$(sim_params["Dmax"])"
     end
     sim_name_part *= "peInt$(sim_params["peInt"])"
@@ -78,7 +78,7 @@ function plotOptimal_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_p
 
         if method == "MPO"
             sim_name_part = "Sim$(method)tau$(sim_params["tau"])"
-        else  # Assuming the other method is MPS
+        elseif method == "MPS"
             sim_name_part = "Sim$(method)Dmax$(sim_params["Dmax"])"
         end
         sim_name_part *= "peInt$(peInt)"

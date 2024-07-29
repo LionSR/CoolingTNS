@@ -90,7 +90,7 @@ function create_filename(ham_name, N, coupling_params, sim_params)
     
     if sim_params["method"] == "MPO"
         sim_name_part *= "tau$(sim_params["tau"])"
-    else
+    elseif sim_params["method"] == "MPS"
         sim_name_part *= "Dmax$(sim_params["Dmax"])"
     end
     
