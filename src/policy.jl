@@ -46,41 +46,30 @@ function iterative_grid_search(objective_function, search_space, num_iterations,
 end
 
 function hyperopt_random_search(objective_function, search_space, num_trials, initial_params)
-    best_params = copy(initial_params)
-    best_objective = Inf
+    ho = @hyperopt for _ in 1:num_trials,
+        sampler = RandomSampler(),
+        g = search_space["g"],
+        te = search_space["te"]
 
-    for _ in 1:num_trials
-        g = rand(search_space["g"])
-        te = rand(search_space["te"])
         params = merge(initial_params, Dict("g" => g, "te" => te))
-        objective = evaluate_params(objective_function, params)
-        best_objective, best_params = update_best(objective, params, best_objective, best_params)
+        evaluate_params(objective_function, params)
     end
 
-    return best_params, best_objective
+    best_params = merge(initial_params, Dict("g" => ho.minimizer[1], "te" => ho.minimizer[2]))
+    return best_params, ho.minimum
 end
 
 function hyperopt_bayesian_optimization(objective_function, search_space, num_trials, initial_params)
-    best_params = copy(initial_params)
-    best_objective = Inf
+    bohb = @hyperopt for _ in 1:num_trials,
+        sampler = Hyperband(R=num_trials, η=3, inner=BOHB(dims=[Hyperopt.Continuous(), Hyperopt.Continuous()])),
+        g = search_space["g"],
+        te = search_space["te"]
 
-    model = GaussianProcesses.GP(2, mean = MeanConst(0.0), kernel = SEArd([0.1, 0.1], 5.0))
-    
-    for i in 1:num_trials
-        if i <= 5
-            g = rand(search_space["g"])
-            te = rand(search_space["te"])
-        else
-            acquisition = EI()
-            g, te = optimize_acquisition(model, acquisition, search_space)
-        end
-        
         params = merge(initial_params, Dict("g" => g, "te" => te))
         objective = evaluate_params(objective_function, params)
-        best_objective, best_params = update_best(objective, params, best_objective, best_params)
-        
-        update!(model, [g, te], -objective)
+        objective, (g, te)
     end
 
-    return best_params, best_objective
+    best_params = merge(initial_params, Dict("g" => bohb.minimizer[1], "te" => bohb.minimizer[2]))
+    return best_params, bohb.minimum
 end
