@@ -31,3 +31,4 @@ ResultsOpt/
 *.ipynb_checkpoints
 Log*
 Results*
+.aider*

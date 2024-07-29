@@ -8,7 +8,7 @@ function parse_commandline()
         default = "Random"
         "--k"
         help = "number of energy densities to average"
-        default = 100
+        default = 50
         arg_type = Int
         "--problem"
         help = "type of problem to solve (valid choices: Ising, niIsing)"
@@ -36,7 +36,7 @@ function parse_commandline()
         "--steps"
         help = "number of cooling steps"
         arg_type = Int
-        default = 50
+        default = 100
         "--g"
         help = "coupling strength g"
         arg_type = Float64
