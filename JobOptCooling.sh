@@ -16,7 +16,7 @@ export JID=$SLURM_JOB_ID
 export ID=${JOB_ID:-$JID}
 export PE=$TASK_ID
 
-OUTFILE=$(create_outfile "LogOptimize" "OptimizeCooling")
+OUTFILE=$(create_outfile "LogOpt" "OptCooling")
 export SLURM_JOB_OUTPUT="${OUTFILE}.out"
 export SLURM_JOB_ERROR="${OUTFILE}.err"
 

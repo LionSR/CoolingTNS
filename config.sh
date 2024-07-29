@@ -16,12 +16,10 @@ create_outfile() {
     local suffix=$2
     local ham_name_part="Ham${PROBLEM}Ns${N}Nb${N}"
     local coupling_name_part="Coupling${COUPLING}g${G}te${TE}steps${STEPS}"
-    local sim_name_part="Sim${METHOD}"
+    local sim_name_part="Sim${METHOD}Dmax${DMAX}"
     
     if [ "$METHOD" = "MPO" ]; then
         sim_name_part="${sim_name_part}tau${TAU}"
-    else
-        sim_name_part="${sim_name_part}Dmax${DMAX}"
     fi
     
     if [ "$PE" -gt 0 ]; then

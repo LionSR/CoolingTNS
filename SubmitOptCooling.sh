@@ -5,7 +5,7 @@ source config.sh
 COMMON_NAME="$(basename $0)(${PROBLEM},${METHOD},${SEARCH_METHOD},N${N},Dmax${DMAX})"
 
 # Define DMAX array
-DMAX_ARRAY=(20 40 60)
+DMAX_ARRAY=(20 40 60 80)
 
 # Define a function to run the generalized script with specific parameters
 run_job() {
@@ -19,7 +19,9 @@ run_job() {
     fi
 
     PE_ARRAY=0-10
-    sbatch --job-name="${COMMON_NAME}" --export=ALL --array=${PE_ARRAY} JobOptimizeCooling.sh
+
+    COMMON_NAME="$(basename $0)(${PROBLEM},${METHOD},N${N},Dmax${DMAX})"
+    sbatch --job-name="${COMMON_NAME}" --export=ALL --array=${PE_ARRAY} JobOptCooling.sh
 }
 
 # Run jobs with different parameters
