@@ -8,22 +8,11 @@ function plotOptimal_energy_error_and_overlap_vs_N(ham_name, coupling_params, si
     energies = Float64[]
     final_overlaps = Float64[]
 
-    method = sim_params["method"]
-    coupling_name_part = "Coupling$(coupling_params["coupling"])steps$(coupling_params["steps"])"
-
-    if method == "MPO"
-        sim_name_part = "Sim$(method)tau$(sim_params["tau"])"
-    elseif method == "MPS"
-        sim_name_part = "Sim$(method)Dmax$(sim_params["Dmax"])"
-    end
-    # sim_params["pe"] > 0 && (sim_name_part *= "pe$(sim_params["pe"])")
-    sim_name_part *= "peInt$(sim_params["peInt"])"
-
     search_name_part = "Search$(search_params["search_method"])trials$(search_params["num_trials"])"
 
     for N in N_values
-        ham_name_part = "Ham$(ham_name)Ns$(N)Nb$(N)"
-        filename = "OptimizedCooling_$(ham_name_part)_Paramssteps$(coupling_params["steps"])_$(sim_name_part)_$(search_name_part)"
+        filename = create_filename(ham_name, N, coupling_params, sim_params)
+        filename = "Optimized$(filename)_$(search_name_part)"
 
         h5open("ResultsOpt/" * filename * ".h5", "r") do file
             # e₀ = read(file, "e₀")
@@ -49,8 +38,8 @@ function plotOptimal_energy_error_and_overlap_vs_N(ham_name, coupling_params, si
 
     plt.tight_layout()
 
-    ham_name_part = "Ham$(ham_name)"
-    filename_saveto = "OptimizedCooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)_$(search_name_part)_energy_and_overlap_vs_N.pdf"
+    filename_saveto = create_filename(ham_name, N_values[1], coupling_params, sim_params)
+    filename_saveto = "Optimized$(filename_saveto)_$(search_name_part)_energy_and_overlap_vs_N.pdf"
 
     fig.savefig("ResultsOpt/Figs/" * filename_saveto, dpi=300)
 end
@@ -59,36 +48,20 @@ function plotOptimal_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_p
     plt = pyimport("matplotlib.pyplot")
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
-    coupling_name_part = "Coupling$(coupling_params["coupling"])steps$(coupling_params["steps"])"
-
-    method = sim_params["method"]
-
     search_name_part = "Search$(search_params["search_method"])trials$(search_params["num_trials"])"
-
-    if method == "MPO"
-        sim_name_part = "Sim$(method)tau$(sim_params["tau"])"
-    elseif method == "MPS"
-        sim_name_part = "Sim$(method)Dmax$(sim_params["Dmax"])"
-    end
-    sim_name_part *= "peInt$(sim_params["peInt"])"
 
     for peInt in peInt_range
         pe = peInt * 1e-3
         pe = round(pe, digits=4)
-
-        if method == "MPO"
-            sim_name_part = "Sim$(method)tau$(sim_params["tau"])"
-        elseif method == "MPS"
-            sim_name_part = "Sim$(method)Dmax$(sim_params["Dmax"])"
-        end
-        sim_name_part *= "peInt$(peInt)"
+        sim_params["pe"] = pe
+        sim_params["peInt"] = peInt
 
         energy_errors = Float64[]
         final_overlaps = Float64[]
 
         for N in N_values
-            ham_name_part = "$(ham_name)Ns$(N)Nb$(N)"
-            filename = "OptimizedCooling_Ham$(ham_name_part)_Paramssteps$(coupling_params["steps"])_$(sim_name_part)_$(search_name_part)"
+            filename = create_filename(ham_name, N, coupling_params, sim_params)
+            filename = "Optimized$(filename)_$(search_name_part)"
 
             h5open("ResultsOpt/" * filename * ".h5", "r") do file
                 # e₀ = read(file, "e₀")
@@ -113,7 +86,7 @@ function plotOptimal_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_p
 
     plt.tight_layout()
 
-    ham_name_part = "Ham$(ham_name)"
-    filename_saveto = "OptimizedCooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)_$(search_name_part)_energy_error_and_overlap_vs_N_multiple_pe.pdf"
+    filename_saveto = create_filename(ham_name, N_values[1], coupling_params, sim_params)
+    filename_saveto = "Optimized$(filename_saveto)_$(search_name_part)_energy_error_and_overlap_vs_N_multiple_pe.pdf"
     fig.savefig("ResultsOpt/Figs/" * filename_saveto, dpi=300)
 end

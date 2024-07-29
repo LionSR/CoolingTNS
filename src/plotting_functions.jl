@@ -39,19 +39,8 @@ function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_param
     energy_errors = Float64[]
     final_overlaps = Float64[]
 
-    method = sim_params["method"]  # Ensure this key exists and correctly reflects the method used (MPS or MPO)
-    coupling_name_part = "Coupling$(coupling_params["coupling"])g$(coupling_params["g"])te$(coupling_params["te"])steps$(coupling_params["steps"])"
-
-    if method == "MPO"
-        sim_name_part = "Sim$(method)tau$(sim_params["tau"])"
-    elseif method == "MPS"
-        sim_name_part = "Sim$(method)Dmax$(sim_params["Dmax"])"
-    end
-    sim_params["pe"] > 0 && (sim_name_part *= "pe$(sim_params["pe"])")
-
     for N in N_values
-        ham_name_part = "Ham$(ham_name)Ns$(N)Nb$(N)"
-        filename = "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part).h5"
+        filename = create_filename(ham_name, N, coupling_params, sim_params)
 
         h5open("Results/" * filename, "r") do file
             e₀ = read(file, "e₀")
@@ -87,32 +76,17 @@ function plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, 
     plt = pyimport("matplotlib.pyplot")
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
-    coupling_name_part = "Coupling$(coupling_params["coupling"])g$(coupling_params["g"])te$(coupling_params["te"])steps$(coupling_params["steps"])"
-
-    method = sim_params["method"]
-    if method == "MPO"
-        sim_name_part = "Sim$(method)tau$(sim_params["tau"])"
-    elseif method == "MPS"
-        sim_name_part = "Sim$(method)Dmax$(sim_params["Dmax"])"
-    end
-
     for peInt in peInt_range
         pe = peInt * 1e-3
         pe = round(pe, digits=4)
         sim_params["pe"] = pe
+        sim_params["peInt"] = peInt
 
         energy_errors = Float64[]
         final_overlaps = Float64[]
 
-        if pe > 0
-            pe_part = "pe$(pe)"
-        else
-            pe_part = ""
-        end
-
         for N in N_values
-            ham_name_part = "Ham$(ham_name)Ns$(N)Nb$(N)"
-            filename = "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)$(pe_part).h5"
+            filename = create_filename(ham_name, N, coupling_params, sim_params)
 
             h5open("Results/" * filename, "r") do file
                 e₀ = read(file, "e₀")
@@ -137,7 +111,8 @@ function plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, 
 
     plt.tight_layout()
 
-    ham_name_part = "$(ham_name)"
-    filename_saveto = "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)_energy_error_and_overlap_vs_N_multiple_pe.pdf"
+    ham_name_part = "Ham$(ham_name)"
+    filename_saveto = create_filename(ham_name, N_values[1], coupling_params, sim_params)
+    filename_saveto = "$(filename_saveto)_energy_error_and_overlap_vs_N_multiple_pe.pdf"
     fig.savefig("Results/Figs/" * filename_saveto, dpi=300)
 end
