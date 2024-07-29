@@ -2,7 +2,7 @@ using HDF5
 using PythonCall
 using LaTeXStrings
 
-function plotOptimized_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_params, search_params, N_values, e₀)
+function plotOptimize_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_params, search_params, N_values, e₀)
     plt = pyimport("matplotlib.pyplot")
 
     energies = Float64[]
@@ -12,7 +12,7 @@ function plotOptimized_energy_error_and_overlap_vs_N(ham_name, coupling_params, 
 
     for N in N_values
         filename = create_filename(ham_name, N, coupling_params, sim_params)
-        filename = "Optimized$(filename)_$(search_name_part)"
+        filename = "Optimize$(filename)_$(search_name_part)"
 
         h5open("ResultsOpt/" * filename * ".h5", "r") do file
             # e₀ = read(file, "e₀")
@@ -39,12 +39,12 @@ function plotOptimized_energy_error_and_overlap_vs_N(ham_name, coupling_params, 
     plt.tight_layout()
 
     filename_saveto = create_filename(ham_name, N_values[1], coupling_params, sim_params)
-    filename_saveto = "Optimized$(filename_saveto)_$(search_name_part)_energy_and_overlap_vs_N.pdf"
+    filename_saveto = "Optimize$(filename_saveto)_$(search_name_part)_energy_and_overlap_vs_N.pdf"
 
     fig.savefig("ResultsOpt/Figs/" * filename_saveto, dpi=300)
 end
 
-function plotOptimized_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, sim_params, search_params, N_values, peInt_range, e₀)
+function plotOptimize_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, sim_params, search_params, N_values, peInt_range, e₀)
     plt = pyimport("matplotlib.pyplot")
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
@@ -61,7 +61,7 @@ function plotOptimized_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling
 
         for N in N_values
             filename = create_filename(ham_name, N, coupling_params, sim_params)
-            filename = "Optimized$(filename)_$(search_name_part)"
+            filename = "Optimize$(filename)_$(search_name_part)"
 
             h5open("ResultsOpt/" * filename * ".h5", "r") do file
                 # e₀ = read(file, "e₀")
@@ -87,6 +87,6 @@ function plotOptimized_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling
     plt.tight_layout()
 
     filename_saveto = create_filename(ham_name, N_values, coupling_params, sim_params)
-    filename_saveto = "Optimized$(filename_saveto)_$(search_name_part)_energy_error_and_overlap_vs_N_multiple_pe.pdf"
+    filename_saveto = "Optimize$(filename_saveto)_$(search_name_part)_energy_error_and_overlap_vs_N_multiple_pe.pdf"
     fig.savefig("ResultsOpt/Figs/" * filename_saveto, dpi=300)
 end

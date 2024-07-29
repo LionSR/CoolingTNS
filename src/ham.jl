@@ -1,7 +1,7 @@
 using ITensors
 
-function parse_coupling(coupling)
-    if length(coupling) == 2 && all(c -> c in ["X", "Y", "Z"], coupling)
+function parse_coupling(coupling::String)
+    if length(coupling) == 2 && coupling ⊆ "XYZ"
         return string(coupling[1]), string(coupling[2])
     else
         throw(ArgumentError("Invalid coupling: $coupling. Expected two-character string with X, Y, or Z."))

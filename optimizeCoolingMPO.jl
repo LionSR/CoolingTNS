@@ -55,7 +55,7 @@ end
 
 filename = CoolingTNS.create_filename(ham_name, N, best_coupling_params, sim_params)
 search_params = Dict("search_method" => search_method, "num_trials" => num_trials)
-filename = "Optimized$(filename)_$(CoolingTNS.create_search_name_part(search_params))"
+filename = "Optimize$(filename)_$(CoolingTNS.create_search_name_part(search_params))"
 
 best_coupling_params["steps"] = steps * 4
 

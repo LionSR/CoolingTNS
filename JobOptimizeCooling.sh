@@ -15,7 +15,7 @@ export JOB_ID=$SLURM_ARRAY_JOB_ID
 export JID=$SLURM_JOB_ID
 export ID=${JOB_ID:-$JID}
 export PE=$TASK_ID
-export OUTFILE="LogOptimize/${ID}_${METHOD}_OptimizedCooling${PROBLEM}Ns${N}Nb${N}_Dmax${DMAX}_Search${SEARCH_METHOD}trials${NUM_TRIALS}_peInt${PE}"
+export OUTFILE="LogOptimize/${ID}_${METHOD}_OptimizeCooling${PROBLEM}Ns${N}Nb${N}_Dmax${DMAX}_Search${SEARCH_METHOD}trials${NUM_TRIALS}_peInt${PE}"
 export SLURM_JOB_OUTPUT="${OUTFILE}.out"
 export SLURM_JOB_ERROR="${OUTFILE}.err"
 
