@@ -1,6 +1,3 @@
-if Sys.islinux()
-    using MKL
-end
 using CoolingTNS
 
 method = "MPS"

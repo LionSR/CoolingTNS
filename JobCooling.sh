@@ -24,19 +24,28 @@ export SLURM_JOB_ERROR="${OUTFILE}.err"
 module_load
 print_node_info
 
-# Common parameters
-COMMON_PARAMS="--method=$METHOD --problem=$PROBLEM --N=$N --steps=$STEPS --te=$TE --g=$G --peInt=$PE --coupling=$COUPLING"
-
-# Method-specific parameters
-if [ "$METHOD" = "MPO" ]; then
-    METHOD_PARAMS="--tau=$TAU"
-else
-    METHOD_PARAMS="--Dmax=$DMAX"
+# Hamiltonian parameters
+HAM_PARAMS="--problem=$PROBLEM --N=$N"
+if [ "$PROBLEM" = "Ising" ]; then
+    HAM_PARAMS="$HAM_PARAMS --J=$J --h=$H"
+elif [ "$PROBLEM" = "niIsing" ]; then
+    HAM_PARAMS="$HAM_PARAMS --J=$J --hx=$HX --hz=$HZ"
 fi
+
+# Simulation parameters
+SIM_PARAMS="--method=$METHOD --steps=$STEPS --peInt=$PE"
+if [ "$METHOD" = "MPO" ]; then
+    SIM_PARAMS="$SIM_PARAMS --tau=$TAU"
+else
+    SIM_PARAMS="$SIM_PARAMS --Dmax=$DMAX"
+fi
+
+# Coupling parameters
+COUPLING_PARAMS="--te=$TE --g=$G --coupling=$COUPLING"
 
 # Run Julia script with parameters
 srun --export=ALL --output="${SLURM_JOB_OUTPUT}" --error="${SLURM_JOB_ERROR}" \
     julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so \
-    Cooling${METHOD}.jl $COMMON_PARAMS $METHOD_PARAMS
+    Cooling${METHOD}.jl $HAM_PARAMS $SIM_PARAMS $COUPLING_PARAMS
 
 wait
