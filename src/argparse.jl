@@ -6,8 +6,8 @@ function parse_commandline()
         "--search_method"
         help = "method for hyperparameter search (valid choices: Random, Grid, Bayesian)"
         default = "Random"
-        "--k"
-        help = "number of energy densities to average"
+        "--window_size"
+        help = "window size for moving average"
         default = 50
         arg_type = Int
         "--problem"

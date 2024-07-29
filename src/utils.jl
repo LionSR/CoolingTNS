@@ -64,8 +64,8 @@ function create_sim_params(parsed_args, pe, method)
     return sim_params
 end
 
-function mean_last_k(list, k)
-    return mean(list[max(1, end-k+1):end])
+function mean_last_window(list, window_size)
+    return mean(list[max(1, end-window_size+1):end])
 end
 
 function save_results(filename, e₀, E_list, GS_overlap_list, E_final, Edensity_final, GS_overlap_final, ham_name, parsed_args, nb_list=nothing)
