@@ -2,7 +2,7 @@
 
 source config.sh
 
-COMMON_NAME="$(basename $0)(${PROBLEM},${METHOD},${SEARCH_METHOD})"
+COMMON_NAME="$(basename $0)(${PROBLEM},${METHOD},${SEARCH_METHOD},N${N},Dmax${DMAX})"
 
 # Define DMAX array
 DMAX_ARRAY=(20 40 60)
