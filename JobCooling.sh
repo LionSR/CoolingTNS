@@ -9,33 +9,22 @@
 #SBATCH -t 0-100:00
 #SBATCH --array=0-10
 
-export JULIA_DEPOT_PATH=/ptmp/mpq/srlu/Julia
+source config.sh
+
 export TASK_ID=$SLURM_ARRAY_TASK_ID
 export JOB_ID=$SLURM_ARRAY_JOB_ID
 export JID=$SLURM_JOB_ID
 export ID=${JOB_ID:-$JID}
-export N=$N
 export PE=$TASK_ID
-export Dmax=40
-export OUTFILE="Log/${ID}_${METHOD}Dmax${Dmax}_Cooling${PROBLEM}Ns${N}Nb${N}_g${G_VALUE}te${TE_VALUE}_peInt${PE}"
+
+OUTFILE=$(create_outfile "Log" "Cooling")
 export SLURM_JOB_OUTPUT="${OUTFILE}.out"
 export SLURM_JOB_ERROR="${OUTFILE}.err"
 
-# Load modules
-module purge
-module load anaconda/3/2023.03
-module load julia/1.10
-module load mkl/2023.1
-
-# Print node info
-echo "I ran on:"
-cd $SLURM_SUBMIT_DIR
-echo $SLURM_NODELIST
-
-alias julia="/tqo/u/system/soft/SLE_15/packages/x86_64/julia/1.10.4/bin/julia"
-alias julia_itensors="julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so "
+module_load
+print_node_info
 
 # Run Julia script with parameters
-srun --export=ALL --output="${SLURM_JOB_OUTPUT}" --error="${SLURM_JOB_ERROR}" julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so Cooling$METHOD.jl --method=$METHOD --problem=$PROBLEM --N=$N --steps=${STEPS_VALUE} --te=${TE_VALUE} --g=${G_VALUE} --peInt=$PE --Dmax=$Dmax
+srun --export=ALL --output="${SLURM_JOB_OUTPUT}" --error="${SLURM_JOB_ERROR}" julia_itensors Cooling$METHOD.jl --method=$METHOD --problem=$PROBLEM --N=$N --steps=${STEPS_VALUE} --te=${TE_VALUE} --g=${G_VALUE} --peInt=$PE --Dmax=$DMAX
 
 wait
