@@ -24,7 +24,19 @@ export SLURM_JOB_ERROR="${OUTFILE}.err"
 module_load
 print_node_info
 
+# Common parameters
+COMMON_PARAMS="--method=$METHOD --problem=$PROBLEM --N=$N --steps=$STEPS --te=$TE --g=$G --peInt=$PE --coupling=$COUPLING"
+
+# Method-specific parameters
+if [ "$METHOD" = "MPO" ]; then
+    METHOD_PARAMS="--tau=$TAU"
+else
+    METHOD_PARAMS="--Dmax=$DMAX"
+fi
+
 # Run Julia script with parameters
-srun --export=ALL --output="${SLURM_JOB_OUTPUT}" --error="${SLURM_JOB_ERROR}" julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so Cooling$METHOD.jl --method=$METHOD --problem=$PROBLEM --N=$N --steps=${STEPS_VALUE} --te=${TE_VALUE} --g=${G_VALUE} --peInt=$PE --Dmax=$DMAX
+srun --export=ALL --output="${SLURM_JOB_OUTPUT}" --error="${SLURM_JOB_ERROR}" \
+    julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so \
+    Cooling${METHOD}.jl $COMMON_PARAMS $METHOD_PARAMS
 
 wait

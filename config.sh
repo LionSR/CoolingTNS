@@ -14,7 +14,21 @@ export JULIA_NUM_THREADS=1
 create_outfile() {
     local prefix=$1
     local suffix=$2
-    echo "${prefix}/${ID}_${METHOD}_${suffix}${PROBLEM}Ns${N}Nb${N}_Dmax${DMAX}_${additional_params}_peInt${PE}"
+    local ham_name_part="Ham${PROBLEM}Ns${N}Nb${N}"
+    local coupling_name_part="Coupling${COUPLING}g${G}te${TE}steps${STEPS}"
+    local sim_name_part="Sim${METHOD}"
+    
+    if [ "$METHOD" = "MPO" ]; then
+        sim_name_part="${sim_name_part}tau${TAU}"
+    else
+        sim_name_part="${sim_name_part}Dmax${DMAX}"
+    fi
+    
+    if [ "$PE" -gt 0 ]; then
+        sim_name_part="${sim_name_part}peInt${PE}"
+    fi
+    
+    echo "${prefix}/${ID}_${suffix}_${ham_name_part}_${coupling_name_part}_${sim_name_part}"
 }
 
 # Load modules
@@ -31,5 +45,4 @@ print_node_info() {
     cd $SLURM_SUBMIT_DIR
     echo $SLURM_NODELIST
 }
-
 
