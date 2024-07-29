@@ -64,8 +64,8 @@ function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_param
 
     plt.tight_layout()
 
-    ham_name_part = "Ham$(ham_name)"
-    filename_saveto = "Cooling_$(ham_name_part)_$(coupling_name_part)_$(sim_name_part)_energy_error_and_overlap_vs_N.pdf"
+    filename_saveto = create_filename(ham_name, N_values, coupling_params, sim_params)
+    filename_saveto = "$(filename_saveto)_energy_error_and_overlap_vs_N.pdf"
 
     fig.savefig("Results/Figs/" * filename_saveto, dpi=300)
 end
@@ -109,7 +109,6 @@ function plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, 
 
     plt.tight_layout()
 
-    ham_name_part = "Ham$(ham_name)"
     filename_saveto = create_filename(ham_name, N_values, coupling_params, sim_params)
     filename_saveto = "$(filename_saveto)_energy_error_and_overlap_vs_N_multiple_pe.pdf"
     fig.savefig("Results/Figs/" * filename_saveto, dpi=300)
