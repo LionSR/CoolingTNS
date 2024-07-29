@@ -76,7 +76,7 @@ GS_overlap_final = mean(GS_overlap_list[end-k+1:end])
 println("Final energy density: ", Edensity_final)
 println("Final ground state overlap: ", GS_overlap_final)
 
+CoolingTNS.save_results(filename, e₀, E_list, GS_overlap_list, E_final, Edensity_final, GS_overlap_final, ham_name, parsed_args)
 CoolingTNS.plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename; moving_average=true)
 
-CoolingTNS.save_results(filename, e₀, E_list, GS_overlap_list, E_final, Edensity_final, GS_overlap_final, ham_name, parsed_args)
-println("Optimization results saved to: ", filename)
+

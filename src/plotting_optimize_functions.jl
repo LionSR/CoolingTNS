@@ -46,6 +46,7 @@ end
 
 function plotOptimize_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, sim_params, search_params, N_values, peInt_range, e₀)
     plt = pyimport("matplotlib.pyplot")
+    
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
     search_name_part = "Search$(search_params["search_method"])trials$(search_params["num_trials"])"

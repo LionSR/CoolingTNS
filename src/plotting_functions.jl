@@ -2,9 +2,9 @@ using HDF5
 using PythonCall
 using LaTeXStrings
 
-plt = pyimport("matplotlib.pyplot")
-
 function plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename; moving_average=false)
+    plt = pyimport("matplotlib.pyplot")
+
     steps = length(E_list) - 1
 
     fig, axs = plt.subplots(1, 2, figsize=(8, 4))
@@ -35,6 +35,8 @@ end
 
 
 function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_params, N_values)
+    plt = pyimport("matplotlib.pyplot")
+
     energy_errors = Float64[]
     final_overlaps = Float64[]
 
@@ -72,6 +74,8 @@ end
 
 
 function plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, sim_params, N_values, peInt_range)
+    plt = pyimport("matplotlib.pyplot")
+
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
     for peInt in peInt_range
