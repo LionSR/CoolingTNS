@@ -1,5 +1,4 @@
 if Sys.islinux()
-    println("Using MKL")
     using MKL
 end
 using ArgParse, HDF5, Statistics
@@ -7,10 +6,6 @@ using CoolingTNS
 
 method = "MPS"
 parsed_args = CoolingTNS.parse_commandline()
-println("Parsed args:")
-for (arg, val) in parsed_args
-    println("  $arg  =>  $val")
-end
 
 # Unpack parsed arguments 
 N = parsed_args["N"]
@@ -27,7 +22,8 @@ end
 sim_params = Dict(
     "cutoff" => parsed_args["cutoff"],
     "Dmax" => parsed_args["Dmax"],
-    "pe" => pe
+    "pe" => pe,
+    "method" => method
 )
 
 coupling_params = Dict(

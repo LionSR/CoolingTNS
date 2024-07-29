@@ -1,7 +1,7 @@
 if Sys.islinux()
     using MKL
 end
-using ArgParse, HDF5
+using ArgParse, HDF5, Statistics
 using CoolingTNS
 
 method = "MPO"
@@ -24,7 +24,8 @@ sim_params = Dict(
     "cutoff" => parsed_args["cutoff"],
     "trotter_steps" => Int(parsed_args["te"] / parsed_args["tau"]),
     "tau" => parsed_args["tau"],
-    "pe" => pe
+    "pe" => pe,
+    "method" => method
 )
 
 coupling_params = Dict(
