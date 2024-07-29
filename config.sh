@@ -32,6 +32,4 @@ print_node_info() {
     echo $SLURM_NODELIST
 }
 
-# Set Julia alias
-alias julia="/tqo/u/system/soft/SLE_15/packages/x86_64/julia/1.10.4/bin/julia"
-alias julia_itensors="julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so "
+

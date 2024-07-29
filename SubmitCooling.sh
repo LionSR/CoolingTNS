@@ -15,6 +15,6 @@ run_job() {
 }
 
 # Run jobs with different parameters
-for N in $(seq 10 10 100); do
+for N in $(seq 10 10 10); do
     run_job $N 1000 2.0 0.3
 done
