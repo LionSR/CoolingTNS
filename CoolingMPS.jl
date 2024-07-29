@@ -25,9 +25,9 @@ E_list, GS_overlap_list, nb_list = CoolingTNS.run_cooling_mps(
 )
 
 k = parsed_args["k"]
-E_final = mean(E_list[end-k+1:end])
+E_final = CoolingTNS.mean_last_k(E_list, k)
 Edensity_final = E_final / N
-GS_overlap_final = mean(GS_overlap_list[end-k+1:end])
+GS_overlap_final = CoolingTNS.mean_last_k(GS_overlap_list, k)
 println("After cooling: E_final/N=$Edensity_final, GS_overlap_final=$GS_overlap_final")
 
 filename = create_filename(ham_name, N, coupling_params, sim_params)

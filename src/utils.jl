@@ -64,6 +64,10 @@ function create_sim_params(parsed_args, pe, method)
     return sim_params
 end
 
+function mean_last_k(list, k)
+    return mean(list[max(1, end-k+1):end])
+end
+
 function save_results(filename, e₀, E_list, GS_overlap_list, E_final, Edensity_final, GS_overlap_final, ham_name, parsed_args, nb_list=nothing)
     h5open("Results/$(filename).h5", "w") do file
         write(file, "e₀", e₀)

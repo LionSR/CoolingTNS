@@ -12,7 +12,7 @@ function plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename; mov
     ax.plot(1:steps+1, E_list / N, alpha=0.75, marker="o", label="Cooling")
     if moving_average
         window_size = 10
-        E_ma = [mean(E_list[max(1, i - window_size + 1):i]) for i in 1:length(E_list)]
+        E_ma = [CoolingTNS.mean_last_k(E_list[1:i], window_size) for i in 1:length(E_list)]
         ax.plot(1:steps+1, E_ma / N, alpha=0.75, marker="o", label="Cooling (MA=$(window_size))")
     end
     ax.set_xlabel("Steps")
@@ -23,7 +23,7 @@ function plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename; mov
     ax = axs[1]
     ax.plot(1:steps+1, GS_overlap_list, marker="o", alpha=0.75, color="grey", label="Cooling")
     if moving_average
-        GS_ma = [mean(GS_overlap_list[max(1, i - window_size + 1):i]) for i in 1:length(GS_overlap_list)]
+        GS_ma = [CoolingTNS.mean_last_k(GS_overlap_list[1:i], window_size) for i in 1:length(GS_overlap_list)]
         ax.plot(1:steps+1, GS_ma, marker="o", alpha=0.75, color="black", label="Cooling (MA=$(window_size))")
     end
     ax.set_xlabel("Steps")

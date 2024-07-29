@@ -35,7 +35,7 @@ function objective_function(coupling_params)
         sim_params
     )
 
-    Efinal_density_avg = mean(E_list[end-k+1:end]) / N
+    Efinal_density_avg = CoolingTNS.mean_last_k(E_list, k) / N
     return Efinal_density_avg
 end
 
