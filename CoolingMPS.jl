@@ -12,6 +12,9 @@ for (arg, val) in parsed_args
     println("  $arg  =>  $val")
 end
 
+# Unpack parsed arguments 
+N = parsed_args["N"]
+problem = parsed_args["problem"]
 
 ham_params, ham_name = CoolingTNS.extract_ham_params(problem, parsed_args)
 
