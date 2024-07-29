@@ -7,7 +7,6 @@
 #SBATCH -o /dev/null
 #SBATCH -e /dev/null
 #SBATCH -t 0-100:00
-#SBATCH --array=0-10
 
 export TASK_ID=$SLURM_ARRAY_TASK_ID
 export JOB_ID=$SLURM_ARRAY_JOB_ID

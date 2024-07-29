@@ -7,7 +7,6 @@
 #SBATCH -o /dev/null
 #SBATCH -e /dev/null
 #SBATCH -t 0-100:00
-#SBATCH --array=0-10
 
 source config.sh
 
