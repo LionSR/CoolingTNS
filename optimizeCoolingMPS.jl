@@ -65,9 +65,9 @@ best_coupling_params["steps"] = steps * 4
 H_sys_bath = ham_sys_bath_fn(N, sites, ham_params, best_coupling_params)
 ψ_s = CoolingTNS.setup_init_state_mps(sites)
 E_list, GS_overlap_list, nb_list = CoolingTNS.run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, best_coupling_params, sim_params)
-E_final = mean(E_list[end-k+1:end])
+E_final = CoolingTNS.mean_last_window(E_list, k)
 Edensity_final = E_final / N
-GS_overlap_final = mean(GS_overlap_list[end-k+1:end])
+GS_overlap_final = CoolingTNS.mean_last_window(GS_overlap_list, k)
 println("Final energy density: ", Edensity_final)
 println("Final ground state overlap: ", GS_overlap_final)
 
