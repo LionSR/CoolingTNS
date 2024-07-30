@@ -31,7 +31,7 @@ function setup_common_parameters(parsed_args)
     problem = parsed_args["problem"]
     ham_params, ham_name = extract_ham_params(problem, parsed_args)
 
-    pe = parsed_args["pe"]
+    pe = 0
     if parsed_args["peInt"] > 0
         pe = parsed_args["peInt"] * 1e-3
         pe = round(pe, digits=4)

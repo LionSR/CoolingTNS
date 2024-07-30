@@ -18,7 +18,6 @@ function compute_energy_gap_and_ground_state(
     cutoff=CUTOFF, 
     noise=NOISE
 )
-    # Set sweep parameters
     maxdim!(sweeps, maxdim...)
     cutoff!(sweeps, cutoff)
     noise!(sweeps, noise)
@@ -41,7 +40,6 @@ function compute_ground_state(
     cutoff=CUTOFF, 
     noise=NOISE
 )
-    # Set sweep parameters
     maxdim!(sweeps, maxdim...)
     cutoff!(sweeps, cutoff)
     noise!(sweeps, noise)

@@ -64,12 +64,8 @@ function parse_commandline()
         "--method"
         help = "simulation method for cooling (valid choices: MPS and MPO)"
         default = "MPS"
-        "--pe"
-        help = "pe"
-        arg_type = Float64
-        default = 0.0
         "--peInt"
-        help = "pe: noise strength"
+        help = "pe: noise strength (will be times by 1e-3)"
         arg_type = Int
         default = 0
         "--coupling"
