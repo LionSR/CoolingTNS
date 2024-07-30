@@ -31,8 +31,9 @@ function setup_problem_mps(problem, N, ham_params, coupling_params, sim_params)
 end
 
 
-function evolve_state(H, ψ, t; Dmax, cutoff)
-    ψ_evolved = tdvp(H, -im * t, ψ; nsweeps=1, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
+function evolve_state(H, ψ, t; Dmax, cutoff, tau)
+    nsweeps = Int(t / tau)
+    ψ_evolved = tdvp(H, -im * tau, ψ; nsweeps=nsweeps, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
     normalize!(ψ_evolved)
     orthogonalize!(ψ_evolved, 2)
     return ψ_evolved
@@ -44,6 +45,7 @@ function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params,
     te = coupling_params["te"]
     cutoff = sim_params["cutoff"]
     Dmax = sim_params["Dmax"]
+    tau = sim_params["tau"]
     N = length(sites) ÷ 2
 
     pe = sim_params["pe"]
@@ -60,7 +62,7 @@ function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params,
 
     for step = 2:steps+1
         ψ_sb = appendzeros_MPS(ψ_s, sites)
-        ψ_sb_evolved = evolve_state(H_sys_bath, ψ_sb, te; Dmax, cutoff)
+        ψ_sb_evolved = evolve_state(H_sys_bath, ψ_sb, te; Dmax, cutoff, tau)
         if pe > 0
             ψ_sb_evolved = apply_depolarizing_noise(ψ_sb_evolved, sites, pe)
             orthogonalize!(ψ_sb_evolved, 2)

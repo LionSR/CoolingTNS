@@ -46,7 +46,7 @@ function parse_commandline()
         arg_type = Float64
         default = 2.0
         "--tau"
-        help = "Trotter step size"
+        help = "Time step size for TDVP/Trotter evolution"
         arg_type = Float64
         default = 0.1
         "--cutoff"

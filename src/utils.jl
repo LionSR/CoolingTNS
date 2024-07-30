@@ -56,10 +56,8 @@ function create_sim_params(parsed_args, pe, method)
         "method" => method
     )
     
-    if method == "MPO"
-        sim_params["trotter_steps"] = Int(parsed_args["te"] / parsed_args["tau"])
-        sim_params["tau"] = parsed_args["tau"]
-    end
+    sim_params["trotter_steps"] = Int(parsed_args["te"] / parsed_args["tau"])
+    sim_params["tau"] = parsed_args["tau"]
     
     return sim_params
 end
