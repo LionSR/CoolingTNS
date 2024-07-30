@@ -70,20 +70,17 @@ function ham_ising_sys_bath(N, sites, ham_params, coupling_params)
     op1, op2 = parse_coupling(coupling_params["coupling"])
 
     ampo = OpSum()
-    for ind = 1:(N-1)
+    for ind = 1:N
         s1 = 2ind - 1
-        s2 = 2ind + 1
         b1 = 2ind
-        ampo += J, "Z", s1, "Z", s2
+        if ind < N
+            s2 = 2ind + 1
+            ampo += J, "Z", s1, "Z", s2
+        end
         ampo += h, "X", s1
         ampo += -Δ / 2, "Z", b1
         ampo += g, op1, s1, op2, b1
     end
-    sN = 2N - 1
-    bN = 2N
-    ampo += h, "X", sN
-    ampo += -Δ / 2, "Z", bN
-    ampo += g, op1, sN, op2, bN
     return MPO(ampo, sites)
 end
 
@@ -95,22 +92,18 @@ function ham_niising_sys_bath(N, sites, ham_params, coupling_params)
     op1, op2 = parse_coupling(coupling_params["coupling"])
 
     ampo = OpSum()
-    for ind = 1:(N-1)
+    for ind = 1:N
         s1 = 2ind - 1
-        s2 = 2ind + 1
         b1 = 2ind
-        ampo += J, "Z", s1, "Z", s2
+        if ind < N
+            s2 = 2ind + 1
+            ampo += J, "Z", s1, "Z", s2
+        end
         ampo += hx, "X", s1
         ampo += hz, "Z", s1
         ampo += -Δ / 2, "Z", b1
         ampo += g, op1, s1, op2, b1
     end
-    sN = 2N - 1
-    bN = 2N
-    ampo += hx, "X", sN
-    ampo += hz, "Z", sN
-    ampo += -Δ / 2, "Z", bN
-    ampo += g, op1, sN, op2, bN
     return MPO(ampo, sites)
 end
 

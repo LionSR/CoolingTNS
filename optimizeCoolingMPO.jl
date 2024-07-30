@@ -6,7 +6,7 @@ using CoolingTNS
 
 method = "MPO"
 parsed_args = CoolingTNS.parse_commandline()
-
+println(parsed_args)
 N, problem, ham_params, ham_name, pe, init_coupling_params = CoolingTNS.setup_common_parameters(parsed_args)
 sim_params = CoolingTNS.create_sim_params(parsed_args, pe, method)
 

@@ -5,40 +5,25 @@ function build_trotter_circuit_ising(sites_sys, sites_bath, ham_params, coupling
     J, h = ham_params
     g = coupling_params["g"]
     Δ = coupling_params["Δ"]
-    coupling = coupling_params["coupling"]
+    op1, op2 = parse_coupling(coupling_params["coupling"])
     tau = sim_params["tau"]
 
-    op1, op2 = if length(coupling) == 2
-        string(coupling[1]), string(coupling[2])
-    else
-        error("Invalid coupling: $coupling")
-    end
-
     gates = ITensor[]
-    for ind in 1:(N-1)
+    for ind in 1:N
         s1 = sites_sys[ind]
-        s2 = sites_sys[ind+1]
         b1 = sites_bath[ind]
-        b2 = sites_bath[ind+1]
-        hs_j = J * op("Z", s1) * op("Z", s2) + h * op("X", s1) * op("I", s2)
-
-        hb_j = g * op(op1, s1) * op(op2, b1) - Δ / 2 * op("I", s1) * op("Z", b1)
-        Gs_j = exp(-1.0im * tau / 2 * hs_j)
-        Gb_j = exp(-1.0im * tau / 2 * hb_j)
-        push!(gates, Gs_j)
-        push!(gates, Gb_j)
+        if ind < N
+            s2 = sites_sys[ind+1]
+            hs = J * op("Z", s1) * op("Z", s2) + h * op("X", s1) * op("I", s2)
+        else
+            hs = h * op("X", s1)
+        end
+        hsb = g * op(op1, s1) * op(op2, b1) - Δ / 2 * op("I", s1) * op("Z", b1)
+        Gs = exp(-1.0im * tau / 2 * hs)
+        Gsb = exp(-1.0im * tau / 2 * hsb)
+        push!(gates, Gs)
+        push!(gates, Gsb)
     end
-    sN = sites_sys[N]
-    bN = sites_bath[N]
-    hs_N = h * op("X", sN)
-    hb_N = -Δ / 2 * op("Z", bN)
-    hsb_N = g * op(op1, sN) * op(op2, bN)
-    Gs_N = exp(-1.0im * tau / 2 * hs_N)
-    Gb_N = exp(-1.0im * tau / 2 * hb_N)
-    Gsb_N = exp(-1.0im * tau / 2 * hsb_N)
-    push!(gates, Gs_N)
-    push!(gates, Gb_N)
-    push!(gates, Gsb_N)
     append!(gates, reverse(gates))
 end
 
@@ -57,30 +42,21 @@ function build_trotter_circuit_niising(sites_sys, sites_bath, ham_params, coupli
     end
 
     gates = ITensor[]
-    for ind in 1:(N-1)
+    for ind in 1:N
         s1 = sites_sys[ind]
-        s2 = sites_sys[ind+1]
         b1 = sites_bath[ind]
-        b2 = sites_bath[ind+1]
-
-        hs_j = J * op("Z", s1) * op("Z", s2) + hx * op("X", s1) * op("I", s2) + hz * op("Z", s1) * op("I", s2)
-        hb_j = g * op(op1, s1) * op(op2, b1) - Δ / 2 * op("I", s1) * op("Z", b1)
-        Gs_j = exp(-1.0im * tau / 2 * hs_j)
-        Gb_j = exp(-1.0im * tau / 2 * hb_j)
-        push!(gates, Gs_j)
-        push!(gates, Gb_j)
+        if ind < N
+            s2 = sites_sys[ind+1]
+            hs = J * op("Z", s1) * op("Z", s2) + hx * op("X", s1) * op("I", s2) + hz * op("Z", s1) * op("I", s2)
+        else
+            hs = hx * op("X", s1) + hz * op("Z", s1)
+        end
+        hsb = g * op(op1, s1) * op(op2, b1) - Δ / 2 * op("I", s1) * op("Z", b1)
+        Gs = exp(-1.0im * tau / 2 * hs)
+        Gsb = exp(-1.0im * tau / 2 * hsb)
+        push!(gates, Gs)
+        push!(gates, Gsb)
     end
-    sN = sites_sys[N]
-    bN = sites_bath[N]
-    hs_N = hx * op("X", sN) + hz * op("Z", sN)
-    hb_N = -Δ / 2 * op("Z", bN)
-    hsb_N = g * op(op1, sN) * op(op2, bN)
-    Gs_N = exp(-1.0im * tau / 2 * hs_N)
-    Gb_N = exp(-1.0im * tau / 2 * hb_N)
-    Gsb_N = exp(-1.0im * tau / 2 * hsb_N)
-    push!(gates, Gs_N)
-    push!(gates, Gb_N)
-    push!(gates, Gsb_N)
     append!(gates, reverse(gates))
 end
 
