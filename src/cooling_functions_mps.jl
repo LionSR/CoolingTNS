@@ -32,8 +32,7 @@ end
 
 
 function evolve_state(H, ψ, t; Dmax, cutoff, tau)
-    nsweeps = Int(t / tau)
-    ψ_evolved = tdvp(H, -im * tau, ψ; nsweeps=nsweeps, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
+    ψ_evolved = tdvp(H, -im * t, ψ; time_step=-1im * tau, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
     normalize!(ψ_evolved)
     orthogonalize!(ψ_evolved, 2)
     return ψ_evolved
