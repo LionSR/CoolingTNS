@@ -68,8 +68,9 @@ function mean_last_window(list, window_size)
     return mean(list[max(1, end-window_size+1):end])
 end
 
-function save_results(filename, e₀, E_list, GS_overlap_list, E_final, Edensity_final, GS_overlap_final, ham_name, parsed_args, nb_list=nothing)
-    h5open("Results/$(filename).h5", "w") do file
+function save_results(filename, e₀, E_list, GS_overlap_list, E_final, Edensity_final, GS_overlap_final, ham_name, parsed_args, nb_list=nothing; is_optimization=false)
+    directory = is_optimization ? "ResultsOpt" : "Results"
+    h5open("$(directory)/$(filename).h5", "w") do file
         write(file, "e₀", e₀)
         write(file, "E_list", E_list)
         write(file, "GS_overlap_list", GS_overlap_list)
