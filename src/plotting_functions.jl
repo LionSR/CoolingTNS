@@ -3,6 +3,11 @@ using PythonCall
 using LaTeXStrings
 
 function safe_read_data(filename)
+    if !isfile(filename)
+        @warn "File not found: $filename"
+        return nothing, nothing, nothing, nothing
+    end
+    
     try
         h5open(filename, "r") do file
             e₀ = read(file, "e₀")
@@ -12,7 +17,11 @@ function safe_read_data(filename)
             return e₀, E_final, GS_overlap_final, Edensity_final
         end
     catch e
-        @warn "Failed to read data from $filename: $e"
+        if isa(e, KeyError)
+            @warn "Missing key in file $filename: $(e.key)"
+        else
+            @warn "Failed to read data from $filename: $e"
+        end
         return nothing, nothing, nothing, nothing
     end
 end

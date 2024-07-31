@@ -68,14 +68,22 @@ function setup_problem_mpo(problem, N, ham_params, coupling_params, sim_params)
     return sites, H_sys, ϕ₀, e₀, gates
 end
 
+function apply_cooling_step(ρ_s, sites, gates, noise_layer, trotter_steps, cutoff, Dmax, pe)
+    ρ_sb = appendzeros_MPO(ρ_s, sites)
+    for _ = 1:trotter_steps
+        ρ_sb = apply(gates, ρ_sb; apply_dag=true, cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
+    end
+    if pe > 0
+        ρ_sb = apply(noise_layer, ρ_sb; apply_dag=true, cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
+    end
+    return ρ_sb
+end
+
 function run_cooling_mpo(sites, H_sys, ϕ₀, gates, ρ_s, coupling_params, sim_params)
     N = length(sites) ÷ 2
     sites_sys = sites[1:2:2N-1]
-    steps = coupling_params["steps"]
-    trotter_steps = sim_params["trotter_steps"]
-    cutoff = sim_params["cutoff"]
-    Dmax = sim_params["Dmax"]
-    pe = sim_params["pe"]
+    steps, trotter_steps = coupling_params["steps"], sim_params["trotter_steps"]
+    cutoff, Dmax, pe = sim_params["cutoff"], sim_params["Dmax"], sim_params["pe"]
 
     noise_layer = pe > 0 ? [depolarizing_noise(sites[i], pe) for i = 1:2N] : nothing
 
@@ -89,13 +97,7 @@ function run_cooling_mpo(sites, H_sys, ϕ₀, gates, ρ_s, coupling_params, sim_
     println("Step 1: energy/N=$(E_list[1]/N), overlap=$(GS_overlap_list[1])")
 
     for i = 2:steps+1
-        ρ_sb = appendzeros_MPO(ρ_s, sites)
-        for _ = 1:trotter_steps
-            ρ_sb = apply(gates, ρ_sb; apply_dag=true, cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
-        end
-        if pe > 0
-            ρ_sb = apply(noise_layer, ρ_sb; apply_dag=true, cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
-        end
+        ρ_sb = apply_cooling_step(ρ_s, sites, gates, noise_layer, trotter_steps, cutoff, Dmax, pe)
         ρ_s = partial_trace_bath(ρ_sb, sites, sites_sys)
         ρ_s = ρ_s / tr(ρ_s)
 
