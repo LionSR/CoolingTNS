@@ -6,7 +6,7 @@ function build_trotter_circuit(sites_sys, sites_bath, ham_params, coupling_param
     op1, op2 = parse_coupling(coupling)
 
     gates = ITensor[]
-    for ind in 1:N
+    for ind in eachindex(sites_sys)
         s1, b1 = sites_sys[ind], sites_bath[ind]
         hs = if problem == "Ising"
             J, h = ham_params
@@ -55,7 +55,7 @@ end
 
 function apply_cooling_step(ρ_s, sites, gates, noise_layer, trotter_steps, cutoff, Dmax, pe)
     ρ_sb = appendzeros_MPO(ρ_s, sites)
-    for _ = 1:trotter_steps
+    for _ in 1:trotter_steps
         ρ_sb = apply(gates, ρ_sb; apply_dag=true, cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
     end
     if pe > 0
@@ -81,7 +81,7 @@ function run_cooling_mpo(sites, H_sys, ϕ₀, gates, ρ_s, coupling_params, sim_
     println("Cooling starts")
     println("Step 1: energy/N=$(E_list[1]/N), overlap=$(GS_overlap_list[1])")
 
-    for i = 2:steps+1
+    for i in 2:steps+1
         ρ_sb = apply_cooling_step(ρ_s, sites, gates, noise_layer, trotter_steps, cutoff, Dmax, pe)
         ρ_s = partial_trace_bath(ρ_sb, sites, sites_sys)
         ρ_s = ρ_s / tr(ρ_s)

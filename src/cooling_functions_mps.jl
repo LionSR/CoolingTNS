@@ -1,5 +1,5 @@
 using ITensors
-using ITensorTDVP
+using ITensorMPS
 using Statistics
 
 function setup_init_state_mps(sites)
@@ -54,7 +54,7 @@ function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params,
     println("Cooling starts")
     println("Step 1: energy/N=$(E_list[1]/N), overlap=$(GS_overlap_list[1])")
 
-    for step = 2:steps+1
+    for step in 2:steps+1
         ψ_sb = appendzeros_MPS(ψ_s, sites)
         ψ_sb_evolved = evolve_state(H_sys_bath, ψ_sb, te; Dmax, cutoff, tau)
         
