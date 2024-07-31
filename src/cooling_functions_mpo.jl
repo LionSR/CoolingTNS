@@ -38,12 +38,12 @@ function setup_init_state_mpo(sites)
     return ρ_s
 end
 
-function setup_problem_mpo(problem, N, ham_params, coupling_params, sim_params)
+function setup_problem_mpo(N, problem, ham_params, coupling_params, sim_params)
     sites = siteinds("S=1/2", 2N)
     sites_sys = sites[1:2:2N-1]
     sites_bath = sites[2:2:2N]
 
-    H_sys, Δ_dmrg, e₀, ϕ₀ = setup_system(problem, N, sites_sys, ham_params)
+    H_sys, Δ_dmrg, e₀, ϕ₀ = setup_system(N, problem, sites_sys, ham_params)
 
     Δ = haskey(coupling_params, "Δ") ? coupling_params["Δ"] : Δ_dmrg
     coupling_params["Δ"] = Δ

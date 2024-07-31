@@ -13,7 +13,7 @@ function extract_ham_params(problem, parsed_args)
     return ham_params, ham_name
 end
 
-function setup_system(problem, N, sites_sys, ham_params)
+function setup_system(N, problem, sites_sys, ham_params)
     H_sys = if problem == "Ising"
         ham_ising(N, sites_sys, ham_params)
     elseif problem == "niIsing"

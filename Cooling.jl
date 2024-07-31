@@ -12,7 +12,7 @@ function run_cooling(parsed_args)
     method = parsed_args["method"]
 
     if method == "MPS"
-        sites, H_sys, ϕ₀, e₀, H_sys_bath = CoolingTNS.setup_problem_mps(problem, N, ham_params, coupling_params, sim_params)
+        sites, H_sys, ϕ₀, e₀, H_sys_bath = CoolingTNS.setup_problem_mps(N, problem, ham_params, coupling_params, sim_params)
         initial_state = CoolingTNS.setup_init_state_mps(sites)
         results = CoolingTNS.run_cooling_mps(
             sites,
@@ -24,7 +24,7 @@ function run_cooling(parsed_args)
             sim_params
         )
     elseif method == "MPO"
-        sites, H_sys, ϕ₀, e₀, gates = CoolingTNS.setup_problem_mpo(problem, N, ham_params, coupling_params, sim_params)
+        sites, H_sys, ϕ₀, e₀, gates = CoolingTNS.setup_problem_mpo(N, problem, ham_params, coupling_params, sim_params)
         initial_state = CoolingTNS.setup_init_state_mpo(sites)
         results = CoolingTNS.run_cooling_mpo(
             sites,
@@ -33,7 +33,7 @@ function run_cooling(parsed_args)
             gates,
             initial_state,
             coupling_params,
-            sim_params,
+            sim_params
         )
     else
         error("Invalid method: $method. Choose either 'MPS' or 'MPO'.")
