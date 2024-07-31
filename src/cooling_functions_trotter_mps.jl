@@ -68,10 +68,8 @@ function run_cooling_trotter_mps(sites, H_sys, ϕ₀, gates, ψ_s, coupling_para
     for step = 2:steps+1
         ψ_sb = appendzeros_MPS(ψ_s, sites)
         
-        # Apply the Trotter gates
-        for _ in 1:Int(te/tau)
-            ψ_sb = apply(gates, ψ_sb; cutoff=cutoff, maxdim=Dmax)
-        end
+        # Use evolve_state_trotter function
+        ψ_sb = evolve_state_trotter(H_sys, gates, ψ_sb, te; Dmax=Dmax, cutoff=cutoff, tau=tau)
         
         if pe > 0
             ψ_sb = apply_depolarizing_noise(ψ_sb, sites, pe)
