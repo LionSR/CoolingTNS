@@ -30,6 +30,7 @@ function plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename; mov
     ax.set_ylabel("Ground state overlap")
     ax.legend()
 
+    isdir("Results") || mkdir("Results")
     fig.savefig("Results/$(filename).pdf", dpi=300)
 end
 
@@ -69,6 +70,7 @@ function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_param
     filename_saveto = create_filename(ham_name, N_values, coupling_params, sim_params)
     filename_saveto = "$(filename_saveto)_energy_error_and_overlap_vs_N.pdf"
 
+    isdir("Results/Figs") || mkpath("Results/Figs")
     fig.savefig("Results/Figs/" * filename_saveto, dpi=300)
 end
 

@@ -41,6 +41,7 @@ function plotOptimize_energy_error_and_overlap_vs_N(ham_name, coupling_params, s
     filename_saveto = create_filename(ham_name, N_values[1], coupling_params, sim_params)
     filename_saveto = "Optimize$(filename_saveto)_$(search_name_part)_energy_and_overlap_vs_N.pdf"
 
+    isdir("ResultsOpt/Figs") || mkpath("ResultsOpt/Figs")
     fig.savefig("ResultsOpt/Figs/" * filename_saveto, dpi=300)
 end
 
