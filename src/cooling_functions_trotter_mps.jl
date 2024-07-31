@@ -11,12 +11,12 @@ function setup_problem_trotter_mps(N, problem, ham_params, coupling_params, sim_
     Δ = haskey(coupling_params, "Δ") ? coupling_params["Δ"] : Δ_dmrg
     coupling_params["Δ"] = Δ
 
-    gates = build_trotter_circuit(sites_sys, sites_bath, coupling_params, sim_params)
+    gates = build_trotter_circuit_bath_coupling(sites_sys, sites_bath, coupling_params, sim_params)
     
     return sites, H_sys, ϕ₀, e₀, gates
 end
 
-function build_trotter_circuit(sites_sys, sites_bath, coupling_params, sim_params)
+function build_trotter_circuit_bath_coupling(sites_sys, sites_bath, coupling_params, sim_params)
     N = length(sites_sys)
     g, Δ, coupling, tau = coupling_params["g"], coupling_params["Δ"], coupling_params["coupling"], sim_params["tau"]
     op1, op2 = parse_coupling(coupling)
