@@ -97,11 +97,7 @@ function create_filename(ham_name, N, coupling_params, sim_params)
         "Ham$(ham_name)Ns$(N)Nb$(N)"
     end
     coupling_name_part = "Coupling$(coupling_params["coupling"])g$(coupling_params["g"])te$(coupling_params["te"])steps$(coupling_params["steps"])"
-    sim_name_part = "Sim$(sim_params["method"])Dmax$(sim_params["Dmax"])"
-    
-    if sim_params["method"] == "MPO"
-        sim_name_part *= "tau$(sim_params["tau"])"
-    end
+    sim_name_part = "Sim$(sim_params["method"])Dmax$(sim_params["Dmax"])tau$(sim_params["tau"])"
     
     sim_params["peInt"] > 0 && (sim_name_part *= "peInt$(sim_params["peInt"])")
     
