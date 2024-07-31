@@ -86,7 +86,7 @@ function run_cooling_trotter_mps(sites, H_sys, H_total, ϕ₀, gates, ψ_s, coup
         
         # Use evolve_state_trotter function
         # ψ_sb = evolve_state_trotter(H_total, H_sys, gates, ψ_sb, te; Dmax=Dmax, cutoff=cutoff, tau=tau)
-        ψ_sb = evolve_state_trotter(H_total, H_sys, gates, ψ_sb, te, ham_params; Dmax, cutoff, tau)    
+        ψ_sb = evolve_state_trotter(H_total, H_sys, gates, ψ_sb, te, ham_params, sites; Dmax, cutoff, tau)    
         
         if pe > 0
             ψ_sb = apply_depolarizing_noise(ψ_sb, sites, pe)
