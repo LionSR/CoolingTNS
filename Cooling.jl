@@ -42,11 +42,9 @@ function run_cooling(parsed_args)
     println("The ground state energy density is e₀/N = $(e₀/N)")
 
     window_size = parsed_args["window_size"]
-    E_list = results["E_list"]
-    GS_overlap_list = results["GS_overlap_list"]
-    E_final = CoolingTNS.mean_last_window(E_list, window_size)
+    E_final = CoolingTNS.mean_last_window(results["E_list"], window_size)
     Edensity_final = E_final / N
-    GS_overlap_final = CoolingTNS.mean_last_window(GS_overlap_list, window_size)
+    GS_overlap_final = CoolingTNS.mean_last_window(results["GS_overlap_list"], window_size)
     println("After cooling: E_final/N=$Edensity_final, GS_overlap_final=$GS_overlap_final")
 
     filename = CoolingTNS.create_filename(ham_name, N, coupling_params, sim_params)

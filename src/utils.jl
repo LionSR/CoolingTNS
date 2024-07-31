@@ -61,10 +61,10 @@ end
 
 function save_results(filename, result, e₀, ham_name, parsed_args; is_optimization=false)
     directory = is_optimization ? "ResultsOpt" : "Results"
-    h5open("$(directory)/$(filename).h5", "w") do file
+    h5open(joinpath(directory, "$(filename).h5"), "w") do file
         write(file, "e₀", e₀)
         for (key, value) in result
-            write(file, key, value)
+            write(file, string(key), value)
         end
         write(file, "ham_name", ham_name)
         for (key, value) in parsed_args

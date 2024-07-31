@@ -44,11 +44,12 @@ function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params,
     cutoff, Dmax, tau, pe = sim_params["cutoff"], sim_params["Dmax"], sim_params["tau"], sim_params["pe"]
     N = length(sites) ÷ 2
 
-    E_list = zeros(steps + 1)
-    GS_overlap_list = zeros(steps + 1)
-    nb_list = zeros(steps + 1)
+    E_list = zeros(Float64, steps + 1)
+    GS_overlap_list = zeros(Float64, steps + 1)
+    nb_list = zeros(Float64, steps + 1)
 
-    E_list[1], GS_overlap_list[1] = energy(ψ_s, H_sys), abs2(inner(ψ_s, ϕ₀))
+    E_list[1] = real(inner(ψ_s', H_sys, ψ_s))
+    GS_overlap_list[1] = abs2(inner(ψ_s, ϕ₀))
 
     println("Cooling starts")
     println("Step 1: energy/N=$(E_list[1]/N), overlap=$(GS_overlap_list[1])")
@@ -66,7 +67,9 @@ function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params,
         truncate!(ψ_s; cutoff)
         normalize!(ψ_s)
 
-        E_list[step], GS_overlap_list[step], nb_list[step] = energy(ψ_s, H_sys), abs2(inner(ψ_s, ϕ₀)), mean(v_b .- 1)
+        E_list[step] = real(inner(ψ_s', H_sys, ψ_s))
+        GS_overlap_list[step] = abs2(inner(ψ_s, ϕ₀))
+        nb_list[step] = mean(v_b .- 1)
 
         println("Step $step: energy/N=$(E_list[step]/N), overlap=$(GS_overlap_list[step]), DmaxSB=$(maxlinkdim(ψ_sb_evolved)), DmaxS=$(maxlinkdim(ψ_s)), <nb>=$(nb_list[step])")
     end

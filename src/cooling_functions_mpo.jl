@@ -75,19 +75,14 @@ function run_cooling_mpo(sites, H_sys, ϕ₀, gates, ρ_s, coupling_params, sim_
     trotter_steps = sim_params["trotter_steps"]
     cutoff = sim_params["cutoff"]
     Dmax = sim_params["Dmax"]
-
     pe = sim_params["pe"]
-    if pe > 0
-        noise_layer = [depolarizing_noise(sites[i], pe) for i = 1:2N]
-    end
 
-    N = length(sites) ÷ 2
-    sites_sys = sites[1:2:2N-1]
+    noise_layer = pe > 0 ? [depolarizing_noise(sites[i], pe) for i = 1:2N] : nothing
 
-    E_list = zeros(steps + 1)
-    GS_overlap_list = zeros(steps + 1)
+    E_list = zeros(Float64, steps + 1)
+    GS_overlap_list = zeros(Float64, steps + 1)
 
-    E_list[1] = inner(H_sys, ρ_s) / tr(ρ_s)
+    E_list[1] = real(inner(H_sys, ρ_s) / tr(ρ_s))
     GS_overlap_list[1] = real(inner(ϕ₀', ρ_s, ϕ₀))
 
     println("Cooling starts")
@@ -95,7 +90,7 @@ function run_cooling_mpo(sites, H_sys, ϕ₀, gates, ρ_s, coupling_params, sim_
 
     for i = 2:steps+1
         ρ_sb = appendzeros_MPO(ρ_s, sites)
-        for j = 1:trotter_steps
+        for _ = 1:trotter_steps
             ρ_sb = apply(gates, ρ_sb; apply_dag=true, cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
         end
         if pe > 0
