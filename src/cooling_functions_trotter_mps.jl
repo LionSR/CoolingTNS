@@ -36,13 +36,12 @@ function build_trotter_circuit_bath_coupling(sites_sys, sites_bath, coupling_par
     return gates
 end
 
-function evolve_state_trotter(H_total, H_sys, gates, ψ, t, ham_params; Dmax, cutoff, tau)
+function evolve_state_trotter(H_total, H_sys, gates, ψ, t, ham_params, sites; Dmax, cutoff, tau)
     steps = Int(t / tau)
     ψ_evolved = copy(ψ)
     
     # Create a new Hamiltonian with Δ and g set to zero
-    N = length(sites(H_total)) ÷ 2
-    sites = siteinds(H_total)
+    N = length(sites) ÷ 2
     zero_coupling_params = Dict("g" => 0.0, "Δ" => 0.0, "coupling" => "XX")  # Use "XX" as a default coupling
     
     H_sys_zero = if length(ham_params) == 2  # Ising model
