@@ -117,5 +117,7 @@ function plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, 
 
     filename_saveto = create_filename(ham_name, N_values, coupling_params, sim_params)
     filename_saveto = "$(filename_saveto)_energy_error_and_overlap_vs_N_multiple_pe.pdf"
+
+    isdir("Results/Figs") || mkpath("Results/Figs")
     fig.savefig("Results/Figs/" * filename_saveto, dpi=300)
 end
