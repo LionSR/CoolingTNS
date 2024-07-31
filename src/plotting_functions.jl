@@ -43,7 +43,7 @@ function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_param
     for N in N_values
         filename = create_filename(ham_name, N, coupling_params, sim_params)
 
-        h5open("Results/" * filename, "r") do file
+        h5open("Results/" * filename * ".h5", "r") do file
             e₀ = read(file, "e₀")
             E_final = read(file, "E_final")
             GS_overlap_final = read(file, "GS_overlap_final")
@@ -90,7 +90,7 @@ function plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, 
         for N in N_values
             filename = create_filename(ham_name, N, coupling_params, sim_params)
 
-            h5open("Results/" * filename, "r") do file
+            h5open("Results/" * filename * ".h5", "r") do file
                 e₀ = read(file, "e₀")
                 E_final = read(file, "E_final")
                 GS_overlap_final = read(file, "GS_overlap_final")
