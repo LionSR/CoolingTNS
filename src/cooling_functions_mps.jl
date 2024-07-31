@@ -73,6 +73,11 @@ function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params,
 
     println("After cooling: energy/N=$(E_list[end]/N), overlap=$(GS_overlap_list[end])")
 
-    return E_list, GS_overlap_list, nb_list
+    return Dict(
+        "E_list" => E_list,
+        "GS_overlap_list" => GS_overlap_list,
+        "nb_list" => nb_list,
+        "final_state" => ψ_s
+    )
 end
 

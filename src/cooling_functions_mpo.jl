@@ -110,7 +110,11 @@ function run_cooling_mpo(sites, H_sys, ϕ₀, gates, ρ_s, coupling_params, sim_
 
         println("Step $i: energy/N = $(E_list[i]/N), gs_overlap = $(GS_overlap_list[i]), Dmax=$(maxlinkdim(ρ_s))")
     end
-    return E_list, GS_overlap_list
+    return Dict(
+        "E_list" => E_list,
+        "GS_overlap_list" => GS_overlap_list,
+        "final_state" => ρ_s
+    )
 end
 
 
