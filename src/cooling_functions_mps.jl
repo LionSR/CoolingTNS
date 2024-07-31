@@ -40,21 +40,15 @@ end
 
 
 function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params, sim_params)
-    steps = coupling_params["steps"]
-    te = coupling_params["te"]
-    cutoff = sim_params["cutoff"]
-    Dmax = sim_params["Dmax"]
-    tau = sim_params["tau"]
+    steps, te = coupling_params["steps"], coupling_params["te"]
+    cutoff, Dmax, tau, pe = sim_params["cutoff"], sim_params["Dmax"], sim_params["tau"], sim_params["pe"]
     N = length(sites) ÷ 2
-
-    pe = sim_params["pe"]
 
     E_list = zeros(steps + 1)
     GS_overlap_list = zeros(steps + 1)
     nb_list = zeros(steps + 1)
 
-    E_list[1] = energy(ψ_s, H_sys)
-    GS_overlap_list[1] = abs2(inner(ψ_s, ϕ₀))
+    E_list[1], GS_overlap_list[1] = energy(ψ_s, H_sys), abs2(inner(ψ_s, ϕ₀))
 
     println("Cooling starts")
     println("Step 1: energy/N=$(E_list[1]/N), overlap=$(GS_overlap_list[1])")
@@ -62,6 +56,7 @@ function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params,
     for step = 2:steps+1
         ψ_sb = appendzeros_MPS(ψ_s, sites)
         ψ_sb_evolved = evolve_state(H_sys_bath, ψ_sb, te; Dmax, cutoff, tau)
+        
         if pe > 0
             ψ_sb_evolved = apply_depolarizing_noise(ψ_sb_evolved, sites, pe)
             orthogonalize!(ψ_sb_evolved, 2)
@@ -71,9 +66,7 @@ function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params,
         truncate!(ψ_s; cutoff)
         normalize!(ψ_s)
 
-        E_list[step] = energy(ψ_s, H_sys)
-        GS_overlap_list[step] = abs2(inner(ψ_s, ϕ₀))
-        nb_list[step] = mean(v_b .- 1)
+        E_list[step], GS_overlap_list[step], nb_list[step] = energy(ψ_s, H_sys), abs2(inner(ψ_s, ϕ₀)), mean(v_b .- 1)
 
         println("Step $step: energy/N=$(E_list[step]/N), overlap=$(GS_overlap_list[step]), DmaxSB=$(maxlinkdim(ψ_sb_evolved)), DmaxS=$(maxlinkdim(ψ_s)), <nb>=$(nb_list[step])")
     end

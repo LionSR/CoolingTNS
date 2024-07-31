@@ -42,24 +42,17 @@ function setup_common_parameters(parsed_args)
 end
 
 function create_sim_params(parsed_args)
-    method = parsed_args["method"]
-    pe = 0
-    if parsed_args["peInt"] > 0
-        pe = parsed_args["peInt"] * 1e-3
-        pe = round(pe, digits=4)
-    end
+    pe = parsed_args["peInt"] > 0 ? round(parsed_args["peInt"] * 1e-3, digits=4) : 0
     
-    sim_params = Dict(
+    return Dict(
         "cutoff" => parsed_args["cutoff"],
         "Dmax" => parsed_args["Dmax"],
         "pe" => pe,
         "peInt" => parsed_args["peInt"],
-        "method" => method,
+        "method" => parsed_args["method"],
         "trotter_steps" => Int(parsed_args["te"] / parsed_args["tau"]),
         "tau" => parsed_args["tau"]
     )
-    
-    return sim_params
 end
 
 function mean_last_window(list, window_size)

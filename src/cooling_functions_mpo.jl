@@ -30,32 +30,17 @@ end
 function build_trotter_circuit_niising(sites_sys, sites_bath, ham_params, coupling_params, sim_params)
     N = length(sites_sys)
     J, hx, hz = ham_params
-    g = coupling_params["g"]
-    Δ = coupling_params["Δ"]
-    coupling = coupling_params["coupling"]
-    tau = sim_params["tau"]
+    g, Δ, coupling, tau = coupling_params["g"], coupling_params["Δ"], coupling_params["coupling"], sim_params["tau"]
 
-    op1, op2 = if length(coupling) == 2
-        string(coupling[1]), string(coupling[2])
-    else
-        error("Invalid coupling: $coupling")
-    end
+    op1, op2 = parse_coupling(coupling)
 
     gates = ITensor[]
     for ind in 1:N
-        s1 = sites_sys[ind]
-        b1 = sites_bath[ind]
-        if ind < N
-            s2 = sites_sys[ind+1]
-            hs = J * op("Z", s1) * op("Z", s2) + hx * op("X", s1) * op("I", s2) + hz * op("Z", s1) * op("I", s2)
-        else
-            hs = hx * op("X", s1) + hz * op("Z", s1)
-        end
+        s1, b1 = sites_sys[ind], sites_bath[ind]
+        hs = ind < N ? J * op("Z", s1) * op("Z", sites_sys[ind+1]) + hx * op("X", s1) * op("I", sites_sys[ind+1]) + hz * op("Z", s1) * op("I", sites_sys[ind+1]) :
+                       hx * op("X", s1) + hz * op("Z", s1)
         hsb = g * op(op1, s1) * op(op2, b1) - Δ / 2 * op("I", s1) * op("Z", b1)
-        Gs = exp(-1.0im * tau / 2 * hs)
-        Gsb = exp(-1.0im * tau / 2 * hsb)
-        push!(gates, Gs)
-        push!(gates, Gsb)
+        push!(gates, exp(-1.0im * tau / 2 * hs), exp(-1.0im * tau / 2 * hsb))
     end
     append!(gates, reverse(gates))
 end
