@@ -14,3 +14,8 @@ CoolingTNS.plot_vs_N(ham_name, coupling_params, sim_params, N_values)
 # Call the plotting function with a range of peInt values
 peInt_range = 0:10
 CoolingTNS.plot_vs_N_pe_range(ham_name, coupling_params, sim_params, N_values, peInt_range)
+
+# Plot cooling curve for different noise strengths
+N = 20  # Or any other system size you want to plot
+peInt_range = 0:2:10  # Range of noise strengths to plot
+CoolingTNS.plot_cooling_curve_noise(ham_name, N, coupling_params, sim_params, peInt_range)
