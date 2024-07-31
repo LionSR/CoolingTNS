@@ -36,18 +36,27 @@ function build_trotter_circuit_bath_coupling(sites_sys, sites_bath, coupling_par
     return gates
 end
 
-function evolve_state_trotter(H_total, H_sys, gates, ψ, t; Dmax, cutoff, tau)
+function evolve_state_trotter(H_total, H_sys, gates, ψ, t, ham_params; Dmax, cutoff, tau)
     steps = Int(t / tau)
     ψ_evolved = copy(ψ)
     
+    # Create a new Hamiltonian with Δ and g set to zero
+    N = length(sites(H_total)) ÷ 2
+    sites = siteinds(H_total)
+    zero_coupling_params = Dict("g" => 0.0, "Δ" => 0.0, "coupling" => "XX")  # Use "XX" as a default coupling
+    
+    H_sys_zero = if haskey(ham_params, "h")  # Ising model
+        ham_ising_sys_bath(N, sites, ham_params, zero_coupling_params)
+    else  # niIsing model
+        ham_niising_sys_bath(N, sites, ham_params, zero_coupling_params)
+    end
+    
     for _ in 1:steps
-        # Evolve with H_sys using TDVP
-        ψ_evolved = tdvp(H_sys, -im * tau, ψ_evolved; nsteps=1, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
-
-        # ψ_evolved = tdvp(H_total, -im * tau, ψ_evolved; nsteps=1, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
+        # Evolve with H_sys_zero using TDVP
+        ψ_evolved = tdvp(H_sys_zero, -im * tau, ψ_evolved; nsteps=1, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
         
-        Apply the pre-computed gates
-        # ψ_evolved = apply(gates, ψ_evolved; cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
+        # Apply the pre-computed gates
+        ψ_evolved = apply(gates, ψ_evolved; cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
 
         orthogonalize!(ψ_evolved, 2)
         normalize!(ψ_evolved)
@@ -56,7 +65,7 @@ function evolve_state_trotter(H_total, H_sys, gates, ψ, t; Dmax, cutoff, tau)
     return ψ_evolved
 end
 
-function run_cooling_trotter_mps(sites, H_sys, H_total, ϕ₀, gates, ψ_s, coupling_params, sim_params)
+function run_cooling_trotter_mps(sites, H_sys, H_total, ϕ₀, gates, ψ_s, coupling_params, sim_params, ham_params)
     steps, te = coupling_params["steps"], coupling_params["te"]
     cutoff, Dmax, tau, pe = sim_params["cutoff"], sim_params["Dmax"], sim_params["tau"], sim_params["pe"]
     N = length(sites) ÷ 2
