@@ -22,7 +22,7 @@ function build_trotter_circuit_bath_coupling(sites_sys, sites_bath, coupling_par
     op1, op2 = parse_coupling(coupling)
 
     gates = ITensor[]
-    for ind in 1:N
+    for ind in eachindex(sites_sys)
         s1, b1 = sites_sys[ind], sites_bath[ind]
         hb = -Δ / 2 * op("Z", b1)
         hsb = g * op(op1, s1) * op(op2, b1)
@@ -32,12 +32,12 @@ function build_trotter_circuit_bath_coupling(sites_sys, sites_bath, coupling_par
     return gates
 end
 
-function build_trotter_circuit_ising(sites_sys, sites_bath, coupling_params, sim_params)
-    build_trotter_circuit(sites_sys, sites_bath, coupling_params, sim_params)
+function build_trotter_circuit_bath_coupling_ising(sites_sys, sites_bath, coupling_params, sim_params)
+    build_trotter_circuit_bath_coupling(sites_sys, sites_bath, coupling_params, sim_params)
 end
 
-function build_trotter_circuit_niising(sites_sys, sites_bath, coupling_params, sim_params)
-    build_trotter_circuit(sites_sys, sites_bath, coupling_params, sim_params)
+function build_trotter_circuit_bath_coupling_niising(sites_sys, sites_bath, coupling_params, sim_params)
+    build_trotter_circuit_bath_coupling(sites_sys, sites_bath, coupling_params, sim_params)
 end
 
 function evolve_state_trotter(H_sys, V, ψ, t; Dmax, cutoff, tau)
