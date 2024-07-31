@@ -11,10 +11,10 @@ function safe_read_data(filename)
     try
         h5open(filename, "r") do file
             e₀ = read(file, "e₀")
-            E_final = read(file, "E_final")
-            GS_overlap_final = read(file, "GS_overlap_final")
+            E_list = read(file, "E_list")
+            GS_overlap_list = read(file, "GS_overlap_list")
             Edensity_final = read(file, "Edensity_final")
-            return e₀, E_final, GS_overlap_final, Edensity_final
+            return e₀, E_list, GS_overlap_list, Edensity_final
         end
     catch e
         if isa(e, KeyError)
@@ -111,6 +111,55 @@ function plot_vs_N(ham_name, coupling_params, sim_params, N_values; is_optimizat
 
     filename_saveto = create_filename(ham_name, valid_N_values[1], coupling_params, sim_params)
     filename_saveto = "$(prefix)$(filename_saveto)_energy_density_and_overlap_vs_N.pdf"
+
+    isdir("$(directory)/Figs") || mkpath("$(directory)/Figs")
+    fig.savefig("$(directory)/Figs/$(filename_saveto)", dpi=300)
+end
+
+function plot_cooling_curve_noise(ham_name, N, coupling_params, sim_params, peInt_range; is_optimization=false)
+    plt = pyimport("matplotlib.pyplot")
+    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+    directory = is_optimization ? "ResultsOpt" : "Results"
+    prefix = is_optimization ? "Optimize" : ""
+
+    for peInt in peInt_range
+        pe = peInt * 1e-3
+        pe = round(pe, digits=4)
+        sim_params["pe"] = pe
+        sim_params["peInt"] = peInt
+
+        filename = create_filename(ham_name, N, coupling_params, sim_params)
+        filename = "$(prefix)$(filename)"
+        if is_optimization
+            search_name_part = create_search_name_part(sim_params)
+            filename *= "_$(search_name_part)"
+        end
+        full_filename = "$(directory)/$(filename).h5"
+
+        e₀, E_list, GS_overlap_list, _ = safe_read_data(full_filename)
+        if e₀ !== nothing && E_list !== nothing && GS_overlap_list !== nothing
+            steps = length(E_list)
+            ax1.plot(1:steps, E_list ./ N, label="pe=$pe")
+            ax2.plot(1:steps, GS_overlap_list, label="pe=$pe")
+        else
+            @warn "No valid data found for pe=$pe. Skipping this pe value."
+        end
+    end
+
+    ax1.set_xlabel("Cooling steps")
+    ax1.set_ylabel("Energy density")
+    ax1.legend()
+
+    ax2.set_xlabel("Cooling steps")
+    ax2.set_ylabel("Ground state overlap")
+    ax2.legend()
+
+    plt.tight_layout()
+
+    filename_saveto = create_filename(ham_name, N, coupling_params, sim_params)
+    filename_saveto = "$(prefix)$(filename_saveto)_cooling_curve_noise.pdf"
 
     isdir("$(directory)/Figs") || mkpath("$(directory)/Figs")
     fig.savefig("$(directory)/Figs/$(filename_saveto)", dpi=300)
