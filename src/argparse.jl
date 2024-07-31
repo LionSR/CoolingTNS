@@ -52,7 +52,7 @@ function parse_commandline()
         "--cutoff"
         help = "truncation error cutoff"
         arg_type = Float64
-        default = 1E-5
+        default = 1E-6
         "--num_trials"
         help = "number of trials for the search"
         default = 10
