@@ -31,12 +31,6 @@ function setup_common_parameters(parsed_args)
     problem = parsed_args["problem"]
     ham_params, ham_name = extract_ham_params(problem, parsed_args)
 
-    pe = 0
-    if parsed_args["peInt"] > 0
-        pe = parsed_args["peInt"] * 1e-3
-        pe = round(pe, digits=4)
-    end
-
     coupling_params = Dict(
         "g" => parsed_args["g"],
         "te" => parsed_args["te"],
@@ -44,21 +38,26 @@ function setup_common_parameters(parsed_args)
         "coupling" => parsed_args["coupling"]
     )
 
-    return N, problem, ham_params, ham_name, pe, coupling_params
+    return N, problem, ham_params, ham_name, coupling_params
 end
 
-function create_sim_params(parsed_args, pe)
+function create_sim_params(parsed_args)
     method = parsed_args["method"]
+    pe = 0
+    if parsed_args["peInt"] > 0
+        pe = parsed_args["peInt"] * 1e-3
+        pe = round(pe, digits=4)
+    end
+    
     sim_params = Dict(
         "cutoff" => parsed_args["cutoff"],
         "Dmax" => parsed_args["Dmax"],
         "pe" => pe,
         "peInt" => parsed_args["peInt"],
-        "method" => method
+        "method" => method,
+        "trotter_steps" => Int(parsed_args["te"] / parsed_args["tau"]),
+        "tau" => parsed_args["tau"]
     )
-    
-    sim_params["trotter_steps"] = Int(parsed_args["te"] / parsed_args["tau"])
-    sim_params["tau"] = parsed_args["tau"]
     
     return sim_params
 end

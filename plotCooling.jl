@@ -2,8 +2,8 @@ using CoolingTNS
 
 parsed_args = CoolingTNS.parse_commandline()
 
-N, problem, ham_params, ham_name, pe, coupling_params = CoolingTNS.setup_common_parameters(parsed_args)
-sim_params = CoolingTNS.create_sim_params(parsed_args, pe)
+N, problem, ham_params, ham_name, coupling_params = CoolingTNS.setup_common_parameters(parsed_args)
+sim_params = CoolingTNS.create_sim_params(parsed_args)
 
 # Set the desired system sizes for plotting
 N_values = [10, 20, 30, 40, 50]
