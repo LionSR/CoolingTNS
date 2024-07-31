@@ -82,7 +82,7 @@ function create_filename(ham_name, N, coupling_params, sim_params)
     ham_name_part = isa(N, Array) ? "Ham$(ham_name)Nmin$(minimum(N))Nmax$(maximum(N))" : "Ham$(ham_name)Ns$(N)Nb$(N)"
     coupling_name_part = "Coupling$(coupling_params["coupling"])g$(coupling_params["g"])te$(coupling_params["te"])steps$(coupling_params["steps"])"
     sim_name_part = "Sim$(sim_params["method"])Dmax$(sim_params["Dmax"])tau$(sim_params["tau"])"
-    sim_params["peInt"] > 0 && (sim_name_part *= "peInt$(sim_params["peInt"])")
+    sim_name_part *= sim_params["peInt"] > 0 ? "peInt$(sim_params["peInt"])" : ""
     
     return join(["Cooling", ham_name_part, coupling_name_part, sim_name_part], "_")
 end

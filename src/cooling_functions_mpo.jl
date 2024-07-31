@@ -1,48 +1,33 @@
 using ITensors
 
-function build_trotter_circuit_ising(sites_sys, sites_bath, ham_params, coupling_params, sim_params)
+function build_trotter_circuit(sites_sys, sites_bath, ham_params, coupling_params, sim_params, problem)
     N = length(sites_sys)
-    J, h = ham_params
-    g = coupling_params["g"]
-    Δ = coupling_params["Δ"]
-    op1, op2 = parse_coupling(coupling_params["coupling"])
-    tau = sim_params["tau"]
-
-    gates = ITensor[]
-    for ind in 1:N
-        s1 = sites_sys[ind]
-        b1 = sites_bath[ind]
-        if ind < N
-            s2 = sites_sys[ind+1]
-            hs = J * op("Z", s1) * op("Z", s2) + h * op("X", s1) * op("I", s2)
-        else
-            hs = h * op("X", s1)
-        end
-        hsb = g * op(op1, s1) * op(op2, b1) - Δ / 2 * op("I", s1) * op("Z", b1)
-        Gs = exp(-1.0im * tau / 2 * hs)
-        Gsb = exp(-1.0im * tau / 2 * hsb)
-        push!(gates, Gs)
-        push!(gates, Gsb)
-    end
-    append!(gates, reverse(gates))
-end
-
-function build_trotter_circuit_niising(sites_sys, sites_bath, ham_params, coupling_params, sim_params)
-    N = length(sites_sys)
-    J, hx, hz = ham_params
     g, Δ, coupling, tau = coupling_params["g"], coupling_params["Δ"], coupling_params["coupling"], sim_params["tau"]
-
     op1, op2 = parse_coupling(coupling)
 
     gates = ITensor[]
     for ind in 1:N
         s1, b1 = sites_sys[ind], sites_bath[ind]
-        hs = ind < N ? J * op("Z", s1) * op("Z", sites_sys[ind+1]) + hx * op("X", s1) * op("I", sites_sys[ind+1]) + hz * op("Z", s1) * op("I", sites_sys[ind+1]) :
-                       hx * op("X", s1) + hz * op("Z", s1)
+        hs = if problem == "Ising"
+            J, h = ham_params
+            ind < N ? J * op("Z", s1) * op("Z", sites_sys[ind+1]) + h * op("X", s1) * op("I", sites_sys[ind+1]) : h * op("X", s1)
+        else # niIsing
+            J, hx, hz = ham_params
+            ind < N ? J * op("Z", s1) * op("Z", sites_sys[ind+1]) + hx * op("X", s1) * op("I", sites_sys[ind+1]) + hz * op("Z", s1) * op("I", sites_sys[ind+1]) :
+                      hx * op("X", s1) + hz * op("Z", s1)
+        end
         hsb = g * op(op1, s1) * op(op2, b1) - Δ / 2 * op("I", s1) * op("Z", b1)
         push!(gates, exp(-1.0im * tau / 2 * hs), exp(-1.0im * tau / 2 * hsb))
     end
     append!(gates, reverse(gates))
+end
+
+function build_trotter_circuit_ising(sites_sys, sites_bath, ham_params, coupling_params, sim_params)
+    build_trotter_circuit(sites_sys, sites_bath, ham_params, coupling_params, sim_params, "Ising")
+end
+
+function build_trotter_circuit_niising(sites_sys, sites_bath, ham_params, coupling_params, sim_params)
+    build_trotter_circuit(sites_sys, sites_bath, ham_params, coupling_params, sim_params, "niIsing")
 end
 
 function setup_init_state_mpo(sites)

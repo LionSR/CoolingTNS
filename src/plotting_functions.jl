@@ -19,6 +19,8 @@ function safe_read_data(filename)
     catch e
         if isa(e, KeyError)
             @warn "Missing key in file $filename: $(e.key)"
+        elseif isa(e, HDF5.HDF5Error)
+            @warn "HDF5 error while reading $filename: $(e.msg)"
         else
             @warn "Failed to read data from $filename: $e"
         end
