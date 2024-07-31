@@ -35,8 +35,21 @@ function run_cooling(parsed_args)
             coupling_params,
             sim_params
         )
+    elseif method == "TrotterMPS"
+        sites, H_sys, ϕ₀, e₀, H_sys_bath, V = CoolingTNS.setup_problem_trotter_mps(N, problem, ham_params, coupling_params, sim_params)
+        initial_state = CoolingTNS.setup_init_state_mps(sites)
+        results = CoolingTNS.run_cooling_trotter_mps(
+            sites,
+            H_sys,
+            ϕ₀,
+            H_sys_bath,
+            V,
+            initial_state,
+            coupling_params,
+            sim_params
+        )
     else
-        error("Invalid method: $method. Choose either 'MPS' or 'MPO'.")
+        error("Invalid method: $method. Choose 'MPS', 'MPO', or 'TrotterMPS'.")
     end
 
     println("The ground state energy density is e₀/N = $(e₀/N)")
