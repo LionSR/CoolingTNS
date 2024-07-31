@@ -9,8 +9,8 @@ sim_params = CoolingTNS.create_sim_params(parsed_args)
 N_values = [10, 20, 30, 40]
 
 # Plot energy error and final overlap vs system size
-CoolingTNS.plot_vs_N(ham_name, coupling_params, sim_params, N_values, e₀)
+CoolingTNS.plot_vs_N(ham_name, coupling_params, sim_params, N_values)
 
 # Call the plotting function with a range of peInt values
 peInt_range = 0:10
-CoolingTNS.plot_vs_N_pe_range(ham_name, coupling_params, sim_params, N_values, peInt_range, e₀)
+CoolingTNS.plot_vs_N_pe_range(ham_name, coupling_params, sim_params, N_values, peInt_range)
