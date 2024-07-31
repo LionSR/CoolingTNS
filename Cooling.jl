@@ -46,7 +46,8 @@ function run_cooling(parsed_args)
             gates,
             initial_state,
             coupling_params,
-            sim_params
+            sim_params,
+            ham_params
         )
     else
         error("Invalid method: $method. Choose 'MPS', 'MPO', or 'TrotterMPS'.")
