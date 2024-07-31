@@ -2,12 +2,50 @@ using ITensors
 using ITensorTDVP
 
 function setup_problem_trotter_mps(N, problem, ham_params, coupling_params, sim_params)
-    sites, H_sys, ϕ₀, e₀, H_sys_bath = setup_problem_mps(N, problem, ham_params, coupling_params, sim_params)
+    sites = siteinds("S=1/2", 2N)
+    sites_sys = sites[1:2:2N-1]
+    sites_bath = sites[2:2:2N]
+
+    H_sys, Δ_dmrg, e₀, ϕ₀ = setup_system(N, problem, sites_sys, ham_params)
+
+    Δ = haskey(coupling_params, "Δ") ? coupling_params["Δ"] : Δ_dmrg
+    coupling_params["Δ"] = Δ
+
+    build_trotter_circuit_fn = problem == "Ising" ? build_trotter_circuit_ising : build_trotter_circuit_niising
+    gates = build_trotter_circuit_fn(sites_sys, sites_bath, ham_params, coupling_params, sim_params)
     
-    # Create the interaction part V
-    V = H_sys_bath - H_sys
-    
-    return sites, H_sys, ϕ₀, e₀, H_sys_bath, V
+    return sites, H_sys, ϕ₀, e₀, gates
+end
+
+function build_trotter_circuit(sites_sys, sites_bath, ham_params, coupling_params, sim_params, problem)
+    N = length(sites_sys)
+    g, Δ, coupling, tau = coupling_params["g"], coupling_params["Δ"], coupling_params["coupling"], sim_params["tau"]
+    op1, op2 = parse_coupling(coupling)
+
+    gates = ITensor[]
+    for ind in 1:N
+        s1, b1 = sites_sys[ind], sites_bath[ind]
+        hs = if problem == "Ising"
+            J, h = ham_params
+            ind < N ? J * op("Z", s1) * op("Z", sites_sys[ind+1]) + h * op("X", s1) * op("I", sites_sys[ind+1]) : h * op("X", s1)
+        else # niIsing
+            J, hx, hz = ham_params
+            ind < N ? J * op("Z", s1) * op("Z", sites_sys[ind+1]) + hx * op("X", s1) * op("I", sites_sys[ind+1]) + hz * op("Z", s1) * op("I", sites_sys[ind+1]) :
+                      hx * op("X", s1) + hz * op("Z", s1)
+        end
+        hsb = g * op(op1, s1) * op(op2, b1) - Δ / 2 * op("I", s1) * op("Z", b1)
+        push!(gates, exp(-1.0im * tau / 2 * hs), exp(-1.0im * tau / 2 * hsb))
+    end
+    append!(gates, reverse(gates))
+    return gates
+end
+
+function build_trotter_circuit_ising(sites_sys, sites_bath, ham_params, coupling_params, sim_params)
+    build_trotter_circuit(sites_sys, sites_bath, ham_params, coupling_params, sim_params, "Ising")
+end
+
+function build_trotter_circuit_niising(sites_sys, sites_bath, ham_params, coupling_params, sim_params)
+    build_trotter_circuit(sites_sys, sites_bath, ham_params, coupling_params, sim_params, "niIsing")
 end
 
 function evolve_state_trotter(H_sys, V, ψ, t; Dmax, cutoff, tau)
@@ -29,7 +67,7 @@ function evolve_state_trotter(H_sys, V, ψ, t; Dmax, cutoff, tau)
     return ψ_evolved
 end
 
-function run_cooling_trotter_mps(sites, H_sys, ϕ₀, H_sys_bath, V, ψ_s, coupling_params, sim_params)
+function run_cooling_trotter_mps(sites, H_sys, ϕ₀, gates, ψ_s, coupling_params, sim_params)
     steps, te = coupling_params["steps"], coupling_params["te"]
     cutoff, Dmax, tau, pe = sim_params["cutoff"], sim_params["Dmax"], sim_params["tau"], sim_params["pe"]
     N = length(sites) ÷ 2
@@ -46,14 +84,18 @@ function run_cooling_trotter_mps(sites, H_sys, ϕ₀, H_sys_bath, V, ψ_s, coupl
 
     for step = 2:steps+1
         ψ_sb = appendzeros_MPS(ψ_s, sites)
-        ψ_sb_evolved = evolve_state_trotter(H_sys, V, ψ_sb, te; Dmax, cutoff, tau)
+        
+        # Apply the Trotter gates
+        for _ in 1:Int(te/tau)
+            ψ_sb = apply(gates, ψ_sb; cutoff=cutoff, maxdim=Dmax)
+        end
         
         if pe > 0
-            ψ_sb_evolved = apply_depolarizing_noise(ψ_sb_evolved, sites, pe)
-            orthogonalize!(ψ_sb_evolved, 2)
+            ψ_sb = apply_depolarizing_noise(ψ_sb, sites, pe)
+            orthogonalize!(ψ_sb, 2)
         end
 
-        v_b, ψ_s = sample_bath(ψ_sb_evolved)
+        v_b, ψ_s = sample_bath(ψ_sb)
         truncate!(ψ_s; cutoff)
         normalize!(ψ_s)
 
@@ -61,7 +103,7 @@ function run_cooling_trotter_mps(sites, H_sys, ϕ₀, H_sys_bath, V, ψ_s, coupl
         GS_overlap_list[step] = abs2(inner(ψ_s, ϕ₀))
         nb_list[step] = mean(v_b .- 1)
 
-        println("Step $step: energy/N=$(E_list[step]/N), overlap=$(GS_overlap_list[step]), DmaxSB=$(maxlinkdim(ψ_sb_evolved)), DmaxS=$(maxlinkdim(ψ_s)), <nb>=$(nb_list[step])")
+        println("Step $step: energy/N=$(E_list[step]/N), overlap=$(GS_overlap_list[step]), DmaxSB=$(maxlinkdim(ψ_sb)), DmaxS=$(maxlinkdim(ψ_s)), <nb>=$(nb_list[step])")
     end
 
     println("After cooling: energy/N=$(E_list[end]/N), overlap=$(GS_overlap_list[end])")

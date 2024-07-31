@@ -36,14 +36,13 @@ function run_cooling(parsed_args)
             sim_params
         )
     elseif method == "TrotterMPS"
-        sites, H_sys, ϕ₀, e₀, H_sys_bath, V = CoolingTNS.setup_problem_trotter_mps(N, problem, ham_params, coupling_params, sim_params)
+        sites, H_sys, ϕ₀, e₀, gates = CoolingTNS.setup_problem_trotter_mps(N, problem, ham_params, coupling_params, sim_params)
         initial_state = CoolingTNS.setup_init_state_mps(sites)
         results = CoolingTNS.run_cooling_trotter_mps(
             sites,
             H_sys,
             ϕ₀,
-            H_sys_bath,
-            V,
+            gates,
             initial_state,
             coupling_params,
             sim_params
