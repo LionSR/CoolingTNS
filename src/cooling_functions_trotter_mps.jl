@@ -46,11 +46,11 @@ function evolve_state_trotter(H_total, H_sys, gates, ψ, t; Dmax, cutoff, tau)
 
         # ψ_evolved = tdvp(H_total, -im * tau, ψ_evolved; nsteps=1, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
         
-        # Apply the pre-computed gates
-        ψ_evolved = apply(gates, ψ_evolved; cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
-        
-        normalize!(ψ_evolved)
+        Apply the pre-computed gates
+        # ψ_evolved = apply(gates, ψ_evolved; cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
+
         orthogonalize!(ψ_evolved, 2)
+        normalize!(ψ_evolved)
     end
     
     return ψ_evolved
