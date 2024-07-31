@@ -45,7 +45,7 @@ function evolve_state_trotter(H_total, H_sys, gates, ψ, t, ham_params; Dmax, cu
     sites = siteinds(H_total)
     zero_coupling_params = Dict("g" => 0.0, "Δ" => 0.0, "coupling" => "XX")  # Use "XX" as a default coupling
     
-    H_sys_zero = if haskey(ham_params, "h")  # Ising model
+    H_sys_zero = if length(ham_params) == 2  # Ising model
         ham_ising_sys_bath(N, sites, ham_params, zero_coupling_params)
     else  # niIsing model
         ham_niising_sys_bath(N, sites, ham_params, zero_coupling_params)
