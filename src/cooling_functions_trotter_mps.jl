@@ -1,5 +1,5 @@
 using ITensors
-using ITensorTDVP
+using ITensorMPS
 
 function setup_problem_trotter_mps(N, problem, ham_params, coupling_params, sim_params)
     sites = siteinds("S=1/2", 2N)
@@ -32,27 +32,16 @@ function build_trotter_circuit_bath_coupling(sites_sys, sites_bath, coupling_par
     return gates
 end
 
-function build_trotter_circuit_bath_coupling_ising(sites_sys, sites_bath, coupling_params, sim_params)
-    build_trotter_circuit_bath_coupling(sites_sys, sites_bath, coupling_params, sim_params)
-end
-
-function build_trotter_circuit_bath_coupling_niising(sites_sys, sites_bath, coupling_params, sim_params)
-    build_trotter_circuit_bath_coupling(sites_sys, sites_bath, coupling_params, sim_params)
-end
-
 function evolve_state_trotter(H_sys, gates, ψ, t; Dmax, cutoff, tau)
     steps = Int(t / tau)
     ψ_evolved = copy(ψ)
     
     for _ in 1:steps
         # Evolve with H_sys using TDVP
-        ψ_evolved = tdvp(H_sys, -im * tau/2, ψ_evolved; time_step=-im * tau/2, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
+        ψ_evolved = tdvp(H_sys, -im * tau, ψ_evolved; nsteps=1, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
         
         # Apply the pre-computed gates
         ψ_evolved = apply(gates, ψ_evolved; cutoff=cutoff, maxdim=Dmax)
-        
-        # Evolve with H_sys again
-        ψ_evolved = tdvp(H_sys, -im * tau/2, ψ_evolved; time_step=-im * tau/2, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
         
         normalize!(ψ_evolved)
         orthogonalize!(ψ_evolved, 2)
