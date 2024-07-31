@@ -60,7 +60,7 @@ function plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename; mov
     fig.savefig("Results/$(filename).pdf", dpi=300)
 end
 
-function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_params, N_values)
+function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_params, N_values, e₀)
     plt = pyimport("matplotlib.pyplot")
 
     energy_densities = Float64[]
@@ -71,8 +71,8 @@ function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_param
         filename = create_filename(ham_name, N, coupling_params, sim_params)
         full_filename = "Results/" * filename * ".h5"
 
-        e₀, E_final, GS_overlap_final, Edensity_final = safe_read_data(full_filename)
-        if e₀ !== nothing && E_final !== nothing && GS_overlap_final !== nothing && Edensity_final !== nothing
+        _, E_final, GS_overlap_final, Edensity_final = safe_read_data(full_filename)
+        if E_final !== nothing && GS_overlap_final !== nothing && Edensity_final !== nothing
             push!(energy_densities, Edensity_final)
             push!(final_overlaps, GS_overlap_final)
             push!(valid_N_values, N)
@@ -89,6 +89,7 @@ function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_param
     ax1.plot(valid_N_values, energy_densities, marker="o", linestyle="-", label="Energy density")
     ax1.set_xlabel("System size (N)")
     ax1.set_ylabel("Energy density")
+    ax1.axhline(y=e₀ / 100, xmin=0, xmax=1, linewidth=1.5, color="black", label=L"$E_0/N$")
     ax1.legend()
 
     ax2.plot(valid_N_values, final_overlaps, marker="o", linestyle="-", label="Final overlap")
@@ -105,7 +106,7 @@ function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_param
     fig.savefig("Results/Figs/" * filename_saveto, dpi=300)
 end
 
-function plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, sim_params, N_values, peInt_range)
+function plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, sim_params, N_values, peInt_range, e₀)
     plt = pyimport("matplotlib.pyplot")
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
@@ -124,9 +125,9 @@ function plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, 
             filename = create_filename(ham_name, N, coupling_params, sim_params)
             full_filename = "Results/" * filename * ".h5"
 
-            e₀, E_final, GS_overlap_final = safe_read_data(full_filename)
-            if e₀ !== nothing && E_final !== nothing && GS_overlap_final !== nothing
-                push!(energy_errors, abs(E_final / N - e₀ / N))
+            _, E_final, GS_overlap_final, Edensity_final = safe_read_data(full_filename)
+            if E_final !== nothing && GS_overlap_final !== nothing && Edensity_final !== nothing
+                push!(energy_errors, abs(Edensity_final - e₀ / N))
                 push!(final_overlaps, GS_overlap_final)
                 push!(valid_N_values, N)
             end
@@ -150,7 +151,7 @@ function plot_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_params, 
 
     plt.tight_layout()
 
-    filename_saveto = create_filename(ham_name, N_values, coupling_params, sim_params)
+    filename_saveto = create_filename(ham_name, N_values[1], coupling_params, sim_params)
     filename_saveto = "$(filename_saveto)_energy_error_and_overlap_vs_N_multiple_pe.pdf"
 
     isdir("Results/Figs") || mkpath("Results/Figs")

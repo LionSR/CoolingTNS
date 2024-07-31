@@ -16,7 +16,7 @@ function plotOpt_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_pa
         filename = "Optimize$(filename)_$(search_name_part)"
         full_filename = "ResultsOpt/" * filename * ".h5"
 
-        E_final_density, GS_overlap_final = safe_read_data(full_filename)
+        _, _, GS_overlap_final, E_final_density = safe_read_data(full_filename)
         if E_final_density !== nothing && GS_overlap_final !== nothing
             push!(energies, E_final_density)
             push!(final_overlaps, GS_overlap_final)
@@ -25,7 +25,7 @@ function plotOpt_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_pa
     end
 
     if isempty(valid_N_values)
-        @error "No valid data points found. Skipping plot generation."
+        @error "No valid data points foun d. Skipping plot generation."
         return
     end
 
@@ -56,7 +56,7 @@ function plotOpt_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_param
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
-    search_name_part = "Search$(search_params["search_method"])trials$(search_params["num_trials"])"
+    search_name_part = create_search_name_part(search_params)
 
     for peInt in peInt_range
         pe = peInt * 1e-3
@@ -73,9 +73,9 @@ function plotOpt_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_param
             filename = "Optimize$(filename)_$(search_name_part)"
             full_filename = "ResultsOpt/" * filename * ".h5"
 
-            E_final_density, GS_overlap_final = safe_read_data(full_filename)
+            _, _, GS_overlap_final, E_final_density = safe_read_data(full_filename)
             if E_final_density !== nothing && GS_overlap_final !== nothing
-                push!(energy_errors, abs(E_final_density - e₀ / 100))
+                push!(energy_errors, abs(E_final_density - e₀ / N))
                 push!(final_overlaps, GS_overlap_final)
                 push!(valid_N_values, N)
             end
@@ -99,7 +99,7 @@ function plotOpt_energy_error_and_overlap_vs_N_pe_range(ham_name, coupling_param
 
     plt.tight_layout()
 
-    filename_saveto = create_filename(ham_name, N_values, coupling_params, sim_params)
+    filename_saveto = create_filename(ham_name, N_values[1], coupling_params, sim_params)
     filename_saveto = "Optimize$(filename_saveto)_$(search_name_part)_energy_error_and_overlap_vs_N_multiple_pe.pdf"
 
     isdir("ResultsOpt/Figs") || mkpath("ResultsOpt/Figs")
