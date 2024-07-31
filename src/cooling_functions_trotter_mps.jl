@@ -13,7 +13,11 @@ function setup_problem_trotter_mps(N, problem, ham_params, coupling_params, sim_
 
     gates = build_trotter_circuit_bath_coupling(sites_sys, sites_bath, coupling_params, sim_params)
     
-    return sites, H_sys, ϕ₀, e₀, gates
+    # Create the total Hamiltonian
+    ham_sys_bath_fn = problem == "Ising" ? ham_ising_sys_bath : ham_niising_sys_bath
+    H_total = ham_sys_bath_fn(N, sites, ham_params, coupling_params)
+    
+    return sites, H_sys, H_total, ϕ₀, e₀, gates
 end
 
 function build_trotter_circuit_bath_coupling(sites_sys, sites_bath, coupling_params, sim_params)
@@ -50,20 +54,22 @@ function evolve_state_trotter(H_sys, gates, ψ, t; Dmax, cutoff, tau)
     return ψ_evolved
 end
 
-function run_cooling_trotter_mps(sites, H_sys, ϕ₀, gates, ψ_s, coupling_params, sim_params)
+function run_cooling_trotter_mps(sites, H_sys, H_total, ϕ₀, gates, ψ_s, coupling_params, sim_params)
     steps, te = coupling_params["steps"], coupling_params["te"]
     cutoff, Dmax, tau, pe = sim_params["cutoff"], sim_params["Dmax"], sim_params["tau"], sim_params["pe"]
     N = length(sites) ÷ 2
 
     E_list = zeros(Float64, steps + 1)
+    E_total_list = zeros(Float64, steps + 1)
     GS_overlap_list = zeros(Float64, steps + 1)
     nb_list = zeros(Float64, steps + 1)
 
     E_list[1] = real(inner(ψ_s', H_sys, ψ_s))
+    E_total_list[1] = real(inner(appendzeros_MPS(ψ_s, sites)', H_total, appendzeros_MPS(ψ_s, sites)))
     GS_overlap_list[1] = abs2(inner(ψ_s, ϕ₀))
 
     println("Cooling starts")
-    println("Step 1: energy/N=$(E_list[1]/N), overlap=$(GS_overlap_list[1])")
+    println("Step 1: energy/N=$(E_list[1]/N), total energy=$(E_total_list[1]), overlap=$(GS_overlap_list[1])")
 
     for step = 2:steps+1
         ψ_sb = appendzeros_MPS(ψ_s, sites)
@@ -81,16 +87,18 @@ function run_cooling_trotter_mps(sites, H_sys, ϕ₀, gates, ψ_s, coupling_para
         normalize!(ψ_s)
 
         E_list[step] = real(inner(ψ_s', H_sys, ψ_s))
+        E_total_list[step] = real(inner(ψ_sb', H_total, ψ_sb))
         GS_overlap_list[step] = abs2(inner(ψ_s, ϕ₀))
         nb_list[step] = mean(v_b .- 1)
 
-        println("Step $step: energy/N=$(E_list[step]/N), overlap=$(GS_overlap_list[step]), DmaxSB=$(maxlinkdim(ψ_sb)), DmaxS=$(maxlinkdim(ψ_s)), <nb>=$(nb_list[step])")
+        println("Step $step: energy/N=$(E_list[step]/N), total energy=$(E_total_list[step]), overlap=$(GS_overlap_list[step]), DmaxSB=$(maxlinkdim(ψ_sb)), DmaxS=$(maxlinkdim(ψ_s)), <nb>=$(nb_list[step])")
     end
 
-    println("After cooling: energy/N=$(E_list[end]/N), overlap=$(GS_overlap_list[end])")
+    println("After cooling: energy/N=$(E_list[end]/N), total energy=$(E_total_list[end]), overlap=$(GS_overlap_list[end])")
 
     return Dict(
         "E_list" => E_list,
+        "E_total_list" => E_total_list,
         "GS_overlap_list" => GS_overlap_list,
         "nb_list" => nb_list,
         "final_state" => ψ_s
