@@ -2,19 +2,6 @@ using HDF5
 using PythonCall
 using LaTeXStrings
 
-function safe_read_data(filename)
-    try
-        h5open(filename, "r") do file
-            E_final_density = read(file, "Final energy density")
-            GS_overlap_final = read(file, "Final ground state overlap")
-            return E_final_density, GS_overlap_final
-        end
-    catch e
-        @warn "Failed to read data from $filename: $e"
-        return nothing, nothing
-    end
-end
-
 function plotOptimize_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_params, search_params, N_values, e₀)
     plt = pyimport("matplotlib.pyplot")
 

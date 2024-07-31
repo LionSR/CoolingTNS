@@ -8,11 +8,12 @@ function safe_read_data(filename)
             e₀ = read(file, "e₀")
             E_final = read(file, "E_final")
             GS_overlap_final = read(file, "GS_overlap_final")
-            return e₀, E_final, GS_overlap_final
+            Edensity_final = read(file, "Edensity_final")
+            return e₀, E_final, GS_overlap_final, Edensity_final
         end
     catch e
         @warn "Failed to read data from $filename: $e"
-        return nothing, nothing, nothing
+        return nothing, nothing, nothing, nothing
     end
 end
 
@@ -51,7 +52,7 @@ end
 function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_params, N_values)
     plt = pyimport("matplotlib.pyplot")
 
-    energy_errors = Float64[]
+    energy_densities = Float64[]
     final_overlaps = Float64[]
     valid_N_values = Int[]
 
@@ -59,9 +60,9 @@ function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_param
         filename = create_filename(ham_name, N, coupling_params, sim_params)
         full_filename = "Results/" * filename * ".h5"
 
-        e₀, E_final, GS_overlap_final = safe_read_data(full_filename)
-        if e₀ !== nothing && E_final !== nothing && GS_overlap_final !== nothing
-            push!(energy_errors, abs(E_final / N - e₀ / N))
+        e₀, E_final, GS_overlap_final, Edensity_final = safe_read_data(full_filename)
+        if e₀ !== nothing && E_final !== nothing && GS_overlap_final !== nothing && Edensity_final !== nothing
+            push!(energy_densities, Edensity_final)
             push!(final_overlaps, GS_overlap_final)
             push!(valid_N_values, N)
         end
@@ -74,9 +75,9 @@ function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_param
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
-    ax1.plot(valid_N_values, energy_errors, marker="o", linestyle="-", label="Energy error")
+    ax1.plot(valid_N_values, energy_densities, marker="o", linestyle="-", label="Energy density")
     ax1.set_xlabel("System size (N)")
-    ax1.set_ylabel("Energy density error")
+    ax1.set_ylabel("Energy density")
     ax1.legend()
 
     ax2.plot(valid_N_values, final_overlaps, marker="o", linestyle="-", label="Final overlap")
@@ -87,7 +88,7 @@ function plot_energy_error_and_overlap_vs_N(ham_name, coupling_params, sim_param
     plt.tight_layout()
 
     filename_saveto = create_filename(ham_name, valid_N_values[1], coupling_params, sim_params)
-    filename_saveto = "$(filename_saveto)_energy_error_and_overlap_vs_N.pdf"
+    filename_saveto = "$(filename_saveto)_energy_density_and_overlap_vs_N.pdf"
 
     isdir("Results/Figs") || mkpath("Results/Figs")
     fig.savefig("Results/Figs/" * filename_saveto, dpi=300)
