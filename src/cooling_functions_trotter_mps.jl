@@ -41,17 +41,23 @@ function build_trotter_circuit_bath_coupling_niising(sites_sys, sites_bath, coup
 end
 
 function evolve_state_trotter(H_sys, gates, ψ, t; Dmax, cutoff, tau)
-    # Evolve with H_sys using TDVP
-    ψ_evolved = tdvp(H_sys, -im * t/2, ψ; time_step=-im * tau/2, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
+    steps = Int(t / tau)
+    ψ_evolved = copy(ψ)
     
-    # Apply the pre-computed gates
-    ψ_evolved = apply(gates, ψ_evolved; cutoff=cutoff, maxdim=Dmax)
+    for _ in 1:steps
+        # Evolve with H_sys using TDVP
+        ψ_evolved = tdvp(H_sys, -im * tau/2, ψ_evolved; time_step=-im * tau/2, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
+        
+        # Apply the pre-computed gates
+        ψ_evolved = apply(gates, ψ_evolved; cutoff=cutoff, maxdim=Dmax)
+        
+        # Evolve with H_sys again
+        ψ_evolved = tdvp(H_sys, -im * tau/2, ψ_evolved; time_step=-im * tau/2, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
+        
+        normalize!(ψ_evolved)
+        orthogonalize!(ψ_evolved, 2)
+    end
     
-    # Evolve with H_sys again
-    ψ_evolved = tdvp(H_sys, -im * t/2, ψ_evolved; time_step=-im * tau/2, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
-    
-    normalize!(ψ_evolved)
-    orthogonalize!(ψ_evolved, 2)
     return ψ_evolved
 end
 
