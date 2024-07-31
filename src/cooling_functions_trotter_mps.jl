@@ -36,13 +36,15 @@ function build_trotter_circuit_bath_coupling(sites_sys, sites_bath, coupling_par
     return gates
 end
 
-function evolve_state_trotter(H_sys, gates, ψ, t; Dmax, cutoff, tau)
+function evolve_state_trotter(H_total, H_sys, gates, ψ, t; Dmax, cutoff, tau)
     steps = Int(t / tau)
     ψ_evolved = copy(ψ)
     
     for _ in 1:steps
         # Evolve with H_sys using TDVP
         ψ_evolved = tdvp(H_sys, -im * tau, ψ_evolved; nsteps=1, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
+
+        # ψ_evolved = tdvp(H_total, -im * tau, ψ_evolved; nsteps=1, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
         
         # Apply the pre-computed gates
         ψ_evolved = apply(gates, ψ_evolved; cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
@@ -75,7 +77,7 @@ function run_cooling_trotter_mps(sites, H_sys, H_total, ϕ₀, gates, ψ_s, coup
         ψ_sb = appendzeros_MPS(ψ_s, sites)
         
         # Use evolve_state_trotter function
-        ψ_sb = evolve_state_trotter(H_sys, gates, ψ_sb, te; Dmax=Dmax, cutoff=cutoff, tau=tau)
+        ψ_sb = evolve_state_trotter(H_total, H_sys, gates, ψ_sb, te; Dmax=Dmax, cutoff=cutoff, tau=tau)
         
         if pe > 0
             ψ_sb = apply_depolarizing_noise(ψ_sb, sites, pe)
