@@ -3,12 +3,11 @@ if Sys.islinux()
 end
 using CoolingTNS
 
-method = "MPO"
 parsed_args = CoolingTNS.parse_commandline()
 println(parsed_args)
 
 N, problem, ham_params, ham_name, pe, coupling_params = CoolingTNS.setup_common_parameters(parsed_args)
-sim_params = CoolingTNS.create_sim_params(parsed_args, pe, method)
+sim_params = CoolingTNS.create_sim_params(parsed_args, pe)
 
 sites, H_sys, ϕ₀, e₀, gates = CoolingTNS.setup_problem_mpo(problem, N, ham_params, coupling_params, sim_params)
 println("The ground state energy density is e₀/N = $(e₀/N)")

@@ -47,7 +47,8 @@ function setup_common_parameters(parsed_args)
     return N, problem, ham_params, ham_name, pe, coupling_params
 end
 
-function create_sim_params(parsed_args, pe, method=parsed_args["method"])
+function create_sim_params(parsed_args, pe)
+    method = parsed_args["method"]
     sim_params = Dict(
         "cutoff" => parsed_args["cutoff"],
         "Dmax" => parsed_args["Dmax"],
