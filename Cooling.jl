@@ -50,9 +50,11 @@ function run_cooling(parsed_args)
     println("After cooling: E_final/N=$Edensity_final, GS_overlap_final=$GS_overlap_final")
 
     filename = CoolingTNS.create_filename(ham_name, N, coupling_params, sim_params)
-    nb_list = method == "MPS" ? results["nb_list"] : nothing
-    CoolingTNS.save_results(filename, e₀, E_list, GS_overlap_list, E_final, Edensity_final, GS_overlap_final, ham_name, parsed_args, nb_list)
-    CoolingTNS.plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename; moving_average=true)
+    results["E_final"] = E_final
+    results["Edensity_final"] = Edensity_final
+    results["GS_overlap_final"] = GS_overlap_final
+    CoolingTNS.save_results(filename, results, e₀, ham_name, parsed_args)
+    CoolingTNS.plot_energy_and_overlap(results["E_list"], results["GS_overlap_list"], e₀, N, filename; moving_average=true)
 end
 
 # Parse command line arguments and run the cooling simulation
