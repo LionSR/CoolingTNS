@@ -28,7 +28,7 @@ create_outfile() {
 # Load modules
 module_load() {
     module purge
-    module load anaconda/3/2023.03
+    module load python-waterboa
     module load julia/1.10
     module load mkl/2023.1
 }
