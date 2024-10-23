@@ -33,6 +33,6 @@ SIM_PARAMS="--method=$METHOD --steps=$STEPS --peInt=$PE --Dmax=$DMAX --tau=$TAU"
 COUPLING_PARAMS="--te=$TE --g=$G --coupling=$COUPLING"
 
 # Run Julia script with parameters
-srun --export=ALL --output="${SLURM_JOB_OUTPUT}" --error="${SLURM_JOB_ERROR}" julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so Cooling${METHOD}.jl $HAM_PARAMS $SIM_PARAMS $COUPLING_PARAMS
+srun --export=ALL --output="${SLURM_JOB_OUTPUT}" --error="${SLURM_JOB_ERROR}" julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so Cooling.jl --method=${METHOD} $HAM_PARAMS $SIM_PARAMS $COUPLING_PARAMS
 
 wait

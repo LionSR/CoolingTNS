@@ -3,7 +3,8 @@
 source config.sh
 
 # Define DMAX array
-DMAX_ARRAY=(20 40 60 80)
+# DMAX_ARRAY=(20 40 60 80)
+DMAX_ARRAY=(20)
 
 # Define a function to run the generalized script with specific parameters
 run_job() {
@@ -25,7 +26,7 @@ run_job() {
 }
 
 # Run jobs with different parameters
-for N in $(seq 10 10 100); do
+for N in $(seq 10 10 10); do
     for DMAX in "${DMAX_ARRAY[@]}"; do
         if [ "$METHOD" = "MPO" ]; then
             run_job $N 1000 2.0 0.3 XX $DMAX 0.1

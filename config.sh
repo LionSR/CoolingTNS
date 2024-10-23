@@ -3,7 +3,7 @@
 # Common configuration
 export JULIA_DEPOT_PATH=/ptmp/mpq/srlu/Julia
 export PROBLEM=${PROBLEM:-niIsing}
-export METHOD=${METHOD:-MPS}
+export METHOD=${METHOD:-TrotterMPS}
 export DMAX=${DMAX:-40}
 export SEARCH_METHOD=${SEARCH_METHOD:-Bayesian}
 export NUM_TRIALS=${NUM_TRIALS:-20}
