@@ -2,7 +2,7 @@
 
 while true; do
   # Sync directories from tqog01
-  export tqog01=tqog01.opt.rzg.mpg.de
+  export tqog01=tqog01
   rsync -avzu --progress $tqog01:/ptmp/mpq/siruilu/CoolingTNS/Results .
   rsync -avzu --progress $tqog01:/ptmp/mpq/siruilu/CoolingTNS/ResultsOpt .
   rsync -avzu --progress $tqog01:/ptmp/mpq/siruilu/CoolingTNS/Log .

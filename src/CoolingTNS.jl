@@ -1,5 +1,9 @@
 module CoolingTNS
 
+# Import ITensors package
+using ITensors
+using ITensorMPS
+
 include("ham.jl")
 include("dmrg.jl")
 include("utils.jl")
