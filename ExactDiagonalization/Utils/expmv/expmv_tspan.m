@@ -2,7 +2,7 @@ function [X,t,mv] = expmv_tspan(A,b,t0,tmax,q,prec,M,shift,force_simple,bal,prnt
 %EXPMV_TSPAN      Exponential of matrix times vector over interval.
 %   [X,tvals,mv] = EXPMV_TSPAN(A,b,t0,tmax,q,PREC) computes EXPM(t*A)*b
 %   without explicitly forming EXPM(A) for q+1 >= 2 equally spaced values
-%   of T between T0 and TMAX, returning the result in the columns of X:
+%   of T between t and TMAX, returning the result in the columns of X:
 %   X(:,j) = EXPM(TVALS(j)*A)*b, j = 1:q+1.
 %   PREC is the required accuracy, 'double', 'single' or 'half',
 %   and defaults to CLASS(A).

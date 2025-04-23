@@ -1,0 +1,7 @@
+---
+description: 
+globs: *.m
+alwaysApply: false
+---
+You can run matlab files in command line using the pattern: 
+matlab -nodisplay -r "run('yourscript.m'); exit;"
