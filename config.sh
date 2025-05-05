@@ -3,7 +3,7 @@
 # Common configuration
 export JULIA_DEPOT_PATH=/ptmp/mpq/srlu/Julia
 export PROBLEM=${PROBLEM:-niIsing}
-export METHOD=${METHOD:-TrotterMPS}
+export METHOD=${METHOD:-MPS}
 export DMAX=${DMAX:-40}
 export SEARCH_METHOD=${SEARCH_METHOD:-Bayesian}
 export NUM_TRIALS=${NUM_TRIALS:-20}
@@ -28,8 +28,8 @@ create_outfile() {
 # Load modules
 module_load() {
     module purge
-    module load python-waterboa
-    module load julia/1.10
+    module load python-waterboa/2024.06
+    module load julia/1.11
     module load mkl/2023.1
 }
 

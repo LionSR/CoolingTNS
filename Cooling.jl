@@ -1,7 +1,9 @@
 if Sys.islinux()
     using MKL
 end
+
 using CoolingTNS
+
 
 function run_cooling(parsed_args)
     println(parsed_args)
