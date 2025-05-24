@@ -2,15 +2,37 @@ using ITensors
 using ITensorMPS
 using Statistics
 
-function setup_init_state_mps(sites)
+function setup_init_state_mps(sites; init_type="product", theta=0.0)
     N = length(sites) ÷ 2
     sites_sys = sites[1:2:2N-1]
 
-    # ψ_s = randomMPS(sites_sys, linkdims=1)
-    # ψ_s = MPS(sites_sys, "Dn")
-    # ψ_s = MPS(sites_sys, "X+")
-    # ψ_s = MPS(sites_sys, "X-")
-    ψ_s = MPS(sites_sys, [isodd(n) ? "Up" : "Dn" for n in 1:N])
+    if init_type == "identity"
+        # Create maximally mixed state (identity/N^N) by superposition
+        # Start with equal superposition of all computational basis states
+        ψ_s = randomMPS(sites_sys, linkdims=1)
+        normalize!(ψ_s)
+    elseif init_type == "theta"
+        # Create state based on theta angle (in units of pi)
+        theta_rad = theta * π
+        if abs(theta + 0.5) < 1e-10  # All down
+            ψ_s = MPS(sites_sys, "Dn")
+        elseif abs(theta - 0.5) < 1e-10  # All up
+            ψ_s = MPS(sites_sys, "Up")
+        elseif abs(theta) < 1e-10  # X+ state
+            ψ_s = MPS(sites_sys, "X+")
+        else
+            # General theta not implemented for MPS yet
+            @warn "General theta states not implemented for MPS, using default alternating"
+            ψ_s = MPS(sites_sys, [isodd(n) ? "Up" : "Dn" for n in 1:N])
+        end
+    else
+        # Default product state
+        # ψ_s = randomMPS(sites_sys, linkdims=1)
+        # ψ_s = MPS(sites_sys, "Dn")
+        # ψ_s = MPS(sites_sys, "X+")
+        # ψ_s = MPS(sites_sys, "X-")
+        ψ_s = MPS(sites_sys, [isodd(n) ? "Up" : "Dn" for n in 1:N])
+    end
     return ψ_s
 end
 

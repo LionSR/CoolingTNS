@@ -25,19 +25,19 @@ if ~exist('M','var')
 end
 
 % Coupling parameters
-if ~exist('coupling_types','var')
-    coupling_types = "XX";
+if ~exist('coupling','var')
+    coupling = "XX";
 end
-if ~exist('Niter','var')
-    Niter = 300;  % Default to 300 iterations
+if ~exist('steps','var')
+    steps = 300;  % Default to 300 steps
 end
 
-% Time evolution parameter t
-if ~exist('t','var')
-    % Default to Delta/g ratio calculated below if not provided
-    t_provided = false;
+% Time evolution parameter te
+if ~exist('te','var')
+    % Default to delta/g ratio calculated below if not provided
+    te_provided = false;
 else
-    t_provided = true;
+    te_provided = true;
 end
 
 %% Initialize system Hamiltonian and compute gap dynamically
@@ -47,27 +47,27 @@ HamS = CreateHamZZXZ(N,J,hx,hz);
 Ds = diag(D(ind,ind));
 Vs = V(:,ind);
 gap = Ds(2)-Ds(1);  % Dynamically compute the gap
-fprintf("E_{GS}/L=%.3f, gap=%.3f\n",Ds(1)/N, gap);
+fprintf("E_{GS}/N=%.3f, gap=%.3f\n",Ds(1)/N, gap);
 EGS = Ds(1);
 psi_gs = V(:,1);
 
-% Set Delta to exact resonance using the dynamically computed gap
-if ~exist('Delta','var')
-    Delta = -gap;  % Exact resonance (-gap) by default
+% Set delta to exact resonance using the dynamically computed gap
+if ~exist('delta','var')
+    delta = -gap;  % Exact resonance (-gap) by default
 end
 if exist('factor','var')
-    g = Delta/factor;
+    g = delta/factor;
 end
 if ~exist('g','var')
-    g = Delta/5.0;  % Standard coupling strength
+    g = delta/5.0;  % Standard coupling strength
 end
 
-% Set t if not provided
-if ~t_provided
-    t = abs(Delta/g);
-    fprintf("t not provided, using default t = |Delta/g| = %.2f\n", t);
+% Set te if not provided
+if ~te_provided
+    te = abs(delta/g);
+    fprintf("te not provided, using default te = |delta/g| = %.2f\n", te);
 else
-    fprintf("Using provided t = %.2f\n", t);
+    fprintf("Using provided te = %.2f\n", te);
 end
 
 % Set up output directory and filenames
@@ -78,15 +78,15 @@ if not(isfolder(DirName))
 end
 
 % Create simple scheme name without multiple schemes complexity
-if iscell(coupling_types)
-    ct = coupling_types{1};
+if iscell(coupling)
+    ct = coupling{1};
 else
-    ct = coupling_types;
+    ct = coupling;
 end
-SchemeName = sprintf('%s/SchemeMultiBath_%s%dDelta%.3fg%.3ft%.2f', ...
-    DirName, ct, Niter, Delta, g, t);
-titlename = sprintf('%s_%s%dDelta%.3fg%.3ft%.2f', ...
-    titlename, ct, Niter, Delta, g, t);
+SchemeName = sprintf('%s/SchemeMultiBath_%s%ddelta%.3fg%.3fte%.2f', ...
+    DirName, ct, steps, delta, g, te);
+titlename = sprintf('%s_%s%ddelta%.3fg%.3fte%.2f', ...
+    titlename, ct, steps, delta, g, te);
 disp(titlename);
 
 %% Initial states
@@ -95,19 +95,19 @@ thetaSelected = [thetaList(1), thetaList(3), thetaList(5)];
 NStates = length(thetaSelected);
 
 %% Run cooling for each of the selected states
-% Initialize arrays with size Niter+1 to include index 0 for initial state
-EAll = zeros(Niter+1, NStates);
-GSOAll = zeros(Niter+1, NStates);
-purityAll = zeros(Niter+1, NStates);
-populAll = zeros(Niter+1, M, NStates);
-sZaAll = zeros(Niter+1, NStates);
+% Initialize arrays with size steps+1 to include index 0 for initial state
+EAll = zeros(steps+1, NStates);
+GSOAll = zeros(steps+1, NStates);
+purityAll = zeros(steps+1, NStates);
+populAll = zeros(steps+1, M, NStates);
+sZaAll = zeros(steps+1, NStates);
 vstateAll = zeros(2^N, NStates);
 
 % Display run information
-fprintf("\nRunning resonant cooling simulation with %d iterations: \n", Niter);
-fprintf("Using dynamically computed gap = %.4f and Delta = %.4f\n", gap, Delta);
-fprintf("Using g = %.4f (g/Delta = %.4f) with %s coupling\n", g, g/Delta, coupling_types);
-fprintf("Using t = %.4f for time evolution\n", t);
+fprintf("\nRunning resonant cooling simulation with %d steps: \n", steps);
+fprintf("Using dynamically computed gap = %.4f and delta = %.4f\n", gap, delta);
+fprintf("Using g = %.4f (g/delta = %.4f) with %s coupling\n", g, g/delta, coupling);
+fprintf("Using te = %.4f for time evolution\n", te);
 
 for i = 1:NStates
     theta = thetaSelected(i);
@@ -140,27 +140,27 @@ for i = 1:NStates
     fprintf("\ntheta=%.2f pi, E_init/N=%.2f", thetaSelected(i), EAll(1, i)/N);
     rho = vstateAll(:, i) * vstateAll(:, i)';
     
-    % Create coupling parameters structure with t included
-    coupling_param = struct('Delta', Delta, 'g', g, 't', t);
+    % Create coupling parameters structure with te
+    coupling_param = struct('delta', delta, 'g', g, 't', te);
     
     % Run evolution with parameters
-    [sZ, E, GSO, purity, popul] = EvolveMultiBath(rho, Vs, Niter, M, coupling_types, coupling_param, N, HamS, psi_gs, i);
+    [sZ, E, GSO, purity, popul] = EvolveMultiBath(rho, Vs, steps, M, coupling, coupling_param, N, HamS, psi_gs, i);
     
-    % Copy results to indices 2:Niter+1 (since 1 is the initial state)
-    sZaAll(2:Niter+1, i) = sZ;
-    EAll(2:Niter+1, i) = E;
-    GSOAll(2:Niter+1, i) = GSO;
-    purityAll(2:Niter+1, i) = purity;
-    populAll(2:Niter+1,:, i) = popul;
+    % Copy results to indices 2:steps+1 (since 1 is the initial state)
+    sZaAll(2:steps+1, i) = sZ;
+    EAll(2:steps+1, i) = E;
+    GSOAll(2:steps+1, i) = GSO;
+    purityAll(2:steps+1, i) = purity;
+    populAll(2:steps+1,:, i) = popul;
 end
 
 fprintf("\n");
-% Save results to the specific parameter directory, not the main MatlabRho folder
+% Save results to the specific parameter directory
 save(strcat(DirName, '/', titlename, '.mat'), 'EAll', 'GSOAll', 'purityAll', 'populAll', 'sZaAll', ...
-     'thetaSelected', 'J', 'hx', 'hz', 'Delta', 'g', 't', 'Niter', 'EGS', 'Ds', 'gap', 'coupling_types', 'SchemeName');
+     'thetaSelected', 'J', 'hx', 'hz', 'delta', 'g', 'te', 'steps', 'EGS', 'Ds', 'gap', 'coupling', 'SchemeName');
 
 % Save coupling_params for compatibility with plotting code
-coupling_params = struct('Delta', Delta, 'g', g, 't', t);
+coupling_params = struct('delta', delta, 'g', g, 't', te);
 save(strcat(DirName, '/', titlename, '.mat'), 'coupling_params', '-append');
 
 % Call the plotting function to visualize results

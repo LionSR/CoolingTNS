@@ -1,13 +1,13 @@
-function [sZ,E,GSO,purity,popul] = EvolveMultiBath(rho, Vs, Niter, M, coupling_type, coupling_param, N, HamS, psi_gs, thetaind)
+function [sZ,E,GSO,purity,popul] = EvolveMultiBath(rho, Vs, steps, M, coupling_type, coupling_param, N, HamS, psi_gs, thetaind)
     % EvolveMultiBath - Evolve density matrix with N system spins + N bath spins
     %
     % Inputs:
     %   rho - Initial density matrix of system (2^N x 2^N)
     %   Vs - Eigenvectors of system Hamiltonian
-    %   Niter - Number of iterations
+    %   steps - Number of cooling steps
     %   M - Number of eigenenergies to track
     %   coupling_type - String with coupling type (e.g., "XX")
-    %   coupling_param - Structure with Delta, g, and t (evolution time)
+    %   coupling_param - Structure with delta, g, and t (evolution time)
     %   N - Number of spins in the system
     %   HamS - System Hamiltonian
     %   psi_gs - Ground state of system
@@ -19,36 +19,36 @@ function [sZ,E,GSO,purity,popul] = EvolveMultiBath(rho, Vs, Niter, M, coupling_t
     end
     
     % Extract parameters from the structure
-    Delta = coupling_param.Delta;
+    delta = coupling_param.delta;
     g = coupling_param.g;
     
-    % Get evolution time (t) from parameters (with fallback to Delta/g for backward compatibility)
+    % Get evolution time (te) from parameters
     if isfield(coupling_param, 't')
-        t = coupling_param.t;
+        te = coupling_param.t;  % Still accept 't' field for now
     else
-        t = abs(Delta/g);
-        fprintf('\nNote: t not provided, using default t = |Delta/g| = %.2f', t);
+        te = abs(delta/g);
+        fprintf('\nNote: te not provided, using default te = |delta/g| = %.2f', te);
     end
     
-    % Initialize result arrays - Niter rows
-    E = zeros(Niter, 1);
-    GSO = zeros(Niter, 1);
-    purity = zeros(Niter, 1);
-    popul = zeros(Niter, M);
-    sZ = zeros(Niter, 1);
+    % Initialize result arrays - steps rows
+    E = zeros(steps, 1);
+    GSO = zeros(steps, 1);
+    purity = zeros(steps, 1);
+    popul = zeros(steps, M);
+    sZ = zeros(steps, 1);
     
-    % Initialize bath spins in their ground state based on Delta sign
+    % Initialize bath spins in their ground state based on delta sign
     % For H_bath = -Δ/2 * Z, the ground state depends on sign of Δ
     % If Δ < 0: ground state is |1⟩ (down)
     % If Δ > 0: ground state is |0⟩ (up)
-    if Delta < 0
-        % Ground state is |1⟩ (down) for negative Delta
-        fprintf('\nInitializing bath in |1⟩ (down) state (GS for Delta < 0)');
+    if delta < 0
+        % Ground state is |1⟩ (down) for negative delta
+        fprintf('\nInitializing bath in |1⟩ (down) state (GS for delta < 0)');
         vzminus = [0;1];
         rhobath = vzminus*vzminus';
     else
-        % Ground state is |0⟩ (up) state for positive Delta
-        fprintf('\nInitializing bath in |0⟩ (up) state (GS for Delta > 0)');
+        % Ground state is |0⟩ (up) state for positive delta
+        fprintf('\nInitializing bath in |0⟩ (up) state (GS for delta > 0)');
         vzplus = [1;0];
         rhobath = vzplus*vzplus';
     end
@@ -76,16 +76,16 @@ function [sZ,E,GSO,purity,popul] = EvolveMultiBath(rho, Vs, Niter, M, coupling_t
     GSO0 = real(psi_gs'*rho*psi_gs);
     fprintf('\nInitial energy: E/N = %.5f, GSO = %.5f', E0/N, GSO0);
     
-    % Create time evolution operator with provided t
-    fprintf('\nCreating Hamiltonian with N=%d, Delta=%.6f, g=%.6f, coupling=%s...', ...
-        N, Delta, g, coupling_type);
-    HamSB = CreateHamSysBath(HamS, N, Delta, g, coupling_type);
+    % Create time evolution operator with provided te
+    fprintf('\nCreating Hamiltonian with N=%d, delta=%.6f, g=%.6f, coupling=%s...', ...
+        N, delta, g, coupling_type);
+    HamSB = CreateHamSysBath(HamS, N, delta, g, coupling_type);
     
-    fprintf('\nCreating time evolution operator with t=%.2f...', t);
-    Ut = fastExpm(-1i*t*HamSB);
+    fprintf('\nCreating time evolution operator with te=%.2f...', te);
+    Ut = fastExpm(-1i*te*HamSB);
     
     tic;
-    for i = 1:Niter
+    for i = 1:steps
         % Append bath in ground state to system density matrix
         rho_full = kron(rho, bath_state);
         

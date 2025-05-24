@@ -120,7 +120,7 @@ CoolingMultiBath;
 
 ### Key Implementation Details
 - **Resonant Cooling**: Default sets `delta = -gap` where gap is the system energy gap
-- **Bath Initialization**: Bath spins initialized in ground state (|1⟩ for δ<0, |0⟩ for δ>0)
+- **Bath Initialization**: Bath spins initialized in ground state (|1⟩ for Δ<0, |0⟩ for Δ>0)
 - **Time Evolution**: Uses matrix exponentiation with optimized algorithms (expmv/expokit)
 - **Observables**: Tracks energy, ground state overlap, purity, and bath magnetization
 - **Multi-State Analysis**: Tests multiple initial states (θ = -0.5π, 0π, 0.5π)

@@ -30,11 +30,23 @@ function build_trotter_circuit_niising(sites_sys, sites_bath, ham_params, coupli
     build_trotter_circuit(sites_sys, sites_bath, ham_params, coupling_params, sim_params, "niIsing")
 end
 
-function setup_init_state_mpo(sites)
+function setup_init_state_mpo(sites; init_type="identity", theta=0.0)
     N = length(sites) ÷ 2
     sites_sys = sites[1:2:2N-1]
-    ρ_s = MPO(sites_sys, "Id")
-    ρ_s = ρ_s ./ √2
+    
+    if init_type == "identity"
+        # Maximally mixed state (identity matrix)
+        ρ_s = MPO(sites_sys, "Id")
+        ρ_s = ρ_s ./ √2
+    elseif init_type == "theta"
+        # Create state based on theta angle (in units of pi)
+        ψ_s = setup_init_state_mps(sites; init_type="theta", theta=theta)
+        ρ_s = outer(ψ_s, ψ_s)
+    else
+        # Product state - create from MPS outer product
+        ψ_s = MPS(sites_sys, [isodd(n) ? "Up" : "Dn" for n in 1:N])
+        ρ_s = outer(ψ_s, ψ_s)
+    end
     return ρ_s
 end
 

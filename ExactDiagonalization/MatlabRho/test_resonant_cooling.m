@@ -1,4 +1,6 @@
-% Test script for resonant cooling with exact resonance condition (Delta = -gap)
+% Test script for resonant cooling with exact resonance condition (delta = -gap)
+% Updated to use Julia-compatible naming conventions
+
 clear;
 
 %% Set parameters for cooling simulation
@@ -8,38 +10,35 @@ J = 1.0;                % Interaction strength
 hx = -1.05;             % x-field
 hz = 0.5;               % z-field
 
+% Alternative parameters (commented out)
 % J = cos(pi/3);        % Interaction strength
 % hx = sin(pi/3);       % x-field
 % hz = 0;               % z-field
 
-% Coupling parameters
-coupling_types = "XX"; % Use XX interaction
-Niter = 1000;            
+% Coupling parameters (using Julia naming)
+coupling = "XX";        % System-bath coupling operator
+steps = 1000;           % Number of cooling iterations
 
-% Note: Delta will be automatically set to -gap in CoolingMultiBath.m
+% Note: delta will be automatically set to -gap in CoolingMultiBathV2.m
 % where gap is dynamically computed for the given system parameters.
-% g will be automatically set to Delta/5.0 unless specified here.
+% g will be automatically set to delta/5.0 unless specified here.
 
 g = 0.1;
 
 % Time evolution parameter
-t = 5.0;  % Uncomment to set a specific t value
-% Otherwise t = |Delta/g| will be used by default
+te = 5.0;               % Total evolution time per step
+% Otherwise te = |delta/g| will be used by default
 
 
 %% Display test configuration
 disp('=== Testing Resonant Cooling Implementation ===');
-disp(['System size: N = ', num2str(N)]);
-disp(['Physics parameters: J = ', num2str(J), ', hx = ', num2str(hx), ', hz = ', num2str(hz)]);
-disp(['Coupling type: ', coupling_types]);
-disp(['Iterations: ', num2str(Niter)]);
-disp(['Resonance condition: Delta = -gap (exact resonance, calculated dynamically)']);
-disp(['Coupling strength: g = Delta/5.0 (default)']);
-if exist('t', 'var')
-    disp(['Evolution time: t = ', num2str(t)]);
-else
-    disp('Evolution time: t = |Delta/g| (default)');
-end
+fprintf('System size: N = %d\n', N);
+fprintf('Physics parameters: J = %.1f, hx = %.2f, hz = %.1f\n', J, hx, hz);
+fprintf('Coupling type: %s\n', coupling);
+fprintf('Steps: %d\n', steps);
+fprintf('Resonance condition: delta = -gap (exact resonance, calculated dynamically)\n');
+fprintf('Coupling strength: g = %.3f\n', g);
+fprintf('Evolution time: te = %.1f\n', te);
 disp('-----------------------------------------------------');
 
 %% Run the cooling simulation
@@ -48,19 +47,23 @@ try
     CoolingMultiBath;
     disp('Cooling simulation completed successfully!');
 
-    % Add final results summary
+    % Add final results summary (using Julia naming)
     fprintf('\nFinal Results Summary:\n');
     for i = 1:length(thetaSelected)
         fprintf('Initial State θ=%.2fπ: Energy %.5f → %.5f (Energy reduction: %.5f)\n', ...
-            thetaSelected(i), EAll(1,i)/N, EAll(end,i)/N, EAll(1,i)/N - EAll(end,i)/N);
+            thetaSelected(i)/pi, EAll(1,i)/N, EAll(end,i)/N, EAll(1,i)/N - EAll(end,i)/N);
         fprintf('                      GS Overlap %.5f → %.5f\n', ...
             GSOAll(1,i), GSOAll(end,i));
     end
     fprintf('Ground State Energy: %.5f\n', EGS/N);
     fprintf('System Gap: %.5f\n', gap);
-    fprintf('Used Delta: %.5f (ratio to gap: %.2f)\n', Delta, Delta/gap);
-    fprintf('Used g: %.5f (ratio to Delta: %.2f)\n', g, g/Delta);
-    fprintf('Used t: %.5f\n', t);
+    fprintf('Used delta: %.5f (ratio to gap: %.2f)\n', delta, delta/gap);
+    fprintf('Used g: %.5f (ratio to delta: %.2f)\n', g, g/delta);
+    fprintf('Used te: %.5f\n', te);
+    
+    % Use plotting function
+    fprintf('\nGenerating plots...\n');
+    plotCoolingMultiBath;
 
 catch ME
     disp('Error occurred during testing:');

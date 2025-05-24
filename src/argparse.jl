@@ -72,6 +72,14 @@ function parse_commandline()
         help = "coupling type"
         arg_type = String
         default = "XX"
+        "--init_state"
+        help = "initial state type: 'product' (default), 'identity' (maximally mixed), 'theta' (use --theta value)"
+        arg_type = String
+        default = "product"
+        "--theta"
+        help = "theta angle for initial state (in units of pi, e.g., -0.5 for all down)"
+        arg_type = Float64
+        default = 0.0
     end
     return parse_args(s)
 end

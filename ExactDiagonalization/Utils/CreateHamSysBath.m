@@ -1,4 +1,4 @@
-function Ham = CreateHamSysBath(HamS, N, Delta, g, coupling_type)
+function Ham = CreateHamSysBath(HamS, N, delta, g, coupling_type)
     % CreateHamSysBath - Creates a Hamiltonian for N system spins coupled to N bath spins
     % with the same connectivity pattern as the Julia version
     %
@@ -21,7 +21,7 @@ function Ham = CreateHamSysBath(HamS, N, Delta, g, coupling_type)
     % Inputs:
     %   HamS - System Hamiltonian (2^N x 2^N sparse matrix)
     %   N - Number of spins in the system
-    %   Delta - Detuning parameter for the bath
+    %   delta - Detuning parameter for the bath
     %   g - Coupling strength between system and bath
     %   coupling_type - String specifying the coupling type (e.g., "XX", "YY", "XY")
     %
@@ -46,8 +46,8 @@ function Ham = CreateHamSysBath(HamS, N, Delta, g, coupling_type)
         % Bath spin index
         bath_idx = N + i;
         
-        % Add bath Hamiltonian term: -Delta/2 * Z_i
-        Ham = Ham + (-Delta/2) * MultiSingleSpin(2*N, bath_idx, 3); % 3 = Z
+        % Add bath Hamiltonian term: -delta/2 * Z_i
+        Ham = Ham + (-delta/2) * MultiSingleSpin(2*N, bath_idx, 3); % 3 = Z
         
         % Add coupling term
         Ham = Ham + g * MultiSingleSpin(2*N, i, sys_op_idx) * ...

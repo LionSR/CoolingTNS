@@ -15,7 +15,7 @@ function run_cooling(parsed_args)
 
     if method == "MPS"
         sites, H_sys, ϕ₀, e₀, H_sys_bath = CoolingTNS.setup_problem_mps(N, problem, ham_params, coupling_params, sim_params)
-        initial_state = CoolingTNS.setup_init_state_mps(sites)
+        initial_state = CoolingTNS.setup_init_state_mps(sites; init_type=parsed_args["init_state"], theta=parsed_args["theta"])
         results = CoolingTNS.run_cooling_mps(
             sites,
             H_sys,
@@ -27,7 +27,7 @@ function run_cooling(parsed_args)
         )
     elseif method == "MPO"
         sites, H_sys, ϕ₀, e₀, gates = CoolingTNS.setup_problem_mpo(N, problem, ham_params, coupling_params, sim_params)
-        initial_state = CoolingTNS.setup_init_state_mpo(sites)
+        initial_state = CoolingTNS.setup_init_state_mpo(sites; init_type=parsed_args["init_state"], theta=parsed_args["theta"])
         results = CoolingTNS.run_cooling_mpo(
             sites,
             H_sys,
@@ -39,7 +39,7 @@ function run_cooling(parsed_args)
         )
     elseif method == "TrotterMPS"
         sites, H_sys, H_total, ϕ₀, e₀, gates = CoolingTNS.setup_problem_trotter_mps(N, problem, ham_params, coupling_params, sim_params)
-        initial_state = CoolingTNS.setup_init_state_mps(sites)
+        initial_state = CoolingTNS.setup_init_state_mps(sites; init_type=parsed_args["init_state"], theta=parsed_args["theta"])
         results = CoolingTNS.run_cooling_trotter_mps(
             sites,
             H_sys,

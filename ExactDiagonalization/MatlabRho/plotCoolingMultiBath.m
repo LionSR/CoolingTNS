@@ -60,7 +60,7 @@ if size(EAll, 1) > 20
     end
     yinds = StepsAll + 1; % Convert to 1-based indexing for MATLAB array access
 else
-    StepsAll = 0:size(EAll, 1)-1; % Steps now start from 0 to Niter
+    StepsAll = 0:size(EAll, 1)-1; % Steps now start from 0 to steps
     yinds = StepsAll + 1; % Convert to 1-based indexing for MATLAB array access
 end
 
@@ -84,16 +84,16 @@ xlabel('Steps');
 ylabel('Energy density','fontsize',9);
 
 % Get coupling type
-if iscell(coupling_types)
-    ct = coupling_types{1};
+if iscell(coupling)
+    ct = coupling{1};
 else
-    ct = coupling_types;
+    ct = coupling;
 end
 
 % Add title with simulation parameters including t
 titlestr = {sprintf('$N=%d, J=%.2f, h_x=%.2f, h_z=%.2f$; gap=$%.3f$', N, J, hx, hz, gap)};
-titlestr{2}=sprintf('$\\Delta=%.3f, g=%.3f, g/\\Delta=%.3f, t=%.3f, H_{SB}=%s, %d$ steps', ...
-    Delta, g, g/Delta, t, ct, Niter);
+titlestr{2}=sprintf('$\\delta=%.3f, g=%.3f, g/\\delta=%.3f, t_e=%.3f, H_{SB}=%s, %d$ steps', ...
+    delta, g, g/delta, te, ct, steps);
 title(titlestr,'Interpreter','Latex','fontsize',7); 
 
 % Plot purity
@@ -131,16 +131,16 @@ if exist('tightfig', 'file')
     tightfig;
 end
 
-% Add t to the filename if it exists
-if exist('t', 'var')
-    t_suffix = sprintf('t%.2f', t);
+% Add te to the filename if it exists
+if exist('te', 'var')
+    te_suffix = sprintf('te%.2f', te);
 else
-    t_suffix = '';
+    te_suffix = '';
 end
 
 % Save figure with full filename for consistency
 savename = sprintf('CI_MB_N%dJ%.1fhx%.2fhz%.1f', N, J, hx, hz);
-savename = [savename sprintf('_%s%d_Delta%.3f_g%.3f%s', ct, Niter, Delta, g, t_suffix)];
+savename = [savename sprintf('_%s%d_delta%.3f_g%.3f%s', ct, steps, delta, g, te_suffix)];
 if exist('DirName', 'var')
     if ~exist(DirName, 'dir')
         mkdir(DirName);
