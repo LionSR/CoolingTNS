@@ -5,7 +5,7 @@ ITensors.op(::OpName"σy", ::SiteType"S=1/2", s::Index) = 2 * op("Sy", s)
 ITensors.op(::OpName"σz", ::SiteType"S=1/2", s::Index) = 2 * op("Sz", s)
 
 
-function apply_depolarizing_noise(ψ::MPS, sites, pe)
+function apply_depolarizing_noise(ψ::MPS, sites, pe::Float64)
     os = Tuple{String, Int64}[]
     for j in eachindex(sites)
         p = rand()
@@ -24,7 +24,7 @@ function apply_depolarizing_noise(ψ::MPS, sites, pe)
     return ψ
 end
 
-function depolarizing_noise(site, pe)
+function depolarizing_noise(site, pe::Float64)
     kraus = zeros(Complex{Float64}, 2, 2, 4)
     kraus[:, :, 1] = sqrt(1 - 3 / 4 * pe) * [
         1 0

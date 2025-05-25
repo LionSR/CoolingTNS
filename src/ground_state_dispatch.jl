@@ -9,7 +9,6 @@ using ITensorMPS
 using KrylovKit
 using LinearAlgebra
 using Yao
-# parameter_types.jl already included by parent
 
 # ============================================================================
 # Ground State Computation Interface
@@ -33,7 +32,7 @@ end
 
 Find ground state and energy gap using DMRG for tensor network backends.
 """
-function find_ground_state(H_sys, backend::TNBackend, sites)
+function find_ground_state(H_sys::MPO, backend::TNBackend, sites::Vector{<:Index})
     # Find ground state using DMRG
     ψ₀ = randomMPS(sites, linkdims=10)
     sweeps = Sweeps(5)
@@ -63,7 +62,7 @@ end
 Find ground state and energy gap using exact diagonalization for ED backend.
 """
 function find_ground_state(H_sys, backend::EDBackend)
-    H_sys_mat = mat(H_sys)
+    H_sys_mat = Matrix(H_sys)
     
     # Find ground state
     vals, vecs, info = eigsolve(H_sys_mat, 1, :SR; krylovdim=min(30, size(H_sys_mat, 1)))
@@ -77,26 +76,4 @@ function find_ground_state(H_sys, backend::EDBackend)
     gap = e₁ - e₀
     
     return e₀, ϕ₀, gap
-end
-
-# ============================================================================
-# Convenience Functions (Backward Compatibility)
-# ============================================================================
-
-"""
-    find_ground_state_dmrg(H_sys, sites)
-
-Legacy wrapper for TN backend ground state computation.
-"""
-function find_ground_state_dmrg(H_sys, sites)
-    return find_ground_state(H_sys, TNBackend(), sites)
-end
-
-"""
-    find_ground_state_ed(H_sys)
-
-Legacy wrapper for ED backend ground state computation.
-"""
-function find_ground_state_ed(H_sys)
-    return find_ground_state(H_sys, EDBackend())
 end

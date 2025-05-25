@@ -15,13 +15,14 @@ using LinearAlgebra
         @test_throws ArgumentError CoolingTNS.parse_coupling("XA")
     end
     
-    @testset "System Hamiltonians" begin
+    @testset "System Hamiltonians - Tensor Network Backend" begin
+        backend = CoolingTNS.TNBackend()
         sites = siteinds("S=1/2", N)
         
         @testset "Ising Model" begin
             J, h = 1.0, -2.0
-            ham_params = (J, h)
-            H = CoolingTNS.ham_ising(N, sites, ham_params)
+            ham_params = CoolingTNS.IsingParameters(N, J, h)
+            H = CoolingTNS.construct_system_hamiltonian(ham_params, backend, sites)
             
             @test H isa MPO
             @test length(H) == N
@@ -36,8 +37,8 @@ using LinearAlgebra
         
         @testset "Non-integrable Ising Model" begin
             J, hx, hz = 1.0, -1.05, 0.5
-            ham_params = (J, hx, hz)
-            H = CoolingTNS.ham_niising(N, sites, ham_params)
+            ham_params = CoolingTNS.NiIsingParameters(N, J, hx, hz)
+            H = CoolingTNS.construct_system_hamiltonian(ham_params, backend, sites)
             
             @test H isa MPO
             @test length(H) == N
@@ -59,45 +60,92 @@ using LinearAlgebra
         end
     end
     
+    @testset "System Hamiltonians - ED Backend" begin
+        backend = CoolingTNS.EDBackend()
+        test_N = 3  # Small system for ED
+        
+        @testset "Ising Model" begin
+            J, h = 1.0, -2.0
+            ham_params = CoolingTNS.IsingParameters(test_N, J, h)
+            H = CoolingTNS.construct_system_hamiltonian(ham_params, backend, test_N)
+            
+            # Check that it's a valid Yao block
+            @test H isa CoolingTNS.Yao.AbstractBlock
+            @test CoolingTNS.Yao.nqubits(H) == test_N
+            
+            # Check Hermiticity
+            H_mat = Matrix(H)
+            @test ishermitian(H_mat)
+        end
+        
+        @testset "Non-integrable Ising Model" begin
+            J, hx, hz = 1.0, -1.05, 0.5
+            ham_params = CoolingTNS.NiIsingParameters(test_N, J, hx, hz)
+            H = CoolingTNS.construct_system_hamiltonian(ham_params, backend, test_N)
+            
+            @test H isa CoolingTNS.Yao.AbstractBlock
+            @test CoolingTNS.Yao.nqubits(H) == test_N
+        end
+    end
+    
     @testset "System-Bath Hamiltonians" begin
         sites = siteinds("S=1/2", 2N)  # N system + N bath
-        J, hx, hz = 1.0, -1.05, 0.5
-        ham_params = (J, hx, hz)
         
-        coupling_params = Dict(
-            "g" => 0.1,
-            "Δ" => -1.0,
-            "coupling" => "XX"
+        coupling_params = CoolingTNS.BasicCouplingParameters(
+            "XX",   # coupling type
+            0.1,    # g
+            10,     # steps
+            1.0,    # te
+            -1.0    # Δ
         )
         
-        @testset "Ising System-Bath" begin
+        @testset "TN Backend - Ising System-Bath" begin
+            backend = CoolingTNS.TNBackend()
             J, h = 1.0, -2.0
-            ham_params = (J, h)
-            H = CoolingTNS.ham_ising_sys_bath(N, sites, ham_params, coupling_params)
+            ham_params = CoolingTNS.IsingParameters(N, J, h)
+            H = CoolingTNS.construct_system_bath_hamiltonian(ham_params, backend, sites, coupling_params)
             
             @test H isa MPO
             @test length(H) == 2N
         end
         
-        @testset "Non-integrable Ising System-Bath" begin
+        @testset "TN Backend - Non-integrable Ising System-Bath" begin
+            backend = CoolingTNS.TNBackend()
             J, hx, hz = 1.0, -1.05, 0.5
-            ham_params_ni = (J, hx, hz)
-            H = CoolingTNS.ham_niising_sys_bath(N, sites, ham_params_ni, coupling_params)
+            ham_params = CoolingTNS.NiIsingParameters(N, J, hx, hz)
+            H = CoolingTNS.construct_system_bath_hamiltonian(ham_params, backend, sites, coupling_params)
             
             @test H isa MPO
             @test length(H) == 2N
+        end
+        
+        @testset "ED Backend - System-Bath" begin
+            backend = CoolingTNS.EDBackend()
+            test_N = 3
+            J, hx, hz = 1.0, -1.05, 0.5
+            ham_params = CoolingTNS.NiIsingParameters(test_N, J, hx, hz)
+            H = CoolingTNS.construct_system_bath_hamiltonian(ham_params, backend, 2*test_N, coupling_params)
+            
+            @test H isa CoolingTNS.Yao.AbstractBlock
+            @test CoolingTNS.Yao.nqubits(H) == 2 * test_N
+            
+            # Check Hermiticity
+            H_mat = Matrix(H)
+            @test ishermitian(H_mat)
         end
         
         @testset "Different Coupling Types" begin
             coupling_types = ["XX", "YY", "ZZ", "XY", "YZ", "XZ"]
+            backend = CoolingTNS.TNBackend()
             J, hx, hz = 1.0, -1.05, 0.5
-            ham_params_ni = (J, hx, hz)
+            ham_params = CoolingTNS.NiIsingParameters(N, J, hx, hz)
             
             for coupling in coupling_types
-                coupling_params_test = copy(coupling_params)
-                coupling_params_test["coupling"] = coupling
+                test_coupling_params = CoolingTNS.BasicCouplingParameters(
+                    coupling, 0.1, 10, 1.0, -1.0
+                )
                 
-                H = CoolingTNS.ham_niising_sys_bath(N, sites, ham_params_ni, coupling_params_test)
+                H = CoolingTNS.construct_system_bath_hamiltonian(ham_params, backend, sites, test_coupling_params)
                 @test H isa MPO
                 @test length(H) == 2N
             end
@@ -105,46 +153,59 @@ using LinearAlgebra
     end
     
     @testset "Ground State Calculation" begin
-        sites = siteinds("S=1/2", N)
-        J, hx, hz = 1.0, -1.05, 0.5
-        ham_params = (J, hx, hz)
+        @testset "TN Backend" begin
+            backend = CoolingTNS.TNBackend()
+            sites = siteinds("S=1/2", N)
+            J, hx, hz = 1.0, -1.05, 0.5
+            ham_params = CoolingTNS.NiIsingParameters(N, J, hx, hz)
+            
+            H_sys, Δ, e₀, ϕ₀ = CoolingTNS.setup_system(ham_params, backend, sites)
+            
+            @test H_sys isa MPO
+            @test ϕ₀ isa MPS
+            @test e₀ < 0  # Ground state energy should be negative for these parameters
+            @test Δ > 0   # Gap should be positive
+            
+            # Check that ϕ₀ is indeed the ground state
+            E_gs = real(inner(ϕ₀', H_sys, ϕ₀))
+            @test abs(E_gs - e₀) < 1e-10
+            
+            # Check normalization
+            @test abs(inner(ϕ₀, ϕ₀) - 1.0) < 1e-10
+        end
         
-        H_sys, Δ, e₀, ϕ₀ = CoolingTNS.setup_system(N, "niIsing", sites, ham_params)
-        
-        @test H_sys isa MPO
-        @test ϕ₀ isa MPS
-        @test e₀ < 0  # Ground state energy should be negative for these parameters
-        @test Δ > 0   # Gap should be positive
-        
-        # Check that ϕ₀ is indeed the ground state
-        E_gs = real(inner(ϕ₀', H_sys, ϕ₀))
-        @test abs(E_gs - e₀) < 1e-10
-        
-        # Check normalization
-        @test abs(inner(ϕ₀, ϕ₀) - 1.0) < 1e-10
+        @testset "ED Backend" begin
+            backend = CoolingTNS.EDBackend()
+            test_N = 3
+            J, hx, hz = 1.0, -1.05, 0.5
+            ham_params = CoolingTNS.NiIsingParameters(test_N, J, hx, hz)
+            
+            H_sys, Δ, e₀, ϕ₀ = CoolingTNS.setup_system(ham_params, backend)
+            
+            @test H_sys isa CoolingTNS.Yao.AbstractBlock
+            @test ϕ₀ isa CoolingTNS.Yao.ArrayReg
+            @test e₀ < 0
+            @test Δ > 0
+        end
     end
     
-    @testset "ED Hamiltonian Construction" begin
-        test_N = 3  # Small system for ED
-        J, hx, hz = 1.0, -1.05, 0.5
-        ham_params = (J, hx, hz)
-        coupling_params = Dict(
-            "g" => 0.1,
-            "Δ" => -1.0,
-            "coupling" => "XX"
-        )
+    @testset "Dispatch Pattern Tests" begin
+        # Test that dispatch correctly routes to different implementations
+        test_N = 3
         
-        H = CoolingTNS.build_hamiltonian_ed("niIsing", test_N, ham_params, coupling_params)
+        # Different model types
+        ising_params = CoolingTNS.IsingParameters(test_N, 1.0, -2.0)
+        ni_ising_params = CoolingTNS.NiIsingParameters(test_N, 1.0, -1.05, 0.5)
         
-        # Check that it's a valid Yao block
-        @test H isa CoolingTNS.Yao.AbstractBlock
-        @test CoolingTNS.Yao.nqubits(H) == 2 * test_N
+        # Different backends
+        ed_backend = CoolingTNS.EDBackend()
+        tn_backend = CoolingTNS.TNBackend()
         
-        # Check Hermiticity
-        H_mat = CoolingTNS.Yao.mat(H)
-        @test ishermitian(H_mat)
+        # Test system Hamiltonian dispatch
+        @test CoolingTNS.construct_system_hamiltonian(ising_params, ed_backend, test_N) isa CoolingTNS.Yao.AbstractBlock
         
-        # Check dimension
-        @test size(H_mat) == (2^(2test_N), 2^(2test_N))
+        sites = siteinds("S=1/2", test_N)
+        @test CoolingTNS.construct_system_hamiltonian(ising_params, tn_backend, sites) isa MPO
+        @test CoolingTNS.construct_system_hamiltonian(ni_ising_params, tn_backend, sites) isa MPO
     end
 end

@@ -1,21 +1,6 @@
 # parameter_types.jl already included by CoolingTNS.jl
 
-function extract_ham_params(problem, parsed_args)
-    if problem == "Ising"
-        J, h = parsed_args["J"], parsed_args["h"]
-        ham_params = (J, h)
-        ham_name = "$(problem)J$(J)h$(h)"
-    elseif problem == "niIsing"
-        J, hx, hz = parsed_args["J"], parsed_args["hx"], parsed_args["hz"]
-        ham_params = (J, hx, hz)
-        ham_name = "$(problem)J$(J)hx$(hx)hz$(hz)"
-    else
-        error("Unknown problem type: $problem")
-    end
-    return ham_params, ham_name
-end
-
-# Legacy setup_system function removed - use setup_system_dispatch.jl instead
+# Legacy functions removed - use setup_common_parameters and dispatch instead
 
 function setup_common_parameters(parsed_args)
     N = parsed_args["N"]
@@ -23,17 +8,17 @@ function setup_common_parameters(parsed_args)
     
     # Create proper HamiltonianParameters struct
     if problem == "Ising"
-        ham_params = IsingParameters(parsed_args["J"], parsed_args["h"])
+        ham_params = IsingParameters(N, parsed_args["J"], parsed_args["h"])
         ham_name = "$(problem)J$(parsed_args["J"])h$(parsed_args["h"])"
     elseif problem == "niIsing"
-        ham_params = NiIsingParameters(parsed_args["J"], parsed_args["hx"], parsed_args["hz"])
+        ham_params = NiIsingParameters(N, parsed_args["J"], parsed_args["hx"], parsed_args["hz"])
         ham_name = "$(problem)J$(parsed_args["J"])hx$(parsed_args["hx"])hz$(parsed_args["hz"])"
     elseif problem == "Rydberg"
         # Add default Rydberg parameters if needed
         Ω = get(parsed_args, "Omega", 1.0)
         Δ = get(parsed_args, "Delta", 0.0)
         V = get(parsed_args, "V", 1.0)
-        ham_params = RydbergParameters(Ω, Δ, V)
+        ham_params = RydbergParameters(N, Ω, Δ, V)
         ham_name = "$(problem)Omega$(Ω)Delta$(Δ)V$(V)"
     else
         error("Unknown problem type: $problem")
@@ -48,7 +33,7 @@ function setup_common_parameters(parsed_args)
         get(parsed_args, "delta", nothing)
     )
 
-    return N, problem, ham_params, ham_name, coupling_params
+    return problem, ham_params, ham_name, coupling_params
 end
 
 """
@@ -110,27 +95,25 @@ function create_search_name_part(search_params)
     return "Search$(search_params["search_method"])trials$(search_params["num_trials"])"
 end
 
-# TODO: fucking method_str needs to go, we are not using them at all anymore.
-
-function create_filename(ham_name, N, coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters)
+function create_filename(ham_name, ham_params::HamiltonianParameters, coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters, backend::CoolingBackend)
+    N = ham_params.N
     ham_name_part = isa(N, Array) ? "Ham$(ham_name)Nmin$(minimum(N))Nmax$(maximum(N))" : "Ham$(ham_name)Ns$(N)Nb$(N)"
     coupling_name_part = "Coupling$(coupling_params.coupling)g$(coupling_params.g)te$(coupling_params.te)steps$(coupling_params.steps)"
     
-    # Determine backend string based on simulation method and evolution method
-    if sim_params.sim_method isa MonteCarloWavefunction && sim_params.evolution_method isa ContinuousEvolution
-        method_str = "MPS"
-    elseif sim_params.sim_method isa DensityMatrix && sim_params.evolution_method isa TrotterEvolution
-        method_str = "MPO"
-    elseif sim_params.sim_method isa MonteCarloWavefunction && sim_params.evolution_method isa TrotterEvolution
-        method_str = "TrotterMPS"
-    else
-        method_str = "TN"
+    # Use backend type directly
+    backend_str = backend isa TNBackend ? "TN" : "ED"
+    
+    sim_name_part = "Sim$(backend_str)"
+    
+    # Add method-specific parameters
+    if backend isa TNBackend
+        sim_name_part *= "Dmax$(sim_params.Dmax)"
     end
     
-    sim_name_part = "Sim$(method_str)Dmax$(sim_params.Dmax)"
     if sim_params.evolution_method isa TrotterEvolution
         sim_name_part *= "tau$(sim_params.tau)"
     end
+    
     if sim_params.pe > 0
         pe_int = Int(round(sim_params.pe * 1000))
         sim_name_part *= "peInt$(pe_int)"
@@ -158,5 +141,7 @@ function create_filename(ham_name, N, coupling_params::Dict, sim_params::Dict)
         pe=get(sim_params, "pe", 0.0)
     )
     
-    return create_filename(ham_name, N, cp, sp)
+    # For legacy code, we need to create a dummy ham_params
+    # This is just for backward compatibility and should be avoided
+    return create_filename(ham_name, N, cp, sp, TNBackend())
 end

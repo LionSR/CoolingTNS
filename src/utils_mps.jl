@@ -5,7 +5,7 @@ function energy(ψ::MPS, H::MPO)
     return real(inner(ψ', H, ψ) / inner(ψ, ψ))
 end
 
-function appendzeros_MPS(ψ::MPS, sites)
+function appendzeros_MPS(ψ::MPS, sites::Vector{<:Index})
     N = length(ψ)
     ψ_appended = MPS(sites, "↓")
     for i = 1:N

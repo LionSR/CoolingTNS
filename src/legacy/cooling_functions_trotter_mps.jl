@@ -1,8 +1,5 @@
 using ITensors
 using ITensorMPS
-include("parameter_types.jl")
-include("hamiltonian_dispatch.jl")
-include("setup_system_dispatch.jl")
 
 # Multiple dispatch version for typed parameters
 function setup_problem_trotter_mps(N, problem, ham_params, coupling_params::CouplingParameters, sim_params::TensorNetworkParameters)

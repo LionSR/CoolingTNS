@@ -7,6 +7,7 @@ NO FUNCTION NAMES ENCODING METHODS - just run_cooling with type dispatch!
 
 using ITensors
 using ITensorMPS
+using ITensors: apply
 using Yao
 using ExponentialUtilities
 using LinearAlgebra
@@ -29,7 +30,7 @@ function run_cooling(problem::CoolingProblem{B}, state::QuantumState{B,S,E},
 end
 
 # ============================================================================
-# TN Backend + Monte Carlo + Continuous Evolution (formerly "MPS")
+# TN Backend + Monte Carlo + Continuous Evolution
 # ============================================================================
 
 function run_cooling(problem::CoolingProblem{TNBackend}, 
@@ -122,7 +123,7 @@ function run_cooling(problem::CoolingProblem{EDBackend},
     pe = sim_params.pe
     
     # Get dimensions
-    H_sys_mat = mat(H_sys)
+    H_sys_mat = Matrix(H_sys)
     N_sys = Int(log2(size(H_sys_mat, 1)))
     N_bath = N_sys
     N_total = N_sys + N_bath
@@ -156,7 +157,7 @@ function run_cooling(problem::CoolingProblem{EDBackend},
         ρ_total = kron(ρ_sys, ρ_bath_fresh)
         
         # Time evolution 
-        U = exp(Matrix(-im * te * mat(H_full)))
+        U = exp(-im * te * Matrix(H_full))
         ρ_evolved = U * ρ_total * U'
         
         # Apply depolarizing noise if requested
@@ -176,7 +177,7 @@ function run_cooling(problem::CoolingProblem{EDBackend},
         # Bath magnetization (average over bath qubits)
         bath_mag = 0.0
         for i in 1:N_bath
-            Z_i = kron(I_sys, kron(I(2^(i-1)), kron(mat(Z), I(2^(N_bath-i)))))
+            Z_i = kron(I_sys, kron(I(2^(i-1)), kron(Matrix(Z), I(2^(N_bath-i)))))
             bath_mag += real(tr(Z_i * ρ_evolved))
         end
         bath_mag_list[step] = bath_mag / N_bath
@@ -217,7 +218,7 @@ function run_cooling(problem::CoolingProblem{EDBackend},
     n_trajectories = sim_params.n_trajectories
     
     # Get dimensions
-    H_sys_mat = mat(H_sys)
+    H_sys_mat = Matrix(H_sys)
     N_sys = Int(log2(size(H_sys_mat, 1)))
     N_bath = N_sys
     

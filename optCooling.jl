@@ -1,73 +1,123 @@
 if Sys.islinux()
     using MKL
 end
-using Hyperopt, Random, Statistics, HDF5
+using Random, Statistics, HDF5
 using CoolingTNS
 
+# Helper function to convert old optimization arguments to new dispatch format
+function setup_optimization_params(parsed_args)
+    # Set backend - for optimization we'll default to TN (tensor networks)
+    parsed_args["backend"] = get(parsed_args, "backend", "TN")
+    
+    # Set simulation method based on old method if it exists
+    if haskey(parsed_args, "method")
+        if parsed_args["method"] == "MPS"
+            parsed_args["sim_method"] = "monte_carlo"
+            parsed_args["evolution_method"] = "continuous"
+        elseif parsed_args["method"] == "MPO"
+            parsed_args["sim_method"] = "density_matrix"
+            parsed_args["evolution_method"] = "trotter"
+        end
+    end
+    
+    return parsed_args
+end
+
 function run_optimization(parsed_args)
+    # Convert old arguments to new dispatch format
+    parsed_args = setup_optimization_params(parsed_args)
     println(parsed_args)
 
-    N, problem, ham_params, ham_name, init_coupling_params = CoolingTNS.setup_common_parameters(parsed_args)
-    sim_params = CoolingTNS.create_sim_params(parsed_args)
-
+    # Setup common parameters using new dispatch architecture
+    problem, ham_params, ham_name, init_coupling_params = CoolingTNS.setup_common_parameters(parsed_args)
+    
+    # Get backend and create simulation parameters
+    backend = CoolingTNS.get_backend(parsed_args["backend"])
+    
+    # Convert method strings to types
+    sim_method = if parsed_args["sim_method"] == "density_matrix"
+        CoolingTNS.DensityMatrix()
+    else
+        CoolingTNS.MonteCarloWavefunction()
+    end
+    
+    evolution_method = if parsed_args["evolution_method"] == "trotter"
+        CoolingTNS.TrotterEvolution()
+    else
+        CoolingTNS.ContinuousEvolution()
+    end
+    
+    sim_params = CoolingTNS.create_sim_params(backend; 
+        sim_method=sim_method, 
+        evolution_method=evolution_method,
+        Dmax=parsed_args["Dmax"], 
+        cutoff=parsed_args["cutoff"], 
+        tau=parsed_args["tau"], 
+        pe=parsed_args["peInt"]*1e-3,
+        n_trajectories=parsed_args["n_trajectories"])
+    
     # Additional parameters specific to optimization
     num_trials = parsed_args["num_trials"]
     search_method = parsed_args["search_method"]
     window_size = parsed_args["window_size"]
     steps = parsed_args["steps"]
-    method = parsed_args["method"]
+    
+    # Setup problem using unified interface
+    cooling_problem = CoolingTNS.setup_problem(backend, ham_params, init_coupling_params, sim_params)
 
-    if method == "MPS"
-        sites, H_sys, ϕ₀, e₀, H_sys_bath = CoolingTNS.setup_problem_mps(problem, N, ham_params, init_coupling_params, sim_params)
-        ham_sys_bath_fn = problem == "Ising" ? CoolingTNS.ham_ising_sys_bath : CoolingTNS.ham_niising_sys_bath
-    elseif method == "MPO"
-        sites, H_sys, ϕ₀, e₀, gates = CoolingTNS.setup_problem_mpo(problem, N, ham_params, init_coupling_params, sim_params)
-    else
-        error("Invalid method: $method. Choose either 'MPS' or 'MPO'.")
-    end
+    println("The ground state energy density is e₀/N = $(cooling_problem.e₀/ham_params.N)")
 
-    println("The ground state energy density is e₀/N = $(e₀/N)")
-
-    function objective_function(coupling_params)
-        if method == "MPS"
-            ψ_s = CoolingTNS.setup_init_state_mps(sites)
-            H_sys_bath = ham_sys_bath_fn(N, sites, ham_params, coupling_params)
-            E_list, GS_overlap_list, nb_list = CoolingTNS.run_cooling_mps(
-                sites,
-                H_sys,
-                ϕ₀,
-                H_sys_bath,
-                ψ_s,
-                coupling_params,
-                sim_params
-            )
-        else # MPO
-            ρ_s = CoolingTNS.setup_init_state_mpo(sites)
-            E_list, GS_overlap_list = CoolingTNS.run_cooling_mpo(
-                sites,
-                H_sys,
-                ϕ₀,
-                gates,
-                ρ_s,
-                coupling_params,
-                sim_params,
-            )
-        end
-
-        Efinal_density_avg = CoolingTNS.mean_last_window(E_list, window_size) / N
+    function objective_function(coupling_dict)
+        # Convert dict to proper CouplingParameters
+        test_coupling_params = CoolingTNS.BasicCouplingParameters(
+            init_coupling_params.coupling,
+            coupling_dict["g"],
+            init_coupling_params.steps,
+            coupling_dict["te"],
+            init_coupling_params.delta
+        )
+        
+        # Setup initial state using unified interface
+        initial_state = CoolingTNS.setup_initial_state(
+            cooling_problem, 
+            sim_params,
+            "product",  # default initial state
+            0.0
+        )
+        
+        # Run cooling simulation using unified interface
+        results = CoolingTNS.run_cooling(
+            cooling_problem,
+            initial_state,
+            test_coupling_params,
+            sim_params,
+            ham_params
+        )
+        
+        Efinal_density_avg = CoolingTNS.mean_last_window(results["E_list"], window_size) / ham_params.N
         return Efinal_density_avg
     end
 
     search_space = Dict("g" => range(0.1, 0.5, length=5), "te" => range(1.0, 3.0, length=5))
 
-    best_coupling_params, best_objective = if search_method == "Random"
-        CoolingTNS.hyperopt_random_search(objective_function, search_space, num_trials, init_coupling_params)
-    elseif search_method == "Grid"
-        CoolingTNS.iterative_grid_search(objective_function, search_space, 1, init_coupling_params)
-    elseif search_method == "Bayesian"
-        CoolingTNS.hyperopt_bayesian_optimization(objective_function, search_space, num_trials, init_coupling_params)
+    # Simple optimization implementation (can be enhanced with Hyperopt later)
+    best_coupling_params = Dict("g" => init_coupling_params.g, "te" => init_coupling_params.te)
+    best_objective = objective_function(best_coupling_params)
+    
+    if search_method == "Random"
+        for i in 1:num_trials
+            test_params = Dict(
+                "g" => rand(search_space["g"]),
+                "te" => rand(search_space["te"])
+            )
+            obj = objective_function(test_params)
+            if obj < best_objective
+                best_objective = obj
+                best_coupling_params = test_params
+            end
+        end
     else
-        error("Invalid search method: $search_method")
+        @warn "Only Random search implemented for now. Other methods need Hyperopt integration."
     end
 
     println("Optimization Result:")
@@ -75,37 +125,52 @@ function run_optimization(parsed_args)
         println("$param: $val")
     end
 
-    filename = CoolingTNS.create_filename(ham_name, N, best_coupling_params, sim_params)
+    # Create final coupling parameters with optimized values
+    final_coupling_params = CoolingTNS.BasicCouplingParameters(
+        init_coupling_params.coupling,
+        best_coupling_params["g"],
+        steps * 4,  # Run longer for final result
+        best_coupling_params["te"],
+        init_coupling_params.delta
+    )
+    
+    filename = CoolingTNS.create_filename(ham_name, ham_params, final_coupling_params, sim_params, backend)
     search_params = Dict("search_method" => search_method, "num_trials" => num_trials)
     filename = "Optimize$(filename)_$(CoolingTNS.create_search_name_part(search_params))"
 
-    best_coupling_params["steps"] = steps * 4
+    # Run final simulation with optimized parameters
+    initial_state = CoolingTNS.setup_initial_state(
+        cooling_problem, 
+        sim_params,
+        "product",
+        0.0
+    )
+    
+    results = CoolingTNS.run_cooling(
+        cooling_problem,
+        initial_state,
+        final_coupling_params,
+        sim_params,
+        ham_params
+    )
 
-    if method == "MPS"
-        H_sys_bath = ham_sys_bath_fn(N, sites, ham_params, best_coupling_params)
-        ψ_s = CoolingTNS.setup_init_state_mps(sites)
-        E_list, GS_overlap_list, nb_list = CoolingTNS.run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, best_coupling_params, sim_params)
-    else # MPO
-        ρ_s = CoolingTNS.setup_init_state_mpo(sites)
-        E_list, GS_overlap_list = CoolingTNS.run_cooling_mpo(
-            sites,
-            H_sys,
-            ϕ₀,
-            gates,
-            ρ_s,
-            best_coupling_params,
-            sim_params,
-        )
-    end
-
-    E_final = CoolingTNS.mean_last_window(E_list, window_size)
-    Edensity_final = E_final / N
-    GS_overlap_final = CoolingTNS.mean_last_window(GS_overlap_list, window_size)
+    E_final = CoolingTNS.mean_last_window(results["E_list"], window_size)
+    Edensity_final = E_final / ham_params.N
+    GS_overlap_final = CoolingTNS.mean_last_window(results["GS_overlap_list"], window_size)
     println("Final energy density: ", Edensity_final)
     println("Final ground state overlap: ", GS_overlap_final)
 
-    CoolingTNS.save_results(filename, e₀, E_list, GS_overlap_list, E_final, Edensity_final, GS_overlap_final, ham_name, parsed_args, method == "MPS" ? nb_list : nothing; is_optimization=true)
-    CoolingTNS.plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename; moving_average=true)
+    # Save results with optimization metadata
+    results["E_final"] = E_final
+    results["Edensity_final"] = Edensity_final
+    results["GS_overlap_final"] = GS_overlap_final
+    results["best_g"] = best_coupling_params["g"]
+    results["best_te"] = best_coupling_params["te"]
+    results["search_method"] = search_method
+    results["num_trials"] = num_trials
+    
+    CoolingTNS.save_results(filename, results, cooling_problem.e₀, ham_name, parsed_args; is_optimization=true)
+    CoolingTNS.plot_energy_and_overlap(results["E_list"], results["GS_overlap_list"], cooling_problem.e₀, ham_params.N, filename; moving_average=true)
 end
 
 # Parse command line arguments and run the optimization

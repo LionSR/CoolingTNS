@@ -1,9 +1,6 @@
 using ITensors
 using ITensorMPS
 using Statistics
-include("parameter_types.jl")
-include("hamiltonian_dispatch.jl")
-include("setup_system_dispatch.jl")
 
 function setup_init_state_mps(sites; init_type="product", theta=0.0)
     N = length(sites) ÷ 2

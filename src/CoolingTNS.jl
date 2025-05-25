@@ -9,7 +9,7 @@ using ITensorMPS
 include("parameter_types.jl")      # Define parameter types first
 include("cooling_types.jl")        # CoolingProblem and QuantumState types
 
-include("dmrg.jl")
+# include("dmrg.jl")
 include("utils.jl")
 include("utils_mps.jl")
 include("coupling_utils.jl")
@@ -24,13 +24,14 @@ include("system_hamiltonian_dispatch.jl")    # System Hamiltonian construction
 include("ground_state_dispatch.jl")          # Ground state computation
 include("setup_system_dispatch.jl")          # System setup using the above
 include("system_bath_hamiltonian_dispatch.jl") # System-bath coupling
+include("trotter_dispatch.jl")               # Trotter circuit construction
 include("initial_state_dispatch.jl")         # Initial state preparation
 include("cooling_evolution_dispatch.jl")     # Pure dispatch-based cooling evolution
 include("setup_dispatch.jl")                 # setup_problem implementations
 
 
 
-# these are outdated previous implementions without dispatching
+# these are outdated previous implementions without dispatching that should not be used anymore
 # include("ham.jl")
 # include("cooling_functions_mps.jl")
 # include("cooling_functions_mpo.jl")

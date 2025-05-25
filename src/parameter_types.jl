@@ -26,10 +26,10 @@ Convert string method name to backend type.
 function get_backend(method::String)
     if method == "ED"
         return EDBackend()
-    elseif method in ["MPS", "MPO", "TrotterMPS", "TN"]
+    elseif method == "TN"
         return TNBackend()
     else
-        error("Unknown method: $method. Use 'ED' for exact diagonalization or 'TN'/'MPS'/'MPO'/'TrotterMPS' for tensor networks")
+        error("Unknown method: $method. Use 'ED' for exact diagonalization or 'TN' for tensor network")
     end
 end
 
@@ -59,16 +59,18 @@ struct RydbergModel <: HamiltonianModel end
     HamiltonianParameters
 
 Unified parameter structure for different Hamiltonian models using multiple dispatch.
+Now includes N (number of system spins) to avoid passing it separately.
 """
 struct HamiltonianParameters{M<:HamiltonianModel}
     model::M
+    N::Int  # Number of system spins
     params::NamedTuple
 end
 
 # Convenience constructors
-IsingParameters(J, h) = HamiltonianParameters(IsingModel(), (J=J, h=h))
-NiIsingParameters(J, hx, hz) = HamiltonianParameters(NiIsingModel(), (J=J, hx=hx, hz=hz))
-RydbergParameters(Ω, Δ, V) = HamiltonianParameters(RydbergModel(), (Ω=Ω, Δ=Δ, V=V))
+IsingParameters(N::Int, J, h) = HamiltonianParameters(IsingModel(), N, (J=J, h=h))
+NiIsingParameters(N::Int, J, hx, hz) = HamiltonianParameters(NiIsingModel(), N, (J=J, hx=hx, hz=hz))
+RydbergParameters(N::Int, Ω, Δ, V) = HamiltonianParameters(RydbergModel(), N, (Ω=Ω, Δ=Δ, V=V))
 
 # ============================================================================
 # Coupling Parameters

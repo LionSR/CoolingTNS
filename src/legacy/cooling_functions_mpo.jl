@@ -1,8 +1,4 @@
 using ITensors
-include("parameter_types.jl")
-include("hamiltonian_dispatch.jl")
-include("setup_system_dispatch.jl")
-
 # Removed legacy trotter circuit functions - use hamiltonian_dispatch.jl instead
 
 # Removed - use generic setup_init_state_mps and convert to MPO if needed

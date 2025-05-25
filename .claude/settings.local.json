@@ -10,7 +10,8 @@
       "Bash(mkdir:*)",
       "Bash(julia:*)",
       "Bash(sed:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }

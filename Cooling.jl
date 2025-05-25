@@ -37,14 +37,14 @@ function run_cooling(parsed_args)
     println(parsed_args)
 
     # Setup common parameters
-    N, problem, ham_params, ham_name, coupling_params = CoolingTNS.setup_common_parameters(parsed_args)
+    problem, ham_params, ham_name, coupling_params = CoolingTNS.setup_common_parameters(parsed_args)
     
     # Get backend and create simulation parameters
     backend = CoolingTNS.get_backend(parsed_args["backend"])
     sim_params = create_sim_params_new(parsed_args)
     
     # Setup problem using unified interface
-    cooling_problem = CoolingTNS.setup_problem(backend, N, ham_params, coupling_params, sim_params)
+    cooling_problem = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params)
     
     # Setup initial state using unified interface
     initial_state = CoolingTNS.setup_initial_state(
@@ -65,23 +65,23 @@ function run_cooling(parsed_args)
     
     # Post-processing (same for all methods)
     e₀ = cooling_problem.e₀
-    println("The ground state energy density is e₀/N = $(e₀/N)")
+    println("The ground state energy density is e₀/N = $(e₀/ham_params.N)")
 
     window_size = parsed_args["window_size"]
     E_final = CoolingTNS.mean_last_window(results["E_list"], window_size)
-    Edensity_final = E_final / N
+    Edensity_final = E_final / ham_params.N
     GS_overlap_final = CoolingTNS.mean_last_window(results["GS_overlap_list"], window_size)
     println("After cooling: E_final/N=$Edensity_final, GS_overlap_final=$GS_overlap_final")
 
     # Save results
-    filename = CoolingTNS.create_filename(ham_name, N, coupling_params, sim_params)
+    filename = CoolingTNS.create_filename(ham_name, ham_params, coupling_params, sim_params, backend)
     results["E_final"] = E_final
     results["Edensity_final"] = Edensity_final
     results["GS_overlap_final"] = GS_overlap_final
     CoolingTNS.save_results(filename, results, e₀, ham_name, parsed_args)
     
     # Plot results
-    CoolingTNS.plot_energy_and_overlap(results["E_list"], results["GS_overlap_list"], e₀, N, filename; moving_average=true)
+    CoolingTNS.plot_energy_and_overlap(results["E_list"], results["GS_overlap_list"], e₀, ham_params.N, filename; moving_average=true)
 end
 
 # Parse command line arguments and run the cooling simulation

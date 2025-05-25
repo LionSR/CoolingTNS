@@ -11,7 +11,7 @@ struct CoolingProblem{B<:CoolingBackend}
     H_sys_bath::Any  # Full system+bath Hamiltonian (unified naming)
     ϕ₀::Any     # Ground state
     e₀::Float64 # Ground state energy
-    sites::Any  # Site indices (for tensor network methods)
+    sites::Union{Nothing, Vector{<:Index}}  # Site indices (for tensor network methods)
     extra::NamedTuple  # Backend-specific extras (gates, etc.)
 end
 
@@ -21,5 +21,4 @@ struct QuantumState{B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
     sim_method::S
     evolution_method::E
     state::Any  # The actual state (MPS, MPO, density matrix, etc.)
-    sites::Any  # Site indices (if applicable)
 end

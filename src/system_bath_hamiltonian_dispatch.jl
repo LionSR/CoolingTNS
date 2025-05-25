@@ -30,11 +30,11 @@ end
 # ============================================================================
 
 function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{IsingModel}, 
-                                         backend::TNBackend, sites, coupling_params::CouplingParameters)
+                                         backend::TNBackend, sites::Vector{<:Index}, coupling_params::CouplingParameters)
     J, h = ham_params.params.J, ham_params.params.h
     g, Δ, coupling = coupling_params.g, coupling_params.delta, coupling_params.coupling
     
-    N = length(sites) ÷ 2
+    N = ham_params.N
     # Use site indices (integers) instead of Index objects
     sys_sites = 1:2:2N-1
     bath_sites = 2:2:2N
@@ -66,11 +66,11 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{Isi
 end
 
 function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{NiIsingModel}, 
-                                         backend::TNBackend, sites, coupling_params::CouplingParameters)
+                                         backend::TNBackend, sites::Vector{<:Index}, coupling_params::CouplingParameters)
     J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
     g, Δ, coupling = coupling_params.g, coupling_params.delta, coupling_params.coupling
     
-    N = length(sites) ÷ 2
+    N = ham_params.N
     # Use site indices (integers) instead of Index objects
     sys_sites = 1:2:2N-1
     bath_sites = 2:2:2N
@@ -118,7 +118,7 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{Isi
     op_map = Dict("X" => X, "Y" => Y, "Z" => Z)
     op1, op2 = op_map[op1_str], op_map[op2_str]
     
-    N_sys = nbits ÷ 2  # Number of system spins
+    N_sys = ham_params.N  # Number of system spins
     # System sites (odd) and bath sites (even)
     sys_sites = 1:2:nbits-1
     bath_sites = 2:2:nbits
@@ -151,7 +151,7 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{NiI
     op_map = Dict("X" => X, "Y" => Y, "Z" => Z)
     op1, op2 = op_map[op1_str], op_map[op2_str]
     
-    N_sys = nbits ÷ 2  # Number of system spins
+    N_sys = ham_params.N  # Number of system spins
     # System sites (odd) and bath sites (even)
     sys_sites = 1:2:nbits-1
     bath_sites = 2:2:nbits
@@ -186,16 +186,16 @@ function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters, 
     error("construct_zero_coupling_hamiltonian not implemented for model $(typeof(ham_params.model)) and backend $(typeof(backend))")
 end
 
-function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters{IsingModel}, backend::TNBackend, sites)
+function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters{IsingModel}, backend::TNBackend, sites::Vector{<:Index})
     J, h = ham_params.params.J, ham_params.params.h
-    N = length(sites) ÷ 2
-    zero_coupling_params = CouplingParameters("XX", 0.0, 1, 0.0, 0.0)  # coupling, g, steps, te, delta
+    N = ham_params.N
+    zero_coupling_params = BasicCouplingParameters("XX", 0.0, 1, 0.0, 0.0)  # coupling, g, steps, te, delta
     return construct_system_bath_hamiltonian(ham_params, backend, sites, zero_coupling_params)
 end
 
-function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters{NiIsingModel}, backend::TNBackend, sites)
+function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters{NiIsingModel}, backend::TNBackend, sites::Vector{<:Index})
     J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
-    N = length(sites) ÷ 2
-    zero_coupling_params = CouplingParameters("XX", 0.0, 1, 0.0, 0.0)  # coupling, g, steps, te, delta
+    N = ham_params.N
+    zero_coupling_params = BasicCouplingParameters("XX", 0.0, 1, 0.0, 0.0)  # coupling, g, steps, te, delta
     return construct_system_bath_hamiltonian(ham_params, backend, sites, zero_coupling_params)
 end

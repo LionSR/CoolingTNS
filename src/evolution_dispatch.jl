@@ -16,13 +16,13 @@ using ITensorMPS
 
 Generic evolution interface using triple dispatch on model, simulation method, and backend.
 """
-function evolve_state(ham_params::HamiltonianParameters, sim_params::UnifiedSimulationParameters, backend::CoolingBackend, H_total, ψ, t, sites; kwargs...)
+function evolve_state(ham_params::HamiltonianParameters, sim_params::UnifiedSimulationParameters, backend::CoolingBackend, H_total, ψ, t, sites::Union{Nothing, Vector{<:Index}}; kwargs...)
     error("evolve_state not implemented for model=$(typeof(ham_params.model)), sim_method=$(typeof(sim_params.sim_method)), evolution_method=$(typeof(sim_params.evolution_method)), backend=$(typeof(backend))")
 end
 
 # Monte Carlo + Continuous Evolution + Tensor Networks
 function evolve_state(ham_params::HamiltonianParameters, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, ContinuousEvolution}, 
-                     backend::TNBackend, H_total, ψ, t, sites; kwargs...)
+                     backend::TNBackend, H_total, ψ, t::Float64, sites::Vector{<:Index}; kwargs...)
     # Use TDVP for continuous evolution
     Dmax, cutoff, tau = sim_params.Dmax, sim_params.cutoff, sim_params.tau
     ψ_evolved = tdvp(H_total, -im * t, ψ; time_step=-1im * tau, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
@@ -33,7 +33,7 @@ end
 
 # Monte Carlo + Trotter Evolution + Tensor Networks  
 function evolve_state(ham_params::HamiltonianParameters, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, TrotterEvolution}, 
-                     backend::TNBackend, H_total, ψ, t, sites; gates=nothing, kwargs...)
+                     backend::TNBackend, H_total, ψ, t::Float64, sites; gates=nothing, kwargs...)
     if gates === nothing
         error("Trotter evolution requires pre-computed gates")
     end
@@ -61,7 +61,7 @@ end
 
 # Density Matrix + Trotter Evolution + MPO
 function evolve_state(ham_params::HamiltonianParameters, sim_params::UnifiedSimulationParameters{DensityMatrix, TrotterEvolution}, 
-                     backend::TNBackend, gates, ρ, t, sites; kwargs...)
+                     backend::TNBackend, gates, ρ, t::Float64, sites::Vector{<:Index}; kwargs...)
     Dmax, cutoff, trotter_steps = sim_params.Dmax, sim_params.cutoff, sim_params.trotter_steps
     
     for _ in 1:trotter_steps

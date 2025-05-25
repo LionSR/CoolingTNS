@@ -18,30 +18,10 @@ using Yao
 Direct dispatch implementation for initial state setup.
 """
 
-# this sites_or_N variables looks extrmely ugly, can we find ways to avoid it in a graceful way ?
+# Generic fallback
 function setup_initial_state(problem::CoolingProblem{B}, sim_params::UnifiedSimulationParameters{S,E}, 
                            init_type::String, theta::Float64) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
-    # Direct dispatch based on backend and simulation method
-    sites_or_N = B === TNBackend ? problem.sites : Int(length(problem.ϕ₀))
-    state = setup_initial_state_impl(sim_params, problem.backend, sites_or_N; init_type=init_type, theta=theta)
-    
-    # Return QuantumState
-    return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, state, problem.sites)
-end
-
-# ============================================================================
-# Backend-Specific Initial State Implementations
-# ============================================================================
-
-"""
-    setup_initial_state(sim_params::UnifiedSimulationParameters, backend::CoolingBackend, sites_or_N; init_type="product", theta=0.0)
-
-Generic interface for initial state setup using double dispatch:
-- SimulationMethod: DensityMatrix vs MonteCarloWavefunction  
-- Backend: EDBackend vs TNBackend
-"""
-function setup_initial_state_impl(sim_params::UnifiedSimulationParameters, backend::CoolingBackend, sites_or_N; init_type="product", theta=0.0)
-    error("setup_initial_state_impl not implemented for sim_method=$(typeof(sim_params.sim_method)), backend=$(typeof(backend))")
+    error("setup_initial_state not implemented for sim_method=$S, backend=$B")
 end
 
 # ============================================================================
@@ -49,8 +29,9 @@ end
 # ============================================================================
 
 # Monte Carlo + TN
-function setup_initial_state_impl(sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, E}, 
-                                backend::TNBackend, sites; init_type="product", theta=0.0) where E<:EvolutionMethod
+function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, E},
+                           init_type::String, theta::Float64) where E<:EvolutionMethod
+    sites = problem.sites
     N = length(sites) ÷ 2
     sites_sys = sites[1:2:2N-1]
 
@@ -68,21 +49,23 @@ function setup_initial_state_impl(sim_params::UnifiedSimulationParameters{MonteC
         elseif abs(theta) < 1e-10  # X+ state
             ψ_s = MPS(sites_sys, "X+")
         else
-            # General theta not implemented for MPS yet
-            @warn "General theta states not implemented for MPS, using default alternating"
+            # General theta not implemented for tensor networks yet
+            @warn "General theta states not implemented for tensor networks, using default alternating"
             ψ_s = MPS(sites_sys, [isodd(n) ? "Up" : "Dn" for n in 1:N])
         end
     else
         # Default product state
         ψ_s = MPS(sites_sys, [isodd(n) ? "Up" : "Dn" for n in 1:N])
     end
-    return ψ_s
+    return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, ψ_s)
 end
 
 
 # Monte Carlo + ED
-function setup_initial_state_impl(sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, E}, 
-                                backend::EDBackend, N::Int; init_type="product", theta=0.0) where E<:EvolutionMethod
+function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, E},
+                           init_type::String, theta::Float64) where E<:EvolutionMethod
+    
+    N = problem.extra.ham_params.N
     total_qubits = 2N
     N_sys = total_qubits ÷ 2  # System qubits
     
@@ -123,7 +106,7 @@ function setup_initial_state_impl(sim_params::UnifiedSimulationParameters{MonteC
         reg = product_state(bit_str(pattern))
     end
     
-    return reg
+    return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, reg)
 end
 
 # ============================================================================
@@ -131,8 +114,9 @@ end
 # ============================================================================
 
 # Density Matrix + TN
-function setup_initial_state_impl(sim_params::UnifiedSimulationParameters{DensityMatrix, E}, 
-                                backend::TNBackend, sites; init_type="identity", theta=0.0) where E<:EvolutionMethod
+function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::UnifiedSimulationParameters{DensityMatrix, E},
+                           init_type::String, theta::Float64) where E<:EvolutionMethod
+    sites = problem.sites
     N = length(sites) ÷ 2
     sites_sys = sites[1:2:2N-1]
     
@@ -151,8 +135,8 @@ function setup_initial_state_impl(sim_params::UnifiedSimulationParameters{Densit
         elseif abs(theta) < 1e-10  # X+ state
             ψ_s = MPS(sites_sys, "X+")
         else
-            # General theta not implemented for MPS yet
-            @warn "General theta states not implemented for MPS, using default alternating"
+            # General theta not implemented for tensor networks yet
+            @warn "General theta states not implemented for tensor networks, using default alternating"
             ψ_s = MPS(sites_sys, [isodd(n) ? "Up" : "Dn" for n in 1:N])
         end
         ρ_s = outer(ψ_s', ψ_s)
@@ -161,18 +145,21 @@ function setup_initial_state_impl(sim_params::UnifiedSimulationParameters{Densit
         ψ_s = MPS(sites_sys, [isodd(n) ? "Up" : "Dn" for n in 1:N])
         ρ_s = outer(ψ_s', ψ_s)
     end
-    return ρ_s
+    return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, ρ_s)
 end
 
 
 
 # Density Matrix + ED  
-function setup_initial_state_impl(sim_params::UnifiedSimulationParameters{DensityMatrix, E}, 
-                                backend::EDBackend, N::Int; init_type="identity", theta=0.0) where E<:EvolutionMethod
+function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::UnifiedSimulationParameters{DensityMatrix, E},
+                           init_type::String, theta::Float64) where E<:EvolutionMethod
+    
+    N = problem.extra.ham_params.N
     total_qubits = 2N
     if init_type == "identity"
         # Maximally mixed state: ρ = I/2^N
-        return DensityMatrix(uniform_state(total_qubits))
+        return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, 
+                           completely_mixed_state(total_qubits))
     else
         # Create pure state first, then convert to density matrix
         N_sys = total_qubits ÷ 2  # System qubits
@@ -206,9 +193,12 @@ function setup_initial_state_impl(sim_params::UnifiedSimulationParameters{Densit
                     pattern *= "0"  # Initialize bath in ground state
                 end
             end
-            ψ = product_state(bit_str(pattern))
+            # Convert pattern string to bit configuration
+            config = parse(Int, pattern, base=2)
+            ψ = product_state(ComplexF64, config, N_total)
         end
-        return DensityMatrix(ψ)
+        return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, 
+                           DensityMatrix(ψ))
     end
 end
 

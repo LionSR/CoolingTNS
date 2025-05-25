@@ -73,7 +73,7 @@ function parse_commandline(args=ARGS)
         "--n_trajectories"
         help = "number of trajectories for Monte Carlo wavefunction method"
         arg_type = Int
-        default = 100
+        default = 1
         "--peInt"
         help = "pe: noise strength (will be times by 1e-3)"
         arg_type = Int

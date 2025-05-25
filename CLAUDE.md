@@ -150,12 +150,18 @@ The framework uses alternating qubit layout: [s₁, b₁, s₂, b₂, ..., sₙ,
 
 ## Development Guidelines
 
-### Current Refactoring Needs
+### Data Flow
 
-1. **Initial State Dispatch**: Move `setup_initial_state` implementations to their own file (`src/initial_state_setup_dispatch.jl`)
-2. **Remove Legacy Functions**: Functions like `setup_problem_mps`, `setup_problem_mpo` are outdated
-3. **Optimization Scripts**: `optCooling.jl` and `plotOptCooling.jl` need refactoring to use new dispatch architecture
-4. **Backend Implementation Files**: Need to be refactored to pure dispatch instead of monolithic functions
+1. Results are saved as HDF5 files with backend type in filename (SimTN or SimED)
+2. NO method names (MPS/MPO/TrotterMPS) in filenames anymore
+3. MATLAB reference implementations in `ExactDiagonalization/` validate tensor network results
+4. Plotting scripts (`plotCooling.jl`, `plotOptCooling.jl`) generate publication-quality figures
+
+### File Naming Convention
+
+Files are named: `Cooling_Ham{model}_Coupling{type}_Sim{backend}Dmax{D}`
+- Backend: SimTN or SimED (NOT SimMPS/SimMPO/SimTrotterMPS)
+- No method information in filenames
 
 ### Adding New Features
 

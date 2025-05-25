@@ -1,6 +1,6 @@
 using ITensors
 
-function appendzeros_MPO(ρ::MPO, sites,)
+function appendzeros_MPO(ρ::MPO, sites::Vector{<:Index})
     N = length(ρ)
     ρ_appended = MPO(sites, "Id")
     data_ρ = ITensors.data(ρ)
@@ -26,8 +26,23 @@ function appendzeros_MPO(ρ::MPO, sites,)
     ρ_appended
 end
 
-function partial_trace_bath(ρ_sb::MPO, sites, sites_sys)
+function partial_trace_bath(ρ_sb::MPO, sites::Vector{<:Index}, sites_sys::Vector{<:Index})
     N = length(sites_sys)
     ρ_s = MPO([ρ_sb[i] * delta(sites[2i], sites[2i]') for i in 1:N])
     ρ_s
+end
+
+# Alias for consistency with cooling_evolution_dispatch.jl
+const appendbath_MPO = appendzeros_MPO
+
+"""
+    rdm_mpo(ρ::MPO, sites, site_indices)
+
+Compute reduced density matrix by tracing out unwanted sites.
+"""
+function rdm_mpo(ρ::MPO, sites::Vector{<:Index}, site_indices)
+    # For now, use partial trace of bath (assuming we want system only)
+    # This is a simplified implementation
+    sites_sys = sites[site_indices]
+    return partial_trace_bath(ρ, sites, sites_sys)
 end
