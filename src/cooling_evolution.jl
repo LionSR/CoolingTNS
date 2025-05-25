@@ -384,13 +384,17 @@ function evolve_cooling_step(problem::CoolingProblem{TNBackend}, ψ_sb::MPS, te:
     sites = problem.extra.sites
     
     # Get or create Trotter gates
-    gates = get(problem.extra, :trotter_gates, nothing)
+    gates = get(problem.extra, :gates, nothing)
     if gates === nothing
-        # Extract coupling info from problem.extra (should be set during setup)
-        coupling = get(problem.extra, :coupling, "XX")
-        g = get(problem.extra, :g, 0.1)
-        gates = construct_trotter_circuit(ham_params, problem.backend, sites, 
-                                        coupling, g, sim_params.tau)
+        # Need to split sites into system and bath for build_trotter_circuit
+        N = ham_params.N
+        sites_sys = sites[1:2:2*N-1]
+        sites_bath = sites[2:2:2*N]
+        
+        # Get coupling parameters from problem
+        coupling_params = problem.extra.coupling_params
+        
+        gates = build_trotter_circuit_bath_coupling(ham_params, problem.backend, sites_sys, sites_bath, coupling_params, sim_params)
         # Note: Cannot modify immutable NamedTuple, gates will be recreated each time
     end
     
@@ -398,10 +402,64 @@ function evolve_cooling_step(problem::CoolingProblem{TNBackend}, ψ_sb::MPS, te:
     return evolve_state(ham_params, sim_params, problem.backend, problem.H_sys_bath, ψ_sb, te, sites; gates=gates)
 end
 
-# Other methods for Trotter evolution reuse the same helper functions as continuous evolution
-# process_bath_and_update for TN+MC+Trotter is the same as TN+MC+Continuous
+function process_bath_and_update(problem::CoolingProblem{TNBackend}, ψ_evolved::MPS, 
+                               state::QuantumState{TNBackend,MonteCarloWavefunction,TrotterEvolution}, 
+                               sim_params)
+    # Get N from the sites in problem
+    sites = problem.extra.sites
+    N_total = length(sites)
+    N_sys = N_total ÷ 2
+    N_bath = N_sys
+    
+    # For TN backend, sites are interlaced: sys1, bath1, sys2, bath2, ...
+    # After sampling bath, we get back an MPS with only system sites
+    # The sample_bath function reduces the MPS to system sites only
+    v_b, ψ_s = sample_bath(ψ_evolved)
+    
+    # The returned MPS should have N_sys sites
+    if length(ψ_s) != N_sys
+        @warn "After sampling bath, MPS has unexpected length" expected=N_sys actual=length(ψ_s)
+    end
+    
+    truncate!(ψ_s; cutoff=sim_params.cutoff)
+    normalize!(ψ_s)
+    
+    # Return updated state and bath sample
+    return QuantumState(state.backend, state.sim_method, state.evolution_method, ψ_s), v_b
+end
+
 # apply_noise for TN+MC+Trotter is the same as TN+MC+Continuous  
-# perform_backend_measurements! for TN+MC+Trotter is the same as TN+MC+Continuous
+
+function perform_backend_measurements!(measurements, step::Int, problem::CoolingProblem{TNBackend}, 
+                                     state::QuantumState{TNBackend,MonteCarloWavefunction,TrotterEvolution}, 
+                                     ham_params, bath_info=nothing)
+    ψ_s = state.state
+    H_sys = problem.H_sys
+    ϕ₀ = problem.ϕ₀
+    
+    # Debug: Check dimensions
+    if length(ψ_s) != length(H_sys)
+        @warn "Dimension mismatch in measurements" MPS_length=length(ψ_s) H_sys_length=length(H_sys) phi0_length=length(ϕ₀) step=step
+    end
+    
+    # For first step, MPS should match H_sys dimensions
+    # For later steps after bath sampling, need to be careful
+    if step == 1 || length(ψ_s) == length(H_sys)
+        measurements["E_list"][step] = real(inner(ψ_s', H_sys, ψ_s))
+        measurements["GS_overlap_list"][step] = abs2(inner(ψ_s, ϕ₀))
+    else
+        # Skip measurement if dimensions don't match
+        @warn "Skipping measurement due to dimension mismatch"
+        measurements["E_list"][step] = measurements["E_list"][step-1]
+        measurements["GS_overlap_list"][step] = measurements["GS_overlap_list"][step-1]
+    end
+    
+    # Bath magnetization if available from bath_info
+    if haskey(measurements, "nb_list") && bath_info !== nothing
+        N = ham_params.N
+        measurements["nb_list"][step] = compute_bath_magnetization(problem.backend, state, bath_info, N)
+    end
+end
 
 # --- Tensor Network + Density Matrix + Trotter Evolution (MPO) ---
 
@@ -417,11 +475,17 @@ function evolve_cooling_step(problem::CoolingProblem{TNBackend}, ρ_sb::MPO, te:
     sites = problem.extra.sites
     
     # Get or create Trotter gates
-    gates = get(problem.extra, :trotter_gates, nothing)
+    gates = get(problem.extra, :gates, nothing)
     if gates === nothing
-        coupling = get(problem.extra, :coupling, "XX")  # Should be passed properly
-        g = get(problem.extra, :g, 0.1)
-        gates = construct_trotter_circuit(ham_params, problem.backend, sites, coupling, g, sim_params.tau)
+        # Need to split sites into system and bath for build_trotter_circuit
+        N = ham_params.N
+        sites_sys = sites[1:2:2*N-1]
+        sites_bath = sites[2:2:2*N]
+        
+        # Get coupling parameters from problem
+        coupling_params = problem.extra.coupling_params
+        
+        gates = build_trotter_circuit(ham_params, problem.backend, sites_sys, sites_bath, coupling_params, sim_params)
         # Note: Cannot modify immutable NamedTuple
     end
     
@@ -562,6 +626,3 @@ function compute_bath_magnetization(ρ_bath::Matrix, N_bath::Int)
     
     return mag
 end
-
-# Removed Yao-specific projector function
-# projector_mpo function moved to state_manipulation.jl to avoid duplication

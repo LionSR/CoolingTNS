@@ -60,33 +60,6 @@ using LinearAlgebra
         end
     end
     
-    @testset "System Hamiltonians - ED Backend" begin
-        backend = CoolingTNS.EDBackend()
-        test_N = 3  # Small system for ED
-        
-        @testset "Ising Model" begin
-            J, h = 1.0, -2.0
-            ham_params = CoolingTNS.IsingParameters(test_N, J, h)
-            H = CoolingTNS.construct_system_hamiltonian(ham_params, backend, test_N)
-            
-            # Check that it's a valid Yao block
-            @test H isa CoolingTNS.Yao.AbstractBlock
-            @test CoolingTNS.Yao.nqubits(H) == test_N
-            
-            # Check Hermiticity
-            H_mat = Matrix(H)
-            @test ishermitian(H_mat)
-        end
-        
-        @testset "Non-integrable Ising Model" begin
-            J, hx, hz = 1.0, -1.05, 0.5
-            ham_params = CoolingTNS.NiIsingParameters(test_N, J, hx, hz)
-            H = CoolingTNS.construct_system_hamiltonian(ham_params, backend, test_N)
-            
-            @test H isa CoolingTNS.Yao.AbstractBlock
-            @test CoolingTNS.Yao.nqubits(H) == test_N
-        end
-    end
     
     @testset "System-Bath Hamiltonians" begin
         sites = siteinds("S=1/2", 2N)  # N system + N bath
@@ -119,20 +92,6 @@ using LinearAlgebra
             @test length(H) == 2N
         end
         
-        @testset "ED Backend - System-Bath" begin
-            backend = CoolingTNS.EDBackend()
-            test_N = 3
-            J, hx, hz = 1.0, -1.05, 0.5
-            ham_params = CoolingTNS.NiIsingParameters(test_N, J, hx, hz)
-            H = CoolingTNS.construct_system_bath_hamiltonian(ham_params, backend, 2*test_N, coupling_params)
-            
-            @test H isa CoolingTNS.Yao.AbstractBlock
-            @test CoolingTNS.Yao.nqubits(H) == 2 * test_N
-            
-            # Check Hermiticity
-            H_mat = Matrix(H)
-            @test ishermitian(H_mat)
-        end
         
         @testset "Different Coupling Types" begin
             coupling_types = ["XX", "YY", "ZZ", "XY", "YZ", "XZ"]
@@ -173,39 +132,5 @@ using LinearAlgebra
             # Check normalization
             @test abs(inner(ϕ₀, ϕ₀) - 1.0) < 1e-10
         end
-        
-        @testset "ED Backend" begin
-            backend = CoolingTNS.EDBackend()
-            test_N = 3
-            J, hx, hz = 1.0, -1.05, 0.5
-            ham_params = CoolingTNS.NiIsingParameters(test_N, J, hx, hz)
-            
-            H_sys, Δ, e₀, ϕ₀ = CoolingTNS.setup_system(ham_params, backend)
-            
-            @test H_sys isa CoolingTNS.Yao.AbstractBlock
-            @test ϕ₀ isa CoolingTNS.Yao.ArrayReg
-            @test e₀ < 0
-            @test Δ > 0
-        end
-    end
-    
-    @testset "Dispatch Pattern Tests" begin
-        # Test that dispatch correctly routes to different implementations
-        test_N = 3
-        
-        # Different model types
-        ising_params = CoolingTNS.IsingParameters(test_N, 1.0, -2.0)
-        ni_ising_params = CoolingTNS.NiIsingParameters(test_N, 1.0, -1.05, 0.5)
-        
-        # Different backends
-        ed_backend = CoolingTNS.EDBackend()
-        tn_backend = CoolingTNS.TNBackend()
-        
-        # Test system Hamiltonian dispatch
-        @test CoolingTNS.construct_system_hamiltonian(ising_params, ed_backend, test_N) isa CoolingTNS.Yao.AbstractBlock
-        
-        sites = siteinds("S=1/2", test_N)
-        @test CoolingTNS.construct_system_hamiltonian(ising_params, tn_backend, sites) isa MPO
-        @test CoolingTNS.construct_system_hamiltonian(ni_ising_params, tn_backend, sites) isa MPO
     end
 end

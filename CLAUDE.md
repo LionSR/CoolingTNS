@@ -34,14 +34,28 @@ CoolingTNS is a Julia-based quantum physics simulation framework for studying co
 ### Running Simulations
 
 ```bash
-# Basic tensor network simulation
-julia Cooling.jl --N 10 --problem niIsing --backend TN --sim_method monte_carlo --evolution_method continuous --coupling XX --g 0.1 --te 10.0 --steps 100
 
-# Exact diagonalization for small systems (clean Float64-only backend)
-julia Cooling.jl --N 3 --problem niIsing --backend ED --sim_method density_matrix --evolution_method continuous --coupling XX --g 0.1 --te 0.5 --steps 5
+# Tensor network
 
-# Trotter evolution with tensor networks
-julia Cooling.jl --N 8 --problem Ising --backend TN --sim_method monte_carlo --evolution_method trotter --tau 0.1 --coupling YY --g 0.2 --te 2.0 --steps 20
+## MPS with monte carlo and continuous evolution
+julia Cooling.jl --N 10 --problem Ising --backend TN --sim_method monte_carlo --evolution_method continuous --coupling XX --g 0.1 --te 10.0 --steps 20
+
+## Trotter evolution with MPS
+julia Cooling.jl --N 10 --problem Ising --backend TN --sim_method monte_carlo --evolution_method trotter --tau 0.1 --coupling YY --g 0.2 --te 2.0 --steps 20
+
+## Tensor network with MPO
+julia Cooling.jl --N 10 --problem Ising --backend TN --sim_method density_matrix --evolution_method trotter --tau 0.1 --coupling YY --g 0.2 --te 2.0 --steps 20
+
+# Exact diagonalization
+
+## continuous evolution of density matrix
+julia Cooling.jl --N 4 --problem Ising --backend ED --sim_method density_matrix --evolution_method continuous --coupling XX --g 0.1 --te 0.5 --steps 5
+
+## continuous evolution of monte carlo wavefunction
+julia Cooling.jl --N 4 --problem Ising --backend ED --sim_method monte_carlo --evolution_method continuous --coupling XX --g 0.1 --te 0.5 --steps 5
+
+## trotter evolution of density matrix
+julia Cooling.jl --N 4 --problem Ising --backend ED --sim_method density_matrix --evolution_method trotter --tau 0.1 --coupling XX --g 0.1 --te 0.5 --steps 5
 
 # With precompiled sysimage (faster startup)
 julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so Cooling.jl [args]

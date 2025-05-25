@@ -26,11 +26,6 @@ function get_pauli_operators(::TNBackend)
     return Dict("X" => "X", "Y" => "Y", "Z" => "Z")
 end
 
-function get_pauli_operators(::EDBackend)
-    # For Yao, operators are matrix objects
-    return Dict("X" => X, "Y" => Y, "Z" => Z)
-end
-
 """
     validate_coupling(coupling::String)
 

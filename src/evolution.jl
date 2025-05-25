@@ -33,7 +33,7 @@ end
 
 # Monte Carlo + Trotter Evolution + Tensor Networks  
 function evolve_state(ham_params::HamiltonianParameters, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, TrotterEvolution}, 
-                     backend::TNBackend, H_total, ψ, t::Float64, sites; gates=nothing, kwargs...)
+                     backend::TNBackend, H_total, ψ, t::Float64, sites::Vector{<:Index}; gates=nothing, kwargs...)
     if gates === nothing
         error("Trotter evolution requires pre-computed gates")
     end

@@ -85,68 +85,10 @@ using LinearAlgebra
                 end
             end
         end
-        
-        @testset "ED Backend - Monte Carlo" begin
-            backend = CoolingTNS.EDBackend()
-            test_N = 3  # Smaller for ED
-            ham_params_ed = CoolingTNS.NiIsingParameters(test_N, 1.0, -1.05, 0.5)
-            
-            sim_params = CoolingTNS.UnifiedSimulationParameters(
-                CoolingTNS.MonteCarloWavefunction(),
-                CoolingTNS.ContinuousEvolution();
-                pe=0.0
-            )
-            
-            problem = CoolingTNS.setup_problem(backend, ham_params_ed, coupling_params, sim_params)
-            
-            @testset "Product State" begin
-                state = CoolingTNS.setup_initial_state(problem, sim_params, "product", 0.0)
-                @test state isa CoolingTNS.QuantumState
-                @test state.state isa CoolingTNS.Yao.ArrayReg
-            end
-            
-            @testset "Theta States" begin
-                # All down
-                state_down = CoolingTNS.setup_initial_state(problem, sim_params, "theta", -0.5)
-                @test state_down.state isa CoolingTNS.Yao.ArrayReg
-                
-                # All up
-                state_up = CoolingTNS.setup_initial_state(problem, sim_params, "theta", 0.5)
-                @test state_up.state isa CoolingTNS.Yao.ArrayReg
-                
-                # X+ state
-                state_plus = CoolingTNS.setup_initial_state(problem, sim_params, "theta", 0.0)
-                @test state_plus.state isa CoolingTNS.Yao.ArrayReg
-            end
-        end
-        
-        @testset "ED Backend - Density Matrix" begin
-            backend = CoolingTNS.EDBackend()
-            test_N = 3  # Smaller for ED
-            ham_params_ed = CoolingTNS.NiIsingParameters(test_N, 1.0, -1.05, 0.5)
-            
-            sim_params = CoolingTNS.UnifiedSimulationParameters(
-                CoolingTNS.DensityMatrix(),
-                CoolingTNS.ContinuousEvolution();
-                pe=0.0
-            )
-            
-            problem = CoolingTNS.setup_problem(backend, ham_params_ed, coupling_params, sim_params)
-            
-            @testset "Identity State" begin
-                state = CoolingTNS.setup_initial_state(problem, sim_params, "identity", 0.0)
-                @test state isa CoolingTNS.QuantumState
-                # For ED density matrix, it returns a special state type
-                @test !isnothing(state.state)
-            end
-            
-            @testset "Product State" begin
-                state = CoolingTNS.setup_initial_state(problem, sim_params, "product", 0.0)
-                @test state isa CoolingTNS.QuantumState
-                @test state.state isa CoolingTNS.Yao.DensityMatrix
-            end
-        end
     end
+
+        
+
     
     @testset "State Properties" begin
         # Test that initial states have expected properties

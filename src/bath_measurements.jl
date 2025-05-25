@@ -6,7 +6,6 @@ Dispatched functions for computing bath-related measurements.
 
 using ITensors
 using ITensorMPS
-# using Yao  # Commented out - another session is rewriting Yao parts
 using LinearAlgebra
 
 # ============================================================================
