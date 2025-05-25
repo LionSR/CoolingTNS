@@ -1,5 +1,5 @@
 """
-    hamiltonian_dispatch.jl
+    hamiltonian.jl
 
 Main dispatcher that includes all Hamiltonian-related functionality.
 This file serves as a convenient single import for all Hamiltonian operations.

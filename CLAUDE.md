@@ -186,6 +186,13 @@ Files are named: `Cooling_Ham{model}_Coupling{type}_Sim{backend}Dmax{D}`
 - ExponentialUtilities.jl for matrix exponentials
 - MKL on Linux for optimized BLAS/LAPACK
 
+### Getting doucmentations from Julia packages:
+For example, for Yao.jl and ITensors.jl or ITensorMPS.jl, you can get the documentation of a function by running:
+```bash
+# Get function documentation from a package
+julia -e 'using PackageName; @doc function_name'
+```
+
 ## Testing
 
 ```bash
@@ -267,3 +274,6 @@ struct EDBackend <: CoolingBackend end
 - Pure dispatch architecture throughout - no string comparisons
 - All empty wrappers removed - substance in dispatch functions
 - Legacy functions like `setup_problem_mps` are deprecated
+
+## Memory Updates
+- `update the memory`

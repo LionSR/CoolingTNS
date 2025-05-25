@@ -1,5 +1,5 @@
 """
-    trotter_dispatch.jl
+    trotter.jl
 
 Trotter circuit construction using multiple dispatch on HamiltonianModel and backend.
 """

@@ -11,7 +11,8 @@
       "Bash(julia:*)",
       "Bash(sed:*)",
       "Bash(timeout:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(mv:*)"
     ],
     "deny": []
   }

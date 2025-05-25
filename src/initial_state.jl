@@ -1,5 +1,5 @@
 """
-    initial_state_dispatch.jl
+    initial_state.jl
 
 Unified initial state setup using multiple dispatch on SimulationMethod and backend.
 """
@@ -31,7 +31,9 @@ end
 # Monte Carlo + TN
 function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, E},
                            init_type::String, theta::Float64) where E<:EvolutionMethod
-    sites = problem.sites
+    # Get sites from the ground state MPS
+    ϕ₀ = problem.ϕ₀
+    sites = siteinds(ϕ₀)
     N = length(sites) ÷ 2
     sites_sys = sites[1:2:2N-1]
 
@@ -66,44 +68,40 @@ function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::Uni
                            init_type::String, theta::Float64) where E<:EvolutionMethod
     
     N = problem.extra.ham_params.N
-    total_qubits = 2N
-    N_sys = total_qubits ÷ 2  # System qubits
+    N_sys = N  # System qubits
     
     if init_type == "identity"
         # Create equal superposition state (maximally mixed when traced)
-        # TODO: this is wrong we should just sample any of the superpositions instead.
-        reg = uniform_state(total_qubits)
+        # For Monte Carlo, we only need system state
+        reg = uniform_state(N_sys)
     elseif init_type == "theta"
         # Create theta-parameterized product state
         theta_rad = theta * π
         if abs(theta + 0.5) < 1e-10  # All down
-            reg = zero_state(total_qubits)
+            reg = zero_state(N_sys)
         elseif abs(theta - 0.5) < 1e-10  # All up  
-            reg = product_state(bit"1"^total_qubits)
+            # All up state
+            config = (1 << N_sys) - 1  # All bits set to 1
+            reg = product_state(N_sys, config)
         elseif abs(theta) < 1e-10  # X+ state
-            reg = uniform_state(total_qubits)  # Simplified for now
+            reg = uniform_state(N_sys)  # Simplified for now
         else
             # General theta state: |θ⟩ = cos(θ/2)|0⟩ + sin(θ/2)|1⟩
             angles = fill(theta_rad, N_sys)
-            # Apply rotation to system qubits only
-            reg = zero_state(total_qubits)
+            reg = zero_state(N_sys)
             for i in 1:N_sys
-                sys_qubit = 2*i - 1  # System qubits at odd positions
-                reg |> put(sys_qubit => Ry(angles[i]))
+                reg |> put(i => Ry(angles[i]))
             end
         end
     else
-        # Default product state (alternating up/down for system, zero for bath)
-        # Be default let us use all up
+        # Default product state (alternating up/down for system)
         pattern = ""
-        for i in 1:total_qubits
-            if isodd(i)  # System qubit
-                pattern *= isodd((i+1)÷2) ? "1" : "0"  # Alternating pattern
-            else  # Bath qubit  
-                pattern *= "0"  # Initialize bath in ground state
-            end
+        for i in 1:N_sys
+            pattern *= isodd(i) ? "1" : "0"  # Alternating pattern
         end
-        reg = product_state(bit_str(pattern))
+        # Convert pattern string to bit configuration
+        config = parse(Int, pattern, base=2)
+        reg = product_state(N_sys, config)
     end
     
     return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, reg)
@@ -116,7 +114,9 @@ end
 # Density Matrix + TN
 function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::UnifiedSimulationParameters{DensityMatrix, E},
                            init_type::String, theta::Float64) where E<:EvolutionMethod
-    sites = problem.sites
+    # Get sites from ground state or H_sys
+    ϕ₀ = problem.ϕ₀
+    sites = siteinds(ϕ₀)
     N = length(sites) ÷ 2
     sites_sys = sites[1:2:2N-1]
     
@@ -155,50 +155,46 @@ function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::Uni
                            init_type::String, theta::Float64) where E<:EvolutionMethod
     
     N = problem.extra.ham_params.N
-    total_qubits = 2N
+    N_sys = N  # We only need system state for initial state
     if init_type == "identity"
         # Maximally mixed state: ρ = I/2^N
         return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, 
-                           completely_mixed_state(total_qubits))
+                           completely_mixed_state(N_sys))
     else
         # Create pure state first, then convert to density matrix
-        N_sys = total_qubits ÷ 2  # System qubits
         
         if init_type == "theta"
             # Create theta-parameterized product state
             theta_rad = theta * π
             if abs(theta + 0.5) < 1e-10  # All down
-                ψ = zero_state(total_qubits)
+                ψ = zero_state(N_sys)
             elseif abs(theta - 0.5) < 1e-10  # All up  
-                ψ = product_state(bit"1"^total_qubits)
+                # All up state
+                config = (1 << N_sys) - 1  # All bits set to 1
+                ψ = product_state(N_sys, config)
             elseif abs(theta) < 1e-10  # X+ state
-                ψ = uniform_state(total_qubits)  # Simplified for now
+                ψ = uniform_state(N_sys)  # Simplified for now
             else
                 # General theta state: |θ⟩ = cos(θ/2)|0⟩ + sin(θ/2)|1⟩
                 angles = fill(theta_rad, N_sys)
-                # Apply rotation to system qubits only
-                ψ = zero_state(total_qubits)
+                ψ = zero_state(N_sys)
                 for i in 1:N_sys
-                    sys_qubit = 2*i - 1  # System qubits at odd positions
-                    ψ |> put(sys_qubit => Ry(angles[i]))
+                    ψ |> put(i => Ry(angles[i]))
                 end
             end
         else
             # Default product state (alternating up/down for system, zero for bath)
             pattern = ""
-            for i in 1:total_qubits
-                if isodd(i)  # System qubit
-                    pattern *= isodd((i+1)÷2) ? "1" : "0"  # Alternating pattern
-                else  # Bath qubit  
-                    pattern *= "0"  # Initialize bath in ground state
-                end
+            for i in 1:N_sys
+                pattern *= isodd(i) ? "1" : "0"  # Alternating pattern
             end
             # Convert pattern string to bit configuration
             config = parse(Int, pattern, base=2)
-            ψ = product_state(ComplexF64, config, N_total)
+            ψ = product_state(N_sys, config)
         end
-        return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, 
-                           DensityMatrix(ψ))
+        # Convert pure state to density matrix
+        ρ = Matrix(ψ.state * ψ.state')
+        return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, ρ)
     end
 end
 

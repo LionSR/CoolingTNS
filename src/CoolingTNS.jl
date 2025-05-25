@@ -1,5 +1,7 @@
 module CoolingTNS
 
+__precompile__(false)  # Disable precompilation due to LuxurySparse issues
+
 # Import ITensors package
 using ITensors
 using ITensorMPS
@@ -9,7 +11,6 @@ using ITensorMPS
 include("parameter_types.jl")      # Define parameter types first
 include("cooling_types.jl")        # CoolingProblem and QuantumState types
 
-# include("dmrg.jl")
 include("utils.jl")
 include("utils_mps.jl")
 include("coupling_utils.jl")
@@ -18,16 +19,18 @@ include("plotting.jl")
 include("policy.jl")
 include("argparse.jl")
 include("noise.jl")
+include("bath_measurements.jl")    # Dispatched bath measurement functions
+include("state_manipulation.jl")   # Dispatched state manipulation functions
 
-# Dispatch-based implementations
-include("system_hamiltonian_dispatch.jl")    # System Hamiltonian construction
-include("ground_state_dispatch.jl")          # Ground state computation
-include("setup_system_dispatch.jl")          # System setup using the above
-include("system_bath_hamiltonian_dispatch.jl") # System-bath coupling
-include("trotter_dispatch.jl")               # Trotter circuit construction
-include("initial_state_dispatch.jl")         # Initial state preparation
-include("cooling_evolution_dispatch.jl")     # Pure dispatch-based cooling evolution
-include("setup_dispatch.jl")                 # setup_problem implementations
+# Core implementations (all using dispatch by default)
+include("system_hamiltonian.jl")    # System Hamiltonian construction
+include("ground_state.jl")          # Ground state computation
+include("setup_system.jl")          # System setup using the above
+include("system_bath_hamiltonian.jl") # System-bath coupling
+include("trotter.jl")               # Trotter circuit construction
+include("initial_state.jl")         # Initial state preparation
+include("cooling_evolution.jl")     # Cooling evolution
+include("setup.jl")                 # setup_problem implementations
 
 
 

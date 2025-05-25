@@ -53,24 +53,6 @@ function create_sim_params(backend::CoolingBackend;
     return UnifiedSimulationParameters(sim_method, evolution_method; kwargs...)
 end
 
-# Legacy function - deprecated, use cooling_interface.jl create_sim_params instead
-function create_sim_params_legacy(parsed_args)
-    pe = parsed_args["peInt"] > 0 ? round(parsed_args["peInt"] * 1e-3, digits=4) : 0
-    
-    backend_str = get(parsed_args, "method", get(parsed_args, "backend", "TN"))
-    
-    return Dict(
-        "cutoff" => parsed_args["cutoff"],
-        "Dmax" => parsed_args["Dmax"],
-        "pe" => pe,
-        "peInt" => parsed_args["peInt"],
-        "method" => backend_str,
-        "backend" => backend_str,
-        "trotter_steps" => Int(parsed_args["te"] / parsed_args["tau"]),
-        "tau" => parsed_args["tau"],
-        "n_trajectories" => get(parsed_args, "n_trajectories", 100)
-    )
-end
 
 function mean_last_window(list, window_size)
     return mean(list[max(1, end-window_size+1):end])
@@ -97,51 +79,37 @@ end
 
 function create_filename(ham_name, ham_params::HamiltonianParameters, coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters, backend::CoolingBackend)
     N = ham_params.N
-    ham_name_part = isa(N, Array) ? "Ham$(ham_name)Nmin$(minimum(N))Nmax$(maximum(N))" : "Ham$(ham_name)Ns$(N)Nb$(N)"
-    coupling_name_part = "Coupling$(coupling_params.coupling)g$(coupling_params.g)te$(coupling_params.te)steps$(coupling_params.steps)"
     
-    # Use backend type directly
+    # More concise ham name (remove "Ham" prefix and shorten)
+    ham_part = isa(N, Array) ? "$(ham_name)_N$(minimum(N))-$(maximum(N))" : "$(ham_name)_N$(N)"
+    
+    # Concise coupling part (remove "Coupling" prefix)
+    coupling_part = "$(coupling_params.coupling)_g$(coupling_params.g)_t$(coupling_params.te)_s$(coupling_params.steps)"
+    
+    # Concise backend/sim part
     backend_str = backend isa TNBackend ? "TN" : "ED"
+    sim_part = backend_str
     
-    sim_name_part = "Sim$(backend_str)"
-    
-    # Add method-specific parameters
-    if backend isa TNBackend
-        sim_name_part *= "Dmax$(sim_params.Dmax)"
+    # Add key method parameters only
+    if backend isa TNBackend && sim_params.Dmax != 100  # Only add if not default
+        sim_part *= "_D$(sim_params.Dmax)"
     end
     
     if sim_params.evolution_method isa TrotterEvolution
-        sim_name_part *= "tau$(sim_params.tau)"
+        sim_part *= "_tau$(sim_params.tau)"
     end
     
     if sim_params.pe > 0
         pe_int = Int(round(sim_params.pe * 1000))
-        sim_name_part *= "peInt$(pe_int)"
+        sim_part *= "_pe$(pe_int)"
     end
     
-    return join(["Cooling", ham_name_part, coupling_name_part, sim_name_part], "_")
+    # Add delta if specified
+    if coupling_params.delta !== nothing
+        delta_str = @sprintf("%.3f", coupling_params.delta)
+        coupling_part *= "_d$(delta_str)"
+    end
+    
+    return join([ham_part, coupling_part, sim_part], "_")
 end
 
-# Legacy wrapper for old Dict-based calls
-function create_filename(ham_name, N, coupling_params::Dict, sim_params::Dict)
-    # Convert to new format
-    cp = BasicCouplingParameters(
-        coupling_params["coupling"],
-        coupling_params["g"],
-        coupling_params["steps"],
-        coupling_params["te"]
-    )
-    
-    # Create a minimal UnifiedSimulationParameters
-    sp = UnifiedSimulationParameters(
-        MonteCarloWavefunction(),
-        ContinuousEvolution();
-        Dmax=get(sim_params, "Dmax", 100),
-        tau=get(sim_params, "tau", 0.1),
-        pe=get(sim_params, "pe", 0.0)
-    )
-    
-    # For legacy code, we need to create a dummy ham_params
-    # This is just for backward compatibility and should be avoided
-    return create_filename(ham_name, N, cp, sp, TNBackend())
-end

@@ -11,7 +11,6 @@ struct CoolingProblem{B<:CoolingBackend}
     H_sys_bath::Any  # Full system+bath Hamiltonian (unified naming)
     ϕ₀::Any     # Ground state
     e₀::Float64 # Ground state energy
-    sites::Union{Nothing, Vector{<:Index}}  # Site indices (for tensor network methods)
     extra::NamedTuple  # Backend-specific extras (gates, etc.)
 end
 

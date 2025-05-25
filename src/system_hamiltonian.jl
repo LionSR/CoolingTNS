@@ -1,5 +1,5 @@
 """
-    system_hamiltonian_dispatch.jl
+    system_hamiltonian.jl
 
 System-only Hamiltonian construction using multiple dispatch on HamiltonianModel and backend.
 """

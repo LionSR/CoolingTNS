@@ -3,7 +3,7 @@
 Demonstration of the unified cooling simulation interface.
 
 This example shows how the same code can run different backends
-(ED, MPS, MPO, TrotterMPS) with minimal changes.
+(ED, TN) with different simulation methods using the new dispatch architecture.
 """
 
 using CoolingTNS
@@ -12,56 +12,49 @@ using Statistics
 # Common parameters for all backends
 function setup_parameters()
     N = 4  # Small system for all backends
-    problem = "niIsing"
-    ham_params = (1.0, -1.05, 0.5)  # J, hx, hz
     
-    coupling_params = Dict(
-        "coupling" => "XX",
-        "g" => 0.15,
-        "te" => 2.0,
-        "steps" => 20
-    )
+    # Create parameter structures
+    ham_params = CoolingTNS.NiIsingParameters(N, 1.0, -1.05, 0.5)  # N, J, hx, hz
+    coupling_params = CoolingTNS.BasicCouplingParameters("XX", 0.15, 20, 2.0, nothing)
     
-    sim_params = Dict(
-        "pe" => 0.0,  # No noise
-        "cutoff" => 1e-6,
-        "Dmax" => 30,
-        "tau" => 0.1,
-        "n_trajectories" => 50
-    )
-    
-    return N, problem, ham_params, coupling_params, sim_params
+    return ham_params, coupling_params
 end
 
-# Run cooling with any backend
-function run_cooling_demo(backend_name::String, sim_method=nothing)
+# Run cooling with specified backend and methods
+function run_cooling_demo(backend::CoolingTNS.CoolingBackend, 
+                         sim_method::CoolingTNS.SimulationMethod,
+                         evolution_method::CoolingTNS.EvolutionMethod,
+                         name::String)
     println("\n" * "="^60)
-    println("Running cooling with $backend_name backend")
+    println("Running cooling with $name")
     println("="^60)
     
     # Get parameters
-    N, problem, ham_params, coupling_params, sim_params = setup_parameters()
+    ham_params, coupling_params = setup_parameters()
     
-    # Get backend
-    backend = CoolingTNS.get_backend(backend_name)
-    
-    # Override simulation method if specified
-    if isnothing(sim_method)
-        sim_method = CoolingTNS.simulation_method(backend)
-    end
+    # Create simulation parameters
+    sim_params = CoolingTNS.create_sim_params(backend;
+        sim_method=sim_method,
+        evolution_method=evolution_method,
+        pe=0.0,  # No noise
+        cutoff=1e-6,
+        Dmax=30,
+        tau=0.1,
+        n_trajectories=(sim_method isa CoolingTNS.MonteCarloWavefunction ? 50 : 1)
+    )
     
     # Setup problem
     println("Setting up problem...")
-    cooling_problem = CoolingTNS.setup_problem(backend, N, problem, ham_params, coupling_params, sim_params)
-    println("  Ground state energy: e₀/N = $(cooling_problem.e₀/N)")
+    cooling_problem = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params)
+    println("  Ground state energy: e₀/N = $(cooling_problem.e₀/ham_params.N)")
     
     # Setup initial state
     println("Setting up initial state...")
     initial_state = CoolingTNS.setup_initial_state(
         cooling_problem, 
+        sim_params,
         "product",  # Default alternating up/down
-        0.0;
-        method=sim_method
+        0.0
     )
     
     # Run cooling
@@ -72,11 +65,12 @@ function run_cooling_demo(backend_name::String, sim_method=nothing)
         initial_state,
         coupling_params,
         sim_params,
-        ham_params  # Only used by TrotterMPS
+        ham_params
     )
     t_elapsed = time() - t_start
     
     # Analyze results
+    N = ham_params.N
     E_initial = results["E_list"][1]
     E_final = results["E_list"][end]
     GS_overlap_initial = results["GS_overlap_list"][1]
@@ -98,27 +92,23 @@ function main()
     println("CoolingTNS Unified Interface Demonstration")
     println("==========================================")
     
-    # Test all backends
-    backends = ["ED", "MPS", "MPO", "TrotterMPS"]
+    # Define all backend/method combinations to test
+    configurations = [
+        (CoolingTNS.EDBackend(), CoolingTNS.DensityMatrix(), CoolingTNS.ContinuousEvolution(), "ED (Density Matrix)"),
+        (CoolingTNS.EDBackend(), CoolingTNS.MonteCarloWavefunction(), CoolingTNS.ContinuousEvolution(), "ED (Monte Carlo)"),
+        (CoolingTNS.TNBackend(), CoolingTNS.MonteCarloWavefunction(), CoolingTNS.ContinuousEvolution(), "TN (MPS)"),
+        (CoolingTNS.TNBackend(), CoolingTNS.DensityMatrix(), CoolingTNS.TrotterEvolution(), "TN (MPO)"),
+        (CoolingTNS.TNBackend(), CoolingTNS.MonteCarloWavefunction(), CoolingTNS.TrotterEvolution(), "TN (Trotter-MPS)")
+    ]
+    
     results_dict = Dict()
     
-    for backend in backends
+    for (backend, sim_method, evolution_method, name) in configurations
         try
-            if backend == "ED"
-                # Test both ED methods
-                println("\nTesting ED with density matrix method:")
-                results_dm = run_cooling_demo("ED", CoolingTNS.DensityMatrix())
-                results_dict["ED_DM"] = results_dm
-                
-                println("\nTesting ED with Monte Carlo wavefunction:")
-                results_mc = run_cooling_demo("ED", CoolingTNS.MonteCarloWavefunction())
-                results_dict["ED_MC"] = results_mc
-            else
-                results = run_cooling_demo(backend)
-                results_dict[backend] = results
-            end
+            results = run_cooling_demo(backend, sim_method, evolution_method, name)
+            results_dict[name] = results
         catch e
-            println("\nError with $backend: $e")
+            println("\nError with $name: $e")
         end
     end
     
@@ -126,21 +116,44 @@ function main()
     println("\n" * "="^60)
     println("Comparison of Final Results")
     println("="^60)
-    println("Backend          | E_final/N    | GS Overlap")
-    println("-"^45)
+    println("Backend                  | E_final/N    | GS Overlap")
+    println("-"^55)
     
-    N = 4
-    for (name, results) in results_dict
+    ham_params, _ = setup_parameters()
+    N = ham_params.N
+    
+    for (name, results) in sort(collect(results_dict))
         E_final = results["E_list"][end] / N
         GS_overlap = results["GS_overlap_list"][end]
-        println("$(rpad(name, 16)) | $(round(E_final, digits=4))     | $(round(GS_overlap, digits=4))")
+        println("$(rpad(name, 24)) | $(round(E_final, digits=4))     | $(round(GS_overlap, digits=4))")
     end
     
     println("\nKey observations:")
     println("- ED provides exact results (benchmark)")
-    println("- MPS/MPO provide good approximations with controlled error")
-    println("- All methods show successful cooling (energy decrease)")
-    println("- The unified interface makes it easy to compare methods")
+    println("- TN methods provide good approximations with controlled error")
+    println("- Different simulation methods (DensityMatrix vs MonteCarloWavefunction)")
+    println("- Different evolution methods (Continuous vs Trotter)")
+    println("- The unified interface with dispatch makes it easy to compare methods")
+    
+    # Demonstrate the dispatch pattern
+    println("\n" * "="^60)
+    println("Dispatch Pattern Demonstration")
+    println("="^60)
+    println("The new architecture uses multiple dispatch to route to correct implementations:")
+    println()
+    println("1. Backend dispatch:")
+    println("   - EDBackend() → Exact diagonalization methods")
+    println("   - TNBackend() → Tensor network methods")
+    println()
+    println("2. Simulation method dispatch:")
+    println("   - DensityMatrix() → Full density matrix evolution")
+    println("   - MonteCarloWavefunction() → Stochastic trajectories")
+    println()
+    println("3. Evolution method dispatch:")
+    println("   - ContinuousEvolution() → Matrix exponential evolution")
+    println("   - TrotterEvolution() → Trotter decomposition")
+    println()
+    println("The combination determines the actual implementation used!")
 end
 
 # Run if this is the main script

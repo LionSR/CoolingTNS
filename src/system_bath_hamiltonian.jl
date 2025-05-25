@@ -1,5 +1,5 @@
 """
-    system_bath_hamiltonian_dispatch.jl
+    system_bath_hamiltonian.jl
 
 System+bath Hamiltonian construction using multiple dispatch on HamiltonianModel and backend.
 """
@@ -8,7 +8,7 @@ using ITensors
 using Yao
 # parameter_types.jl already included by parent
 
-# system_hamiltonian_dispatch.jl included by parent hamiltonian_dispatch.jl
+# system_hamiltonian.jl included by parent
 
 
 

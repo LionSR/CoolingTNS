@@ -1,5 +1,5 @@
 """
-    setup_system_dispatch.jl
+    setup_system.jl
 
 Dispatch-based system setup for different Hamiltonian models and backends.
 """
@@ -10,7 +10,7 @@ using KrylovKit
 using LinearAlgebra
 using Yao
 # parameter_types.jl already included by parent
-# The dispatch files are included by hamiltonian_dispatch.jl
+# The core files are included by parent
 
 """
     setup_system(ham_params::HamiltonianParameters, backend::CoolingBackend)
@@ -68,7 +68,7 @@ function setup_system(ham_params::HamiltonianParameters, backend::EDBackend)
     return H_sys, Δ_ed, e₀, ϕ₀
 end
 
-# Ground state computation now handled by ground_state_dispatch.jl
+# Ground state computation now handled by ground_state.jl
 
 # ============================================================================
 # Backend-Agnostic Interface (Auto-detects from parameters)

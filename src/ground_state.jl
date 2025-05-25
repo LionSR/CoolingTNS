@@ -1,5 +1,5 @@
 """
-    ground_state_dispatch.jl
+    ground_state.jl
 
 Ground state computation using multiple dispatch on backend type.
 """
