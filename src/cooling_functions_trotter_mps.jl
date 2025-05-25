@@ -1,72 +1,42 @@
 using ITensors
 using ITensorMPS
+include("parameter_types.jl")
+include("hamiltonian_dispatch.jl")
+include("setup_system_dispatch.jl")
 
-function setup_problem_trotter_mps(N, problem, ham_params, coupling_params, sim_params)
+# Multiple dispatch version for typed parameters
+function setup_problem_trotter_mps(N, problem, ham_params, coupling_params::CouplingParameters, sim_params::TensorNetworkParameters)
     sites = siteinds("S=1/2", 2N)
     sites_sys = sites[1:2:2N-1]
     sites_bath = sites[2:2:2N]
 
-    H_sys, Δ_dmrg, e₀, ϕ₀ = setup_system(N, problem, sites_sys, ham_params)
-
-    Δ = haskey(coupling_params, "Δ") ? coupling_params["Δ"] : Δ_dmrg
-    coupling_params["Δ"] = Δ
-
-    gates = build_trotter_circuit_bath_coupling(sites_sys, sites_bath, coupling_params, sim_params)
+    # Create HamiltonianParameters struct from legacy parameters
+    ham_param_struct = create_hamiltonian_params(problem, ham_params...)
     
-    # Create the total Hamiltonian
-    ham_sys_bath_fn = problem == "Ising" ? ham_ising_sys_bath : ham_niising_sys_bath
-    H_total = ham_sys_bath_fn(N, sites, ham_params, coupling_params)
+    # Use new dispatch system
+    H_sys, Δ_dmrg, e₀, ϕ₀ = setup_system(N, ham_param_struct, TNBackend(), sites_sys)
+
+    # Create updated coupling parameters with computed delta
+    Δ = coupling_params.delta !== nothing ? coupling_params.delta : Δ_dmrg
+    updated_coupling_params = CouplingParameters(coupling_params.coupling, coupling_params.g, coupling_params.steps, coupling_params.te, Δ)
     
-    return sites, H_sys, H_total, ϕ₀, e₀, gates
+    backend = TrotterMPSBackend()
+    gates = build_trotter_circuit_bath_coupling(ham_param_struct, backend, sites_sys, sites_bath, convert_to_dict(updated_coupling_params), convert_to_dict(sim_params))
+    
+    # Create the total Hamiltonian using dispatch
+    H_total = construct_system_bath_hamiltonian(ham_param_struct, backend, sites, convert_to_dict(updated_coupling_params))
+    
+    return sites, H_sys, H_total, ϕ₀, e₀, gates, ham_param_struct
 end
 
-function build_trotter_circuit_bath_coupling(sites_sys, sites_bath, coupling_params, sim_params)
-    N = length(sites_sys)
-    g, Δ, coupling, tau = coupling_params["g"], coupling_params["Δ"], coupling_params["coupling"], sim_params["tau"]
-    op1, op2 = parse_coupling(coupling)
+# Removed backward compatibility - use typed parameters only
 
-    gates = ITensor[]
-    for ind in eachindex(sites_sys)
-        s1, b1 = sites_sys[ind], sites_bath[ind]
-        hb = -Δ / 2 * op("Z", b1)
-        hsb = g * op(op1, s1) * op(op2, b1)
-        push!(gates, exp(-1.0im * tau / 2 * hb), exp(-1.0im * tau / 2 * hsb))
-    end
-    append!(gates, reverse(gates))
-    return gates
-end
+# Removed legacy functions - use hamiltonian_dispatch.jl instead
 
-function evolve_state_trotter(H_total, H_sys, gates, ψ, t, ham_params, sites; Dmax, cutoff, tau)
-    steps = Int(t / tau)
-    ψ_evolved = copy(ψ)
-    
-    # Create a new Hamiltonian with Δ and g set to zero
-    N = length(sites) ÷ 2
-    zero_coupling_params = Dict("g" => 0.0, "Δ" => 0.0, "coupling" => "XX")  # Use "XX" as a default coupling
-    
-    H_sys_zero = if length(ham_params) == 2  # Ising model
-        ham_ising_sys_bath(N, sites, ham_params, zero_coupling_params)
-    else  # niIsing model
-        ham_niising_sys_bath(N, sites, ham_params, zero_coupling_params)
-    end
-    
-    for _ in 1:steps
-        # Evolve with H_sys_zero using TDVP
-        ψ_evolved = tdvp(H_sys_zero, -im * tau, ψ_evolved; nsteps=1, reverse_step=false, normalize=true, maxdim=Dmax, cutoff=cutoff, outputlevel=0)
-        
-        # Apply the pre-computed gates
-        ψ_evolved = apply(gates, ψ_evolved; cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
-
-        orthogonalize!(ψ_evolved, 2)
-        normalize!(ψ_evolved)
-    end
-    
-    return ψ_evolved
-end
-
-function run_cooling_trotter_mps(sites, H_sys, H_total, ϕ₀, gates, ψ_s, coupling_params, sim_params, ham_params)
-    steps, te = coupling_params["steps"], coupling_params["te"]
-    cutoff, Dmax, tau, pe = sim_params["cutoff"], sim_params["Dmax"], sim_params["tau"], sim_params["pe"]
+# Multiple dispatch version for typed parameters
+function run_cooling_trotter_mps(sites, H_sys, H_total, ϕ₀, gates, ψ_s, coupling_params::CouplingParameters, sim_params::TensorNetworkParameters, ham_param_struct)
+    steps, te = coupling_params.steps, coupling_params.te
+    cutoff, Dmax, tau, pe = sim_params.cutoff, sim_params.Dmax, sim_params.tau, sim_params.pe
     N = length(sites) ÷ 2
 
     E_list = zeros(Float64, steps + 1)
@@ -84,9 +54,11 @@ function run_cooling_trotter_mps(sites, H_sys, H_total, ϕ₀, gates, ψ_s, coup
     for step = 2:steps+1
         ψ_sb = appendzeros_MPS(ψ_s, sites)
         
-        # Use evolve_state_trotter function
-        # ψ_sb = evolve_state_trotter(H_total, H_sys, gates, ψ_sb, te; Dmax=Dmax, cutoff=cutoff, tau=tau)
-        ψ_sb = evolve_state_trotter(H_total, H_sys, gates, ψ_sb, te, ham_params, sites; Dmax, cutoff, tau)    
+        # Use new evolve_state dispatch with Trotter evolution
+        unified_sim_params = UnifiedSimulationParameters{MonteCarloWavefunction, TrotterEvolution}(
+            MonteCarloWavefunction(), TrotterEvolution(), Dmax, cutoff, tau, pe, nothing
+        )
+        ψ_sb = evolve_state(ham_param_struct, unified_sim_params, TrotterMPSBackend(), H_total, ψ_sb, te, sites; gates=gates)    
         
         if pe > 0
             ψ_sb = apply_depolarizing_noise(ψ_sb, sites, pe)
@@ -107,11 +79,16 @@ function run_cooling_trotter_mps(sites, H_sys, H_total, ϕ₀, gates, ψ_s, coup
 
     println("After cooling: energy/N=$(E_list[end]/N), total energy=$(E_total_list[end]), overlap=$(GS_overlap_list[end])")
 
-    return Dict(
-        "E_list" => E_list,
-        "E_total_list" => E_total_list,
-        "GS_overlap_list" => GS_overlap_list,
-        "nb_list" => nb_list,
-        "final_state" => ψ_s
+    # Create extended TensorNetworkResults with total energy
+    result = TensorNetworkResults(
+        E_list,
+        GS_overlap_list,
+        nb_list,
+        ψ_s
     )
+    
+    # Add E_total_list as additional data
+    return (result=result, E_total_list=E_total_list)
 end
+
+# Removed backward compatibility - use typed parameters only

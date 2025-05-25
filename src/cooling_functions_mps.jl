@@ -1,6 +1,9 @@
 using ITensors
 using ITensorMPS
 using Statistics
+include("parameter_types.jl")
+include("hamiltonian_dispatch.jl")
+include("setup_system_dispatch.jl")
 
 function setup_init_state_mps(sites; init_type="product", theta=0.0)
     N = length(sites) ÷ 2
@@ -37,20 +40,29 @@ function setup_init_state_mps(sites; init_type="product", theta=0.0)
 end
 
 
-function setup_problem_mps(N, problem, ham_params, coupling_params, sim_params)
+# Multiple dispatch versions for typed parameters
+function setup_problem_mps(N, problem, ham_params, coupling_params::CouplingParameters, sim_params::SimulationParameters)
     sites = siteinds("S=1/2", 2N)
     sites_sys = sites[1:2:2N-1]
 
-    H_sys, Δ_dmrg, e₀, ϕ₀ = setup_system(N, problem, sites_sys, ham_params)
+    # Create HamiltonianParameters struct from legacy parameters
+    ham_param_struct = create_hamiltonian_params(problem, ham_params...)
+    
+    # Use new dispatch system
+    H_sys, Δ_dmrg, e₀, ϕ₀ = setup_system(N, ham_param_struct, TNBackend(), sites_sys)
 
-    Δ = haskey(coupling_params, "Δ") ? coupling_params["Δ"] : Δ_dmrg
-    coupling_params["Δ"] = Δ
+    # Create updated coupling parameters with computed delta
+    Δ = hasfield(typeof(coupling_params), :delta) && coupling_params.delta !== nothing ? coupling_params.delta : Δ_dmrg
+    updated_coupling_params = typeof(coupling_params)(coupling_params.coupling, coupling_params.g, coupling_params.steps, coupling_params.te, Δ)
 
-    ham_sys_bath_fn = problem == "Ising" ? ham_ising_sys_bath : ham_niising_sys_bath
-    H_sys_bath = ham_sys_bath_fn(N, sites, ham_params, coupling_params)
+    # HamiltonianParameters struct already created above
+    backend = MPSBackend()
+    H_sys_bath = construct_system_bath_hamiltonian(ham_param_struct, backend, sites, convert_to_dict(updated_coupling_params))
 
     return sites, H_sys, ϕ₀, e₀, H_sys_bath
 end
+
+# Removed backward compatibility - use typed parameters only
 
 
 function evolve_state(H, ψ, t; Dmax, cutoff, tau)
@@ -61,9 +73,10 @@ function evolve_state(H, ψ, t; Dmax, cutoff, tau)
 end
 
 
-function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params, sim_params)
-    steps, te = coupling_params["steps"], coupling_params["te"]
-    cutoff, Dmax, tau, pe = sim_params["cutoff"], sim_params["Dmax"], sim_params["tau"], sim_params["pe"]
+# Multiple dispatch version for typed parameters
+function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params::CouplingParameters, sim_params::TensorNetworkParameters)
+    steps, te = coupling_params.steps, coupling_params.te
+    cutoff, Dmax, tau, pe = sim_params.cutoff, sim_params.Dmax, sim_params.tau, sim_params.pe
     N = length(sites) ÷ 2
 
     E_list = zeros(Float64, steps + 1)
@@ -98,11 +111,13 @@ function run_cooling_mps(sites, H_sys, ϕ₀, H_sys_bath, ψ_s, coupling_params,
 
     println("After cooling: energy/N=$(E_list[end]/N), overlap=$(GS_overlap_list[end])")
 
-    return Dict(
-        "E_list" => E_list,
-        "GS_overlap_list" => GS_overlap_list,
-        "nb_list" => nb_list,
-        "final_state" => ψ_s
+    return TensorNetworkResults(
+        E_list,
+        GS_overlap_list,
+        nb_list,
+        ψ_s
     )
 end
+
+# Removed backward compatibility - use typed parameters only
 

@@ -8,7 +8,9 @@
       "Bash(find:*)",
       "mcp__ide__getDiagnostics",
       "Bash(mkdir:*)",
-      "Bash(julia:*)"
+      "Bash(julia:*)",
+      "Bash(sed:*)",
+      "Bash(timeout:*)"
     ],
     "deny": []
   }

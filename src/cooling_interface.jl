@@ -1,164 +1,158 @@
 """
     cooling_interface.jl
 
-Defines abstract types and interfaces for cooling simulations,
-providing a unified API across different backends (ED, MPS, MPO, TrotterMPS).
+Unified interface for cooling simulations with clean dispatch architecture.
+All functions contain substance implementations rather than empty wrappers.
 """
 
 using ITensors
-using ITensorMPS
+using Yao
+using KrylovKit
+using LinearAlgebra
+include("parameter_types.jl")
+include("hamiltonian_dispatch.jl")
+include("trotter_dispatch.jl")
+include("evolution_dispatch.jl")
+include("initial_state_dispatch.jl")
+include("setup_system_dispatch.jl")
 
-# Abstract types for simulation backends
-abstract type CoolingBackend end
-struct EDBackend <: CoolingBackend end
-struct MPSBackend <: CoolingBackend end
-struct MPOBackend <: CoolingBackend end
-struct TrotterMPSBackend <: CoolingBackend end
+# Import ED functions
+include("cooling_functions_ed.jl")
 
-# Abstract types for simulation methods
-abstract type SimulationMethod end
-struct DensityMatrix <: SimulationMethod end
-struct MonteCarloWavefunction <: SimulationMethod end
+# Default simulation methods for backends (can be overridden)
+default_simulation_method(::EDBackend) = DensityMatrix()  # Can be Monte Carlo or Density Matrix
+default_simulation_method(::TNBackend) = MonteCarloWavefunction()  # Most common for TN
 
-# Map backends to their natural simulation methods
-simulation_method(::EDBackend) = DensityMatrix()  # Can be overridden
-simulation_method(::MPSBackend) = MonteCarloWavefunction()
-simulation_method(::MPOBackend) = DensityMatrix()
-simulation_method(::TrotterMPSBackend) = MonteCarloWavefunction()
+# Default evolution methods for backends (can be overridden)
+default_evolution_method(::EDBackend) = ContinuousEvolution()  # Matrix exponentiation
+default_evolution_method(::TNBackend) = ContinuousEvolution()  # TDVP is default for TN
 
 # Container for problem setup results
 struct CoolingProblem{B<:CoolingBackend}
     backend::B
     H_sys::Any  # System Hamiltonian
-    H_full::Any  # Full system+bath Hamiltonian or evolution operator
+    H_sys_bath::Any  # Full system+bath Hamiltonian (unified naming)
     ϕ₀::Any     # Ground state
     e₀::Float64 # Ground state energy
     sites::Any  # Site indices (for tensor network methods)
-    extra::Dict{String,<:Any}  # Backend-specific extras (gates, etc.)
+    extra::NamedTuple  # Backend-specific extras (gates, etc.)
 end
 
-# Container for quantum states
-struct QuantumState{B<:CoolingBackend,M<:SimulationMethod}
+# Container for quantum states  
+struct QuantumState{B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
     backend::B
-    method::M
+    sim_method::S
+    evolution_method::E
     state::Any  # The actual state (MPS, MPO, density matrix, etc.)
     sites::Any  # Site indices (if applicable)
 end
 
-"""
-    setup_problem(backend::CoolingBackend, N, problem, ham_params, coupling_params, sim_params)
-
-Unified interface for problem setup across all backends.
-"""
-function setup_problem(backend::CoolingBackend, N, problem, ham_params, coupling_params, sim_params)
-    error("setup_problem not implemented for backend type $(typeof(backend))")
-end
-
-# Specific implementations for each backend
-function setup_problem(backend::EDBackend, N, problem, ham_params, coupling_params, sim_params)
-    H_sys, H_full, ϕ₀, e₀ = setup_problem_ed(N, problem, ham_params, coupling_params, sim_params)
-    return CoolingProblem(backend, H_sys, H_full, ϕ₀, e₀, nothing, Dict{String,Any}())
-end
-
-function setup_problem(backend::MPSBackend, N, problem, ham_params, coupling_params, sim_params)
-    sites, H_sys, ϕ₀, e₀, H_sys_bath = setup_problem_mps(N, problem, ham_params, coupling_params, sim_params)
-    return CoolingProblem(backend, H_sys, H_sys_bath, ϕ₀, e₀, sites, Dict("H_sys_bath" => H_sys_bath))
-end
-
-function setup_problem(backend::MPOBackend, N, problem, ham_params, coupling_params, sim_params)
-    sites, H_sys, ϕ₀, e₀, gates = setup_problem_mpo(N, problem, ham_params, coupling_params, sim_params)
-    return CoolingProblem(backend, H_sys, gates, ϕ₀, e₀, sites, Dict("gates" => gates))
-end
-
-function setup_problem(backend::TrotterMPSBackend, N, problem, ham_params, coupling_params, sim_params)
-    sites, H_sys, H_total, ϕ₀, e₀, gates = setup_problem_trotter_mps(N, problem, ham_params, coupling_params, sim_params)
-    return CoolingProblem(backend, H_sys, H_total, ϕ₀, e₀, sites, Dict("gates" => gates, "H_total" => H_total))
-end
+# ============================================================================
+# Problem Setup with Substance Implementations
+# ============================================================================
 
 """
-    setup_initial_state(problem::CoolingProblem, init_type, theta; method=nothing)
+    setup_problem(backend::CoolingBackend, N, ham_params::HamiltonianParameters, coupling_params, sim_params)
 
-Unified interface for initial state setup.
+Generic interface for problem setup - substance in each dispatch method.
 """
-function setup_initial_state(problem::CoolingProblem, init_type::String, theta::Float64=0.0; method::Union{Nothing,SimulationMethod}=nothing)
-    backend = problem.backend
-    sim_method = isnothing(method) ? simulation_method(backend) : method
+function setup_problem(backend::CoolingBackend, N, ham_params::HamiltonianParameters, coupling_params, sim_params)
+    error("setup_problem not implemented for ham_model=$(typeof(ham_params.model)) and backend=$(typeof(backend))")
+end
+
+# ED Backend - Direct implementation with substance
+function setup_problem(backend::EDBackend, N, ham_params::HamiltonianParameters, coupling_params, sim_params)
+    # Use unified setup_system dispatch for both Hamiltonian and ground state
+    H_sys, Δ_ed, e₀, ϕ₀ = setup_system(N, ham_params, backend)
     
-    if backend isa EDBackend
-        N = problem.sites === nothing ? 0 : length(problem.sites) ÷ 2
-        # For ED, we need to determine N from H_sys
-        if N == 0
-            # Extract N from Hamiltonian size (number of qubits)
-            # H_sys is a Yao block, get number of qubits
-            N = nqubits(problem.H_sys)
-        end
-        state = setup_init_state_ed(2N; init_type=init_type, theta=theta, method=sim_method)
-        return QuantumState(backend, sim_method, state, nothing)
-    elseif backend isa MPSBackend || backend isa TrotterMPSBackend
-        state = setup_init_state_mps(problem.sites; init_type=init_type, theta=theta)
-        return QuantumState(backend, sim_method, state, problem.sites)
-    elseif backend isa MPOBackend
-        state = setup_init_state_mpo(problem.sites; init_type=init_type, theta=theta)
-        return QuantumState(backend, sim_method, state, problem.sites)
+    # Set resonant cooling if Δ not specified
+    updated_coupling_params = if coupling_params.delta === nothing
+        # Use computed gap from setup_system
+        BasicCouplingParameters(coupling_params.coupling, coupling_params.g, coupling_params.steps, coupling_params.te, Δ_ed)
     else
-        error("setup_initial_state not implemented for backend type $(typeof(backend))")
+        coupling_params
     end
-end
-
-"""
-    run_cooling(problem::CoolingProblem, initial_state::QuantumState, coupling_params, sim_params, ham_params=nothing)
-
-Unified interface for running cooling simulations.
-"""
-function run_cooling(problem::CoolingProblem, initial_state::QuantumState, coupling_params, sim_params, ham_params=nothing)
-    backend = problem.backend
     
-    if backend isa EDBackend
-        # ED uses the state wrapper directly
-        return run_cooling_ed(
-            problem.H_sys,
-            problem.H_full,
-            problem.ϕ₀,
-            initial_state.state,
-            coupling_params,
-            sim_params
-        )
-    elseif backend isa MPSBackend
-        return run_cooling_mps(
-            problem.sites,
-            problem.H_sys,
-            problem.ϕ₀,
-            problem.extra["H_sys_bath"],
-            initial_state.state,
-            coupling_params,
-            sim_params
-        )
-    elseif backend isa MPOBackend
-        return run_cooling_mpo(
-            problem.sites,
-            problem.H_sys,
-            problem.ϕ₀,
-            problem.extra["gates"],
-            initial_state.state,
-            coupling_params,
-            sim_params
-        )
-    elseif backend isa TrotterMPSBackend
-        return run_cooling_trotter_mps(
-            problem.sites,
-            problem.H_sys,
-            problem.extra["H_total"],
-            problem.ϕ₀,
-            problem.extra["gates"],
-            initial_state.state,
-            coupling_params,
-            sim_params,
-            ham_params
-        )
-    else
-        error("run_cooling not implemented for backend type $(typeof(backend))")
-    end
+    # Build full system+bath Hamiltonian using dispatch
+    H_full = construct_system_bath_hamiltonian(ham_params, backend, 2N, updated_coupling_params)
+    
+    return CoolingProblem(backend, H_sys, H_full, ϕ₀, e₀, nothing, (coupling_params=updated_coupling_params,))
 end
+
+# TN Backend - Direct implementation with substance and shared helper
+function setup_problem(backend::TNBackend, N, ham_params::HamiltonianParameters, coupling_params, sim_params::UnifiedSimulationParameters)
+    # Common TN setup
+    sites = siteinds("S=1/2", 2N)
+    sites_sys = sites[1:2:2N-1]
+    sites_bath = sites[2:2:2N]
+    
+    # Get system Hamiltonian and ground state
+    H_sys, Δ_dmrg, e₀, ϕ₀ = setup_system(N, ham_params, backend, sites_sys)
+    
+    # Update coupling parameters with computed delta
+    updated_coupling_params = if coupling_params.delta === nothing
+        BasicCouplingParameters(coupling_params.coupling, coupling_params.g, coupling_params.steps, coupling_params.te, Δ_dmrg)
+    else
+        coupling_params
+    end
+    
+    # Dispatch based on simulation method and evolution method
+    return setup_tn_specific(backend, sim_params.sim_method, sim_params.evolution_method, 
+                            ham_params, sites, sites_sys, sites_bath, H_sys, e₀, ϕ₀, updated_coupling_params, sim_params)
+end
+
+# Monte Carlo + Continuous Evolution (MPS-like) - Direct substance
+function setup_tn_specific(backend::TNBackend, ::MonteCarloWavefunction, ::ContinuousEvolution,
+                          ham_params, sites, sites_sys, sites_bath, H_sys, e₀, ϕ₀, coupling_params, sim_params)
+    H_sys_bath = construct_system_bath_hamiltonian(ham_params, backend, sites, coupling_params)
+    return CoolingProblem(backend, H_sys, H_sys_bath, ϕ₀, e₀, sites, (H_sys_bath=H_sys_bath, coupling_params=coupling_params))
+end
+
+# Density Matrix + Trotter Evolution (MPO-like) - Direct substance
+function setup_tn_specific(backend::TNBackend, ::DensityMatrix, ::TrotterEvolution,
+                          ham_params, sites, sites_sys, sites_bath, H_sys, e₀, ϕ₀, coupling_params, sim_params)
+    gates = build_trotter_circuit(ham_params, backend, sites_sys, sites_bath, coupling_params, sim_params)
+    return CoolingProblem(backend, H_sys, nothing, ϕ₀, e₀, sites, (gates=gates, coupling_params=coupling_params))
+end
+
+# Monte Carlo + Trotter Evolution (TrotterMPS-like) - Direct substance
+function setup_tn_specific(backend::TNBackend, ::MonteCarloWavefunction, ::TrotterEvolution,
+                          ham_params, sites, sites_sys, sites_bath, H_sys, e₀, ϕ₀, coupling_params, sim_params)
+    gates = build_trotter_circuit_bath_coupling(ham_params, backend, sites_sys, sites_bath, coupling_params, sim_params)
+    H_total = construct_system_bath_hamiltonian(ham_params, backend, sites, coupling_params)
+    return CoolingProblem(backend, H_sys, H_total, ϕ₀, e₀, sites, 
+                         (gates=gates, H_sys_bath=H_total, ham_param_struct=ham_params, coupling_params=coupling_params))
+end
+
+# Density Matrix + Continuous Evolution (less common) - Direct substance
+function setup_tn_specific(backend::TNBackend, ::DensityMatrix, ::ContinuousEvolution,
+                          ham_params, sites, sites_sys, sites_bath, H_sys, e₀, ϕ₀, coupling_params, sim_params)
+    H_sys_bath = construct_system_bath_hamiltonian(ham_params, backend, sites, coupling_params)
+    return CoolingProblem(backend, H_sys, H_sys_bath, ϕ₀, e₀, sites, (H_sys_bath=H_sys_bath, coupling_params=coupling_params))
+end
+
+# ============================================================================
+# Initial State Setup with Substance Implementations
+# ============================================================================
+
+# ED Backend - Direct substance implementation
+function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::UnifiedSimulationParameters, init_type::String="product", theta::Float64=0.0)
+    # Extract N from Hamiltonian size - for ED, assume it's 2^N dimensional  
+    N = Int(log2(size(mat(problem.H_sys), 1))) ÷ 2  # Total qubits ÷ 2 for system qubits
+    # TODO: this way of extracting N is very sus, we must have N somewhere!! if not we need to have it in one of the struct.
+    state = setup_initial_state(sim_params, problem.backend, N; init_type=init_type, theta=theta)
+    return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, state, N)
+end
+
+# TN Backend - Direct substance implementation
+function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::UnifiedSimulationParameters, init_type::String="product", theta::Float64=0.0)
+    state = setup_initial_state(sim_params, problem.backend, problem.sites; init_type=init_type, theta=theta)
+    return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, state, problem.sites)
+end
+
+# ============================================================================
+# Utility Functions
+# ============================================================================
 
 """
     get_backend(method::String) -> CoolingBackend
@@ -168,39 +162,35 @@ Convert string method name to backend type.
 function get_backend(method::String)
     if method == "ED"
         return EDBackend()
-    elseif method == "MPS"
-        return MPSBackend()
-    elseif method == "MPO"
-        return MPOBackend()
-    elseif method == "TrotterMPS"
-        return TrotterMPSBackend()
+    elseif method in ["MPS", "MPO", "TrotterMPS", "TN"]
+        return TNBackend()
     else
-        error("Unknown method: $method")
+        error("Unknown method: $method. Use 'ED' for exact diagonalization or 'TN'/'MPS'/'MPO'/'TrotterMPS' for tensor networks")
     end
 end
 
 """
-    get_simulation_method(backend::CoolingBackend, ed_method::String="") -> SimulationMethod
+    create_sim_params(backend::CoolingBackend; sim_method=nothing, evolution_method=nothing, kwargs...)
 
-Determine simulation method based on backend and optional ED method specification.
+Create UnifiedSimulationParameters with intelligent defaults based on backend.
 """
-function get_simulation_method(backend::CoolingBackend, ed_method::String="")
-    if backend isa EDBackend && !isempty(ed_method)
-        if ed_method == "density_matrix"
-            return DensityMatrix()
-        elseif ed_method == "monte_carlo"
-            return MonteCarloWavefunction()
-        else
-            error("Unknown ED method: $ed_method")
-        end
-    else
-        return simulation_method(backend)
-    end
+function create_sim_params(backend::CoolingBackend; 
+                          sim_method=nothing, 
+                          evolution_method=nothing, 
+                          kwargs...)
+    # Use defaults if not specified
+    sim_method = isnothing(sim_method) ? default_simulation_method(backend) : sim_method
+    evolution_method = isnothing(evolution_method) ? default_evolution_method(backend) : evolution_method
+    
+    # Use direct constructor with dispatch
+    return UnifiedSimulationParameters(sim_method, evolution_method; kwargs...)
 end
 
 # Export everything
-export CoolingBackend, EDBackend, MPSBackend, MPOBackend, TrotterMPSBackend
+export CoolingBackend, EDBackend, TNBackend
 export SimulationMethod, DensityMatrix, MonteCarloWavefunction
+export EvolutionMethod, ContinuousEvolution, TrotterEvolution
+export UnifiedSimulationParameters
 export CoolingProblem, QuantumState
-export setup_problem, setup_initial_state, run_cooling
-export get_backend, get_simulation_method, simulation_method
+export setup_problem, setup_initial_state
+export get_backend, create_sim_params

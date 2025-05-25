@@ -1,3 +1,6 @@
+# Import parameter types
+include("parameter_types.jl")
+
 function extract_ham_params(problem, parsed_args)
     if problem == "Ising"
         J, h = parsed_args["J"], parsed_args["h"]
@@ -13,43 +16,55 @@ function extract_ham_params(problem, parsed_args)
     return ham_params, ham_name
 end
 
-function setup_system(N, problem, sites_sys, ham_params)
-    H_sys = if problem == "Ising"
-        ham_ising(N, sites_sys, ham_params)
-    elseif problem == "niIsing"
-        ham_niising(N, sites_sys, ham_params)
-    else
-        error("Unknown problem type: $problem")
-    end
-
-    Δ, e₀, ϕ₀ = compute_energy_gap_and_ground_state(H_sys, sites_sys)
-    return H_sys, Δ, e₀, ϕ₀
-end
+# Legacy setup_system function removed - use setup_system_dispatch.jl instead
 
 function setup_common_parameters(parsed_args)
     N = parsed_args["N"]
     problem = parsed_args["problem"]
-    ham_params, ham_name = extract_ham_params(problem, parsed_args)
+    
+    # Create proper HamiltonianParameters struct
+    if problem == "Ising"
+        ham_params = IsingParameters(parsed_args["J"], parsed_args["h"])
+        ham_name = "$(problem)J$(parsed_args["J"])h$(parsed_args["h"])"
+    elseif problem == "niIsing"
+        ham_params = NiIsingParameters(parsed_args["J"], parsed_args["hx"], parsed_args["hz"])
+        ham_name = "$(problem)J$(parsed_args["J"])hx$(parsed_args["hx"])hz$(parsed_args["hz"])"
+    elseif problem == "Rydberg"
+        # Add default Rydberg parameters if needed
+        Ω = get(parsed_args, "Omega", 1.0)
+        Δ = get(parsed_args, "Delta", 0.0)
+        V = get(parsed_args, "V", 1.0)
+        ham_params = RydbergParameters(Ω, Δ, V)
+        ham_name = "$(problem)Omega$(Ω)Delta$(Δ)V$(V)"
+    else
+        error("Unknown problem type: $problem")
+    end
 
-    coupling_params = Dict(
-        "g" => parsed_args["g"],
-        "te" => parsed_args["te"],
-        "steps" => parsed_args["steps"],
-        "coupling" => parsed_args["coupling"]
+    # Create proper CouplingParameters struct
+    coupling_params = BasicCouplingParameters(
+        parsed_args["coupling"],
+        parsed_args["g"],
+        parsed_args["steps"],
+        parsed_args["te"],
+        get(parsed_args, "delta", nothing)
     )
 
     return N, problem, ham_params, ham_name, coupling_params
 end
 
-function create_sim_params(parsed_args)
+# Legacy function - deprecated, use cooling_interface.jl create_sim_params instead
+function create_sim_params_legacy(parsed_args)
     pe = parsed_args["peInt"] > 0 ? round(parsed_args["peInt"] * 1e-3, digits=4) : 0
+    
+    backend_str = get(parsed_args, "method", get(parsed_args, "backend", "TN"))
     
     return Dict(
         "cutoff" => parsed_args["cutoff"],
         "Dmax" => parsed_args["Dmax"],
         "pe" => pe,
         "peInt" => parsed_args["peInt"],
-        "method" => parsed_args["method"],
+        "method" => backend_str,
+        "backend" => backend_str,
         "trotter_steps" => Int(parsed_args["te"] / parsed_args["tau"]),
         "tau" => parsed_args["tau"],
         "n_trajectories" => get(parsed_args, "n_trajectories", 100)
@@ -79,15 +94,51 @@ function create_search_name_part(search_params)
     return "Search$(search_params["search_method"])trials$(search_params["num_trials"])"
 end
 
-function create_filename(ham_name, N, coupling_params, sim_params)
+function create_filename(ham_name, N, coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters)
     ham_name_part = isa(N, Array) ? "Ham$(ham_name)Nmin$(minimum(N))Nmax$(maximum(N))" : "Ham$(ham_name)Ns$(N)Nb$(N)"
-    coupling_name_part = "Coupling$(coupling_params["coupling"])g$(coupling_params["g"])te$(coupling_params["te"])steps$(coupling_params["steps"])"
-    if sim_params["method"] == "MPO" || sim_params["method"] == "TrotterMPS"
-        sim_name_part = "Sim$(sim_params["method"])Dmax$(sim_params["Dmax"])tau$(sim_params["tau"])"
-    elseif sim_params["method"] == "MPS"
-        sim_name_part = "Sim$(sim_params["method"])Dmax$(sim_params["Dmax"])"
+    coupling_name_part = "Coupling$(coupling_params.coupling)g$(coupling_params.g)te$(coupling_params.te)steps$(coupling_params.steps)"
+    
+    # Determine backend string based on simulation method and evolution method
+    if sim_params.sim_method isa MonteCarloWavefunction && sim_params.evolution_method isa ContinuousEvolution
+        method_str = "MPS"
+    elseif sim_params.sim_method isa DensityMatrix && sim_params.evolution_method isa TrotterEvolution
+        method_str = "MPO"
+    elseif sim_params.sim_method isa MonteCarloWavefunction && sim_params.evolution_method isa TrotterEvolution
+        method_str = "TrotterMPS"
+    else
+        method_str = "TN"
     end
-    sim_name_part *= sim_params["peInt"] > 0 ? "peInt$(sim_params["peInt"])" : ""
+    
+    sim_name_part = "Sim$(method_str)Dmax$(sim_params.Dmax)"
+    if sim_params.evolution_method isa TrotterEvolution
+        sim_name_part *= "tau$(sim_params.tau)"
+    end
+    if sim_params.pe > 0
+        pe_int = Int(round(sim_params.pe * 1000))
+        sim_name_part *= "peInt$(pe_int)"
+    end
     
     return join(["Cooling", ham_name_part, coupling_name_part, sim_name_part], "_")
+end
+
+# Legacy wrapper for old Dict-based calls
+function create_filename(ham_name, N, coupling_params::Dict, sim_params::Dict)
+    # Convert to new format
+    cp = BasicCouplingParameters(
+        coupling_params["coupling"],
+        coupling_params["g"],
+        coupling_params["steps"],
+        coupling_params["te"]
+    )
+    
+    # Create a minimal UnifiedSimulationParameters
+    sp = UnifiedSimulationParameters(
+        MonteCarloWavefunction(),
+        ContinuousEvolution();
+        Dmax=get(sim_params, "Dmax", 100),
+        tau=get(sim_params, "tau", 0.1),
+        pe=get(sim_params, "pe", 0.0)
+    )
+    
+    return create_filename(ham_name, N, cp, sp)
 end

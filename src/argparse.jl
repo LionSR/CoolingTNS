@@ -61,12 +61,15 @@ function parse_commandline(args=ARGS)
         help = "maximum bond dimension"
         arg_type = Int
         default = 20
-        "--method"
-        help = "simulation method for cooling (valid choices: MPS, MPO, TrotterMPS, ED)"
-        default = "MPS"
-        "--ed_method"
-        help = "ED simulation method (valid choices: density_matrix, monte_carlo)"
-        default = "density_matrix"
+        "--backend"
+        help = "simulation backend (valid choices: TN, ED)"
+        default = "TN"
+        "--sim_method"
+        help = "simulation method (valid choices: density_matrix, monte_carlo)"
+        default = "monte_carlo"
+        "--evolution_method"
+        help = "evolution method (valid choices: continuous, trotter)"
+        default = "continuous"
         "--n_trajectories"
         help = "number of trajectories for Monte Carlo wavefunction method"
         arg_type = Int

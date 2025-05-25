@@ -182,16 +182,19 @@ function setup_problem_ed(N, problem, ham_params, coupling_params, sim_params)
     ϕ₀_vec = vecs[1]
     ϕ₀ = ArrayReg(normalize!(Complex.(ϕ₀_vec)))
     
+    # Convert to dict if needed for backward compatibility
+    coupling_dict = coupling_params isa CouplingParameters ? to_dict(coupling_params) : coupling_params
+    
     # Set resonant cooling if Δ not specified
-    if !haskey(coupling_params, "Δ")
+    if !haskey(coupling_dict, "Δ")
         # Find gap
         vals2, _, _ = eigsolve(H_sys_mat, 2, :SR; krylovdim=min(30, size(H_sys_mat, 1)))
         gap = real(vals2[2] - vals2[1])
-        coupling_params["Δ"] = -gap  # Resonant cooling
+        coupling_dict["Δ"] = -gap  # Resonant cooling
     end
     
     # Build full system+bath Hamiltonian
-    H_full = build_hamiltonian_ed(problem, N, ham_params, coupling_params)
+    H_full = build_hamiltonian_ed(problem, N, ham_params, coupling_dict)
     
     return H_sys, H_full, ϕ₀, e₀
 end
@@ -217,8 +220,14 @@ end
 function evolve_ed(state::EDState{<:AbstractRegister}, H, t::Real; method=:exponential)
     # Pure state evolution: |ψ(t)⟩ = exp(-iHt)|ψ⟩
     if method == :exponential
-        evolved_state = copy(state.state)
-        evolved_state |> time_evolve(H, t)
+        # Use matrix exponentiation instead of Yao's time evolution
+        H_mat = mat(H)
+        ψ_vec = state.state |> statevec
+        # Convert sparse matrix to dense before exponentiation
+        H_dense = Matrix(H_mat)
+        U = exp(-1im * H_dense * t)
+        ψ_evolved_vec = U * ψ_vec
+        evolved_state = ArrayReg(ψ_evolved_vec)
         return EDState(evolved_state, state.nbits, state.method)
     elseif method == :krylov
         # Use Krylov methods for large systems
@@ -293,7 +302,16 @@ function trace_bath_ed(state::EDState, N::Int)
         # Extract system state by focusing on system qubits after measurement
         # System qubits are at odd positions (1, 3, 5, ...)
         sys_qubits = [2i-1 for i in 1:N]
-        sys_reg = Yao.focus!(reg_measured, sys_qubits)
+        
+        # Focus on system qubits and create new reduced register
+        focused_reg = Yao.focus!(reg_measured, sys_qubits)
+        sys_state_vec = Yao.statevec(focused_reg)
+        
+        # Extract only the active part of the state vector (first 2^N elements)
+        sys_reg = ArrayReg(sys_state_vec[1:1<<N])
+        
+        # Debug print (disabled)
+        # println("DEBUG: sys_vec length = $(length(sys_state_vec)), expected = $(1<<N)")
         
         # measured_results is a BitVector containing the measurement outcomes
         bath_config = [Int(b) for b in measured_results]
@@ -389,17 +407,34 @@ function compute_observables_ed(ψ_sys::Yao.AbstractRegister, H_sys, ϕ₀)
 end
 
 """
-    run_cooling_ed(H_sys, H_full, ϕ₀, initial_state, coupling_params, sim_params)
+    run_cooling_ed(H_sys, H_sys_bath, ϕ₀, initial_state, coupling_params, sim_params)
 
 Run ED cooling simulation with either density matrix or Monte Carlo wavefunction method.
+Returns typed CoolingResults struct based on simulation method.
 """
-function run_cooling_ed(H_sys, H_full, ϕ₀, initial_state::EDState, coupling_params, sim_params)
-    steps = coupling_params["steps"]
-    te = coupling_params["te"]
+function run_cooling_ed(H_sys, H_sys_bath, ϕ₀, initial_state::EDState, coupling_params, sim_params)
+    # Handle both dict and struct parameter types
+    if coupling_params isa CouplingParameters
+        steps = coupling_params.steps
+        te = coupling_params.te
+        coupling_dict = to_dict(coupling_params)
+    else
+        steps = coupling_params["steps"]
+        te = coupling_params["te"]
+        coupling_dict = coupling_params
+    end
+    
+    if sim_params isa SimulationParameters
+        sim_dict = to_dict(sim_params)
+    else
+        sim_dict = sim_params
+    end
+    
     N = initial_state.nbits ÷ 2
     
     # Noise model
-    noise_model = sim_params["pe"] > 0 ? Dict("depolarizing" => sim_params["pe"]) : Dict()
+    pe = get(sim_dict, "pe", 0.0)
+    noise_model = pe > 0 ? Dict("depolarizing" => pe) : Dict()
     
     # Results storage
     E_list = zeros(Float64, steps + 1)
@@ -409,10 +444,10 @@ function run_cooling_ed(H_sys, H_full, ϕ₀, initial_state::EDState, coupling_p
     
     # Monte Carlo specific
     if initial_state.method isa MonteCarloWavefunction
-        n_trajectories = get(sim_params, "n_trajectories", 1)
+        n_trajectories = get(sim_dict, "n_trajectories", 1)
         return run_cooling_monte_carlo(
-            H_sys, H_full, ϕ₀, initial_state, 
-            coupling_params, sim_params, noise_model,
+            H_sys, H_sys_bath, ϕ₀, initial_state, 
+            coupling_dict, sim_dict, noise_model,
             n_trajectories
         )
     end
@@ -495,12 +530,18 @@ function run_cooling_ed(H_sys, H_full, ϕ₀, initial_state::EDState, coupling_p
                 "purity=$(purity_list[step]), ⟨Z⟩_bath=$(bath_z_list[step])")
     end
     
-    return Dict(
-        "E_list" => E_list,
-        "GS_overlap_list" => GS_overlap_list,
-        "purity_list" => purity_list,
-        "bath_z_list" => bath_z_list,
-        "method" => "ED_DensityMatrix"
+    # Calculate von Neumann entropy and trace distance for density matrix results
+    von_neumann_entropy = zeros(length(E_list))
+    trace_distance = zeros(length(E_list))
+    
+    # TODO: Implement von Neumann entropy and trace distance calculations
+    # These would require computing eigenvalues of density matrices
+    
+    # Return typed DensityMatrixResults struct
+    return create_results(
+        DensityMatrix(), E_list, GS_overlap_list, purity_list;
+        von_neumann_entropy = von_neumann_entropy,
+        trace_distance = trace_distance
     )
 end
 
@@ -550,9 +591,9 @@ function run_cooling_monte_carlo(H_sys, H_full, ϕ₀, initial_state,
             sys_vec = ψ_sys |> statevec
             bath_vec = bath_state |> statevec
             
-            println("DEBUG: sys_vec length = $(length(sys_vec)), expected = $(1<<N)")
-            println("DEBUG: bath_vec length = $(length(bath_vec)), expected = $(1<<N)")
-            println("DEBUG: bath_state nqubits = $(nqubits(bath_state))")
+            # println("DEBUG: sys_vec length = $(length(sys_vec)), expected = $(1<<N)")
+            # println("DEBUG: bath_vec length = $(length(bath_vec)), expected = $(1<<N)")
+            # println("DEBUG: bath_state nqubits = $(nqubits(bath_state))")
             
             # Create the tensor product with proper ordering
             full_vec = zeros(ComplexF64, 1<<(2N))
@@ -574,11 +615,11 @@ function run_cooling_monte_carlo(H_sys, H_full, ϕ₀, initial_state,
             
             ψ_full = ArrayReg(full_vec)
             
-            # Debug print
-            println("DEBUG: N=$N, 2N=$(2N)")
-            println("DEBUG: nqubits(ψ_full) = $(nqubits(ψ_full))")
-            println("DEBUG: length(full_vec) = $(length(full_vec)), expected = $(1<<(2N))")
-            println("DEBUG: nqubits(H_full) = $(nqubits(H_full))")
+            # Debug print (disabled)
+            # println("DEBUG: N=$N, 2N=$(2N)")
+            # println("DEBUG: nqubits(ψ_full) = $(nqubits(ψ_full))")
+            # println("DEBUG: length(full_vec) = $(length(full_vec)), expected = $(1<<(2N))")
+            # println("DEBUG: nqubits(H_full) = $(nqubits(H_full))")
             
             # Create EDState wrapper
             state = EDState(ψ_full, 2N, MonteCarloWavefunction())
@@ -596,7 +637,8 @@ function run_cooling_monte_carlo(H_sys, H_full, ϕ₀, initial_state,
             normalize!(ψ_sys)
             
             # Compute observables
-            E_trajs[step, traj] = real(Yao.expect(H_sys, ψ_sys))
+            E_val = Yao.expect(H_sys, ψ_sys)
+            E_trajs[step, traj] = real(E_val isa Number ? E_val : E_val[1])
             overlap = Yao.statevec(ϕ₀)' * Yao.statevec(ψ_sys)
             GS_overlap_trajs[step, traj] = abs2(overlap[1])
         end
@@ -606,23 +648,25 @@ function run_cooling_monte_carlo(H_sys, H_full, ϕ₀, initial_state,
     E_list = mean(E_trajs, dims=2)[:, 1]
     GS_overlap_list = mean(GS_overlap_trajs, dims=2)[:, 1]
     
-    # Purity calculation would require trajectory correlations
-    purity_list = ones(steps + 1)  # Placeholder
-    bath_z_list = zeros(steps + 1)  # Placeholder
+    # Purity is always 1 for pure states  
+    purity_list = ones(steps + 1)
+    
+    # Compute standard deviations
+    E_std = std(E_trajs, dims=2)[:, 1]
+    GS_std = std(GS_overlap_trajs, dims=2)[:, 1]
     
     # Print final results
     for step in 1:steps+1
         println("Step $step: E/N=$(E_list[step]/N), overlap=$(GS_overlap_list[step])")
     end
     
-    return Dict(
-        "E_list" => E_list,
-        "GS_overlap_list" => GS_overlap_list, 
-        "purity_list" => purity_list,
-        "bath_z_list" => bath_z_list,
-        "E_trajs" => E_trajs,
-        "GS_overlap_trajs" => GS_overlap_trajs,
-        "method" => "ED_MonteCarloWavefunction",
-        "n_trajectories" => n_trajectories
+    # Return typed MonteCarloResults struct
+    return create_results(
+        MonteCarloWavefunction(), E_list, GS_overlap_list, purity_list;
+        E_trajectories = E_trajs,
+        GS_trajectories = GS_overlap_trajs,
+        n_trajectories = n_trajectories,
+        E_std = E_std,
+        GS_std = GS_std
     )
 end

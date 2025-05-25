@@ -4,18 +4,44 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CoolingTNS is a Julia-based quantum physics simulation framework for studying cooling protocols in spin systems. It implements various algorithms to simulate the dynamics of quantum systems coupled to thermal baths, supporting both tensor network methods and exact diagonalization.
+CoolingTNS is a Julia-based quantum physics simulation framework for studying cooling protocols in spin systems using tensor network methods and exact diagonalization. It implements various algorithms to simulate the dynamics of quantum systems coupled to thermal baths.
+
+## User's Code Style Preferences
+
+### Architectural Philosophy
+- **Pure Dispatch Architecture**: Everything uses Julia's multiple dispatch. No if-else blocks for method selection.
+- **Graceful Code Organization**: Clean separation of concerns with modular files, each having a single responsibility.
+- **Substance in Dispatch Functions**: No empty wrappers - dispatch functions contain actual implementations.
+- **DRY Principles**: Share common elements gracefully without duplication.
+- **Type-Based Method Selection**: Let Julia's type system handle all method routing at compile time.
+
+### Dispatch Guidelines
+- **No Conditionals**: Replace all if-else logic with type-based dispatch
+- **Backend Dispatch**: Use TNBackend/EDBackend types rather than string comparisons
+- **Triple/Quadruple Dispatch**: HamiltonianModel × SimulationMethod × EvolutionMethod × Backend
+- **Unified Interfaces**: Functions like `find_ground_state` dispatch on backend type rather than having separate `find_ground_state_dmrg` and `find_ground_state_ed`
+- **Clean Include Structure**: Modular files that include their dependencies and are included by higher-level dispatchers
+
+### Code Gracefulness Requirements
+- **Minimal Complexity**: Each function does one thing well
+- **Maximum Readability**: Self-documenting code with clear type signatures
+- **Performance-Driven Design**: Use Julia's strengths (type stability, specialization)
+- **Comprehensive Type Coverage**: Every combination of types should have a method
+- **Predictable Interfaces**: Consistent argument order and naming across dispatch methods
 
 ## Common Development Commands
 
 ### Running Simulations
 
 ```bash
-# Basic cooling simulation with tensor networks
-julia Cooling.jl --N 10 --problem niIsing --method MPS --coupling XX --g 0.1 --te 10.0 --steps 100
+# Basic tensor network simulation
+julia Cooling.jl --N 10 --problem niIsing --backend TN --sim_method monte_carlo --evolution_method continuous --coupling XX --g 0.1 --te 10.0 --steps 100
 
-# Exact diagonalization (small systems)
-julia Cooling.jl --N 6 --problem niIsing --method ED --ed_method density_matrix --coupling XX --g 0.1 --te 5.0 --steps 50
+# Exact diagonalization for small systems
+julia Cooling.jl --N 6 --problem niIsing --backend ED --sim_method density_matrix --evolution_method continuous --coupling XX --g 0.1 --te 5.0 --steps 50
+
+# Trotter evolution with tensor networks
+julia Cooling.jl --N 8 --problem Ising --backend TN --sim_method monte_carlo --evolution_method trotter --tau 0.1 --coupling YY --g 0.2 --te 2.0 --steps 20
 
 # With precompiled sysimage (faster startup)
 julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so Cooling.jl [args]
@@ -24,16 +50,18 @@ julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so Cooling.jl [args]
 julia optCooling.jl --search_method Bayesian --num_trials 20 --N 10 --problem niIsing
 ```
 
-### Common Parameters
+### Current Parameters
 - `--N`: Number of spins in the system
 - `--problem`: Problem type (Ising, niIsing, Rydberg)
-- `--method`: Simulation method (MPS, MPO, TrotterMPS, ED)
+- `--backend`: Simulation backend (TN, ED)
+- `--sim_method`: Simulation method (density_matrix, monte_carlo)
+- `--evolution_method`: Evolution method (continuous, trotter)
 - `--coupling`: Coupling type (XX, YY, ZZ, XY, XZ, YZ)
 - `--g`: Coupling strength
-- `--te`: Total evolution time
-- `--steps`: Number of time steps
-- `--Dmax`: Maximum bond dimension for tensor network methods
-- `--ed_method`: ED simulation type (density_matrix, monte_carlo)
+- `--te`: Total evolution time per step
+- `--steps`: Number of cooling iterations
+- `--tau`: Time step for Trotter evolution
+- `--Dmax`: Maximum bond dimension for tensor networks
 - `--init_state`: Initial state type (product, identity, theta)
 - `--theta`: Parameterized initial state angle (in units of π)
 
@@ -49,110 +77,147 @@ sbatch SubmitOptCooling.sh
 
 ## High-Level Architecture
 
+### Dispatch-Based Architecture
+
+The codebase uses a clean multiple dispatch architecture:
+
+1. **Backend Types**: `TNBackend` (Tensor Networks) and `EDBackend` (Exact Diagonalization)
+2. **Simulation Methods**: `DensityMatrix()` and `MonteCarloWavefunction()`
+3. **Evolution Methods**: `ContinuousEvolution()` and `TrotterEvolution()`
+4. **Hamiltonian Models**: `IsingModel()`, `NiIsingModel()`, `RydbergModel()`
+
 ### Core Simulation Flow
 
-1. **Parameter Setup** (`setup_common_parameters`): Parses command-line arguments and creates parameter structures
-2. **Problem Initialization**: Creates quantum states, Hamiltonians, and evolution operators based on the chosen backend
-3. **Evolution**: Performs time evolution using the selected simulation method
-4. **Analysis**: Computes observables like fidelity, energy, and mutual information
-
-### Key Architectural Components
-
-**Simulation Backends**:
-- **ED (Exact Diagonalization)**: Full quantum dynamics for small systems (N ≤ 10)
-- **MPS (Matrix Product States)**: Efficient representation with controlled entanglement
-- **MPO (Matrix Product Operators)**: Density matrix evolution with tensor networks
-- **TrotterMPS**: Trotter decomposition combined with MPS
-
-**Simulation Methods**:
-- **Density Matrix**: Full quantum state tracking (MPO, ED with density matrix)
-- **Monte Carlo Wavefunction**: Stochastic trajectories (MPS, TrotterMPS, ED with MC)
-
-**Physical Models**:
-- **Ising**: Standard transverse field Ising model
-- **niIsing**: Non-integrable Ising model with additional terms
-- **Rydberg**: Rydberg atom arrays with dressed interactions
-
-**System-Bath Coupling**:
-The framework supports various coupling operators between system and bath spins:
-- Diagonal couplings: XX, YY, ZZ
-- Off-diagonal couplings: XY, XZ, YZ
-
-**Optimization Framework**:
-Uses Hyperopt.jl for Bayesian optimization of coupling parameters to maximize cooling efficiency.
+1. **Parameter Setup** (`setup_common_parameters`): Creates typed parameter structures
+2. **Problem Initialization** (`setup_problem`): Dispatches on backend and parameters
+3. **Initial State** (`setup_initial_state`): Dispatches on backend and state type
+4. **Evolution** (`run_cooling`): Dispatches on all type parameters
+5. **Analysis**: Computes observables with backend-specific implementations
 
 ### Module Structure
 
-- `src/ham.jl`: Hamiltonian construction for different models
-- `src/cooling_functions_*.jl`: Core evolution algorithms for each backend
-- `src/cooling_functions_ed.jl`: Exact diagonalization with Yao.jl
-- `src/utils_*.jl`: Utility functions for tensor operations
-- `src/policy.jl`: Time-dependent coupling policies
-- `src/noise.jl`: Noise models for realistic simulations
-- `src/dmrg.jl`: DMRG ground state calculations
-- `src/plotting.jl`: Visualization utilities
+**Core Dispatch Files**:
+- `src/cooling_interface.jl`: Main interface with substance implementations
+- `src/hamiltonian_dispatch.jl`: Includes all Hamiltonian-related dispatchers
+- `src/system_hamiltonian_dispatch.jl`: System-only Hamiltonian construction
+- `src/system_bath_hamiltonian_dispatch.jl`: System+bath Hamiltonian construction
+- `src/ground_state_dispatch.jl`: Unified ground state computation
+- `src/setup_system_dispatch.jl`: System setup with backend dispatch
+- `src/evolution_dispatch.jl`: Time evolution dispatch
+- `src/initial_state_dispatch.jl`: Initial state preparation
+- `src/trotter_dispatch.jl`: Trotter circuit construction
 
-### Data Flow
+**Backend Implementations**:
+- `src/cooling_functions_ed.jl`: ED-specific evolution algorithms
+- `src/cooling_functions_mps.jl`: MPS/Monte Carlo evolution
+- `src/cooling_functions_mpo.jl`: MPO/Density Matrix evolution
+- `src/cooling_functions_trotter_mps.jl`: Trotter+MPS evolution
 
-1. Results are saved as HDF5 files with structured metadata
-2. Common interface allows easy comparison between different backends
-3. Plotting scripts (`plotCooling.jl`, `plotOptCooling.jl`) generate publication-quality figures
+**Utilities**:
+- `src/parameter_types.jl`: Type definitions for parameters
+- `src/coupling_utils.jl`: Coupling operator parsing
+- `src/utils_*.jl`: Backend-specific utilities
+- `src/plotting.jl`: Visualization
+- `src/noise.jl`: Noise models
+- `src/policy.jl`: Time-dependent policies
 
-## Development Notes
+### Physical Models
 
-- The project uses ITensors.jl for tensor network operations
-- MKL is loaded on Linux for optimized linear algebra
-- Thread safety: Set `JULIA_NUM_THREADS=1` and `OPENBLAS_NUM_THREADS=1` for cluster runs
-- Results directory structure: `{ID}_{type}_{Ham}_{Coupling}_{Sim}`
+All models are implemented with dispatch on `HamiltonianParameters{Model}`:
+- **Ising**: Transverse field Ising model H = J∑ZZ + h∑X
+- **niIsing**: Non-integrable Ising H = J∑ZZ + hx∑X + hz∑Z
+- **Rydberg**: Rydberg atoms with van der Waals interactions
 
-## Simulation Backends
+### System-Bath Layout
 
-### Exact Diagonalization (ED)
-- Uses Yao.jl for quantum state manipulation
-- ExponentialUtilities.jl for efficient time evolution
-- KrylovKit.jl for ground state calculations
-- Supports both density matrix and Monte Carlo wavefunction methods
-- Limited to small systems (N ≤ 10) due to exponential scaling
+The framework uses alternating qubit layout: [s₁, b₁, s₂, b₂, ..., sₙ, bₙ]
+- System qubits at odd indices: 1, 3, 5, ...
+- Bath qubits at even indices: 2, 4, 6, ...
 
-### Tensor Network Methods
-- **MPS**: Matrix Product States with TDVP time evolution
-- **MPO**: Matrix Product Operators with TEBD evolution
-- **TrotterMPS**: Trotter gates with MPS compression
-- Can handle larger systems with controlled approximation
+## Development Guidelines
 
-## Initial State Options
+### Adding New Features
 
-The framework supports multiple initial state types:
+1. **New Backend**: Create a new backend type and implement all required dispatch methods
+2. **New Model**: Add model type and implement Hamiltonian construction dispatches
+3. **New Evolution Method**: Add evolution type and implement in appropriate backend files
+4. **New Observable**: Add dispatch methods for each backend type
 
-```bash
-# Product state (default)
-julia Cooling.jl --init_state product ...
+### Code Quality
 
-# Identity/maximally mixed state
-julia Cooling.jl --init_state identity --method MPO ...
+- **Type Stability**: Ensure all functions are type-stable for performance
+- **No Type Piracy**: Only extend functions you own or explicitly import
+- **Consistent Interfaces**: Maintain argument order across dispatch methods
+- **Documentation**: Each dispatch method should have a docstring
+- **Testing**: Add tests for each new dispatch combination
 
-# Theta-parameterized states
-julia Cooling.jl --init_state theta --theta -0.5  # All down |111...⟩
-julia Cooling.jl --init_state theta --theta 0.0   # X+ state |+++...⟩
-julia Cooling.jl --init_state theta --theta 0.5   # All up |000...⟩
-```
+### Performance Considerations
+
+- ITensors.jl for tensor network operations
+- Yao.jl for quantum circuit/state manipulation in ED
+- KrylovKit.jl for eigenvalue problems
+- ExponentialUtilities.jl for matrix exponentials
+- MKL on Linux for optimized BLAS/LAPACK
 
 ## Testing
 
-Run tests with:
 ```bash
-julia --project=. tests/runtests.jl
+# Run all tests
+julia --project=. test/runtests.jl
+
+# Run specific test file
+julia --project=. test/test_cooling_interface.jl
 ```
 
-Individual test files:
-- `tests/test_cooling_backends.jl`: Compare different simulation backends
-- `tests/test_initial_states.jl`: Test initial state preparation
-- `tests/test_hamiltonians.jl`: Verify Hamiltonian construction
-- `tests/test_observables.jl`: Check observable calculations
+Test files verify:
+- Consistency across backends
+- Correct dispatch resolution
+- Type stability
+- Edge cases and error handling
 
-# Important Instructions
-- Focus on Julia implementation best practices
-- Use multiple dispatch for clean interfaces
-- Leverage Julia's type system for performance
-- Keep the codebase DRY with proper abstractions
-- Test edge cases and ensure consistency across backends
+## Common Patterns
+
+### Backend-Agnostic Code
+```julia
+# Let dispatch handle backend differences
+function compute_observable(state::QuantumState{B}, obs) where B<:CoolingBackend
+    # Dispatches to appropriate implementation
+    return measure(state, obs, B())
+end
+```
+
+### Adding Dispatch Methods
+```julia
+# System Hamiltonian
+function construct_system_hamiltonian(
+    ham_params::HamiltonianParameters{YourModel}, 
+    backend::TNBackend, 
+    sites
+)
+    # Implementation for your model on TN backend
+end
+
+# Ground State
+function find_ground_state(H_sys, backend::YourBackend, args...)
+    # Implementation for your backend
+end
+```
+
+### Type Hierarchies
+```julia
+abstract type HamiltonianModel end
+struct IsingModel <: HamiltonianModel end
+struct NiIsingModel <: HamiltonianModel end
+
+abstract type CoolingBackend end
+struct TNBackend <: CoolingBackend end
+struct EDBackend <: CoolingBackend end
+```
+
+## Memory Notes
+
+- Removed all references to old `--method` argument (replaced by `--backend`)
+- Eliminated `--ed_method` (now `--sim_method` works for all backends)
+- No more backend-specific functions like `find_ground_state_dmrg`
+- Pure dispatch architecture throughout - no string comparisons
+- All empty wrappers removed - substance in dispatch functions

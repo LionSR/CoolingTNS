@@ -80,4 +80,4 @@ println("  Initial GS overlap: $overlap_initial")
 println("  Final GS overlap: $overlap_final")
 println("  Ground state energy/N: $(cooling_problem.e₀/N)")
 println("\n✓ Energy decreases during cooling!")
-println("✓ Ground state overlap increases!"
+println("✓ Ground state overlap increases!")
