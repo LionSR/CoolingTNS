@@ -181,17 +181,20 @@ Files are named: `Cooling_Ham{model}_Coupling{type}_Sim{backend}Dmax{D}`
 ### Performance Considerations
 
 - ITensors.jl for tensor network operations
-- Yao.jl for quantum circuit/state manipulation in ED
 - KrylovKit.jl for eigenvalue problems
 - ExponentialUtilities.jl for matrix exponentials
 - MKL on Linux for optimized BLAS/LAPACK
 
 ### Getting doucmentations from Julia packages:
-For example, for Yao.jl and ITensors.jl or ITensorMPS.jl, you can get the documentation of a function by running:
+Use ITensors.jl or ITensorMPS.jl, you can get the documentation of a function by running:
 ```bash
 # Get function documentation from a package
 julia -e 'using PackageName; @doc function_name'
 ```
+### Use real parameters whenever possible.
+
+Never use ComplexF64. Use Float64 instead.
+
 
 ## Testing
 
@@ -276,4 +279,7 @@ struct EDBackend <: CoolingBackend end
 - Legacy functions like `setup_problem_mps` are deprecated
 
 ## Memory Updates
-- `update the memory`
+- Latest progress indicates continued development of the pure dispatch architecture
+- Ongoing refactoring to remove legacy methods and consolidate backend-specific implementations
+- Focus on type stability and consistent dispatch across different simulation scenarios
+- update my memory

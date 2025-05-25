@@ -8,7 +8,12 @@ using ITensors
 using ITensorMPS
 using KrylovKit
 using LinearAlgebra
-using Yao
+using SparseArrays
+
+# Include clean ED backend if available
+if !@isdefined(EDStateVector)
+    include("ed_backend.jl")
+end
 
 # ============================================================================
 # Ground State Computation Interface
@@ -62,18 +67,6 @@ end
 Find ground state and energy gap using exact diagonalization for ED backend.
 """
 function find_ground_state(H_sys, backend::EDBackend)
-    H_sys_mat = Matrix(H_sys)
-    
-    # Find ground state
-    vals, vecs, info = eigsolve(H_sys_mat, 1, :SR; krylovdim=min(30, size(H_sys_mat, 1)))
-    e₀ = real(vals[1])
-    ϕ₀_vec = vecs[1]
-    ϕ₀ = ArrayReg(normalize!(Complex.(ϕ₀_vec)))
-    
-    # Find first excited state for gap computation
-    vals2, _, _ = eigsolve(H_sys_mat, 2, :SR; krylovdim=min(30, size(H_sys_mat, 1)))
-    e₁ = real(vals2[2])
-    gap = e₁ - e₀
-    
-    return e₀, ϕ₀, gap
+    # Use our clean ED backend function
+    return ground_state_ed(H_sys)
 end

@@ -9,7 +9,8 @@ function appendzeros_MPS(ψ::MPS, sites::Vector{<:Index})
     N = length(ψ)
     ψ_appended = MPS(sites, "↓")
     for i = 1:N
-        ψ0 = onehot(sites[2i] => 1)
+        # Bath in ground state |0⟩ for cooling (with Δ < 0)
+        ψ0 = onehot(sites[2i] => 1)  # State 1 is |0⟩ in ITensors
         if i < N
             ll = sim(linkind(ψ, i))
             lr = linkind(ψ, i)

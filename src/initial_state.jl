@@ -6,8 +6,12 @@ Unified initial state setup using multiple dispatch on SimulationMethod and back
 
 using ITensors
 using ITensorMPS
-using Yao
 using LinearAlgebra
+
+# Include clean ED backend if available
+if !@isdefined(EDStateVector)
+    include("ed_backend.jl")
+end
 
 # ============================================================================
 # Helper Functions
@@ -82,40 +86,50 @@ function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::Uni
     N_sys = N  # System qubits
     
     if init_type == "identity"
-        # Create equal superposition state (maximally mixed when traced)
-        # For Monte Carlo, we only need system state
-        reg = uniform_state(N_sys)
+        # Create equal superposition state (uniform distribution)
+        data = ones(Float64, 2^N_sys) / sqrt(2^N_sys)
+        state = EDStateVector(data, N_sys)
     elseif init_type == "theta"
         # Create theta-parameterized product state
         theta_rad = theta * π
         if abs(theta + 0.5) < 1e-10  # All down
-            reg = zero_state(N_sys)
+            state = zero_state_ed(N_sys)
         elseif abs(theta - 0.5) < 1e-10  # All up  
             # All up state
             config = (1 << N_sys) - 1  # All bits set to 1
-            reg = product_state(N_sys, config)
-        elseif abs(theta) < 1e-10  # X+ state
-            reg = uniform_state(N_sys)  # Simplified for now
+            state = product_state_ed(N_sys, config)
+        elseif abs(theta) < 1e-10  # X+ state (uniform superposition)
+            data = ones(Float64, 2^N_sys) / sqrt(2^N_sys)
+            state = EDStateVector(data, N_sys)
         else
-            # General theta state: |θ⟩ = cos(θ/2)|0⟩ + sin(θ/2)|1⟩
-            angles = fill(theta_rad, N_sys)
-            reg = zero_state(N_sys)
-            for i in 1:N_sys
-                reg |> put(i => Ry(angles[i]))
+            # General theta state: |θ⟩ = cos(θπ/2)|0⟩ + sin(θπ/2)|1⟩ for each qubit
+            data = ones(Float64, 2^N_sys)
+            for idx in 0:(2^N_sys-1)
+                amplitude = 1.0
+                for i in 0:(N_sys-1)
+                    bit = (idx >> i) & 1
+                    if bit == 0
+                        amplitude *= cos(theta_rad / 2)
+                    else
+                        amplitude *= sin(theta_rad / 2)
+                    end
+                end
+                data[idx+1] = amplitude
             end
+            state = EDStateVector(data, N_sys)
         end
     else
         # Default product state (alternating up/down for system)
-        pattern = ""
-        for i in 1:N_sys
-            pattern *= isodd(i) ? "1" : "0"  # Alternating pattern
+        config = 0
+        for i in 0:(N_sys-1)
+            if isodd(i+1)  # Julia is 1-indexed
+                config |= (1 << i)
+            end
         end
-        # Convert pattern string to bit configuration
-        config = parse(Int, pattern, base=2)
-        reg = product_state(N_sys, config)
+        state = product_state_ed(N_sys, config)
     end
     
-    return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, reg)
+    return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, state)
 end
 
 # ============================================================================
@@ -168,42 +182,51 @@ function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::Uni
     N_sys = N  # We only need system state for initial state
     if init_type == "identity"
         # Maximally mixed state: ρ = I/2^N
-        return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, 
-                           completely_mixed_state(N_sys))
+        ρ = maximally_mixed_ed(N_sys)
+        return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, ρ)
     else
-        # Create pure state first, then convert to density matrix
-        
+        # Create pure state first using clean ED backend, then convert to density matrix
         if init_type == "theta"
             # Create theta-parameterized product state
             theta_rad = theta * π
             if abs(theta + 0.5) < 1e-10  # All down
-                ψ = zero_state(N_sys)
+                ψ = zero_state_ed(N_sys)
             elseif abs(theta - 0.5) < 1e-10  # All up  
                 # All up state
                 config = (1 << N_sys) - 1  # All bits set to 1
-                ψ = product_state(N_sys, config)
+                ψ = product_state_ed(N_sys, config)
             elseif abs(theta) < 1e-10  # X+ state
-                ψ = uniform_state(N_sys)  # Simplified for now
+                data = ones(Float64, 2^N_sys) / sqrt(2^N_sys)
+                ψ = EDStateVector(data, N_sys)
             else
-                # General theta state: |θ⟩ = cos(θ/2)|0⟩ + sin(θ/2)|1⟩
-                angles = fill(theta_rad, N_sys)
-                ψ = zero_state(N_sys)
-                for i in 1:N_sys
-                    ψ |> put(i => Ry(angles[i]))
+                # General theta state: |θ⟩ = cos(θπ/2)|0⟩ + sin(θπ/2)|1⟩ for each qubit
+                data = ones(Float64, 2^N_sys)
+                for idx in 0:(2^N_sys-1)
+                    amplitude = 1.0
+                    for i in 0:(N_sys-1)
+                        bit = (idx >> i) & 1
+                        if bit == 0
+                            amplitude *= cos(theta_rad / 2)
+                        else
+                            amplitude *= sin(theta_rad / 2)
+                        end
+                    end
+                    data[idx+1] = amplitude
                 end
+                ψ = EDStateVector(data, N_sys)
             end
         else
-            # Default product state (alternating up/down for system, zero for bath)
-            pattern = ""
-            for i in 1:N_sys
-                pattern *= isodd(i) ? "1" : "0"  # Alternating pattern
+            # Default product state (alternating up/down)
+            config = 0
+            for i in 0:(N_sys-1)
+                if isodd(i+1)  # Julia is 1-indexed
+                    config |= (1 << i)
+                end
             end
-            # Convert pattern string to bit configuration
-            config = parse(Int, pattern, base=2)
-            ψ = product_state(N_sys, config)
+            ψ = product_state_ed(N_sys, config)
         end
         # Convert pure state to density matrix
-        ρ = Matrix(ψ.state * ψ.state')
+        ρ = state_to_density_ed(ψ)
         return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, ρ)
     end
 end

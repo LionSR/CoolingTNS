@@ -14,7 +14,9 @@
       "Bash(ls:*)",
       "Bash(mv:*)",
       "WebFetch(domain:docs.yaoquantum.org)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(ls:*)",
+      "Bash(chmod:*)"
     ],
     "deny": []
   }

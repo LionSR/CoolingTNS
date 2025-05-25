@@ -7,9 +7,8 @@ sampling, and tracing out subsystems.
 
 using ITensors
 using ITensorMPS
-using Yao
-using Yao: measure!
 using LinearAlgebra
+
 
 # ============================================================================
 # Append Bath States
@@ -36,19 +35,27 @@ function append_bath(::TNBackend, ρ_s::MPO, sites::Vector{<:Index})
 end
 
 # --- ED Backend ---
-function append_bath(::EDBackend, ψ_s::ArrayReg, N_bath::Int)
+# Clean ED backend implementation
+function append_bath(::EDBackend, ψ_s::EDStateVector, N_bath::Int)
     # Fresh bath in ground state |000...⟩
-    bath_config = 0  # All bits set to 0
-    ψ_bath = product_state(N_bath, bath_config)
-    return kron(ψ_s, ψ_bath)
+    ψ_bath = zero_state_ed(N_bath)
+    return kron_states_ed(ψ_s, ψ_bath)
 end
 
-function append_bath(::EDBackend, ρ_s::Matrix, N_bath::Int)
+function append_bath(::EDBackend, ρ_s::EDDensityMatrix, N_bath::Int)
     # Fresh bath density matrix in ground state |000...⟩⟨000...|
-    bath_config = 0  # All bits set to 0
-    ψ_bath = product_state(N_bath, bath_config)
-    ρ_bath = projector(ψ_bath)
-    return kron(ρ_s, ρ_bath)
+    ρ_bath = state_to_density_ed(zero_state_ed(N_bath))
+    return kron_density_ed(ρ_s, ρ_bath)
+end
+
+
+
+function append_bath(::EDBackend, ρ_s::Matrix, N_bath::Int)
+    # Convert to EDDensityMatrix
+    N_sys = Int(log2(size(ρ_s, 1)))
+    ρ_s_ed = EDDensityMatrix(ρ_s, N_sys)
+    ρ_combined = append_bath(EDBackend(), ρ_s_ed, N_bath)
+    return ρ_combined.data  # Return as Matrix for backward compatibility
 end
 
 # ============================================================================
@@ -83,27 +90,24 @@ function process_bath(::TNBackend, ::DensityMatrix, ρ_sb::MPO, N_sys::Int, N_ba
 end
 
 # --- ED + Monte Carlo ---
-function process_bath(::EDBackend, ::MonteCarloWavefunction, ψ_evolved::ArrayReg, N_sys::Int, N_bath::Int)
-    # Bath qubits are at positions N_sys+1 to N_sys+N_bath
-    bath_qubits = collect((N_sys+1):(N_sys+N_bath))
+# Clean ED backend implementation
+function process_bath(::EDBackend, ::MonteCarloWavefunction, ψ_evolved::EDStateVector, N_sys::Int, N_bath::Int)
+    # For alternating layout: bath qubits are at even positions 2, 4, 6, ...
+    bath_qubits = collect(2:2:2*N_bath)
     
-    # Measure bath qubits
-    reg_measured = copy(ψ_evolved)
-    # Use measure with RemoveMeasured() to get post-measurement state
-    measured_results = measure!(RemoveMeasured(), reg_measured, bath_qubits)
-    
-    # After measurement, reg_measured contains only system qubits
-    ψ_sys = reg_measured
-    
-    # Convert measurement results to integer array (0 or 1)
-    # measured_results is a BitStr - convert to integer then to bit array
-    measured_int = Int(measured_results)
-    bath_samples = [Int((measured_int >> (i-1)) & 1) for i in 1:N_bath]
+    # Measure bath qubits and get collapsed state
+    ψ_sys, bath_samples = measure_ed!(ψ_evolved, bath_qubits)
     
     return ψ_sys, bath_samples
 end
 
 # --- ED + Density Matrix ---
+function process_bath(::EDBackend, ::DensityMatrix, ρ_total::EDDensityMatrix, N_sys::Int, N_bath::Int)
+    # Just return full state, tracing will be done during measurements
+    # This avoids repeated tracing operations
+    return ρ_total, nothing
+end
+
 function process_bath(::EDBackend, ::DensityMatrix, ρ_total::Matrix, N_sys::Int, N_bath::Int)
     # Just return full state, tracing will be done during measurements
     # This avoids repeated tracing operations
@@ -124,20 +128,18 @@ function trace_out_bath(backend::CoolingBackend, combined_state, N_sys::Int, N_b
 end
 
 # --- ED Backend ---
+function trace_out_bath(::EDBackend, ρ_total::EDDensityMatrix, N_sys::Int, N_bath::Int)
+    return trace_out_bath_ed(ρ_total, N_sys)
+end
+
+# Matrix support for backward compatibility
 function trace_out_bath(::EDBackend, ρ_total::Matrix, N_sys::Int, N_bath::Int)
-    dim_sys = 2^N_sys
-    dim_bath = 2^N_bath
-    ρ_sys = zeros(ComplexF64, dim_sys, dim_sys)
-    
-    for i in 1:dim_sys, j in 1:dim_sys
-        for k in 1:dim_bath
-            idx_i = (i-1)*dim_bath + k
-            idx_j = (j-1)*dim_bath + k
-            ρ_sys[i,j] += ρ_total[idx_i, idx_j]
-        end
-    end
-    
-    return ρ_sys
+    # For alternating layout, need to trace out even-indexed qubits
+    # Convert to EDDensityMatrix first
+    N_total = Int(log2(size(ρ_total, 1)))
+    ρ_ed = EDDensityMatrix(real(ρ_total), N_total)
+    ρ_sys = trace_out_bath_ed(ρ_ed, N_sys)
+    return ρ_sys.data
 end
 
 # --- TN Backend ---
@@ -173,11 +175,12 @@ end
 # Utility Functions
 # ============================================================================
 
-"""Create projector from wavefunction for ED backend"""
-function projector(ψ::ArrayReg)
-    vec_ψ = ψ.state[:]
-    return vec_ψ * vec_ψ'
+# Clean ED backend projector
+"""Create projector from EDStateVector"""
+function projector(ψ::EDStateVector)
+    return state_to_density_ed(ψ).data
 end
+
 
 """Create MPO projector from MPS for TN backend"""
 function projector_mpo(ψ::MPS)

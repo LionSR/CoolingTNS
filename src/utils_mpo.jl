@@ -6,7 +6,8 @@ function appendzeros_MPO(ρ::MPO, sites::Vector{<:Index})
     data_ρ = ITensors.data(ρ)
     dataρ_appended = ITensors.data(ρ_appended)
     for i = 1:N
-        ψ0 = onehot(sites[2i] => 1)
+        # Bath in excited state |↓⟩ = |1⟩ for cooling
+        ψ0 = onehot(sites[2i] => 2)  # Changed from 1 to 2 for excited state
         ρ0 = ψ0 * ψ0'
         if i < N
             ll = sim(linkind(ρ, i))

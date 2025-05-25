@@ -21,6 +21,10 @@ include("plotting.jl")
 include("policy.jl")
 include("argparse.jl")
 include("noise.jl")
+
+# Include ED backend
+include("ed_backend.jl")
+
 include("bath_measurements.jl")    # Dispatched bath measurement functions
 include("state_manipulation.jl")   # Dispatched state manipulation functions
 
@@ -33,16 +37,11 @@ include("trotter.jl")               # Trotter circuit construction
 include("initial_state.jl")         # Initial state preparation
 include("evolution.jl")             # Time evolution functions
 include("cooling_evolution.jl")     # Cooling evolution
+include("cooling_evolution_ed.jl")  # ED-specific cooling evolution
 include("setup.jl")                 # setup_problem implementations
 
 
 
-# these are outdated previous implementions without dispatching that should not be used anymore
-# include("ham.jl")
-# include("cooling_functions_mps.jl")
-# include("cooling_functions_mpo.jl")
-# include("cooling_functions_trotter_mps.jl")
-# include("cooling_functions_ed.jl")
 
 
 export setup_problem, run_cooling, setup_initial_state
@@ -57,7 +56,6 @@ export BasicCouplingParameters, OptimizationCouplingParameters
 export UnifiedSimulationParameters
 export HamiltonianParameters, IsingParameters, NiIsingParameters, RydbergParameters
 export HamiltonianModel, IsingModel, NiIsingModel, RydbergModel
-# Legacy parameter types removed - use UnifiedSimulationParameters
 export DensityMatrixResults, MonteCarloResults, TensorNetworkResults
 export create_coupling_params, create_sim_params, create_results
 export to_dict

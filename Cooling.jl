@@ -77,9 +77,9 @@ function run_cooling(parsed_args)
     filename = CoolingTNS.create_filename(ham_params, coupling_params, sim_params, backend)
     # Create new dictionary with all results
     save_data = Dict(results...)  # Copy existing results
-    save_data["E_final"] = E_final
-    save_data["Edensity_final"] = Edensity_final
-    save_data["GS_overlap_final"] = GS_overlap_final
+    save_data["E_final"] = [E_final]
+    save_data["Edensity_final"] = [Edensity_final]
+    save_data["GS_overlap_final"] = [GS_overlap_final]
     CoolingTNS.save_results(filename, save_data, e₀, ham_name, parsed_args)
     
     # Plot results

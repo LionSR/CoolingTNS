@@ -5,7 +5,17 @@ System+bath Hamiltonian construction using multiple dispatch on HamiltonianModel
 """
 
 using ITensors
-using Yao
+using LinearAlgebra
+using SparseArrays
+using KrylovKit
+
+# Include clean ED backend functions
+if !@isdefined(EDStateVector)
+    include("ed_backend.jl")
+end
+if !@isdefined(construct_coupling_term)
+    include("system_hamiltonian_ed.jl")  # For pauli operators
+end
 # parameter_types.jl already included by parent
 
 # system_hamiltonian.jl included by parent
@@ -54,7 +64,7 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{Isi
     
     # Bath Hamiltonians  
     for i in 1:N
-        terms += -Δ/2, "Z", 2i  # Bath sites: 2,4,6,8...
+        terms += Δ/2, "Z", 2i  # Bath sites: 2,4,6,8... (positive for cooling)
     end
     
     # System-Bath coupling
@@ -106,73 +116,42 @@ end
 # ED System-Bath Hamiltonians  
 # ============================================================================
 
-function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{IsingModel}, 
+# ED System-Bath Hamiltonian Implementation
+function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters, 
                                          backend::EDBackend, nbits::Int, coupling_params::CouplingParameters)
-    J, h = ham_params.params.J, ham_params.params.h
+    N = ham_params.N
+    N_total = nbits  # Should be 2 * N
+    
+    # Get system Hamiltonian on N qubits
+    H_sys = construct_system_hamiltonian(ham_params, backend, N)
+    
+    # Initialize full Hamiltonian
+    H_sb = spzeros(Float64, 2^N_total, 2^N_total)
+    
+    # Add system Hamiltonian terms with alternating layout mapping
+    add_system_hamiltonian_ed!(H_sb, H_sys, N, N_total)
+    
+    # Add bath terms (at resonance with system gap if not specified)
+    gap = coupling_params.delta !== nothing ? coupling_params.delta : compute_gap_ed(H_sys)
+    
+    # Bath qubits are at positions: 2, 4, 6, ..., 2N
+    for i in 1:N
+        bath_idx = 2*i
+        H_sb += gap * pauli_z(bath_idx, N_total)
+    end
+    
+    # Add coupling terms
     g = coupling_params.g
-    Δ = coupling_params.delta
-    coupling = coupling_params.coupling
+    coupling_type = coupling_params.coupling
     
-    # Parse coupling operators
-    op1_str, op2_str = parse_coupling(coupling)
-    op_map = Dict("X" => X, "Y" => Y, "Z" => Z)
-    op1, op2 = op_map[op1_str], op_map[op2_str]
+    for i in 1:N
+        sys_idx = 2*i - 1  # System qubit i
+        bath_idx = 2*i     # Corresponding bath qubit
+        
+        H_sb += construct_coupling_term_ed(sys_idx, bath_idx, N_total, coupling_type, g)
+    end
     
-    N_sys = ham_params.N  # Number of system spins
-    # System sites (odd) and bath sites (even)
-    sys_sites = 1:2:nbits-1
-    bath_sites = 2:2:nbits
-    
-    # System Hamiltonian (reuse system-only construction)
-    H_sys = construct_system_hamiltonian(ham_params, backend, N_sys)
-    
-    # Expand to full system+bath space
-    H_sys_expanded = sum([
-        map(i -> J * put(nbits, sys_sites[i]=>Z) * put(nbits, sys_sites[i+1]=>Z), 1:N_sys-1)...,
-        map(s -> h * put(nbits, s=>X), sys_sites)...
-    ])
-    
-    # Bath and coupling
-    H_bath_coupling = sum(map(i -> Δ/2 * put(nbits, bath_sites[i]=>Z) + 
-                                   g * put(nbits, sys_sites[i]=>op1) * put(nbits, bath_sites[i]=>op2), 1:N_sys))
-    
-    return H_sys_expanded + H_bath_coupling
-end
-
-function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{NiIsingModel}, 
-                                         backend::EDBackend, nbits::Int, coupling_params::CouplingParameters)
-    J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
-    g = coupling_params.g
-    Δ = coupling_params.delta
-    coupling = coupling_params.coupling
-    
-    # Parse coupling operators
-    op1_str, op2_str = parse_coupling(coupling)
-    op_map = Dict("X" => X, "Y" => Y, "Z" => Z)
-    op1, op2 = op_map[op1_str], op_map[op2_str]
-    
-    N_sys = ham_params.N  # Number of system spins
-    # System sites (odd) and bath sites (even)
-    sys_sites = 1:2:nbits-1
-    bath_sites = 2:2:nbits
-    
-    # System Hamiltonian using functional style
-    H_sys = sum([
-        # ZZ interactions between system spins
-        map(i -> J * put(nbits, sys_sites[i]=>Z) * put(nbits, sys_sites[i+1]=>Z), 1:N_sys-1)...,
-        # X field on system spins
-        map(s -> hx * put(nbits, s=>X), sys_sites)...,
-        # Z field on system spins
-        map(s -> hz * put(nbits, s=>Z), sys_sites)...
-    ])
-    
-    # Bath Hamiltonian
-    H_bath = sum(map(b -> Δ/2 * put(nbits, b=>Z), bath_sites))
-    
-    # System-bath coupling
-    H_coupling = sum(map(i -> g * put(nbits, sys_sites[i]=>op1) * put(nbits, bath_sites[i]=>op2), 1:N_sys))
-    
-    return H_sys + H_bath + H_coupling
+    return H_sb
 end
 
 
@@ -186,16 +165,95 @@ function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters, 
     error("construct_zero_coupling_hamiltonian not implemented for model $(typeof(ham_params.model)) and backend $(typeof(backend))")
 end
 
-function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters{IsingModel}, backend::TNBackend, sites::Vector{<:Index})
-    J, h = ham_params.params.J, ham_params.params.h
-    N = ham_params.N
+function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters, backend::TNBackend, sites::Vector{<:Index})
     zero_coupling_params = BasicCouplingParameters("XX", 0.0, 1, 0.0, 0.0)  # coupling, g, steps, te, delta
     return construct_system_bath_hamiltonian(ham_params, backend, sites, zero_coupling_params)
 end
 
-function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters{NiIsingModel}, backend::TNBackend, sites::Vector{<:Index})
-    J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
-    N = ham_params.N
-    zero_coupling_params = BasicCouplingParameters("XX", 0.0, 1, 0.0, 0.0)  # coupling, g, steps, te, delta
-    return construct_system_bath_hamiltonian(ham_params, backend, sites, zero_coupling_params)
+# ============================================================================
+# ED Helper Functions
+# ============================================================================
+
+"""
+    add_system_hamiltonian_ed!(H_sb, H_sys, N, N_total)
+
+Add system Hamiltonian terms to the full system+bath Hamiltonian.
+Maps system indices to alternating qubit layout.
+"""
+function add_system_hamiltonian_ed!(H_sb, H_sys, N, N_total)
+    # H_sys acts on N qubits in standard ordering
+    # We need to map it to alternating layout in N_total qubits
+    
+    for i in 1:2^N, j in 1:2^N
+        if H_sys[i,j] != 0
+            # Map system basis states to full space
+            full_i = map_system_to_full_basis_ed(i-1, N)
+            full_j = map_system_to_full_basis_ed(j-1, N)
+            H_sb[full_i+1, full_j+1] = H_sys[i,j]
+        end
+    end
+end
+
+"""
+    map_system_to_full_basis_ed(sys_state::Int, N::Int) -> Int
+
+Map a system basis state to the full system+bath basis.
+System qubits are at odd positions: 1, 3, 5, ...
+"""
+function map_system_to_full_basis_ed(sys_state::Int, N::Int)
+    full_state = 0
+    for i in 0:(N-1)
+        if (sys_state >> i) & 1 == 1
+            # System qubit i is at position 2*i in the full space (0-indexed)
+            full_state |= (1 << (2*i))
+        end
+    end
+    return full_state
+end
+
+"""
+    construct_coupling_term_ed(sys_idx::Int, bath_idx::Int, N_total::Int, coupling_type::String, g::Float64)
+
+Construct coupling term between system and bath qubits.
+"""
+function construct_coupling_term_ed(sys_idx::Int, bath_idx::Int, N_total::Int, coupling_type::String, g::Float64)
+    if coupling_type == "XX"
+        return g * pauli_x(sys_idx, N_total) * pauli_x(bath_idx, N_total)
+        
+    elseif coupling_type == "YY"
+        return g * pauli_y(sys_idx, N_total) * pauli_y(bath_idx, N_total)
+        
+    elseif coupling_type == "ZZ"
+        return g * pauli_z(sys_idx, N_total) * pauli_z(bath_idx, N_total)
+        
+    elseif coupling_type == "XY"
+        # XY = X⊗Y + Y⊗X
+        return g * (pauli_x(sys_idx, N_total) * pauli_y(bath_idx, N_total) +
+                   pauli_y(sys_idx, N_total) * pauli_x(bath_idx, N_total))
+        
+    elseif coupling_type == "XZ"
+        # XZ = X⊗Z + Z⊗X
+        return g * (pauli_x(sys_idx, N_total) * pauli_z(bath_idx, N_total) +
+                   pauli_z(sys_idx, N_total) * pauli_x(bath_idx, N_total))
+        
+    elseif coupling_type == "YZ"
+        # YZ = Y⊗Z + Z⊗Y
+        return g * (pauli_y(sys_idx, N_total) * pauli_z(bath_idx, N_total) +
+                   pauli_z(sys_idx, N_total) * pauli_y(bath_idx, N_total))
+        
+    else
+        error("Unknown coupling type: $coupling_type")
+    end
+end
+
+"""
+    compute_gap_ed(H::AbstractMatrix) -> Float64
+
+Compute energy gap between ground and first excited state.
+"""
+function compute_gap_ed(H::AbstractMatrix)
+    vals, _, _ = eigsolve(H, 2, :SR; krylovdim=min(30, size(H, 1)))
+    E0 = real(vals[1])
+    E1 = real(vals[2])
+    return E1 - E0
 end

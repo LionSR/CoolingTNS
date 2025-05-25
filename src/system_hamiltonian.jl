@@ -5,7 +5,12 @@ System-only Hamiltonian construction using multiple dispatch on HamiltonianModel
 """
 
 using ITensors
-using Yao
+using LinearAlgebra
+using SparseArrays
+# Include clean ED backend if available
+if !@isdefined(EDStateVector)
+    include("ed_backend.jl")
+end
 # parameter_types.jl already included by parent
 
 # ============================================================================
@@ -85,11 +90,18 @@ function construct_system_hamiltonian(ham_params::HamiltonianParameters{IsingMod
     J, h = ham_params.params.J, ham_params.params.h
     N = ham_params.N
     
-    # Transverse field Ising model using Yao.jl
-    H_sys = sum([
-        map(i -> J * put(N, (i, i+1)=>kron(Z, Z)), 1:N-1)...,
-        map(i -> h * put(N, i=>X), 1:N)...
-    ])
+    # Transverse field Ising model using clean ED backend
+    H_sys = spzeros(Float64, 2^N, 2^N)
+    
+    # ZZ interactions
+    for i in 1:N-1
+        H_sys += J * pauli_zz(i, i+1, N)
+    end
+    
+    # X field
+    for i in 1:N
+        H_sys += h * pauli_x(i, N)
+    end
     
     return H_sys
 end
@@ -98,15 +110,23 @@ function construct_system_hamiltonian(ham_params::HamiltonianParameters{NiIsingM
     J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
     N = ham_params.N
     
-    # Non-integrable Ising model using Yao.jl
-    H_sys = sum([
-        # ZZ interactions
-        map(i -> J * put(N, (i, i+1)=>kron(Z, Z)), 1:N-1)...,
-        # X field
-        map(i -> hx * put(N, i=>X), 1:N)...,
-        # Z field  
-        map(i -> hz * put(N, i=>Z), 1:N)...
-    ])
+    # Non-integrable Ising model using clean ED backend
+    H_sys = spzeros(Float64, 2^N, 2^N)
+    
+    # ZZ interactions
+    for i in 1:N-1
+        H_sys += J * pauli_zz(i, i+1, N)
+    end
+    
+    # X field
+    for i in 1:N
+        H_sys += hx * pauli_x(i, N)
+    end
+    
+    # Z field  
+    for i in 1:N
+        H_sys += hz * pauli_z(i, N)
+    end
     
     return H_sys
 end

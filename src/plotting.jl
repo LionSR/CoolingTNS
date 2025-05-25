@@ -60,7 +60,8 @@ function plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename; mov
     fig.savefig("Results/$(filename).pdf", dpi=300)
 end
 
-function plot_vs_N(ham_name, coupling_params, sim_params, N_values; is_optimization=false)
+function plot_vs_N(ham_name::String, coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters,
+                  backend::CoolingBackend, N_values::Vector{Int}; is_optimization=false)
     plt = pyimport("matplotlib.pyplot")
 
     energy_densities = Float64[]
@@ -72,7 +73,18 @@ function plot_vs_N(ham_name, coupling_params, sim_params, N_values; is_optimizat
     prefix = is_optimization ? "Optimize" : ""
 
     for N in N_values
-        filename = create_filename(ham_name, N, coupling_params, sim_params)
+        # Create proper HamiltonianParameters for filename generation
+        # Infer problem type from ham_name
+        if occursin("niIsing", ham_name)
+            # Parse parameters from ham_name if possible, or use defaults
+            ham_params = NiIsingParameters(N, 1.0, -1.05, 0.5)
+        elseif occursin("Ising", ham_name)
+            ham_params = IsingParameters(N, 1.0, 2.0)
+        else
+            ham_params = RydbergParameters(N, 1.0, 0.0, 1.0)
+        end
+        
+        filename = create_filename(ham_params, coupling_params, sim_params, backend)
         filename = "$(prefix)$(filename)"
         if is_optimization
             search_name_part = create_search_name_part(sim_params)
@@ -109,7 +121,17 @@ function plot_vs_N(ham_name, coupling_params, sim_params, N_values; is_optimizat
 
     plt.tight_layout()
 
-    filename_saveto = create_filename(ham_name, valid_N_values[1], coupling_params, sim_params)
+    # Use first valid N for filename
+    if occursin("niIsing", ham_name)
+        ham_params = NiIsingParameters(valid_N_values[1], 1.0, -1.05, 0.5)
+    elseif occursin("Ising", ham_name)
+        ham_params = IsingParameters(valid_N_values[1], 1.0, 2.0)
+    else
+        ham_params = RydbergParameters(valid_N_values[1], 1.0, 0.0, 1.0)
+    end
+    backend = haskey(sim_params, "method") && sim_params["method"] == "ED" ? EDBackend() : TNBackend()
+    
+    filename_saveto = create_filename(ham_params, coupling_params, sim_params, backend)
     filename_saveto = "$(prefix)$(filename_saveto)_energy_density_and_overlap_vs_N.pdf"
 
     isdir("$(directory)/Figs") || mkpath("$(directory)/Figs")
@@ -130,7 +152,17 @@ function plot_cooling_curve_noise(ham_name, N, coupling_params, sim_params, peIn
         sim_params["pe"] = pe
         sim_params["peInt"] = peInt
 
-        filename = create_filename(ham_name, N, coupling_params, sim_params)
+        # Create proper HamiltonianParameters
+        if occursin("niIsing", ham_name)
+            ham_params = NiIsingParameters(N, 1.0, -1.05, 0.5)
+        elseif occursin("Ising", ham_name)
+            ham_params = IsingParameters(N, 1.0, 2.0)
+        else
+            ham_params = RydbergParameters(N, 1.0, 0.0, 1.0)
+        end
+        backend = haskey(sim_params, "method") && sim_params["method"] == "ED" ? EDBackend() : TNBackend()
+        
+        filename = create_filename(ham_params, coupling_params, sim_params, backend)
         filename = "$(prefix)$(filename)"
         if is_optimization
             search_name_part = create_search_name_part(sim_params)
@@ -158,7 +190,17 @@ function plot_cooling_curve_noise(ham_name, N, coupling_params, sim_params, peIn
 
     plt.tight_layout()
 
-    filename_saveto = create_filename(ham_name, N, coupling_params, sim_params)
+    # Create HamiltonianParameters for filename
+    if occursin("niIsing", ham_name)
+        ham_params = NiIsingParameters(N, 1.0, -1.05, 0.5)
+    elseif occursin("Ising", ham_name)
+        ham_params = IsingParameters(N, 1.0, 2.0)
+    else
+        ham_params = RydbergParameters(N, 1.0, 0.0, 1.0)
+    end
+    backend = haskey(sim_params, "method") && sim_params["method"] == "ED" ? EDBackend() : TNBackend()
+    
+    filename_saveto = create_filename(ham_params, coupling_params, sim_params, backend)
     filename_saveto = "$(prefix)$(filename_saveto)_cooling_curve_noise.pdf"
 
     isdir("$(directory)/Figs") || mkpath("$(directory)/Figs")
