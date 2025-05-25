@@ -18,6 +18,29 @@ abstract type CoolingBackend end
 struct EDBackend <: CoolingBackend end  # Exact Diagonalization
 struct TNBackend <: CoolingBackend end  # Tensor Network Backend
 
+"""
+    get_backend(method::String) -> CoolingBackend
+
+Convert string method name to backend type.
+"""
+function get_backend(method::String)
+    if method == "ED"
+        return EDBackend()
+    elseif method in ["MPS", "MPO", "TrotterMPS", "TN"]
+        return TNBackend()
+    else
+        error("Unknown method: $method. Use 'ED' for exact diagonalization or 'TN'/'MPS'/'MPO'/'TrotterMPS' for tensor networks")
+    end
+end
+
+# Default simulation methods for backends
+default_simulation_method(::EDBackend) = DensityMatrix()  # Can be Monte Carlo or Density Matrix
+default_simulation_method(::TNBackend) = MonteCarloWavefunction()  # Most common for TN
+
+# Default evolution methods for backends
+default_evolution_method(::EDBackend) = ContinuousEvolution()  # Matrix exponentiation
+default_evolution_method(::TNBackend) = ContinuousEvolution()  # TDVP is default for TN
+
 # ============================================================================
 # Hamiltonian Model Types
 # ============================================================================
@@ -70,10 +93,6 @@ struct BasicCouplingParameters <: CouplingParameters
     te::Float64            # Evolution time per step
     delta::Union{Float64, Nothing} # Bath detuning (computed automatically if nothing)
 end
-
-# Constructor without delta (backward compatibility)
-BasicCouplingParameters(coupling, g, steps, te) = BasicCouplingParameters(coupling, g, steps, te, nothing)
-
 
 """
     OptimizationCouplingParameters
@@ -158,8 +177,7 @@ function UnifiedSimulationParameters(sim_method::S, evolution_method::E;
                                n_trajectories, parallel, trotter_steps, maxiter, normalize)
 end
 
-# Legacy compatibility type (simplified)
-const TensorNetworkParameters = UnifiedSimulationParameters{MonteCarloWavefunction, ContinuousEvolution}
+# Legacy type aliases removed - use UnifiedSimulationParameters directly
 
 # ============================================================================
 # Result Structures
@@ -308,8 +326,6 @@ function to_dict(obj::T) where T
     return result
 end
 
-# Alias for backward compatibility  
-const convert_to_dict = to_dict
 
 """
     TensorNetworkResults(E_list, GS_list, bath_mag_list, final_state)

@@ -5,26 +5,23 @@ Dispatch-based system setup for different Hamiltonian models and backends.
 """
 
 using ITensors
+using ITensorMPS
 using KrylovKit
 using LinearAlgebra
 using Yao
-include("parameter_types.jl")
-include("system_hamiltonian_dispatch.jl")
-include("ground_state_dispatch.jl")
+# parameter_types.jl already included by parent
+# The dispatch files are included by hamiltonian_dispatch.jl
 
 """
     setup_system(N, ham_params::HamiltonianParameters, backend::CoolingBackend)
 
 Generic interface for system setup using dispatch on HamiltonianParameters and backend.
 """
-function setup_system(N, ham_params::HamiltonianParameters, backend::CoolingBackend)
+function setup_system(N::Int, ham_params::HamiltonianParameters, backend::CoolingBackend)
     error("setup_system not implemented for model $(typeof(ham_params.model)) and backend $(typeof(backend))")
 end
 
-# For backward compatibility with TN-only calls that pass sites instead of backend
-function setup_system(N, ham_params::HamiltonianParameters, sites::Vector)
-    return setup_system(N, ham_params, TNBackend(), sites)
-end
+# Removed duplicate method - use the one at line 52 instead
 
 # ============================================================================
 # Tensor Network Backend System Setup
@@ -35,7 +32,7 @@ end
 
 Setup system for tensor network backends using ITensors and DMRG.
 """
-function setup_system(N, ham_params::HamiltonianParameters, backend::TNBackend, sites::Vector)
+function setup_system(N::Int, ham_params::HamiltonianParameters, backend::TNBackend, sites::Vector)
     # Build system Hamiltonian using dispatch
     H_sys = construct_system_hamiltonian(ham_params, backend, sites)
     
@@ -46,8 +43,8 @@ function setup_system(N, ham_params::HamiltonianParameters, backend::TNBackend, 
     return H_sys, Δ_dmrg, e₀, ϕ₀
 end
 
-# Backward compatibility - sites passed directly
-function setup_system(N, ham_params::HamiltonianParameters{M}, sites::Vector) where M<:HamiltonianModel
+# For backward compatibility with TN-only calls that pass sites instead of backend
+function setup_system(N::Int, ham_params::HamiltonianParameters{M}, sites::Vector) where M<:HamiltonianModel
     return setup_system(N, ham_params, TNBackend(), sites)
 end
 
@@ -60,7 +57,7 @@ end
 
 Setup system for exact diagonalization backend using dense matrices.
 """
-function setup_system(N, ham_params::HamiltonianParameters, backend::EDBackend)
+function setup_system(N::Int, ham_params::HamiltonianParameters, backend::EDBackend)
     # Build system Hamiltonian using dispatch
     H_sys = construct_system_hamiltonian(ham_params, backend, N)
     
@@ -82,7 +79,7 @@ end
 
 Automatically choose between ED and TN backends based on system size and availability.
 """
-function setup_system_auto(N, ham_params::HamiltonianParameters; backend=nothing, sites=nothing)
+function setup_system_auto(N::Int, ham_params::HamiltonianParameters; backend=nothing, sites=nothing)
     if backend !== nothing
         if backend isa EDBackend
             return setup_system(N, ham_params, backend)

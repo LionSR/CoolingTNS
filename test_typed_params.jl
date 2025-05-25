@@ -86,7 +86,7 @@ try
     end
     
     # Test backward compatibility by converting to dict
-    results_dict = results_to_dict(results)
+    results_dict = to_dict(results)
     println("\n✓ Results successfully converted to dict for backward compatibility")
     println("Dict keys: $(keys(results_dict))")
     

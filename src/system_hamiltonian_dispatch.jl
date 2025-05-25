@@ -6,7 +6,7 @@ System-only Hamiltonian construction using multiple dispatch on HamiltonianModel
 
 using ITensors
 using Yao
-include("parameter_types.jl")
+# parameter_types.jl already included by parent
 
 # ============================================================================
 # System Hamiltonian Construction Interface

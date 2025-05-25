@@ -6,9 +6,9 @@ System+bath Hamiltonian construction using multiple dispatch on HamiltonianModel
 
 using ITensors
 using Yao
-include("parameter_types.jl")
-include("coupling_utils.jl")
-include("system_hamiltonian_dispatch.jl")
+# parameter_types.jl already included by parent
+
+# system_hamiltonian_dispatch.jl included by parent hamiltonian_dispatch.jl
 
 
 
@@ -45,20 +45,21 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{Isi
     
     # System Hamiltonian
     for i in 1:N-1
-        terms += J, "Z", sys_sites[i], "Z", sys_sites[i+2]  # i+2 because sys_sites are odd
+        # sys_sites[i] is the i-th system site, sys_sites[i+1] is the next system site
+        terms += J, "Z", 2i-1, "Z", 2(i+1)-1  # Direct calculation: site 1,3,5,7...
     end
     for i in 1:N
-        terms += h, "X", sys_sites[i]
+        terms += h, "X", 2i-1  # System sites: 1,3,5,7...
     end
     
     # Bath Hamiltonians  
     for i in 1:N
-        terms += -Δ/2, "Z", bath_sites[i]
+        terms += -Δ/2, "Z", 2i  # Bath sites: 2,4,6,8...
     end
     
     # System-Bath coupling
     for i in 1:N
-        terms += g, op1, sys_sites[i], op2, bath_sites[i]
+        terms += g, op1, 2i-1, op2, 2i  # System site coupled to adjacent bath site
     end
     
     return MPO(terms, sites)
@@ -70,8 +71,9 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{NiI
     g, Δ, coupling = coupling_params.g, coupling_params.delta, coupling_params.coupling
     
     N = length(sites) ÷ 2
-    sites_sys = sites[1:2:2N-1]
-    sites_bath = sites[2:2:2N]
+    # Use site indices (integers) instead of Index objects
+    sys_sites = 1:2:2N-1
+    bath_sites = 2:2:2N
     
     op1, op2 = parse_coupling(coupling)
     
@@ -79,21 +81,22 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{NiI
     
     # System Hamiltonian
     for i in 1:N-1
-        terms += J, "Z", sites_sys[i], "Z", sites_sys[i+1]
+        # sys_sites[i] is the i-th system site, sys_sites[i+1] is the next system site
+        terms += J, "Z", 2i-1, "Z", 2(i+1)-1  # Direct calculation: site 1,3,5,7...
     end
     for i in 1:N
-        terms += hx, "X", sites_sys[i]
-        terms += hz, "Z", sites_sys[i]
+        terms += hx, "X", 2i-1  # System sites: 1,3,5,7...
+        terms += hz, "Z", 2i-1
     end
     
     # Bath Hamiltonians
     for i in 1:N
-        terms += -Δ/2, "Z", sites_bath[i]
+        terms += -Δ/2, "Z", 2i  # Bath sites: 2,4,6,8...
     end
     
     # System-Bath coupling
     for i in 1:N
-        terms += g, op1, sites_sys[i], op2, sites_bath[i]
+        terms += g, op1, 2i-1, op2, 2i  # System site coupled to adjacent bath site
     end
     
     return MPO(terms, sites)
@@ -170,4 +173,29 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{NiI
     H_coupling = sum(map(i -> g * put(nbits, sys_sites[i]=>op1) * put(nbits, bath_sites[i]=>op2), 1:N_sys))
     
     return H_sys + H_bath + H_coupling
+end
+
+
+
+"""
+    construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters, backend::CoolingBackend, sites)
+
+Create Hamiltonian with zero coupling for Trotter evolution using double dispatch.
+"""
+function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters, backend::CoolingBackend, sites)
+    error("construct_zero_coupling_hamiltonian not implemented for model $(typeof(ham_params.model)) and backend $(typeof(backend))")
+end
+
+function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters{IsingModel}, backend::TNBackend, sites)
+    J, h = ham_params.params.J, ham_params.params.h
+    N = length(sites) ÷ 2
+    zero_coupling_params = CouplingParameters("XX", 0.0, 1, 0.0, 0.0)  # coupling, g, steps, te, delta
+    return construct_system_bath_hamiltonian(ham_params, backend, sites, zero_coupling_params)
+end
+
+function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters{NiIsingModel}, backend::TNBackend, sites)
+    J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
+    N = length(sites) ÷ 2
+    zero_coupling_params = CouplingParameters("XX", 0.0, 1, 0.0, 0.0)  # coupling, g, steps, te, delta
+    return construct_system_bath_hamiltonian(ham_params, backend, sites, zero_coupling_params)
 end

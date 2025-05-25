@@ -529,19 +529,10 @@ function run_cooling_ed(H_sys, H_sys_bath, ϕ₀, initial_state::EDState, coupli
         println("Step $step: E/N=$(E_list[step]/N), overlap=$(GS_overlap_list[step]), " *
                 "purity=$(purity_list[step]), ⟨Z⟩_bath=$(bath_z_list[step])")
     end
-    
-    # Calculate von Neumann entropy and trace distance for density matrix results
-    von_neumann_entropy = zeros(length(E_list))
-    trace_distance = zeros(length(E_list))
-    
-    # TODO: Implement von Neumann entropy and trace distance calculations
-    # These would require computing eigenvalues of density matrices
-    
+        
     # Return typed DensityMatrixResults struct
     return create_results(
         DensityMatrix(), E_list, GS_overlap_list, purity_list;
-        von_neumann_entropy = von_neumann_entropy,
-        trace_distance = trace_distance
     )
 end
 

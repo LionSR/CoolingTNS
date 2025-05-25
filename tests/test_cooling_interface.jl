@@ -21,6 +21,8 @@ using CoolingTNS
     )
 
     @testset "Backend Creation" begin
+        # these are outdated previous implementions without dispatching
+        # change these tests
         @test CoolingTNS.get_backend("ED") isa CoolingTNS.EDBackend
         @test CoolingTNS.get_backend("MPS") isa CoolingTNS.MPSBackend
         @test CoolingTNS.get_backend("MPO") isa CoolingTNS.MPOBackend

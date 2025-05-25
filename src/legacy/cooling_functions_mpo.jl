@@ -26,7 +26,7 @@ function setup_problem_mpo(N, problem, ham_params, coupling_params::CouplingPara
     # Create HamiltonianParameters struct
     ham_param_struct = create_hamiltonian_params(problem, ham_params...)
     backend = MPOBackend()
-    gates = build_trotter_circuit(ham_param_struct, backend, sites_sys, sites_bath, convert_to_dict(updated_coupling_params), convert_to_dict(sim_params))
+    gates = build_trotter_circuit(ham_param_struct, backend, sites_sys, sites_bath, to_dict(updated_coupling_params), to_dict(sim_params))
     return sites, H_sys, ϕ₀, e₀, gates
 end
 

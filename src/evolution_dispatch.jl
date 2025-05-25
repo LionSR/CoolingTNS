@@ -6,9 +6,6 @@ Time evolution methods using multiple dispatch on SimulationMethod, EvolutionMet
 
 using ITensors
 using ITensorMPS
-include("parameter_types.jl")
-include("trotter_dispatch.jl")
-include("hamiltonian_dispatch.jl")  # For construct_system_bath_hamiltonian
 
 # ============================================================================
 # Time Evolution  
@@ -72,27 +69,4 @@ function evolve_state(ham_params::HamiltonianParameters, sim_params::UnifiedSimu
     end
     
     return ρ
-end
-
-"""
-    construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters, backend::CoolingBackend, sites)
-
-Create Hamiltonian with zero coupling for Trotter evolution using double dispatch.
-"""
-function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters, backend::CoolingBackend, sites)
-    error("construct_zero_coupling_hamiltonian not implemented for model $(typeof(ham_params.model)) and backend $(typeof(backend))")
-end
-
-function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters{IsingModel}, backend::TNBackend, sites)
-    J, h = ham_params.params.J, ham_params.params.h
-    N = length(sites) ÷ 2
-    zero_coupling_params = CouplingParameters("XX", 0.0, 1, 0.0, 0.0)  # coupling, g, steps, te, delta
-    return construct_system_bath_hamiltonian(ham_params, backend, sites, zero_coupling_params)
-end
-
-function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters{NiIsingModel}, backend::TNBackend, sites)
-    J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
-    N = length(sites) ÷ 2
-    zero_coupling_params = CouplingParameters("XX", 0.0, 1, 0.0, 0.0)  # coupling, g, steps, te, delta
-    return construct_system_bath_hamiltonian(ham_params, backend, sites, zero_coupling_params)
 end

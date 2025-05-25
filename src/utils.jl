@@ -1,5 +1,4 @@
-# Import parameter types
-include("parameter_types.jl")
+# parameter_types.jl already included by CoolingTNS.jl
 
 function extract_ham_params(problem, parsed_args)
     if problem == "Ising"
@@ -52,6 +51,23 @@ function setup_common_parameters(parsed_args)
     return N, problem, ham_params, ham_name, coupling_params
 end
 
+"""
+    create_sim_params(backend::CoolingBackend; sim_method=nothing, evolution_method=nothing, kwargs...)
+
+Create UnifiedSimulationParameters with intelligent defaults based on backend.
+"""
+function create_sim_params(backend::CoolingBackend; 
+                          sim_method=nothing, 
+                          evolution_method=nothing, 
+                          kwargs...)
+    # Use defaults if not specified
+    sim_method = isnothing(sim_method) ? default_simulation_method(backend) : sim_method
+    evolution_method = isnothing(evolution_method) ? default_evolution_method(backend) : evolution_method
+    
+    # Use direct constructor with dispatch
+    return UnifiedSimulationParameters(sim_method, evolution_method; kwargs...)
+end
+
 # Legacy function - deprecated, use cooling_interface.jl create_sim_params instead
 function create_sim_params_legacy(parsed_args)
     pe = parsed_args["peInt"] > 0 ? round(parsed_args["peInt"] * 1e-3, digits=4) : 0
@@ -93,6 +109,8 @@ end
 function create_search_name_part(search_params)
     return "Search$(search_params["search_method"])trials$(search_params["num_trials"])"
 end
+
+# TODO: fucking method_str needs to go, we are not using them at all anymore.
 
 function create_filename(ham_name, N, coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters)
     ham_name_part = isa(N, Array) ? "Ham$(ham_name)Nmin$(minimum(N))Nmax$(maximum(N))" : "Ham$(ham_name)Ns$(N)Nb$(N)"

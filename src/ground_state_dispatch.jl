@@ -5,10 +5,11 @@ Ground state computation using multiple dispatch on backend type.
 """
 
 using ITensors
+using ITensorMPS
 using KrylovKit
 using LinearAlgebra
 using Yao
-include("parameter_types.jl")
+# parameter_types.jl already included by parent
 
 # ============================================================================
 # Ground State Computation Interface

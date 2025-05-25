@@ -57,7 +57,7 @@ function setup_problem_mps(N, problem, ham_params, coupling_params::CouplingPara
 
     # HamiltonianParameters struct already created above
     backend = MPSBackend()
-    H_sys_bath = construct_system_bath_hamiltonian(ham_param_struct, backend, sites, convert_to_dict(updated_coupling_params))
+    H_sys_bath = construct_system_bath_hamiltonian(ham_param_struct, backend, sites, to_dict(updated_coupling_params))
 
     return sites, H_sys, ϕ₀, e₀, H_sys_bath
 end

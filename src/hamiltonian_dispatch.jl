@@ -5,15 +5,7 @@ Main dispatcher that includes all Hamiltonian-related functionality.
 This file serves as a convenient single import for all Hamiltonian operations.
 """
 
-# Include parameter types for backend definitions
-include("parameter_types.jl")
-
-# Include all modular dispatch files
-include("system_hamiltonian_dispatch.jl")
-include("system_bath_hamiltonian_dispatch.jl")
-include("ground_state_dispatch.jl")
-include("coupling_utils.jl")
-
+# parameter_types.jl already included by parent modules
 
 
 # ============================================================================

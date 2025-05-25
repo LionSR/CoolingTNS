@@ -21,10 +21,10 @@ function setup_problem_trotter_mps(N, problem, ham_params, coupling_params::Coup
     updated_coupling_params = CouplingParameters(coupling_params.coupling, coupling_params.g, coupling_params.steps, coupling_params.te, Δ)
     
     backend = TrotterMPSBackend()
-    gates = build_trotter_circuit_bath_coupling(ham_param_struct, backend, sites_sys, sites_bath, convert_to_dict(updated_coupling_params), convert_to_dict(sim_params))
+    gates = build_trotter_circuit_bath_coupling(ham_param_struct, backend, sites_sys, sites_bath, to_dict(updated_coupling_params), to_dict(sim_params))
     
     # Create the total Hamiltonian using dispatch
-    H_total = construct_system_bath_hamiltonian(ham_param_struct, backend, sites, convert_to_dict(updated_coupling_params))
+    H_total = construct_system_bath_hamiltonian(ham_param_struct, backend, sites, to_dict(updated_coupling_params))
     
     return sites, H_sys, H_total, ϕ₀, e₀, gates, ham_param_struct
 end

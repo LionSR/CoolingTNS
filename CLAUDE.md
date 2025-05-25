@@ -46,7 +46,7 @@ julia Cooling.jl --N 8 --problem Ising --backend TN --sim_method monte_carlo --e
 # With precompiled sysimage (faster startup)
 julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so Cooling.jl [args]
 
-# Hyperparameter optimization
+# Hyperparameter optimization (DEPRECATED - needs refactoring)
 julia optCooling.jl --search_method Bayesian --num_trials 20 --N 10 --problem niIsing
 ```
 
@@ -64,6 +64,18 @@ julia optCooling.jl --search_method Bayesian --num_trials 20 --N 10 --problem ni
 - `--Dmax`: Maximum bond dimension for tensor networks
 - `--init_state`: Initial state type (product, identity, theta)
 - `--theta`: Parameterized initial state angle (in units of π)
+- `--n_trajectories`: Number of trajectories for Monte Carlo method
+- `--peInt`: Noise strength (×10⁻³)
+
+### Testing Commands
+
+```bash
+# Run quick test on macOS (using gtimeout instead of timeout)
+gtimeout 60 julia --startup-file=no -t 1 Cooling.jl --N 4 --problem niIsing --backend TN --sim_method monte_carlo --evolution_method continuous --coupling XX --g 0.1 --te 0.5 --steps 5 --Dmax 10
+
+# Run quick test on Linux
+timeout 60 julia --startup-file=no -t 1 Cooling.jl --N 4 --problem niIsing --backend TN --sim_method monte_carlo --evolution_method continuous --coupling XX --g 0.1 --te 0.5 --steps 5 --Dmax 10
+```
 
 ### HPC Cluster Submission
 
@@ -71,7 +83,7 @@ julia optCooling.jl --search_method Bayesian --num_trials 20 --N 10 --problem ni
 # Submit cooling job to SLURM
 sbatch SubmitCooling.sh
 
-# Submit optimization job
+# Submit optimization job (DEPRECATED - needs refactoring)
 sbatch SubmitOptCooling.sh
 ```
 
@@ -107,19 +119,21 @@ The codebase uses a clean multiple dispatch architecture:
 - `src/initial_state_dispatch.jl`: Initial state preparation
 - `src/trotter_dispatch.jl`: Trotter circuit construction
 
-**Backend Implementations**:
-- `src/cooling_functions_ed.jl`: ED-specific evolution algorithms
-- `src/cooling_functions_mps.jl`: MPS/Monte Carlo evolution
-- `src/cooling_functions_mpo.jl`: MPO/Density Matrix evolution
-- `src/cooling_functions_trotter_mps.jl`: Trotter+MPS evolution
+**Backend Implementation Files** (contain legacy functions that need dispatch refactoring):
+- `src/cooling_functions_ed.jl`: ED-specific implementations (run_cooling_ed_density_matrix, run_cooling_ed_monte_carlo)
+- `src/cooling_functions_mps.jl`: MPS implementations (run_cooling_mps)
+- `src/cooling_functions_mpo.jl`: MPO implementations (run_cooling_mpo)
+- `src/cooling_functions_trotter_mps.jl`: Trotter+MPS implementations (run_cooling_trotter_mps)
 
 **Utilities**:
 - `src/parameter_types.jl`: Type definitions for parameters
 - `src/coupling_utils.jl`: Coupling operator parsing
+- `src/utils.jl`: General utilities and file I/O
 - `src/utils_*.jl`: Backend-specific utilities
 - `src/plotting.jl`: Visualization
 - `src/noise.jl`: Noise models
 - `src/policy.jl`: Time-dependent policies
+- `src/argparse.jl`: Command-line argument parsing
 
 ### Physical Models
 
@@ -136,11 +150,18 @@ The framework uses alternating qubit layout: [s₁, b₁, s₂, b₂, ..., sₙ,
 
 ## Development Guidelines
 
+### Current Refactoring Needs
+
+1. **Initial State Dispatch**: Move `setup_initial_state` implementations to their own file (`src/initial_state_setup_dispatch.jl`)
+2. **Remove Legacy Functions**: Functions like `setup_problem_mps`, `setup_problem_mpo` are outdated
+3. **Optimization Scripts**: `optCooling.jl` and `plotOptCooling.jl` need refactoring to use new dispatch architecture
+4. **Backend Implementation Files**: Need to be refactored to pure dispatch instead of monolithic functions
+
 ### Adding New Features
 
 1. **New Backend**: Create a new backend type and implement all required dispatch methods
 2. **New Model**: Add model type and implement Hamiltonian construction dispatches
-3. **New Evolution Method**: Add evolution type and implement in appropriate backend files
+3. **New Evolution Method**: Add evolution type and implement in appropriate dispatch files
 4. **New Observable**: Add dispatch methods for each backend type
 
 ### Code Quality
@@ -214,6 +235,24 @@ struct TNBackend <: CoolingBackend end
 struct EDBackend <: CoolingBackend end
 ```
 
+## Known Issues and TODOs
+
+- **optCooling.jl**: Still uses old string-based method selection, needs dispatch refactoring
+- **plotOptCooling.jl**: Needs update to work with new parameter types
+- **ED N extraction**: Currently extracting N from Hamiltonian size is hacky (see TODO in cooling_interface.jl:142)
+- **Initial state setup**: Should be moved to separate dispatch file for consistency
+- **Legacy wrapper removal**: Many files still have Dict-based wrappers for backward compatibility
+
+## Platform-Specific Notes
+
+### macOS
+- Use `gtimeout` instead of `timeout` for command timeouts
+- Install with: `brew install coreutils`
+
+### Linux
+- Use standard `timeout` command
+- MKL loaded automatically for better performance
+
 ## Memory Notes
 
 - Removed all references to old `--method` argument (replaced by `--backend`)
@@ -221,3 +260,4 @@ struct EDBackend <: CoolingBackend end
 - No more backend-specific functions like `find_ground_state_dmrg`
 - Pure dispatch architecture throughout - no string comparisons
 - All empty wrappers removed - substance in dispatch functions
+- Legacy functions like `setup_problem_mps` are deprecated

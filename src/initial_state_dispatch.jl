@@ -7,10 +7,30 @@ Unified initial state setup using multiple dispatch on SimulationMethod and back
 using ITensors
 using ITensorMPS
 using Yao
-include("parameter_types.jl")
 
 # ============================================================================
-# Generic Initial State Interface
+# Main Initial State Interface
+# ============================================================================
+
+"""
+    setup_initial_state(problem::CoolingProblem, sim_params::UnifiedSimulationParameters, init_type::String, theta::Float64)
+
+Direct dispatch implementation for initial state setup.
+"""
+
+# this sites_or_N variables looks extrmely ugly, can we find ways to avoid it in a graceful way ?
+function setup_initial_state(problem::CoolingProblem{B}, sim_params::UnifiedSimulationParameters{S,E}, 
+                           init_type::String, theta::Float64) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
+    # Direct dispatch based on backend and simulation method
+    sites_or_N = B === TNBackend ? problem.sites : Int(length(problem.ϕ₀))
+    state = setup_initial_state_impl(sim_params, problem.backend, sites_or_N; init_type=init_type, theta=theta)
+    
+    # Return QuantumState
+    return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, state, problem.sites)
+end
+
+# ============================================================================
+# Backend-Specific Initial State Implementations
 # ============================================================================
 
 """
@@ -20,8 +40,8 @@ Generic interface for initial state setup using double dispatch:
 - SimulationMethod: DensityMatrix vs MonteCarloWavefunction  
 - Backend: EDBackend vs TNBackend
 """
-function setup_initial_state(sim_params::UnifiedSimulationParameters, backend::CoolingBackend, sites_or_N; init_type="product", theta=0.0)
-    error("setup_initial_state not implemented for sim_method=$(typeof(sim_params.sim_method)), backend=$(typeof(backend))")
+function setup_initial_state_impl(sim_params::UnifiedSimulationParameters, backend::CoolingBackend, sites_or_N; init_type="product", theta=0.0)
+    error("setup_initial_state_impl not implemented for sim_method=$(typeof(sim_params.sim_method)), backend=$(typeof(backend))")
 end
 
 # ============================================================================
@@ -29,8 +49,8 @@ end
 # ============================================================================
 
 # Monte Carlo + TN
-function setup_initial_state(sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, E}, 
-                            backend::TNBackend, sites; init_type="product", theta=0.0) where E<:EvolutionMethod
+function setup_initial_state_impl(sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, E}, 
+                                backend::TNBackend, sites; init_type="product", theta=0.0) where E<:EvolutionMethod
     N = length(sites) ÷ 2
     sites_sys = sites[1:2:2N-1]
 
@@ -60,9 +80,9 @@ function setup_initial_state(sim_params::UnifiedSimulationParameters{MonteCarloW
 end
 
 
-# Monte Carlo + Any + ED
-function setup_initial_state(sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, E}, 
-                            backend::EDBackend, N::Int; init_type="product", theta=0.0) where E<:EvolutionMethod
+# Monte Carlo + ED
+function setup_initial_state_impl(sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, E}, 
+                                backend::EDBackend, N::Int; init_type="product", theta=0.0) where E<:EvolutionMethod
     total_qubits = 2N
     N_sys = total_qubits ÷ 2  # System qubits
     
@@ -111,8 +131,8 @@ end
 # ============================================================================
 
 # Density Matrix + TN
-function setup_initial_state(sim_params::UnifiedSimulationParameters{DensityMatrix, E}, 
-                            backend::TNBackend, sites; init_type="identity", theta=0.0) where E<:EvolutionMethod
+function setup_initial_state_impl(sim_params::UnifiedSimulationParameters{DensityMatrix, E}, 
+                                backend::TNBackend, sites; init_type="identity", theta=0.0) where E<:EvolutionMethod
     N = length(sites) ÷ 2
     sites_sys = sites[1:2:2N-1]
     
@@ -146,9 +166,9 @@ end
 
 
 
-# Density Matrix + Any + ED  
-function setup_initial_state(sim_params::UnifiedSimulationParameters{DensityMatrix, E}, 
-                            backend::EDBackend, N::Int; init_type="identity", theta=0.0) where E<:EvolutionMethod
+# Density Matrix + ED  
+function setup_initial_state_impl(sim_params::UnifiedSimulationParameters{DensityMatrix, E}, 
+                                backend::EDBackend, N::Int; init_type="identity", theta=0.0) where E<:EvolutionMethod
     total_qubits = 2N
     if init_type == "identity"
         # Maximally mixed state: ρ = I/2^N
