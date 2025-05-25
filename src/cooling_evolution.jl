@@ -269,6 +269,19 @@ function prepare_combined_state(problem::CoolingProblem{EDBackend}, state::Quant
     end
 end
 
+function evolve_cooling_step(problem::CoolingProblem{EDBackend}, ρ_total::EDDensityMatrix, te::Float64,
+                           sim_params::UnifiedSimulationParameters{DensityMatrix,ContinuousEvolution},
+                           ham_params)
+    # Get sparse Hamiltonian matrix
+    H_sparse = problem.H_sys_bath
+    if !isa(H_sparse, AbstractMatrix)
+        error("Expected sparse matrix Hamiltonian for ED backend")
+    end
+    
+    # Time evolution
+    return evolve_ed(H_sparse, ρ_total, te)
+end
+
 function evolve_cooling_step(problem::CoolingProblem{EDBackend}, ρ_total::Matrix, te::Float64,
                            sim_params::UnifiedSimulationParameters{DensityMatrix,ContinuousEvolution},
                            ham_params)
@@ -303,6 +316,13 @@ function apply_noise(ρ::Matrix, problem::CoolingProblem{EDBackend}, pe::Float64
     return (1 - pe) * ρ + pe * ρ_noise
 end
 
+function process_bath_and_update(problem::CoolingProblem{EDBackend}, ρ_evolved::EDDensityMatrix,
+                               state::QuantumState{EDBackend,DensityMatrix,ContinuousEvolution},
+                               sim_params)
+    # For density matrix, we keep the full state and trace out bath during measurements
+    return QuantumState(state.backend, state.sim_method, state.evolution_method, ρ_evolved), nothing
+end
+
 function process_bath_and_update(problem::CoolingProblem{EDBackend}, ρ_evolved::Matrix,
                                state::QuantumState{EDBackend,DensityMatrix,ContinuousEvolution},
                                sim_params)
@@ -318,32 +338,35 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     N_bath = N_sys
     
     # Get system density matrix
-    # Check if we have full system+bath state or just system state
-    if size(ρ_total, 1) == 2^(2*N_sys)
+    if ρ_total.n_qubits == 2*N_sys
         # Full system+bath state - trace out bath
-        ρ_sys = tr_bath(ρ_total, N_sys, N_bath)
+        ρ_sys = trace_out_bath_ed(ρ_total, N_sys)
     else
         # Just system state
         ρ_sys = ρ_total
     end
     
     # Energy
-    H_sys_mat = Matrix(problem.H_sys)
-    measurements["E_list"][step] = real(tr(H_sys_mat * ρ_sys))
+    H_sys_mat = problem.H_sys
+    measurements["E_list"][step] = expect_ed(H_sys_mat, ρ_sys)
     
     # Ground state overlap: <ϕ₀|ρ|ϕ₀>
-    ϕ₀_vec = problem.ϕ₀.state[:]
-    measurements["GS_overlap_list"][step] = real(ϕ₀_vec' * ρ_sys * ϕ₀_vec)
+    ϕ₀ = problem.ϕ₀
+    measurements["GS_overlap_list"][step] = real(ϕ₀.data' * ρ_sys.data * ϕ₀.data)
     
     # Purity
-    measurements["purity_list"][step] = real(tr(ρ_sys^2))
+    measurements["purity_list"][step] = purity_ed(ρ_sys)
     
     # Bath magnetization (only if we have full state and not first step)
-    if step > 1 && size(ρ_total, 1) == 2^(2*N_sys)
-        ρ_bath = tr_sys(ρ_total, N_sys, N_bath)
-        # Use existing compute_bath_magnetization function for density matrix
-        mag = compute_bath_magnetization(ρ_bath, N_bath)
-        measurements["bath_mag_list"][step] = mag
+    if step > 1 && ρ_total.n_qubits == 2*N_sys
+        ρ_bath = trace_out_system_ed(ρ_total, N_sys)
+        # Compute magnetization
+        mag = 0.0
+        for i in 1:N_bath
+            Z_i = pauli_z(i, N_bath)
+            mag += expect_ed(Z_i, ρ_bath)
+        end
+        measurements["bath_mag_list"][step] = mag / N_bath
     end
 end
 

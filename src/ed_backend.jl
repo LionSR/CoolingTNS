@@ -51,6 +51,12 @@ if !@isdefined(EDDensityMatrix)
     end
 end
 
+# Base function extensions for our types
+Base.size(ρ::EDDensityMatrix) = size(ρ.data)
+Base.size(ρ::EDDensityMatrix, dim::Int) = size(ρ.data, dim)
+Base.size(ψ::EDStateVector) = size(ψ.data)
+Base.size(ψ::EDStateVector, dim::Int) = size(ψ.data, dim)
+
 # ============================================================================
 # State Creation Functions
 # ============================================================================
@@ -370,7 +376,10 @@ function evolve_ed(H::AbstractMatrix, ρ::EDDensityMatrix, t::Float64)
         phases = exp.(-im * t * F.values)
         U = F.vectors * Diagonal(phases) * F.vectors'
         ρ_evolved = U * ρ.data * U'
-        return EDDensityMatrix(real(ρ_evolved), ρ.n_qubits)
+        ρ_real = real(ρ_evolved)
+        # Enforce symmetry to avoid numerical errors
+        ρ_sym = (ρ_real + ρ_real') / 2
+        return EDDensityMatrix(ρ_sym, ρ.n_qubits)
     else
         # For larger systems, use vectorized approach
         # d/dt vec(ρ) = -i(H⊗I - I⊗H) vec(ρ)

@@ -14,7 +14,7 @@ if !@isdefined(EDStateVector)
     include("ed_backend.jl")
 end
 if !@isdefined(construct_coupling_term)
-    include("system_hamiltonian_ed.jl")  # For pauli operators
+    include("system_hamiltonian.jl")  # For pauli operators
 end
 # parameter_types.jl already included by parent
 

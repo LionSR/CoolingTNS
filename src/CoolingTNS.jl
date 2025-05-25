@@ -37,7 +37,6 @@ include("trotter.jl")               # Trotter circuit construction
 include("initial_state.jl")         # Initial state preparation
 include("evolution.jl")             # Time evolution functions
 include("cooling_evolution.jl")     # Cooling evolution
-include("cooling_evolution_ed.jl")  # ED-specific cooling evolution
 include("setup.jl")                 # setup_problem implementations
 
 
