@@ -37,8 +37,8 @@ CoolingTNS is a Julia-based quantum physics simulation framework for studying co
 # Basic tensor network simulation
 julia Cooling.jl --N 10 --problem niIsing --backend TN --sim_method monte_carlo --evolution_method continuous --coupling XX --g 0.1 --te 10.0 --steps 100
 
-# Exact diagonalization for small systems
-julia Cooling.jl --N 6 --problem niIsing --backend ED --sim_method density_matrix --evolution_method continuous --coupling XX --g 0.1 --te 5.0 --steps 50
+# Exact diagonalization for small systems (clean Float64-only backend)
+julia Cooling.jl --N 3 --problem niIsing --backend ED --sim_method density_matrix --evolution_method continuous --coupling XX --g 0.1 --te 0.5 --steps 5
 
 # Trotter evolution with tensor networks
 julia Cooling.jl --N 8 --problem Ising --backend TN --sim_method monte_carlo --evolution_method trotter --tau 0.1 --coupling YY --g 0.2 --te 2.0 --steps 20
@@ -106,34 +106,33 @@ The codebase uses a clean multiple dispatch architecture:
 4. **Evolution** (`run_cooling`): Dispatches on all type parameters
 5. **Analysis**: Computes observables with backend-specific implementations
 
-### Module Structure
+### Module Structure (Unified Dispatch Architecture)
 
-**Core Dispatch Files**:
-- `src/cooling_interface.jl`: Main interface with substance implementations
-- `src/hamiltonian_dispatch.jl`: Includes all Hamiltonian-related dispatchers
-- `src/system_hamiltonian_dispatch.jl`: System-only Hamiltonian construction
-- `src/system_bath_hamiltonian_dispatch.jl`: System+bath Hamiltonian construction
-- `src/ground_state_dispatch.jl`: Unified ground state computation
-- `src/setup_system_dispatch.jl`: System setup with backend dispatch
-- `src/evolution_dispatch.jl`: Time evolution dispatch
-- `src/initial_state_dispatch.jl`: Initial state preparation
-- `src/trotter_dispatch.jl`: Trotter circuit construction
+**Core Unified Files**:
+- `src/cooling_evolution.jl`: Main cooling evolution with unified TN+ED dispatch
+- `src/system_hamiltonian.jl`: System Hamiltonian construction (TN+ED unified)
+- `src/system_bath_hamiltonian.jl`: System+bath Hamiltonian construction (TN+ED unified) 
+- `src/ground_state.jl`: Unified ground state computation (TN+ED)
+- `src/initial_state.jl`: Initial state preparation (TN+ED unified)
+- `src/setup.jl`: Problem setup with backend dispatch
+- `src/ed_backend.jl`: Clean Float64-only ED backend (no Yao dependencies)
 
-**Backend Implementation Files** (contain legacy functions that need dispatch refactoring):
-- `src/cooling_functions_ed.jl`: ED-specific implementations (run_cooling_ed_density_matrix, run_cooling_ed_monte_carlo)
-- `src/cooling_functions_mps.jl`: MPS implementations (run_cooling_mps)
-- `src/cooling_functions_mpo.jl`: MPO implementations (run_cooling_mpo)
-- `src/cooling_functions_trotter_mps.jl`: Trotter+MPS implementations (run_cooling_trotter_mps)
-
-**Utilities**:
+**Support Files**:
 - `src/parameter_types.jl`: Type definitions for parameters
+- `src/cooling_types.jl`: CoolingProblem and QuantumState types
 - `src/coupling_utils.jl`: Coupling operator parsing
 - `src/utils.jl`: General utilities and file I/O
-- `src/utils_*.jl`: Backend-specific utilities
+- `src/utils_mps.jl` / `src/utils_mpo.jl`: TN-specific utilities
 - `src/plotting.jl`: Visualization
 - `src/noise.jl`: Noise models
 - `src/policy.jl`: Time-dependent policies
 - `src/argparse.jl`: Command-line argument parsing
+- `src/state_manipulation.jl`: Dispatched state operations
+- `src/bath_measurements.jl`: Bath measurement functions
+- `src/trotter.jl`: Trotter evolution support
+- `src/evolution.jl`: Evolution utilities
+- `src/setup_system.jl`: System setup utilities
+- `src/hamiltonian.jl`: General Hamiltonian utilities
 
 ### Physical Models
 
@@ -180,9 +179,10 @@ Files are named: `Cooling_Ham{model}_Coupling{type}_Sim{backend}Dmax{D}`
 
 ### Performance Considerations
 
-- ITensors.jl for tensor network operations
-- KrylovKit.jl for eigenvalue problems
-- ExponentialUtilities.jl for matrix exponentials
+- ITensors.jl and ITensorMPS.jl for tensor network operations
+- KrylovKit.jl for eigenvalue problems and sparse matrix operations
+- LinearAlgebra.jl and SparseArrays.jl for ED backend matrix operations
+- Clean Float64-only implementation for ED backend (no complex arithmetic)
 - MKL on Linux for optimized BLAS/LAPACK
 
 ### Getting doucmentations from Julia packages:
@@ -253,11 +253,10 @@ struct EDBackend <: CoolingBackend end
 
 ## Known Issues and TODOs
 
-- **optCooling.jl**: Still uses old string-based method selection, needs dispatch refactoring
-- **plotOptCooling.jl**: Needs update to work with new parameter types
-- **ED N extraction**: Currently extracting N from Hamiltonian size is hacky (see TODO in cooling_interface.jl:142)
-- **Initial state setup**: Should be moved to separate dispatch file for consistency
-- **Legacy wrapper removal**: Many files still have Dict-based wrappers for backward compatibility
+- **ED Backend Physics**: Energy increases during cooling instead of decreasing - requires debugging of Hamiltonian physics implementation
+- **optCooling.jl**: Still uses old string-based method selection, needs dispatch refactoring  
+- **TN Backend Measurements**: Missing measurement functions for some TN method combinations
+- **Precompilation**: Long precompilation times due to ITensors/Yao dependencies eating tokens during debugging
 
 ## Platform-Specific Notes
 
@@ -269,17 +268,49 @@ struct EDBackend <: CoolingBackend end
 - Use standard `timeout` command
 - MKL loaded automatically for better performance
 
-## Memory Notes
+## Implementation Status
 
-- Removed all references to old `--method` argument (replaced by `--backend`)
-- Eliminated `--ed_method` (now `--sim_method` works for all backends)
-- No more backend-specific functions like `find_ground_state_dmrg`
-- Pure dispatch architecture throughout - no string comparisons
-- All empty wrappers removed - substance in dispatch functions
-- Legacy functions like `setup_problem_mps` are deprecated
+### ✅ Completed Features
 
-## Memory Updates
-- Latest progress indicates continued development of the pure dispatch architecture
-- Ongoing refactoring to remove legacy methods and consolidate backend-specific implementations
-- Focus on type stability and consistent dispatch across different simulation scenarios
-- update my memory
+**Architecture Overhaul:**
+- **Pure Dispatch Architecture**: Completely implemented using Julia's multiple dispatch 
+- **Unified File Structure**: Eliminated all duplicate `*_ed.jl` files - everything now in single unified files
+- **Clean ED Backend**: Float64-only implementation without any Yao.jl dependencies
+- **Type-Based Routing**: All method selection uses types, no string comparisons
+
+**Backend Implementations:**
+- **TNBackend**: Full tensor network support with ITensors.jl
+- **EDBackend**: Clean exact diagonalization using LinearAlgebra + SparseArrays + KrylovKit
+- **Unified Interfaces**: Same dispatch signatures work for both backends
+- **Multiple Method Support**: DensityMatrix + MonteCarloWavefunction × ContinuousEvolution + TrotterEvolution
+
+**File Organization:**
+- All legacy duplicate files removed (`system_hamiltonian_ed.jl`, `cooling_evolution_ed.jl`, etc.)
+- Single files with unified TN+ED dispatch: `system_hamiltonian.jl`, `cooling_evolution.jl`, `ground_state.jl`, `initial_state.jl`
+- Clean module structure with no Yao dependencies in ED backend
+
+### ⚠️ Known Issues
+
+**Physics Problems:**
+- **ED Cooling Energy**: Energy increases instead of decreases during cooling - fundamental physics issue
+- **Bath Energy Setup**: May need debugging of sign conventions and resonant frequency setup
+- **TN Measurements**: Some TN backend measurement combinations missing
+
+**Performance:**
+- **Precompilation Time**: Long compilation due to ITensors/Yao dependencies
+- **Debug Efficiency**: Need faster iteration for physics debugging
+
+### 🔧 Development Guidelines
+
+**For ED Backend Debugging:**
+- Use small systems (N=3) for fast testing
+- Focus on sign conventions matching TN backend exactly  
+- Debug resonant frequency computation
+- Check system-bath coupling implementation
+- Verify time evolution physics
+
+**Architecture Maintenance:**
+- Keep unified dispatch pattern - no new duplicate files
+- All new features use multiple dispatch on backend types
+- Maintain Float64-only ED backend (no complex numbers)
+- Follow established type hierarchy patterns
