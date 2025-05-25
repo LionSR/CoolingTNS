@@ -8,10 +8,6 @@ using ITensors
 using ITensorMPS
 using LinearAlgebra
 
-# Include clean ED backend if available
-if !@isdefined(EDStateVector)
-    include("ed_backend.jl")
-end
 
 # ============================================================================
 # Helper Functions

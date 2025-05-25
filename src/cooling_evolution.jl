@@ -547,22 +547,7 @@ function tr_bath(ρ::Matrix, N_sys::Int, N_bath::Int)
     return ρ_sys
 end
 
-"""Trace out system degrees of freedom"""
-function tr_sys(ρ::Matrix, N_sys::Int, N_bath::Int)
-    dim_sys = 2^N_sys
-    dim_bath = 2^N_bath
-    ρ_bath = zeros(ComplexF64, dim_bath, dim_bath)
-    
-    for i in 1:dim_bath, j in 1:dim_bath
-        for k in 1:dim_sys
-            idx_i = (k-1)*dim_bath + i
-            idx_j = (k-1)*dim_bath + j
-            ρ_bath[i,j] += ρ[idx_i, idx_j]
-        end
-    end
-    
-    return ρ_bath
-end
+# tr_sys function moved to bath_measurements.jl to avoid duplication
 
 """Compute bath magnetization from density matrix"""
 function compute_bath_magnetization(ρ_bath::Matrix, N_bath::Int)
@@ -579,8 +564,4 @@ function compute_bath_magnetization(ρ_bath::Matrix, N_bath::Int)
 end
 
 # Removed Yao-specific projector function
-
-"""Create MPO projector from MPS"""
-function projector_mpo(ψ::MPS)
-    return outer(ψ', ψ)
-end
+# projector_mpo function moved to state_manipulation.jl to avoid duplication

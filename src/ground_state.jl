@@ -10,10 +10,6 @@ using KrylovKit
 using LinearAlgebra
 using SparseArrays
 
-# Include clean ED backend if available
-if !@isdefined(EDStateVector)
-    include("ed_backend.jl")
-end
 
 # ============================================================================
 # Ground State Computation Interface

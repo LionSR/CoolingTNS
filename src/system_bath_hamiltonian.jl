@@ -9,17 +9,9 @@ using LinearAlgebra
 using SparseArrays
 using KrylovKit
 
-# Include clean ED backend functions
-if !@isdefined(EDStateVector)
-    include("ed_backend.jl")
-end
 if !@isdefined(construct_coupling_term)
     include("system_hamiltonian.jl")  # For pauli operators
 end
-# parameter_types.jl already included by parent
-
-# system_hamiltonian.jl included by parent
-
 
 
 # ============================================================================

@@ -7,21 +7,13 @@ System-only Hamiltonian construction using multiple dispatch on HamiltonianModel
 using ITensors
 using LinearAlgebra
 using SparseArrays
-# Include clean ED backend if available
-if !@isdefined(EDStateVector)
-    include("ed_backend.jl")
-end
-# parameter_types.jl already included by parent
 
 # ============================================================================
 # System Hamiltonian Construction Interface
 # ============================================================================
 
-"""
-    construct_system_hamiltonian(ham_params::HamiltonianParameters, backend::CoolingBackend, sites_or_N)
-
-Generic interface for constructing system Hamiltonians using multiple dispatch on both model and backend.
-"""
+# Generic fallback method for construct_system_hamiltonian
+# Specific implementations have their own docstrings
 function construct_system_hamiltonian(ham_params::HamiltonianParameters, backend::CoolingBackend, sites_or_N)
     error("construct_system_hamiltonian not implemented for model $(typeof(ham_params.model)) and backend $(typeof(backend))")
 end

@@ -10,13 +10,6 @@ using KrylovKit
 using LinearAlgebra
 using SparseArrays
 
-# Include clean ED backend if available
-if !@isdefined(EDStateVector)
-    include("ed_backend.jl")
-end
-# parameter_types.jl already included by parent
-# The core files are included by parent
-
 """
     setup_system(ham_params::HamiltonianParameters, backend::CoolingBackend)
 
