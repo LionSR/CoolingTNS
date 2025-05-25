@@ -1,6 +1,6 @@
 module CoolingTNS
 
-__precompile__(false)  # Disable precompilation due to LuxurySparse issues
+__precompile__(false)  # Disable precompilation for faster debugging
 
 # Import ITensors package
 using ITensors

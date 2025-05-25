@@ -132,12 +132,13 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     add_system_hamiltonian_ed!(H_sb, H_sys, N, N_total)
     
     # Add bath terms (at resonance with system gap if not specified)
-    gap = coupling_params.delta !== nothing ? coupling_params.delta : compute_gap_ed(H_sys)
+    Δ = coupling_params.delta !== nothing ? coupling_params.delta : -compute_gap_ed(H_sys)
     
     # Bath qubits are at positions: 2, 4, 6, ..., 2N
+    # Copy TN backend exactly: use Δ/2 for bath energy
     for i in 1:N
         bath_idx = 2*i
-        H_sb += gap * pauli_z(bath_idx, N_total)
+        H_sb += (Δ/2) * pauli_z(bath_idx, N_total)
     end
     
     # Add coupling terms
@@ -255,5 +256,5 @@ function compute_gap_ed(H::AbstractMatrix)
     vals, _, _ = eigsolve(H, 2, :SR; krylovdim=min(30, size(H, 1)))
     E0 = real(vals[1])
     E1 = real(vals[2])
-    return E1 - E0
+    return abs(E1 - E0)  # Return absolute value for positive frequency
 end
