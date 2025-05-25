@@ -68,10 +68,13 @@ using CoolingTNS
                 
                 # Check backend-specific fields
                 if backend isa CoolingTNS.EDBackend
-                    @test isnothing(problem_setup.sites)
+                    # ED backend doesn't use sites
+                    @test !haskey(problem_setup.extra, :sites)
                 else
-                    @test !isnothing(problem_setup.sites)
-                    @test length(problem_setup.sites) == 2 * test_N
+                    # TN backend stores sites in extra
+                    @test haskey(problem_setup.extra, :sites)
+                    @test !isnothing(problem_setup.extra.sites)
+                    @test length(problem_setup.extra.sites) == 2 * test_N
                 end
             end
         end

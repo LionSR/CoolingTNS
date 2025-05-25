@@ -72,6 +72,19 @@ IsingParameters(N::Int, J, h) = HamiltonianParameters(IsingModel(), N, (J=J, h=h
 NiIsingParameters(N::Int, J, hx, hz) = HamiltonianParameters(NiIsingModel(), N, (J=J, hx=hx, hz=hz))
 RydbergParameters(N::Int, Ω, Δ, V) = HamiltonianParameters(RydbergModel(), N, (Ω=Ω, Δ=Δ, V=V))
 
+# Generate name for HamiltonianParameters
+function hamiltonian_name(ham_params::HamiltonianParameters{IsingModel})
+    return "IsingJ$(ham_params.params.J)h$(ham_params.params.h)"
+end
+
+function hamiltonian_name(ham_params::HamiltonianParameters{NiIsingModel})
+    return "niIsingJ$(ham_params.params.J)hx$(ham_params.params.hx)hz$(ham_params.params.hz)"
+end
+
+function hamiltonian_name(ham_params::HamiltonianParameters{RydbergModel})
+    return "RydbergOmega$(ham_params.params.Ω)Delta$(ham_params.params.Δ)V$(ham_params.params.V)"
+end
+
 # ============================================================================
 # Coupling Parameters
 # ============================================================================

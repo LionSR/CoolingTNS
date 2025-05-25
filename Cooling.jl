@@ -73,12 +73,14 @@ function run_cooling(parsed_args)
     GS_overlap_final = CoolingTNS.mean_last_window(results["GS_overlap_list"], window_size)
     println("After cooling: E_final/N=$Edensity_final, GS_overlap_final=$GS_overlap_final")
 
-    # Save results
-    filename = CoolingTNS.create_filename(ham_name, ham_params, coupling_params, sim_params, backend)
-    results["E_final"] = E_final
-    results["Edensity_final"] = Edensity_final
-    results["GS_overlap_final"] = GS_overlap_final
-    CoolingTNS.save_results(filename, results, e₀, ham_name, parsed_args)
+    # Save results - add scalar values as new keys
+    filename = CoolingTNS.create_filename(ham_params, coupling_params, sim_params, backend)
+    # Create new dictionary with all results
+    save_data = Dict(results...)  # Copy existing results
+    save_data["E_final"] = E_final
+    save_data["Edensity_final"] = Edensity_final
+    save_data["GS_overlap_final"] = GS_overlap_final
+    CoolingTNS.save_results(filename, save_data, e₀, ham_name, parsed_args)
     
     # Plot results
     CoolingTNS.plot_energy_and_overlap(results["E_list"], results["GS_overlap_list"], e₀, ham_params.N, filename; moving_average=true)

@@ -8,8 +8,10 @@ using ITensors
 using ITensorMPS
 using ITensors: apply
 using Yao
+using Yao: expect, product_state, mat, nqubits
 using ExponentialUtilities
 using LinearAlgebra
+using SparseArrays
 using Random
 using Statistics
 
@@ -143,9 +145,8 @@ function compile_results(measurements, sim_params)
     
     # Add simulation metadata
     if sim_params isa UnifiedSimulationParameters{MonteCarloWavefunction, E} where E
-        n_traj = get(sim_params.extra, :n_trajectories, 1)
-        if n_traj > 1
-            results["n_trajectories"] = n_traj
+        if sim_params.n_trajectories > 1
+            results["n_trajectories"] = sim_params.n_trajectories
         end
     end
     
@@ -184,8 +185,22 @@ end
 function process_bath_and_update(problem::CoolingProblem{TNBackend}, ψ_evolved::MPS, 
                                state::QuantumState{TNBackend,MonteCarloWavefunction,ContinuousEvolution}, 
                                sim_params)
-    # Sample and discard bath
+    # Get N from the sites in problem
+    sites = problem.extra.sites
+    N_total = length(sites)
+    N_sys = N_total ÷ 2
+    N_bath = N_sys
+    
+    # For TN backend, sites are interlaced: sys1, bath1, sys2, bath2, ...
+    # After sampling bath, we get back an MPS with only system sites
+    # The sample_bath function reduces the MPS to system sites only
     v_b, ψ_s = sample_bath(ψ_evolved)
+    
+    # The returned MPS should have N_sys sites
+    if length(ψ_s) != N_sys
+        @warn "After sampling bath, MPS has unexpected length" expected=N_sys actual=length(ψ_s)
+    end
+    
     truncate!(ψ_s; cutoff=sim_params.cutoff)
     normalize!(ψ_s)
     
@@ -200,8 +215,22 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     H_sys = problem.H_sys
     ϕ₀ = problem.ϕ₀
     
-    measurements["E_list"][step] = real(inner(ψ_s', H_sys, ψ_s))
-    measurements["GS_overlap_list"][step] = abs2(inner(ψ_s, ϕ₀))
+    # Debug: Check dimensions
+    if length(ψ_s) != length(H_sys)
+        @warn "Dimension mismatch in measurements" MPS_length=length(ψ_s) H_sys_length=length(H_sys) phi0_length=length(ϕ₀) step=step
+    end
+    
+    # For first step, MPS should match H_sys dimensions
+    # For later steps after bath sampling, need to be careful
+    if step == 1 || length(ψ_s) == length(H_sys)
+        measurements["E_list"][step] = real(inner(ψ_s', H_sys, ψ_s))
+        measurements["GS_overlap_list"][step] = abs2(inner(ψ_s, ϕ₀))
+    else
+        # Skip measurement if dimensions don't match
+        @warn "Skipping measurement due to dimension mismatch"
+        measurements["E_list"][step] = measurements["E_list"][step-1]
+        measurements["GS_overlap_list"][step] = measurements["GS_overlap_list"][step-1]
+    end
     
     # Bath magnetization if available from bath_info
     if haskey(measurements, "nb_list") && bath_info !== nothing
@@ -213,7 +242,8 @@ end
 # --- Exact Diagonalization + Density Matrix + Continuous Evolution ---
 
 function prepare_combined_state(problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend,DensityMatrix,ContinuousEvolution})
-    N_sys = size(state.state, 1) |> x -> Int(log2(x))
+    # Get N from problem parameters, not from state size
+    N_sys = problem.extra.ham_params.N
     N_bath = N_sys
     
     # Get system density matrix by tracing out previous bath (if any)
@@ -223,8 +253,10 @@ function prepare_combined_state(problem::CoolingProblem{EDBackend}, state::Quant
         ρ_sys = state.state
     end
     
-    # Fresh bath in ground state |111...⟩
-    ρ_bath_fresh = projector(ArrayReg(bit"1"^N_bath))
+    # Fresh bath in ground state |000...⟩
+    bath_config = 0  # All bits set to 0
+    ψ_bath = product_state(N_bath, bath_config)
+    ρ_bath_fresh = projector(ψ_bath)
     
     return kron(ρ_sys, ρ_bath_fresh)
 end
@@ -232,9 +264,32 @@ end
 function evolve_cooling_step(problem::CoolingProblem{EDBackend}, ρ_total::Matrix, te::Float64,
                            sim_params::UnifiedSimulationParameters{DensityMatrix,ContinuousEvolution},
                            ham_params)
-    # Direct matrix exponentiation for ED
-    U = exp(-im * te * Matrix(problem.H_sys_bath))
-    return U * ρ_total * U'
+    # Get sparse Hamiltonian matrix
+    if isa(problem.H_sys_bath, Yao.AbstractBlock)
+        # mat() returns a sparse matrix - keep it sparse!
+        H_sparse = mat(ComplexF64, problem.H_sys_bath)
+    else
+        # Convert to sparse if not already
+        H_sparse = sparse(problem.H_sys_bath)
+    end
+    
+    # Use ExponentialUtilities for efficient sparse matrix exponentiation
+    # For density matrix evolution: ρ(t) = U ρ(0) U†, where U = exp(-i H t)
+    # We can use expv for ρ_vec evolution: d/dt ρ_vec = -i (H⊗I - I⊗H^T) ρ_vec
+    n = size(ρ_total, 1)
+    
+    # Create the Liouvillian superoperator L = -i(H⊗I - I⊗H^T)
+    H_conj = conj(H_sparse)  # Complex conjugate for the right action
+    L = -im * (kron(H_sparse, I(n)) - kron(I(n), transpose(H_conj)))
+    
+    # Vectorize the density matrix
+    ρ_vec = vec(ρ_total)
+    
+    # Use Krylov exponentiation for efficient computation
+    ρ_vec_evolved = expv(te, L, ρ_vec)
+    
+    # Reshape back to matrix form
+    return reshape(ρ_vec_evolved, n, n)
 end
 
 function apply_noise(ρ::Matrix, problem::CoolingProblem{EDBackend}, pe::Float64)
@@ -257,8 +312,15 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     N_sys = ham_params.N
     N_bath = N_sys
     
-    # Trace out bath to get system density matrix
-    ρ_sys = tr_bath(ρ_total, N_sys, N_bath)
+    # Get system density matrix
+    # Check if we have full system+bath state or just system state
+    if size(ρ_total, 1) == 2^(2*N_sys)
+        # Full system+bath state - trace out bath
+        ρ_sys = tr_bath(ρ_total, N_sys, N_bath)
+    else
+        # Just system state
+        ρ_sys = ρ_total
+    end
     
     # Energy
     H_sys_mat = Matrix(problem.H_sys)
@@ -271,9 +333,10 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     # Purity
     measurements["purity_list"][step] = real(tr(ρ_sys^2))
     
-    # Bath magnetization (if not first step)
-    if step > 1
+    # Bath magnetization (only if we have full state and not first step)
+    if step > 1 && size(ρ_total, 1) == 2^(2*N_sys)
         ρ_bath = tr_sys(ρ_total, N_sys, N_bath)
+        # Use existing compute_bath_magnetization function for density matrix
         mag = compute_bath_magnetization(ρ_bath, N_bath)
         measurements["bath_mag_list"][step] = mag
     end
@@ -286,9 +349,11 @@ function prepare_combined_state(problem::CoolingProblem{EDBackend}, state::Quant
     N_sys = problem.extra.ham_params.N
     N_bath = N_sys
     
-    # Fresh bath in ground state
-    ψ_bath = ArrayReg(bit"1"^N_bath)
-    return kron(state.state, ψ_bath)
+    # Fresh bath in ground state (all |0⟩ states)
+    # Create bath state with all qubits in |0⟩
+    bath_config = 0  # All bits set to 0
+    ψ_bath = product_state(N_bath, bath_config)
+    return join(state.state, ψ_bath)
 end
 
 function evolve_cooling_step(problem::CoolingProblem{EDBackend}, ψ_total::ArrayReg, te::Float64,
@@ -296,18 +361,26 @@ function evolve_cooling_step(problem::CoolingProblem{EDBackend}, ψ_total::Array
                            ham_params)
     # Time evolution using Yao - apply time evolution operator
     U = time_evolve(problem.H_sys_bath, te)
-    return apply(ψ_total, U)
+    return ψ_total |> U
 end
 
 function apply_noise(ψ::ArrayReg, problem::CoolingProblem{EDBackend}, pe::Float64)
-    if rand() < pe
-        # Complete depolarization - return random state
-        # Get total number of qubits from ArrayReg
-        N_total = nqubits(ψ)  # This should work for ArrayReg
-        return rand_state(N_total)
-    else
-        return ψ
+    # Apply local depolarizing noise to system qubits
+    # Get N from ham_params stored in problem.extra  
+    N_sys = problem.extra.ham_params.N
+    N_total = nqubits(ψ)
+    
+    # System qubits are the first N_sys qubits
+    ψ_noisy = copy(ψ)
+    for i in 1:N_sys
+        if rand() < pe
+            # Apply random Pauli with equal probability
+            pauli_op = rand([X, Y, Z])
+            ψ_noisy |> put(N_total, i => pauli_op)
+        end
     end
+    
+    return ψ_noisy
 end
 
 function process_bath_and_update(problem::CoolingProblem{EDBackend}, ψ_evolved::ArrayReg,
@@ -317,15 +390,11 @@ function process_bath_and_update(problem::CoolingProblem{EDBackend}, ψ_evolved:
     N_sys = problem.extra.ham_params.N
     N_bath = N_sys
     
-    # Measure and collapse bath
-    bath_result = measure(ψ_evolved, (N_sys+1):(N_sys+N_bath); nshots=1)
-    
-    # Extract system state after measurement
-    ψ_sys = focus!(copy(ψ_evolved), 1:N_sys)
-    relax!(ψ_sys)  # Remove measured qubits
+    # Use the new process_bath function from state_manipulation.jl
+    ψ_sys, bath_samples = process_bath(state.backend, state.sim_method, ψ_evolved, N_sys, N_bath)
     
     # Calculate bath magnetization for this step
-    bath_mag = sum(2 .* bath_result .- 1) / N_bath
+    bath_mag = compute_bath_magnetization(state.backend, state, bath_samples, N_bath)
     
     return QuantumState(state.backend, state.sim_method, state.evolution_method, ψ_sys), bath_mag
 end

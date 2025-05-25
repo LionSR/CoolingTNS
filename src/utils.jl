@@ -9,20 +9,20 @@ function setup_common_parameters(parsed_args)
     # Create proper HamiltonianParameters struct
     if problem == "Ising"
         ham_params = IsingParameters(N, parsed_args["J"], parsed_args["h"])
-        ham_name = "$(problem)J$(parsed_args["J"])h$(parsed_args["h"])"
     elseif problem == "niIsing"
         ham_params = NiIsingParameters(N, parsed_args["J"], parsed_args["hx"], parsed_args["hz"])
-        ham_name = "$(problem)J$(parsed_args["J"])hx$(parsed_args["hx"])hz$(parsed_args["hz"])"
     elseif problem == "Rydberg"
         # Add default Rydberg parameters if needed
         Ω = get(parsed_args, "Omega", 1.0)
         Δ = get(parsed_args, "Delta", 0.0)
         V = get(parsed_args, "V", 1.0)
         ham_params = RydbergParameters(N, Ω, Δ, V)
-        ham_name = "$(problem)Omega$(Ω)Delta$(Δ)V$(V)"
     else
         error("Unknown problem type: $problem")
     end
+    
+    # Generate ham_name using the HamiltonianParameters method
+    ham_name = hamiltonian_name(ham_params)
 
     # Create proper CouplingParameters struct
     coupling_params = BasicCouplingParameters(
@@ -77,13 +77,11 @@ function create_search_name_part(search_params)
     return "Search$(search_params["search_method"])trials$(search_params["num_trials"])"
 end
 
-function create_filename(ham_name, ham_params::HamiltonianParameters, coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters, backend::CoolingBackend)
-    N = ham_params.N
+function create_filename(ham_params::HamiltonianParameters, coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters, backend::CoolingBackend)
+    # Use the HamiltonianParameters to generate name
+    ham_part = hamiltonian_name(ham_params)
     
-    # More concise ham name (remove "Ham" prefix and shorten)
-    ham_part = isa(N, Array) ? "$(ham_name)_N$(minimum(N))-$(maximum(N))" : "$(ham_name)_N$(N)"
-    
-    # Concise coupling part (remove "Coupling" prefix)
+    # Concise coupling part
     coupling_part = "$(coupling_params.coupling)_g$(coupling_params.g)_t$(coupling_params.te)_s$(coupling_params.steps)"
     
     # Concise backend/sim part
@@ -111,5 +109,46 @@ function create_filename(ham_name, ham_params::HamiltonianParameters, coupling_p
     end
     
     return join([ham_part, coupling_part, sim_part], "_")
+end
+
+# Overloaded version for plotting functions that pass N directly (now ignored)
+function create_filename(ham_name, N::Union{Int, Vector{Int}}, coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters, backend::CoolingBackend)
+    # N is no longer part of filename, create a dummy ham_params
+    ham_params = HamiltonianParameters(IsingModel(), 1, (J=1.0, h=1.0))
+    return create_filename(ham_name, ham_params, coupling_params, sim_params, backend)
+end
+
+# For backward compatibility with Dict-based sim_params (used in plotting)
+function create_filename(ham_name, N::Union{Int, Vector{Int}}, coupling_params::Dict, sim_params::Dict)
+    # Convert dicts to proper structs
+    coupling = BasicCouplingParameters(
+        coupling_params["coupling"],
+        coupling_params["g"],
+        coupling_params["steps"],
+        coupling_params["te"],
+        get(coupling_params, "delta", nothing)
+    )
+    
+    # Determine backend from sim_params
+    backend = haskey(sim_params, "method") && sim_params["method"] == "ED" ? EDBackend() : TNBackend()
+    
+    # Create simulation parameters with defaults
+    sim_method = haskey(sim_params, "sim_method") && sim_params["sim_method"] == "density_matrix" ? DensityMatrix() : MonteCarloWavefunction()
+    evolution_method = haskey(sim_params, "evolution_method") && sim_params["evolution_method"] == "trotter" ? TrotterEvolution() : ContinuousEvolution()
+    
+    sim = UnifiedSimulationParameters(
+        sim_method,
+        evolution_method;
+        Dmax=get(sim_params, "Dmax", 100),
+        cutoff=get(sim_params, "cutoff", 1e-8),
+        tau=get(sim_params, "tau", 0.1),
+        pe=get(sim_params, "peInt", 0) / 1000.0,  # Convert back from int
+        n_trajectories=get(sim_params, "n_trajectories", 1)
+    )
+    
+    # Create dummy ham_params (N is not used in filename anymore)
+    ham_params = HamiltonianParameters(IsingModel(), 1, (J=1.0, h=1.0))
+    
+    return create_filename(ham_name, ham_params, coupling, sim, backend)
 end
 

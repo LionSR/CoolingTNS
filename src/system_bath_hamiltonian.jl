@@ -91,7 +91,7 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{NiI
     
     # Bath Hamiltonians
     for i in 1:N
-        terms += -Δ/2, "Z", 2i  # Bath sites: 2,4,6,8...
+        terms += Δ/2, "Z", 2i  # Bath sites: 2,4,6,8...
     end
     
     # System-Bath coupling
@@ -133,7 +133,7 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{Isi
     ])
     
     # Bath and coupling
-    H_bath_coupling = sum(map(i -> -Δ/2 * put(nbits, bath_sites[i]=>Z) + 
+    H_bath_coupling = sum(map(i -> Δ/2 * put(nbits, bath_sites[i]=>Z) + 
                                    g * put(nbits, sys_sites[i]=>op1) * put(nbits, bath_sites[i]=>op2), 1:N_sys))
     
     return H_sys_expanded + H_bath_coupling
@@ -167,7 +167,7 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{NiI
     ])
     
     # Bath Hamiltonian
-    H_bath = sum(map(b -> -Δ/2 * put(nbits, b=>Z), bath_sites))
+    H_bath = sum(map(b -> Δ/2 * put(nbits, b=>Z), bath_sites))
     
     # System-bath coupling
     H_coupling = sum(map(i -> g * put(nbits, sys_sites[i]=>op1) * put(nbits, bath_sites[i]=>op2), 1:N_sys))

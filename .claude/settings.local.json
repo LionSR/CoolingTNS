@@ -12,7 +12,9 @@
       "Bash(sed:*)",
       "Bash(timeout:*)",
       "Bash(ls:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "WebFetch(domain:docs.yaoquantum.org)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

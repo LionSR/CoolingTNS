@@ -8,6 +8,7 @@ sampling, and tracing out subsystems.
 using ITensors
 using ITensorMPS
 using Yao
+using Yao: measure!
 using LinearAlgebra
 
 # ============================================================================
@@ -36,14 +37,16 @@ end
 
 # --- ED Backend ---
 function append_bath(::EDBackend, ψ_s::ArrayReg, N_bath::Int)
-    # Fresh bath in ground state |111...⟩
-    ψ_bath = ArrayReg(bit"1"^N_bath)
+    # Fresh bath in ground state |000...⟩
+    bath_config = 0  # All bits set to 0
+    ψ_bath = product_state(N_bath, bath_config)
     return kron(ψ_s, ψ_bath)
 end
 
 function append_bath(::EDBackend, ρ_s::Matrix, N_bath::Int)
-    # Fresh bath density matrix in ground state |111...⟩⟨111...|
-    ψ_bath = ArrayReg(bit"1"^N_bath)
+    # Fresh bath density matrix in ground state |000...⟩⟨000...|
+    bath_config = 0  # All bits set to 0
+    ψ_bath = product_state(N_bath, bath_config)
     ρ_bath = projector(ψ_bath)
     return kron(ρ_s, ρ_bath)
 end
@@ -86,18 +89,16 @@ function process_bath(::EDBackend, ::MonteCarloWavefunction, ψ_evolved::ArrayRe
     
     # Measure bath qubits
     reg_measured = copy(ψ_evolved)
-    measured_results = Yao.measure!(reg_measured, bath_qubits)
+    # Use measure with RemoveMeasured() to get post-measurement state
+    measured_results = measure!(RemoveMeasured(), reg_measured, bath_qubits)
     
-    # Focus on system qubits and create new register
-    sys_qubits = collect(1:N_sys)
-    focused_reg = Yao.focus!(reg_measured, sys_qubits)
-    sys_state_vec = Yao.statevec(focused_reg)
+    # After measurement, reg_measured contains only system qubits
+    ψ_sys = reg_measured
     
-    # Create new register with just system qubits
-    ψ_sys = ArrayReg(sys_state_vec[1:(1<<N_sys)])
-    
-    # Convert measurement results to integer array
-    bath_samples = [Int(b) for b in measured_results]
+    # Convert measurement results to integer array (0 or 1)
+    # measured_results is a BitStr - convert to integer then to bit array
+    measured_int = Int(measured_results)
+    bath_samples = [Int((measured_int >> (i-1)) & 1) for i in 1:N_bath]
     
     return ψ_sys, bath_samples
 end

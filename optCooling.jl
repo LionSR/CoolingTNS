@@ -134,7 +134,7 @@ function run_optimization(parsed_args)
         init_coupling_params.delta
     )
     
-    filename = CoolingTNS.create_filename(ham_name, ham_params, final_coupling_params, sim_params, backend)
+    filename = CoolingTNS.create_filename(ham_params, final_coupling_params, sim_params, backend)
     search_params = Dict("search_method" => search_method, "num_trials" => num_trials)
     filename = "Optimize$(filename)_$(CoolingTNS.create_search_name_part(search_params))"
 

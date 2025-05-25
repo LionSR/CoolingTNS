@@ -81,6 +81,13 @@ function sample_bath(rng::AbstractRNG, m::MPS)
         end
         # println("iter $i, n=$n, pn=$pn, norm(m_rest)=$(norm(m_rest))")
     end
+    
+    # After sampling, m_rest contains only system sites
+    # Ensure the MPS has the correct length (should be N system sites)
+    if length(m_rest) != N
+        error("After bath sampling, MPS has incorrect length: expected $N, got $(length(m_rest))")
+    end
+    
     # normalize!(m_rest)
     return result, m_rest
 end

@@ -5,6 +5,8 @@ __precompile__(false)  # Disable precompilation due to LuxurySparse issues
 # Import ITensors package
 using ITensors
 using ITensorMPS
+using Printf
+using SparseArrays
 
 # For convenience, here we should just include all the files that are still being used
 
@@ -29,6 +31,7 @@ include("setup_system.jl")          # System setup using the above
 include("system_bath_hamiltonian.jl") # System-bath coupling
 include("trotter.jl")               # Trotter circuit construction
 include("initial_state.jl")         # Initial state preparation
+include("evolution.jl")             # Time evolution functions
 include("cooling_evolution.jl")     # Cooling evolution
 include("setup.jl")                 # setup_problem implementations
 

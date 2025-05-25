@@ -7,6 +7,18 @@ Unified initial state setup using multiple dispatch on SimulationMethod and back
 using ITensors
 using ITensorMPS
 using Yao
+using LinearAlgebra
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+"""Create completely mixed state (maximally mixed density matrix)"""
+function completely_mixed_state(N::Int)
+    # ρ = I / 2^N
+    dim = 2^N
+    return Matrix(I, dim, dim) / dim
+end
 
 # ============================================================================
 # Main Initial State Interface
@@ -33,9 +45,8 @@ function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::Uni
                            init_type::String, theta::Float64) where E<:EvolutionMethod
     # Get sites from the ground state MPS
     ϕ₀ = problem.ϕ₀
-    sites = siteinds(ϕ₀)
-    N = length(sites) ÷ 2
-    sites_sys = sites[1:2:2N-1]
+    sites_sys = siteinds(ϕ₀)  # ϕ₀ already has only system sites
+    N = length(sites_sys)
 
     if init_type == "identity"
         # Create maximally mixed state (equal superposition)
@@ -116,9 +127,8 @@ function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::Uni
                            init_type::String, theta::Float64) where E<:EvolutionMethod
     # Get sites from ground state or H_sys
     ϕ₀ = problem.ϕ₀
-    sites = siteinds(ϕ₀)
-    N = length(sites) ÷ 2
-    sites_sys = sites[1:2:2N-1]
+    sites_sys = siteinds(ϕ₀)  # ϕ₀ already has only system sites
+    N = length(sites_sys)
     
     if init_type == "identity"
         # Maximally mixed state (identity matrix)
