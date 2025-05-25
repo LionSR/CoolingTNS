@@ -1,0 +1,1453 @@
+\section{Derivation of the Mode-Dependent Hamiltonian}
+\label{app:Hk_derivation}
+
+In this appendix, we present the details about the block-diagonalization of the Hamiltonian considered in this work. We will first diagonalize the system Hamiltonian and then block-diagonalize the total Hamiltonian. Throughout this and other appendices, we will use dimensionless units for all energy scales and coupling constants.
+
+% ------------------------------------------------------------
+\subsection{System Hamiltonian}
+
+The system will be composed of an even number, $N$, of fermionic modes. The system Hamiltonian is given by
+\begin{align}
+    H_S &= \frac{1}{2} \sin\theta \sum_{n=1}^N (a_n^\dagger a_n - a_n a_n^\dagger)\nonumber\\
+        &\quad + \frac{1}{2} \cos\theta \sum_{n=1}^N [a_n^\dagger (a_{n+1} + i a_{n+1}^\dagger) + \text{h.c.}],
+    \label{eq:app:system-hamiltonian}
+\end{align}
+where $a_n$ ($a_n^\dagger$) denotes the fermionic annihilation (creation) operator at site $n$, with the periodic boundary condition $a_{N+1} = a_{1}$.
+
+As mentioned in \cref{subsec:sys_model} of the main text, the system Hamiltonian is traceless and possesses various symmetries, which allow us to restrict, without loss of generality, $\theta$ to the interval $[0,\pi/2]$. This will be further proved in \cref{app:theta_mapping}.
+
+We now derive the momentum-space formulation of \cref{eq:app:system-hamiltonian}. We begin by introducing the Fourier transform for an even number $N$ of fermionic modes:
+\begin{align}
+    \tilde{a}_k         &= \frac{1}{\sqrt{N}} \sum_{n=1}^N e^{i \frac{2\pi k n}{N}} a_n,\\
+    \tilde{a}_k^\dagger &= \frac{1}{\sqrt{N}} \sum_{n=1}^N e^{-i \frac{2\pi k n}{N}} a_n^\dagger.
+\end{align}
+The operators $\tilde{a}_k$ and $\tilde{a}_k^\dagger$ are defined to be the annihilation and creation operators in momentum space. These definitions can be inverted using the orthogonality relation $\sum_{n=1}^N e^{i \frac{2\pi (k-q) n}{N}} = N \delta_{k,q}$ to obtain
+\begin{equation}
+    \label{eq:fourier_def_ann}
+    a_n = \frac{1}{\sqrt{N}} \sum_{k=-N/2+1}^{N/2} e^{-i \frac{2\pi k n}{N}}  \tilde{a}_k,
+\end{equation}
+and similarly for $a_n^\dagger$. Here, $k$ runs over integer values from $-N/2+1$ to $N/2$.
+
+Expressing $H_S$ in terms of the new operators leads to:
+\begin{equation}
+    H_S=\sum_{k=1}^{N/2-1} \tilde{\alpha}_k^\dagger \tilde{H}_k \tilde{\alpha}_k+ H_{k=0}+H_{k=N/2}.
+\end{equation}
+Here, we defined for any $k$ such that $1 \le k \le N/2-1$ the vector
+\begin{align}
+    \tilde{\alpha}_k =
+    \begin{pmatrix}
+        \tilde{a}_k\\
+        \tilde{a}_{-k}^\dagger
+    \end{pmatrix}
+\end{align}
+and the $2 \times 2$ matrix $\tilde{H}_k$ is given by
+\begin{align}
+    \tilde{H}_k
+     &=
+    \begin{pmatrix}
+        w_k   &r_k\\
+        r_k^* &-w_k
+    \end{pmatrix}\nonumber\\
+     &\equiv
+    \begin{pmatrix}
+        \sin\theta + \cos\theta \cos(\frac{2\pi k}{N})
+         &
+        \cos\theta \sin(\frac{2\pi k}{N})
+        \\
+        \cos\theta \sin(\frac{2\pi k}{N})
+         &
+        -\left[ \sin\theta + \cos\theta \cos(\frac{2\pi k}{N})\right]
+    \end{pmatrix}.
+    \label{eq:Hk_2x2_matrix}
+\end{align}
+Moreover, since terms such as $\tilde{a}_0^\dagger \tilde{a}_{-0}^\dagger$ vanish due to the fermionic anticommutation relation, we obtain only diagonal terms for both $H_{k=0,N/2}$. In particular, we have
+\begin{align}
+    H_{k=0}
+     &=
+    \frac{1}{2} \sin\theta
+    \Bigl(\tilde{a}_0^\dagger \tilde{a}_0
+    -
+    \tilde{a}_0 \tilde{a}_0^\dagger
+    \Bigr) +
+    \frac{1}{2} \cos\theta
+    \Bigl[
+        \tilde{a}_0^\dagger \tilde{a}_0
+        +
+        \tilde{a}_0 \tilde{a}_0^\dagger
+        \Bigr]
+\end{align}
+and
+\begin{align}
+    H_{k=N/2}
+     &=
+    \frac{1}{2} \sin\theta
+    \Bigl(\tilde{a}_{N/2}^\dagger \tilde{a}_{N/2}
+    -
+    \tilde{a}_{N/2} \tilde{a}_{N/2}^\dagger
+    \Bigr)\nonumber\\
+     &\quad
+    - \frac{1}{2} \cos\theta
+    \Bigl(\tilde{a}_{N/2}^\dagger \tilde{a}_{N/2} +
+    \tilde{a}_{N/2} \tilde{a}_{N/2}^\dagger
+    \Bigr),
+\end{align}
+which is diagonal in the mode $\tilde{a}_{N/2}$. Using this way of grouping the terms in the Hamiltonian, we see that, apart from the cases $k=0,N/2$, we only need to sum over the positive values $k=1,2,\ldots,N/2-1$, as the negative $-k$ are automatically included.
+
+% ------------------------------------------------------------
+\subsection{Bogoliubov transformation and diagonalization}
+
+We now diagonalize each block Hamiltonian via a Bogoliubov transformation. We focus on the generic modes with $1 \leq k \leq N/2-1$, which appear in $2\times 2$ block form. The special cases at $k=0$ and $k=N/2$ are already diagonal as shown above.
+
+\subsubsection{Diagonalizing the \texorpdfstring{$2\times 2$}{2 by 2} block for generic \texorpdfstring{$k$}{k}}
+
+Because each $2\times 2$ matrix $\tilde{H}_k$ (\cref{eq:Hk_2x2_matrix}) is real and symmetric, it is diagonalizable through a real orthogonal transformation. The eigenvalues are $\pm \epsilon_k$ with
+
+\begin{equation}
+    \epsilon_k = \sqrt{w_k^2 + r_k^2}=\sqrt{1 + \sin2\theta \cos\frac{2\pi k}{N}},
+    \label{eq:app:epsilonk}
+\end{equation}
+
+To determine the eigenvector corresponding to $+\epsilon_k$, we parameterize the real, normalized eigenvector as
+\begin{align}
+    \begin{pmatrix}
+        x\\
+        y
+    \end{pmatrix} = \begin{pmatrix}
+                        \cos(\varphi_k)\\
+                        \sin(\varphi_k)
+                    \end{pmatrix}.
+    \label{eq:bog_positive_eigenvector_ansatz}
+\end{align}
+Substituting \cref{eq:bog_positive_eigenvector_ansatz} in the eigenvalue equation and solving for the ratio of components, we get
+\begin{align}
+    \frac{\sin(\varphi_k)}{\cos(\varphi_k)} = \tan(\varphi_k) = \frac{\epsilon_k - w_k}{r_k}.
+    \label{eq:bog_ratio_sin_cos}
+\end{align}
+As the eigenvector to eigenvalue $-\epsilon_k$ is necessarily the real vector orthogonal to the one given in \cref{eq:bog_positive_eigenvector_ansatz}, we have that the real orthogonal matrix $U_k$ that diagonalizes $\tilde{H}_k$ is
+\begin{align}
+    U_k &=
+    \begin{pmatrix}
+        \cos(\varphi_k) &- \sin(\varphi_k)\\
+        \sin(\varphi_k) &\quad\cos(\varphi_k)
+    \end{pmatrix},
+    \label{eq:bog_Uk_matrix}
+\end{align}
+Explicitly, we have $U_k^\mathsf{T} \tilde{H}_k U_k= \mbox{diag}(\epsilon_k, -\epsilon_k)$.
+Moreover, we can obtain a more explicit final result for $\tan(2\varphi_k)$ by applying trigonometric identities and substituting the expressions for $\epsilon_k$, $w_k$, and $r_k$ into \cref{eq:bog_ratio_sin_cos}:
+\begin{align}
+    \tan2\varphi_k
+     &=
+    \frac{2 \tan(\varphi_k)}{1 - \tan^2(\varphi_k)}\nonumber\\
+     &=
+    \frac{\sin(\frac{2\pi k}{N})}{\tan\theta +\cos(\frac{2\pi k}{N})} = \frac{r_k}{w_k}.
+    \label{eq:bog_tan_phi_k_final}
+\end{align}
+
+
+\subsubsection{Mapping to Bogoliubov quasiparticles}
+
+This diagonalization at the matrix level defines a canonical transformation on the fermionic operators. Recall that
+\begin{align}
+    \tilde{\alpha}_k = \begin{pmatrix}
+                           \tilde{a}_k\\
+                           \tilde{a}_{-k}^\dagger
+                       \end{pmatrix}.
+\end{align}
+The Bogoliubov transformation defined by
+\begin{align}
+    \hat{\alpha}_k = U_k^\mathsf{T} \tilde{\alpha}_k =
+    \begin{pmatrix}
+        \cos(\varphi_k) \tilde{a}_k
+        +
+        \sin(\varphi_k) \tilde{a}_{-k}^\dagger
+        \\
+        -\sin(\varphi_k) \tilde{a}_k
+        +
+        \cos(\varphi_k) \tilde{a}_{-k}^\dagger
+    \end{pmatrix},
+\end{align}
+diagonalizes the Hamiltonian block $\tilde{H}_k$, i.e.,
+\begin{align}
+    \hat{\alpha}_k^\dagger
+    \begin{pmatrix}
+        + \epsilon_k &0\\
+        0            &- \epsilon_k
+    \end{pmatrix}
+    \hat{\alpha}_k
+    = + \epsilon_k \hat{a}_k^\dagger \hat{a}_k
+    -
+    \epsilon_k \hat{a}_{-k} \hat{a}_{-k}^\dagger,
+\end{align}
+for each $k\neq 0,N/2$.
+
+
+\subsubsection{Diagonalized system Hamiltonian and ground-state energy}
+
+Putting together all modes, including the special cases at $k=0$ and $k=N/2$, the Hamiltonian becomes
+\begin{align}
+    H_S
+     &= \sum_{k=0}^{N/2} \epsilon_k h_k,
+    \label{eq:bogoliubov_HS_diag}
+\end{align}
+where $\epsilon_k=\epsilon_{-k}$ and for the special cases $k=0$ or $k=N/2$ (those modes appear purely diagonally) we have $\hat{a}_k=\hat{a}_{-k}^\dagger$. The operators $h_k$ are given by  $h_k=\hat{a}^\dagger_k \hat{a}_k-\hat{a}_{-k}\hat{a}_{-k}^\dagger$ for $k=1,\ldots,N/2-1$ and $h_k=\hat{a}_k^\dagger \hat{a}_k-\hat{a}_k \hat{a}_k^\dagger$ for $k=0,N/2$.
+
+Consequently, the ground state of $H_S$ is the vacuum state annihilated by all $\hat{a}_k$, i.e.,
+\begin{align}
+    \hat{a}_k\ket{\Psi_{GS}}=0
+    \quad
+    \text{for all }
+    k,
+\end{align}
+and the ground-state energy is
+\begin{align}
+    E_{GS} = - \frac{1}{2}
+    \sum_{k=-N/2+1}^{N/2}
+    \epsilon_k,
+\end{align}
+with $\epsilon_k$ given in \cref{eq:app:epsilonk}.
+
+% ------------------------------------------------------------
+\subsection{Bath Hamiltonian}
+
+The system is coupled to a bath consisting of $N$ independent fermionic sites with Hamiltonian:
+\begin{equation}
+    H_B = \frac{\Delta}{2}\sum_{n=1}^N \left(b_n^\dagger b_n - b_n b_n^\dagger\right),
+    \label{eq:bath-hamiltonian}
+\end{equation}
+where $b_n$ ($b_n^\dagger$) denotes the bath fermionic annihilation (creation) operator at site $n$, and $\Delta$ is the bath energy splitting. The bath is initialized in its ground state $\rho_B = \ket{\Omega}\bra{\Omega}$ at the beginning of each cooling cycle, and this ground state is annihilated by each $b_n$, i.e., $b_n\ket{\Omega}=0$.
+
+We now transform \cref{eq:bath-hamiltonian} to momentum space, following the same steps as in the system Hamiltonian derivation. We use the same (inverse) Fourier transformation as before and obtain
+\begin{align}
+    H_B = \frac{\Delta}{2}
+    \sum_{k=-N/2+1}^{N/2}
+    (\tilde{b}_k^\dagger \tilde{b}_k -\tilde{b}_k \tilde{b}_k^\dagger).
+    \label{eq:bath-hamiltonian-momentum-derived}
+\end{align}
+We now organize the sum in \cref{eq:bath-hamiltonian-momentum-derived} to pair positive and negative modes, yielding $2\times 2$ blocks for generic $k$ and diagonal terms for $k=0, N/2$:
+\begin{align}
+    H_B
+     &=
+    \sum_{k=1}^{N/2-1}
+    \tilde{\beta}_k^\dagger \hat{H}_k \tilde{\beta}_k+
+    \frac{\Delta}{2}
+    (\tilde{b}_0^\dagger \tilde{b}_0 - \tilde{b}_0 \tilde{b}_0^\dagger)\nonumber\\
+     &\quad  +
+    \frac{\Delta}{2}
+    (\tilde{b}_{N/2}^\dagger \tilde{b}_{N/2} - \tilde{b}_{N/2} \tilde{b}_{N/2}^\dagger),
+\end{align}
+where
+\begin{align}
+    \tilde{\beta}_k = \begin{pmatrix}
+                          \tilde{b}_k\\
+                          \tilde{b}_{-k}^\dagger
+                      \end{pmatrix}, \quad
+    \hat{H}_k = \begin{pmatrix}
+                    \Delta &0\\
+                    0      &-\Delta
+                \end{pmatrix}.
+\end{align}
+
+
+% ------------------------------------------------------------
+\subsection{Coupling to the bath}
+
+The system-bath coupling is assumed to be translation-invariant and extends up to a range of $nn$ nearest neighbors. It is given by
+\begin{equation}
+    {V}_{SB} = g \sum_{n=1}^N \sum_{j=-nn}^{nn} \left[\left(\lambda_j a_n^\dag {b}_{n+j} + i \mu_j a_n {b}_{n+j}\right) + \text{h.c.}\right],
+    \label{eq:system-bath-coupling}
+\end{equation}
+where $g$ is the coupling strength, and $\lambda_j,\mu_j\le 1$ are dimensionless coupling constants to modes for different neighbor distances $j$.
+
+To analyze this coupling in momentum space, we substitute the Fourier transforms of the system and bath operators (\cref{eq:fourier_def_ann}) into \cref{eq:system-bath-coupling}. After simplifying, this yields:
+\begin{align}
+    V_{SB} &= g \sum_{k=-N/2+1}^{N/2} \bigg[\left(\sum_{j=-nn}^{nn} \lambda_j e^{-i \frac{2\pi kj}{N}}\right) \tilde{a}_k^\dagger \tilde{b}_k\\
+           &\quad + i\left(\sum_{j=-nn}^{nn} \mu_j e^{-i \frac{2\pi kj}{N}}\right) \tilde{a}_{-k} \tilde{b}_k + \text{h.c.}\bigg]
+\end{align}
+Organizing $V_{SB}$ into blocks pairing $k$ with $-k$ modes, we can write:
+\begin{equation}
+    V_{SB} = \sum_{k=0}^{N/2} \tilde{\alpha}_k^\dagger v_{SB,k} \tilde{\alpha}_k,
+    \label{eq:app:HSBMomentum}
+\end{equation}
+where for each positive $k$ (except $k=0,N/2$), we define the four-component vector:
+\begin{equation}
+    \tilde{\alpha}_k = \begin{pmatrix}
+        \tilde{a}_k\\
+        \tilde{a}_{-k}^\dagger\\
+        \tilde{b}_k\\
+        \tilde{b}_{-k}^\dagger
+    \end{pmatrix}.
+\end{equation}
+
+
+
+In \cref{sec:multifreq_longtime} of the main text, we consider only local couplings ($nn=0$) with $\lambda_0=\mu_0=1$, for which we have
+\begin{equation}
+    \label{eq:local_coupling_nn0}
+    V_{SB} = g\sum_{k=-N/2+1}^{N/2} [\tilde{a}_k^\dagger \tilde{b}_k + i\tilde{a}_k \tilde{b}_{-k} + \tilde{b}_k^\dagger \tilde{a}_k - i\tilde{b}_{-k}^\dagger \tilde{a}_k^\dagger].
+\end{equation}
+That is, in this case we have for $1 \leq k \leq N/2-1$ the matrices $v_{SB,k}$ are given by
+\begin{equation}
+    v_{SB,k} = g\begin{pmatrix}
+        0  &0  &1 &i\\
+        0  &0  &i &-1\\
+        1  &-i &0 &0\\
+        -i &-1 &0 &0
+    \end{pmatrix}.\label{eq:vSB_k}
+\end{equation}
+and for $k=0$ and $k=N/2$ we have
+\begin{equation}
+    v_{SB,0} = v_{SB,N/2} = v_{SB,k}/2
+    \label{eq:vSB_0}
+\end{equation}
+with the corresponding vectors
+\begin{equation}
+    \tilde{\alpha}_0 = \begin{pmatrix}
+        \tilde{a}_0\\
+        \tilde{a}_0^\dagger\\
+        \tilde{b}_0\\
+        \tilde{b}_0^\dagger
+    \end{pmatrix},\quad \tilde{\alpha}_{N/2} = \begin{pmatrix}
+        \tilde{a}_{N/2}\\
+        \tilde{a}_{N/2}^\dagger\\
+        \tilde{b}_{N/2}\\
+        \tilde{b}_{N/2}^\dagger
+    \end{pmatrix}.
+\end{equation}
+
+
+\subsection{The total Hamiltonian}
+
+The total Hamiltonian can now be written as the following sum over Hamiltonians of pairs of modes, $(k,-k)$:
+\begin{equation}
+    H_{SB} = H_S + H_B + V_{SB} = \sum_{k=0}^{N/2} \hat{\alpha}_k^\dagger h_{SB,k} \hat{\alpha}_k.\\
+    \label{eq:app:HSB}
+\end{equation}
+for both local and non-local coupling. Let us first consider the case of local coupling ($nn=0$), as discussed in \cref{sec:multifreq_longtime}, where for generic $k$ ($1 \leq k \leq N/2-1$) we have
+\begin{align}
+    h_{SB,k} &=
+    \begin{pmatrix}
+        w_k &r_k  &g      &gi\\
+        r_k &-w_k &gi     &-g\\
+        g   &-gi  &\Delta &0\\
+        -gi &-g   &0      &-\Delta
+    \end{pmatrix},
+\end{align}
+with
+\begin{align}
+    w_k &= \sin\theta + \cos\theta\cos(2\pi k/N),\\
+    r_k &= \cos\theta\sin(2\pi k/N).
+\end{align}
+For the special cases $k=0$ and $k=N/2$, we multiply the matrices $h_{S,k}$, $h_{B,k}$, and $v_{SB,k}$ by $1/2$ as shown in \cref{eq:vSB_0}, and the entries $w_k$ and $r_k$ are evaluated at the corresponding values of $k=0$ and $k=N/2$.
+For the case where coupling is not local (i.e., $nn>0$), the derivation is similar. However, the entries of the matrices depend on the values of various coupling constants $\lambda_j$ and $\mu_j$. The final result for this case is presented below.
+
+\subsection{Block diagonalization of the total Hamiltonian}
+
+
+We apply the Bogoliubov transformation derived earlier for the system modes to the full Hamiltonian. The transformation matrix $U_k$ for the system part is extended to act on the full four-component space:
+\begin{equation}
+    \mathcal{U}_k =
+    \begin{pmatrix}
+        U_k &0\\
+        0   &I_2
+    \end{pmatrix}
+\end{equation}
+where $I_2$ is the $2\times 2$ identity matrix and $U_k$ is given in \cref{eq:bog_Uk_matrix}.
+The transformed matrices $\hat{h}_{SB,k} = \mathcal{U}_k^\mathsf{T} h_{SB,k} \mathcal{U}_k$ for generic $k$ are given by
+\begin{align}
+    \hat{h}_{SB,k} &=
+    \begin{pmatrix}
+        \epsilon_k          &0                   &g e^{i\varphi_k}   &ig e^{i\varphi_k}\\
+        0                   &-\epsilon_k         &ig e^{-i\varphi_k} &-g e^{i\varphi_k}\\
+        g e^{-i\varphi_k}   &-ig e^{-i\varphi_k} &\Delta             &0\\
+        -ig e^{-i\varphi_k} &-g e^{-i\varphi_k}  &0                  &-\Delta
+    \end{pmatrix}.
+\end{align}
+For the special cases $k=0$ and $k=N/2$, we follow the same procedure but note the extra factor of 1/2. The final transformed Hamiltonian takes the block-diagonal form:
+\begin{equation}
+    H_{SB} = \sum_{k=0}^{N/2} \hat{\alpha}_k^\dagger \hat{h}_{SB,k} \hat{\alpha}_k,
+\end{equation}
+where $\hat{\alpha}_k = \mathcal{U}_k^\mathsf{T} \tilde{\alpha}_k$ are the transformed operators, and $\hat{h}_{SB,k}$ is the block Hamiltonian derived in \cref{subsec:total_hamiltonian} of the main text.
+
+If the nearest neighbor distance extends beyond local couplings ($nn>0$), the procedure is the same and the Hamiltonian per each block $(k,-k)$ is given by
+\begin{align}
+    \hat{h}_{SB,k} &=
+    \begin{pmatrix}
+        \epsilon_k &0           &gA_k   &gB_k\\
+        0          &-\epsilon_k &gB_k   &-g A_k\\
+        g A_k^*    &g B_k^*     &\Delta &0\\
+        gB_k^*     &-g A_k^*    &0      &-\Delta
+    \end{pmatrix},\label{eq:hsb_momentum_space_nn>0}
+\end{align}
+where the coupling coefficients are:
+\begin{align}
+    A_k &=\sum_{j=-nn}^{nn}\left(\cos(\varphi_k)\lambda_j+i\sin(\varphi_k)\mu_j\right)e^{-i\frac{2\pi jk}{N}}
+    \label{eq:Ak in hsb_k}\\
+    B_k &=\sum_{j=-nn}^{nn}\left(-\sin(\varphi_k)\lambda_j+i\cos(\varphi_k)\mu_j\right)e^{-i\frac{2\pi jk}{N}}.
+    \label{eq:Bk in hsb_k}
+\end{align}
+
+For the case $nn=0$, $\lambda_0=\mu_0=1$, we have $A_k = e^{i\varphi_k}$ and $B_k = ie^{-i\varphi_k}$.
+
+\subsection{Restricting to $\theta\in[0,\pi/2]$}
+\label{app:theta_mapping}
+
+As explained in \cref{subsec:sys_model} of the main text, in case of local coupling ($nn=0$) and $\lambda_0=\mu_0=1$, we can restrict $\theta$ to the region $[0,\pi/2]$. Here, we show that this also holds for the general case of non-local couplings. To this end, we show that systems with $\theta$ outside this region can be mapped to equivalent systems within the region by appropriate transformations of the coupling parameters.
+
+Let us first analyze the mapping $\theta \rightarrow -\theta$. Under this transformation, the system Hamiltonian $H_S$ [\cref{eq:system_hamiltonian_realspace}] undergoes sign changes in its terms. This transformation can be implemented through a mapping of fermionic operators where mode $k$ is mapped to $k\pm N/2 \mod N$. Specifically, $k=0$ is mapped to $k'=N/2$, mode $k=1$ to $k'=-N/2+1$, and vice versa, mode $k=-N/2+1$ to $k'=1$, etc.
+For the system-bath coupling [\cref{eq:system-bath-coupling_realspace}], this transformation requires the coupling constants to transform as:
+\begin{align}
+    \lambda_j' &= \lambda_j(-1)^j,\\
+    \mu_j'     &= \mu_j(-1)^j.
+\end{align}
+
+In the special case where $nn=0$, this mapping reduces to the symmetry explained in \cref{subsec:sys_model} of the main text since the only relevant coupling constants are $\lambda_0$ and $\mu_0$, which remain unchanged.
+
+The other symmetry appears when considering the transformation $\theta'=\pi+\theta$. In this case, the two modes being mapped to one another are the same, $k'=k$, since this change in $\theta$ keeps the energy of each mode invariant. Specifically, we have:
+\begin{align}
+    \epsilon_k(\theta+\pi) &= \epsilon_k(\theta),\\
+    \varphi_k(\theta+\pi)  &= \varphi_k(\theta),
+\end{align}
+where the second equation follows from $\tan(\theta+\pi)=\tan(\theta)$.
+Since these quantities remain invariant, there is no need to modify the coupling constants $\lambda_j$ and $\mu_j$ under this transformation.
+
+By combining these two symmetries, we can map any value of $\theta$ from the region $[-\pi/2,3\pi/2]$ to a value within the range $[0,\pi/2]$, with appropriate adjustments to the coupling constants. This extends the result mentioned in \cref{subsec:sys_model} of the main text to the general case of non-local coupling ($nn > 0$).
+
+\section{Noise}
+\label{app:secIV_noise}
+
+In this appendix, we present the details about the cooling map in the presence of depolarizing noise as described in \cref{sec:adding_decoherence}. We start by showing that the cooling and noise Lindbladians commute and then derive the cooling map and the modified states on which the map acts.
+
+\subsection{Proof that \texorpdfstring{$\mathcal{L}_C$}{LC} commutes with \texorpdfstring{$\mathcal{L}_E$}{LE}}
+\label{app:LcCommuteLe}
+
+
+The total evolution during a cooling cycle is governed by the master equation:
+\begin{equation}
+    \dot \rho_{SB} = \mathcal{L}_C(\rho_{SB}) + \mathcal{L}_E(\rho_{SB}),
+\end{equation}
+where $\mathcal{L}_C(\rho) = -i [H_{SB},\rho]$ generates the unitary evolution under the system-bath Hamiltonian $H_{SB}$, and $\mathcal{L}_E$ represents the environmental noise:
+\begin{equation}
+    \mathcal{L}_E = \kappa\sum_{n=1}^N \left[\mathcal{L}_{a_n} + \mathcal{L}_{a_n^\dagger} + \mathcal{L}_{b_n} + \mathcal{L}_{b_n^\dagger}\right].
+    \label{eq:app:LE_def}
+\end{equation}
+Here, $\mathcal{L}_O(\rho) = O\rho O^\dagger - \frac{1}{2}\{O^\dagger O,\rho\}$.
+Using the fermionic anticommutation relations, we can simplify the noise Lindbladian to:
+\begin{equation}
+    \mathcal{L}_E(\rho) = \kappa\sum_{n=1}^N \left[ (a_n\rho a_n^\dagger + a_n^\dagger\rho a_n - \rho) + (b_n\rho b_n^\dagger + b_n^\dagger\rho b_n - \rho) \right].
+    \label{eq:LE_explicit_app}
+\end{equation}
+
+
+We will prove that $[\mathcal{L}_C, \mathcal{L}_E] = 0$.
+The commutation relation is equivalent to showing that $\mathcal{L}_E$ is invariant under the unitary evolution generated by $H_{SB}$, i.e., that the following equality holds for $U(t) = e^{-i H_{SB} t}$:
+\begin{equation}
+    \mathcal{L}_E^I(\rho) \equiv U(t)^\dagger \mathcal{L}_E(U(t) \rho U(t)^\dagger) U(t) = \mathcal{L}_E(\rho),\label{eq:LE_invariance_condition}
+\end{equation}
+where $\mathcal{L}_E^I$ denotes the noise Lindbladian in the interaction picture with respect to $H_{SB}$. This can be easily seen as follows. Let us denote by $R=(a_1,\ldots, a_n, b_1,\ldots, b_n, a_1^\dagger,\ldots, a_n^\dagger, b_1^\dagger,\ldots, b_n^\dagger)$. Then, the fermionic anticommutation relations read $\{R_i,R_j^\dagger\}=\delta_{i,j}$. As the Hamiltonian $H_{SB}$ is quadratic in the fermionic operators, its action transforms $R$ into a vector $S=A R$, for some $4n\times 4n$ dimensional matrix $A$. Furthermore, $S$ has to obey the fermionic anticommutation relations, i.e., $\{S_i,S_j^\dagger\}=\delta_{i,j}$, which is fulfilled iff $A$ is unitary. Using this, it is straightforward to see that
+\begin{equation}
+    \mathcal{L}_E(\rho) =\sum_{i=1}^{4n}\left[ (R_i\rho R_i^\dagger  - 2 \rho) \right]=\sum_{i=1}^{4n}\left[ (S_i\rho S_i^\dagger  - 2 \rho) \right]= \mathcal{L}_E^I(\rho), \label{eq:LE_invariance_proof}
+\end{equation}
+which proves the statement. This commutation relation allows us to factorize the time evolution as follows
+\begin{align}
+    e^{(\mathcal{L}_C + \mathcal{L}_E)t} &= e^{\mathcal{L}_C t} e^{\mathcal{L}_E t} = e^{\mathcal{L}_E t} e^{\mathcal{L}_C t}.
+\end{align}
+Therefore, the noisy cooling map $\mathcal{N}$ for one cycle can be expressed as applying the noise evolution $e^{\mathcal{L}_E t}$ first, followed by the noiseless cooling map $\mathcal{E}$ (which corresponds to $e^{\mathcal{L}_C t}$ and tracing over the bath):
+\begin{align}
+    \mathcal{N}(\rho_S)
+     &= \tr_B\left[e^{(\mathcal{L}_C + \mathcal{L}_E)t}(\rho_S \otimes \rho_B)\right] \nonumber\\
+     &= \tr_B\left[e^{-iH_{SB}t} (\tilde{\rho}_S \otimes \tilde{\rho}_B) e^{i H_{SB}t}\right],
+\end{align}
+where $\tilde{\rho}_S = e^{\mathcal{L}_E t}(\rho_S)$ is the system density matrix evolved under noise, and $\tilde{\rho}_B = e^{\mathcal{L}_E t}(\rho_B)$ is the evolved bath state.
+
+
+In order to determine $\tilde{\rho}_B$ we first note that the initial state of the bath is its ground state, i.e., $\rho_B = \ket{\Omega}\bra{\Omega} = \bigotimes_{n=1}^N \ket{0_n}\bra{0_n}$. Note further that $\mathcal{L}_E$ acts independently on each site $n$. Hence, we can determine $\tilde{\rho}_B = e^{\mathcal{L}_E t}(\rho_B)$ by focusing on bath modes individually.
+We consider a single bath mode $b_n$ and solve the master equation $\dot{\rho}_{B,n} = \kappa (\mathcal{L}_{b_n} + \mathcal{L}_{b_n^\dagger}) \rho_{B,n}$ for the density matrix $\rho_{B,n}$ of site $n$, with initial condition $\rho_{B,n}(0) = \ket{0_n}\bra{0_n}$. Let $\rho_{B,n} = \begin{pmatrix} \rho_{00} & \rho_{01} \\ \rho_{10} & \rho_{11} \end{pmatrix}$. The equations for the matrix elements are:
+\begin{equation}
+    \dot{\rho}_{00} = \kappa (\rho_{11} - \rho_{00})
+    = \kappa (1 - 2\rho_{00})
+\end{equation}
+which has the solution (recall that $\rho_{00}(0) = 1$),
+\begin{align}
+    \rho_{00}(t) = 1-\rho_{11}(t) = \frac{1+e^{-2\kappa t}}{2}.
+\end{align}
+
+
+Similarly, it is straightforward to see that the coherence terms $\rho_{01}$ and $\rho_{10}$ decay exponentially under $\mathcal{L}_E$. This can be easily seen by solving their respective ODEs, leading to
+\begin{equation}
+    \rho_{01}(t)=\rho_{01}(0)e^{-\kappa t}.
+\end{equation}
+with $\rho_{01}(0)=0$.
+Thus, the bath state after the noise evolution for time $t$ is
+\begin{align}
+    \tilde{\rho}_B &= e^{\mathcal{L}_E t}(\ket{\Omega}\bra{\Omega})\nonumber\\
+                   &= \bigotimes_{n=1}^N \left( \frac{1+e^{-2\kappa t}}{2}\ket{\Omega}\bra{\Omega}+\frac{1-e^{-2\kappa t}}{2}\ket{1}\bra{1} \right).
+\end{align}
+This mixed state is then used as the initial state of the bath for the cooling cycle.
+
+Since the form of the noise is the same and independent for both the system and the bath, the time evolution equation for $\rho_S$ under noise alone is the same as that of the bath:
+\begin{align}
+    \frac{d\tilde{\rho}_S}{dt} &= \mathcal{L}_E(\tilde{\rho}_S) = \kappa\sum_{n=1}^N \left[\mathcal{L}_{a_n}(\tilde{\rho}_S) + \mathcal{L}_{a_n^\dagger}(\tilde{\rho}_S)\right].
+\end{align}
+The solution to this equation gives us $\tilde{\rho}_S = e^{\mathcal{L}_E t}(\rho_S(0))$ at time $t$, which is then used as the initial state for the cooling process in the numerical simulations reported in \cref{sec:multifreq_longtime,sec:nn_cooling} of the main text.
+
+Contrary to the bath, we cannot separate the different $n$ modes and calculate the effect of the noise on each of them independently, so one would need to switch to momentum space and act on the 4 by 4 matrices for each $k,-k$ block of $\rho_S$. Additionally, we should take into account that the initial state of the system is different for every cycle. However, as will be shown in \cref{app:Single_freq steady state}, approximations can be made to simplify the noisy map $\mathcal{N}(\rho)$ so this calculation is not needed.
+
+
+\subsection{Noisy map in momentum space}
+
+For numerical simulations, it is convenient to express the master equation derived above in momentum space. The noise Lindbladian in momentum space is obtained by transforming the real-space Lindbladian $\mathcal{L}_E = \kappa\sum_{n=1}^N \left[\mathcal{L}_{a_n} + \mathcal{L}_{a_n^\dagger} + \mathcal{L}_{b_n} + \mathcal{L}_{b_n^\dagger}\right]$ using the Fourier transform. Since the Fourier transform is a unitary transformation (a specific canonical transformation), and $\mathcal{L}_E$ is invariant under canonical transformations as shown in \cref{app:LcCommuteLe}, the form remains the same but with momentum operators:
+\begin{align}
+    \mathcal{L}_E = \kappa\sum_{k=-N/2+1}^{N/2} \left[\mathcal{L}_{\tilde{a}_k} + \mathcal{L}_{\tilde{a}_k^\dagger} + \mathcal{L}_{\tilde{b}_k} + \mathcal{L}_{\tilde{b}_k^\dagger}\right].
+\end{align}
+Due to the translational invariance of both the system Hamiltonian and the noise, the density matrix in momentum space decomposes into a tensor product over momentum modes $(k,-k)$: $\tilde{\rho}_S = \bigotimes_{k=0}^{N/2} \tilde{\rho}_S^{(k)}$ and $\tilde{\rho}_B = \bigotimes_{k=0}^{N/2} \tilde{\rho}_B^{(k)}$.
+
+Due to the block-diagonal structure of both $H_{SB}$ and $\mathcal{L}_E$ in momentum space, the noisy cooling map in momentum space can therefore be written as:
+\begin{align}
+    \mathcal{N}(\rho_S)         &= \bigotimes_{k=0}^{N/2} \mathcal{N}_k(\rho_S^{(k)}) \mbox{ with }\\
+    \mathcal{N}_k(\rho_S^{(k)}) &= \tr_{B_k}\left[e^{-ih_{SB,k}t}(\tilde{\rho}_S^{(k)} \otimes \tilde{\rho}_B^{(k)})e^{i h_{SB,k}t}\right],
+\end{align}
+where $h_{SB,k}$ is the block Hamiltonian for momentum mode $k$ derived in \cref{subsec:total_hamiltonian} of the main text (and \cref{app:Hk_derivation}), and for each momentum mode pair $k$, the bath state evolves to:
+\begin{align}
+    \tilde{\rho}_B^{(k)} = &\left(\frac{1+e^{-2\kappa t}}{2}\ket{\Omega}\bra{\Omega}+\frac{1-e^{-2\kappa t}}{2}\ket{1}\bra{1} \right)^{\otimes 2}.
+\end{align}
+This formulation allows for efficient numerical implementation of the noisy cooling process, where each momentum block can be treated independently, as used in the simulations presented in \cref{sec:multifreq_longtime,sec:nn_cooling}.
+
+\section{Derivation of convergence times}
+\label{app:secIV_calculations}
+
+
+In this appendix, we provide a detailed derivation of the scaling of the cooling time presented in \cref{sec:cooling_times_and_ss}.
+We start out in \cref{subsec:zeroth_order_mixing_time} by showing how the distance between the state obtained after applying $n$ times a general completely positive map~(CPM), ${\cal E}$, to some input state and the unique stationary state of the CPM converges with $n$. In \cref{subsec:global_convergence} we then use the fact that the stationary state of our cooling map factorizes in momentum space to derive a bound on the cooling rate. In \cref{subsec:energy_convergence}, we determine the number of cycles required to achieve an energy density which is close to that of the stationary state.
+
+
+\subsection{Mixing time and convergence to stationary state for generic CPM}
+\label{subsec:zeroth_order_mixing_time}
+
+In order to determine how fast the system converges to the stationary state, we use the relation between the transfer matrix and the CPM. Given a linear map, $T$, with $T(\cdot)=\sum_j L_j \cdot R_j$, the transfer matrix is defined as $\hat{T}=\sum_j L_j \otimes R_j^T$. The relation between the transfer matrix, $\hat{T}$, and the Choi-state, $E$ is $\hat{T}=d E^T$, where $E^T$ is defined via $\langle m,n|E^T | k,l\rangle=\langle m,k|E|n,l\rangle$, i.e., $\hat{T}=d E^{T_B} \text{SWAP}$, where $T_B$ denotes the partial transpose with respect to system $B$ and SWAP is defined via $\text{SWAP} |k,l\rangle=|l,k\rangle$ and $d$ denotes the dimension. It is straightforward to see that the concatenation of maps, $T_1 \circ T_2$ corresponds to the transfer matrix $\hat{T}_1 \cdot \hat{T}_2$. Note that in general $\hat{T}$ will not be Hermitian. Using the Jordan decomposition of $\hat{T}$, one can determine the action of $T^n$. Let us consider the dense set of non-defective matrices, which will be the generic case~\footnote{For non-diagonalizable (defective) matrices, the Jordan decomposition still allows us to analyze the convergence.}. For those we have that the algebraic multiplicity of each eigenvalue coincides with its geometric multiplicity.
+They can be written as $\hat{T}=\sum_k \lambda_k |R_k\rangle \langle L_k|$, where $\langle L_k|R_l\rangle =\delta_{k,l}$, i.e., with biorthogonal right and left eigenvectors of $\hat{T}$. From this decomposition we have $\hat{T}^n = \sum_k \lambda_k^n |R_k\rangle \langle L_k|$. The corresponding map can be written as: $\mathcal{E}(\rho) = \sum_{m} \lambda_m \tilde{\mathcal{E}}_m(\rho)$, where $\tilde{\mathcal{E}}_m$ corresponds to the transfer matrix $ |R_m\rangle \langle L_m|$.
+
+
+Therefore, we have
+\begin{align}
+    \mathcal{E}^n(\rho) = \sum_{m} \lambda_m^n \tilde{\mathcal{E}}_m(\rho).
+    \label{eq:spectral_decomposition_map_n}
+\end{align}
+For a cooling process to be effective and for it to converge to a unique steady state, all eigenvalues other than $\lambda_1 = 1$ must satisfy $|\lambda_m| < 1$ for $m > 1$~\footnote{Recall that we consider here the case where we have a unique stationary state.} As the number of iterations $n$ increases, the terms $\lambda_m^n$ with $|\lambda_m| < 1$ will approach zero.
+
+We can separate the term corresponding to $\lambda_1 = 1$ from the sum in \cref{eq:spectral_decomposition_map_n} to obtain
+\begin{align}
+    \mathcal{E}^n(\rho) &= \tilde{\mathcal{E}}_1(\rho) + \sum_{m=2} \lambda_m^n \tilde{\mathcal{E}}_m(\rho)\nonumber\\
+                        &= \rho_\text{ss} + \sum_{m=2} \lambda_m^n \tilde{\mathcal{E}}_m(\rho).
+\end{align}
+
+To analyze the convergence to the steady state, we consider the difference between the evolved state $\mathcal{E}^n(\rho)$ and the steady state $\rho_\text{ss}$:
+\begin{align}
+    \mathcal{E}^n(\rho) - \rho_\text{ss} = \sum_{m=2} \lambda_m^n \tilde{\mathcal{E}}_m(\rho).
+    \label{eq:difference_evolved_steadystate}
+\end{align}
+The rate of convergence is determined by how quickly this difference goes to zero as $n \to \infty$, which is governed by the eigenvalue $\lambda_2$, with second largest eigenvalue absolute value. Let us assume that there are more eigenvalues, $\lambda_2, \lambda_2', \lambda_2'', \ldots$ with the same magnitude $|\lambda_2|$. We denote the corresponding maps by $\tilde{\mathcal{E}}_2'$, etc. Then, for large $n$, we can approximate the difference as:
+\begin{align}
+    \mathcal{E}^n(\rho) - \rho_\text{ss} &\approx \lambda_2^n \tilde{\mathcal{E}}_2(\rho) + (\lambda_2')^n \tilde{\mathcal{E}}_2'(\rho) + (\lambda_2'')^n \tilde{\mathcal{E}}_2''(\rho) + \cdots \nonumber\\
+                                         &= \lambda_2^n \left[ \tilde{\mathcal{E}}_2(\rho) + \tilde{\mathcal{E}}_2'(\rho) + \tilde{\mathcal{E}}_2''(\rho) + \cdots \right],
+    \label{eq:difference_evolved_steadystate_approx}
+\end{align}
+where we have factored out $\lambda_2^n$ and redefined $\tilde{\mathcal{E}}_2'$, etc.~with a possible phase.
+To quantify the convergence, we take the one-norm of the difference:
+\begin{align}
+    \|\mathcal{E}^n(\rho) - \rho_\text{ss}\|_1 &\approx \left\| \lambda_2^n \left[ \tilde{\mathcal{E}}_2(\rho) + \tilde{\mathcal{E}}_2'(\rho) + \tilde{\mathcal{E}}_2''(\rho) + \mathcal{O}\left(\frac{\lambda_3^n}{\lambda_2^n}\right)\right] \right\|_1 \nonumber\\
+                                               &= |\lambda_2|^n \left\| \tilde{\mathcal{E}}_2(\rho) + \tilde{\mathcal{E}}_2'(\rho) + \tilde{\mathcal{E}}_2''(\rho) + \cdots \right\|_1\nonumber\\
+                                               &= C |\lambda_2|^n = C e^{-n\alpha},
+    \label{eq:norm_difference_evolved_steadystate}
+\end{align}
+with a constant $C$ and the cooling rate $\alpha$ as:
+\begin{align}
+    C      &= \left\| \tilde{\mathcal{E}}_2(\rho) + \tilde{\mathcal{E}}_2'(\rho) + \tilde{\mathcal{E}}_2''(\rho) + \cdots \right\|_1,\\
+    \alpha &= -\log |\lambda_2| > 0.
+    \label{eq:constant_C_definition}
+\end{align}
+
+Let us apply these bounds now to the map $\mathcal{E}_k$. More specifically, we consider a mode pair $(k,-k)$ and define a mode-specific cooling rate $\alpha_k = -\log |\lambda_k|$, where $\lambda_k$ is the second-largest eigenvalue of the map $\mathcal{E}_k$ in absolute value. This gives us the convergence:
+\begin{equation}
+    \|\mathcal{E}_k^n(\rho_k) - \sigma_k\|_1 \leq e^{-\alpha_k n},
+    \label{eq:mode_convergence_rate}
+\end{equation}
+where $\sigma_k$ is the (unique) steady state of the map $\mathcal{E}_k$.
+The number of cycles required to reach the steady state for mode $k$ is then:
+\begin{equation}
+    n^c_k = \alpha_k^{-1}.
+    \label{eq:n0k_app}
+\end{equation}
+
+\subsection{Convergence of cooling map}
+\label{subsec:global_convergence}
+
+We now analyze the convergence of the global state $\mathcal{E}^n(\rho)$ to the global steady state $\rho_{S}^\text{ss} = \bigotimes_{k=0}^{N/2} \sigma_k$. Due to translational invariance, the cooling map $\mathcal{E}$ and its steady state can be decomposed into a tensor product of maps $\mathcal{E}_k$ and their corresponding steady states $\sigma_k$ for each momentum mode pair $k$. That is,
+\begin{align}
+    \mathcal{E}=\bigotimes_{k=0}^{N/2} \mathcal{E}_k, \quad \rho_{S}^\text{ss} = \bigotimes_{k=0}^{N/2} \sigma_k.
+\end{align}
+We assume the initial state is also a product state over the modes, $\rho_S = \bigotimes_{k=0}^{N/2} \rho_k$.
+
+Our goal is to determine the global cooling time, i.e., how many cycles are needed for the global state $\mathcal{E}^n(\rho)$ to approach the global steady state $\rho_{S}^\text{ss} = \bigotimes_k \sigma_k$. We quantify this convergence using the one-norm distance
+\begin{align}
+    \|\mathcal{E}^n(\rho)-\bigotimes_k \sigma_k\|_1 = \|\bigotimes_{k=0}^{N/2}\mathcal{E}_k^n(\rho_k)-\bigotimes_{k=0}^{N/2}\sigma_k\|_1.
+\end{align}
+To bound this global distance, we will use the Kaleidoscope inequality. Let us denote by $\chi_i$ the tensor product state where the first $i$ modes are evolved and the remaining modes are in their steady state. That is,
+\begin{equation}
+    \chi_i = \left( \bigotimes_{j=0}^{i-1}\mathcal{E}_j^n(\rho_j) \right) \otimes \left( \bigotimes_{l=i}^{N/2} \sigma_l \right).
+\end{equation}
+We define $\chi_0 = \bigotimes_{k=0}^{N/2}\sigma_k$ and $\chi_{N/2+1} = \bigotimes_{k=0}^{N/2}\mathcal{E}_k^n(\rho_k)$. Then we can write the global distance as a telescoping sum:
+\begin{align}
+    \|\bigotimes_{k=0}^{N/2}\mathcal{E}_k^n(\rho_k)-\bigotimes_{k=0}^{N/2}\sigma_k\|_1
+     &= \|\chi_{N/2+1} - \chi_0\|_1 \nonumber\\
+     &= \left\| \sum_{i=1}^{N/2+1} (\chi_i - \chi_{i-1}) \right\|_1 \nonumber\\
+     &\le \sum_{i=1}^{N/2+1} \|\chi_i - \chi_{i-1}\|_1,
+\end{align}
+where the inequality follows from the triangle inequality for the one-norm. Using that $\|\tau \otimes \rho - \tau \otimes \sigma\|_1 = \|\rho - \sigma\|_1$, we obtain
+\begin{equation}
+    \|\chi_i - \chi_{i-1}\|_1 = \|\mathcal{E}_{i-1}^n(\rho_{i-1}) - \sigma_{i-1}\|_1.
+\end{equation}
+
+Therefore, the global distance is bounded by the sum of the distances for each mode (also called the Kaleidoscope inequality):
+\begin{align}
+    \|\mathcal{E}^n(\rho)-\bigotimes_{k=0}^{N/2}\sigma_k\|_1 &\leq \sum_{k=0}^{N/2} \|\mathcal{E}_k^n(\rho_k)-\sigma_k\|_1.
+\end{align}
+Using \cref{eq:mode_convergence_rate}, we have:
+\begin{align}
+    \|\mathcal{E}^n(\rho) - \bigotimes_{k=0}^{N/2}\sigma_k\|_1 &\leq \sum_{k=0}^{N/2} e^{-\alpha_k n}.
+\end{align}
+To find a system-size independent cooling rate, we define the global cooling rate $ \alpha = \inf_N \min_k \alpha_k$. Assuming $\alpha > 0$, we can bound the sum by taking the minimum rate $\alpha$:
+\begin{align}
+    \sum_{k=0}^{N/2} e^{-\alpha_k n} \le \sum_{k=0}^{N/2} e^{-\alpha n} = (N/2 + 1) e^{-\alpha n} < N e^{-\alpha n},
+\end{align}
+where we have neglected $\mathcal{O}(1)$ factors for simplicity, focusing on the scaling with $N$. Thus, we obtain the global convergence rate:
+\begin{equation}
+    \|\mathcal{E}^n(\rho)-\bigotimes_{k=0}^{N/2}\sigma_k\|_1 \leq N e^{-\alpha n}.
+\end{equation}
+This shows that to reach a state that is $\epsilon$-close (in one-norm distance) to the steady state, i.e., $\|\mathcal{E}^n(\rho)-\rho_{S}^\text{ss}\|_1 \le \epsilon$, we need a number of cycles $n^c$ such that $N e^{-\alpha n^c} \approx \epsilon$, or equivalently,
+\begin{equation}
+    n^c \approx \frac{1}{\alpha} \log\left(\frac{N}{\epsilon}\right).
+\end{equation}
+Therefore, if $\alpha > 0$ (which is generally the case away from the phase transition at $\theta = \pi/4$), the number of cycles required to reach the steady state grows logarithmically with the system size $N$.
+
+\subsection{Convergence of energy density}
+\label{subsec:energy_convergence}
+
+Next, we analyze the convergence of the relative energy by examining the convergence of the energy density. The error in the energy density after $n$ cycles can be bounded by
+\begin{align}
+    \left|\frac{1}{N}\sum_{k=0}^{N/2} \tr\left(\epsilon_k h_k \left[\mathcal{E}_k^n(\rho_k)- \sigma_k\right]\right)\right|\nonumber\\
+    \le \frac{1}{N}\sum_{k=0}^{N/2} \left|\tr\left(\epsilon_k h_k \left[\mathcal{E}_k^n(\rho_k)- \sigma_k\right]\right)\right|,
+\end{align}
+by using the triangle inequality $|\tr(A+B)| \le |\tr(A)| + |\tr(B)|$.
+Then, we use the inequality $|\tr(XY)| \le \|X\| \|Y\|_1$, where $\|X\|$ is the operator norm of $X$. We choose $X = \epsilon_k h_k$ and $Y = \mathcal{E}_k^n(\rho_k)- \sigma_k$ and will use the convergence of the state differences in the 1-norm as established in \cref{eq:mode_convergence_rate}.
+
+
+The matrix $h_k = \hat{a}^\dagger_k \hat{a}_k-\hat{a}_{-k}\hat{a}_{-k}^\dagger$ has eigenvalues $\pm 1$ and thus operator norm $\|h_k\| = 1$.
+Then, we have $\|\epsilon_k h_k\| = \epsilon_k$. Therefore, we bound:
+\begin{align}
+    \left|\tr\left(\epsilon_k h_k \left[\mathcal{E}_k^n(\rho_k)- \sigma_k\right]\right)\right|
+     &\le \|\epsilon_k h_k\| \|\mathcal{E}_k^n(\rho_k)- \sigma_k\|_1 \nonumber\\
+     &= \epsilon_k \|\mathcal{E}_k^n(\rho_k)- \sigma_k\|_1 \nonumber\\
+     &\le \epsilon_k e^{-\alpha_k n},
+\end{align}
+by using the bound on mode convergence $\|\mathcal{E}_k^n(\rho_k)-\sigma_k\|_1 \le e^{-\alpha_k n}$ from \cref{eq:mode_convergence_rate}.
+
+Substituting this back into the sum for the energy density error, we get the following bound
+\begin{align}
+    \frac{1}{N}\sum_{k=0}^{N/2} \left|\tr\left(\epsilon_k h_k \left[\mathcal{E}_k^n(\rho_k)- \sigma_k\right]\right)\right|
+     &\le \frac{1}{N}\sum_{k=0}^{N/2} \epsilon_k e^{-\alpha_k n} \nonumber\\
+     &\le \frac{1}{N}(\max_k \epsilon_k) \sum_{k=0}^{N/2} e^{-\alpha_k n} \nonumber\\
+     &\le (\max_k \epsilon_k) e^{-\alpha n} \frac{N/2 + 1}{N} \nonumber\\
+     &\le C e^{-\alpha n},
+\end{align}
+where in the last three steps we have taken the maximum value of $\epsilon_k$, used the minimum cooling rate $\alpha$, and $C = \max_k \epsilon_k$ is a constant of order $\mathcal{O}(1)$ since $\epsilon_k$ are mode energies and are bounded.
+To achieve an energy density error of $\epsilon$, we need $C e^{-\alpha n^c} \approx \epsilon$, which gives
+\begin{align}
+    n^c &\approx \frac{1}{\alpha} \log\left(\frac{C}{\epsilon}\right)\nonumber\\
+        &\approx \frac{1}{\alpha} \log\left(\frac{1}{\epsilon}\right),
+\end{align}
+neglecting the constant term $\frac{\log C}{\alpha}$. This shows that if $\alpha > 0$, the number of cycles required to reach a certain energy density error $\epsilon$ is independent of the system size $N$, scaling only logarithmically with the desired precision $\epsilon$.
+
+If $\alpha = 0$, which can happen at a phase transition (e.g., at $\theta = \pi/4$ in our model), the cooling time scaling will depend on how the minimum cooling rate $\alpha_k$ approaches zero as the system size $N$ increases. If $\alpha$ decreases polynomially with $N$, the cooling time will scale polynomially with $N$.
+
+
+\section{The cooling map and its steady state in the weak coupling regime}
+\label{app:Single_freq steady state}
+
+The aim of this appendix is to first derive via perturbation theory the cooling map in the weak coupling regime, where we consider a single frequency of the bath and a single cycle time. Then, we will determine its steady state and the corresponding energy. Finally, we will determine the energy of the steady state in the noisy case. We start out by describing the general perturbation theory, which we will then apply to the cooling map.
+
+\subsection{The cooling map in the weak coupling regime}
+\label{subapp:dyson_expansion_noiseless}
+
+We begin by considering the general problem of quantum evolution under a Hamiltonian that can be split into an unperturbed part $H_0$ and a small perturbation $gV$:
+\begin{equation}
+    \dot{\rho}=-i[H,\rho],\quad H=H_0+gV,
+\end{equation}
+where the norm of $H_0$ and $V$ is assumed to be $\mathcal{O}(1)$, and the weak coupling condition $(gt)^2 \ll 1$ is satisfied. To perform the approximation, we first transform into the interaction picture with $U_I=e^{i H_0t}$:
+\begin{equation}
+    \dot{\rho_I}=-ig[V_I,\rho_I],\quad V_I=e^{i H_0t}Ve^{-iH_0t},\quad \rho_I=e^{i H_0t}\rho e^{-iH_0t}.
+\end{equation}
+Solving the differential equation for $\rho_I$ recursively and developing up to second order in $gt$ yields a Dyson expansion:
+\begin{align}
+    \rho_I(t) &=\rho_I(0)-ig\int_0^t[V_I(t'),\rho_I(t')]\dd t'\nonumber\\
+              &=\rho_I(0)-ig\int_0^t[V_I(t'),\rho_I(0)]\dd t'+\mathcal{O}(g^2t^2).
+\end{align}
+By adding appropriate second-order terms, we can re-write the last expression as
+\begin{equation}
+    \rho_I(t)\simeq\left(\Id-ig\int_0^t V_I(t')\dd t'\right)\rho_I(0)\left(\Id - ig\int_0^t V_I(t')\dd t'\right)^\dag.
+\end{equation}
+Using that $\rho_I(0)=\rho(0)$ and returning back from the interaction picture we find
+\begin{align}
+    \rho(t) &= U(t)\rho(0)U(t)^\dag+\mathcal{O}(g^2t^2),\\
+    U(t)    &= e^{-iH_0t}\left(\Id-ig\int_0^t V_I(t')\dd t'\right).
+    \label{eq:Dyson_expansion}
+\end{align}
+Let us now apply this approximation to our map of interest, namely $\mathcal{E}_k$, i.e., the completely positive trace-preserving (CPTP) map for a single cooling cycle and a single pair of momenta, $(k,-k)$. This map is given by (see \cref{eq:hsb_momentum_space_nn>0}):
+\begin{equation}
+    \mathcal{E}_k(\rho_k) = \tr_B \left[ e^{-i h_{SB,k} t} \left( \rho_k \otimes \ket{\Omega}\bra{\Omega}_B \right) e^{i h_{SB,k} t} \right],
+    \label{eq:CPTP_map}
+\end{equation}
+where $\rho_k$ is the system's density matrix, and $\ket{\Omega}_B=\ket{00}_B$ is the bath's ground state, formed by the vacuum of the two modes $\hat{b}_{\pm k}$ that appear in \cref{eq:hsb_momentum_space_nn>0}. The total Hamiltonian is $h_{SB,k} = h_{S,k} + h_{B,k} + gv_{SB,k}$, where we treat $gv_{SB,k}$ as a perturbation and $h_0 = h_{S,k} + h_{B,k}$ is the unperturbed Hamiltonian.
+
+As we will see, using the approximation up to first order in \cref{eq:Dyson_expansion} will not be sufficient to derive a CPTP map. To this end, second-order terms are required. However, we will avoid computing them directly, by using a powerful result from Ref.~\cite{Wolf2008Dividing}. There, it has been shown that any divisible CPTP map can be written as an exponential of a Liouvillian. Since any map which can be infinitesimally generated is divisible, we will derive the cooling map in the weak coupling regime by first determining the first-order approximation of that map and then complete it by writing it in exponential form to ensure it is CPTP.
+
+Expanding the evolution operator as shown in \cref{eq:Dyson_expansion}, we obtain:
+\begin{equation}
+    \mathcal{E}_k(\rho_k) \approx \tr_B \left[ e^{-i h_0 t} M_{k,t} \left( \rho_k \otimes \ket{\Omega}\bra{\Omega}_B \right) M_{k,t}^\dag e^{i h_0 t} \right],
+    \label{eq:expanded_map}
+\end{equation}
+where the operator $M_{k,t}$ is defined as:
+\begin{equation}
+    M_{k,t} = \Id - i g\int_0^t e^{i h_0 \tau} v_{SB,k} e^{-i h_0 \tau}~ \dd\tau.
+    \label{eq:MT_definition}
+\end{equation}
+Let us consider first the general case of $nn\geq 0$ and later simplify to the local coupling scenario. To calculate $M_{k,t}$ using the Hamiltonian given by \cref{eq:hsb_momentum_space_nn>0}, we use the following identity:
+\begin{align}
+    e^{i\epsilon_k \tau\hat{a}_k^\dag\hat{a}_k}\hat{a}_k^\dag e^{-i\epsilon_k \tau\hat{a}_k^\dag\hat{a}_k}=e^{i\epsilon_k \tau}\hat{a}_k^\dag,
+\end{align}
+which leads to:
+\begin{align}
+    \label{eq:Vk_interaction_picture}
+     &e^{i h_0 \tau} v_{SB,k} e^{-i h_0 \tau}=\left(-A_k^*e^{i(\epsilon_k-\Delta)\tau}\hat{a}_k+B_k^*e^{i(\epsilon_k+\Delta)\tau}\hat{a}_{-k}^\dag\right)\hat{b}_{k}^\dag\nonumber\\
+     &+\left(-A_k e^{i(\epsilon_k-\Delta)\tau}\hat{a}_{-k}+B_k e^{i(\epsilon_k+\Delta)\tau}\hat{a}_{k}^\dag\right)\hat{b}_{-k}^\dag+ \text{h.c.}.
+\end{align}
+Evaluating the integral, we find:
+\begin{align}
+    M_{k,t} &= \Id -i \left( l_1 \hat{b}_k^\dag + l_2 \hat{b}_{-k}^\dag + \text{h.c.} \right),
+    \label{eq:MT_with_jump_operators}
+\end{align}
+where we have introduced the time-dependent operators $l_1$ and $l_2$, defined as:
+\begin{align}
+    l_1 &= A^*_k\, x_k\, \hat{a}_k + B^*_k\, y_k\, \hat{a}_{-k}^\dag, \label{eq:L1_def_app}\\
+    l_2 &= A_k x_k\, \hat{a}_{-k} - B_k\, y_k \hat{a}_k^\dag, \label{eq:L2_def_app}
+\end{align}
+and the coefficients $x_k$ and $y_k$ are:
+\begin{align}
+    x_k &= g \int_0^t e^{i(\epsilon_k-\Delta)\tau} \dd\tau = g\frac{1 - e^{i (\Delta-\epsilon_k) t}}{i (\Delta-\epsilon_k)}, \label{eq:xT_def:app}\\
+    y_k &= -g\int_0^t e^{i(\epsilon_k+\Delta)\tau} \dd\tau = g\frac{1 - e^{i (\epsilon_k + \Delta) t}}{i (\epsilon_k + \Delta)}. \label{eq:yT_def:app}
+\end{align}
+These functions arise from the time integration of oscillating exponentials in \cref{eq:Vk_interaction_picture} due to the energy differences between the system and bath.
+
+Since the bath starts in the ground state $\ket{\Omega}_B$, any terms in $M_{k,t}$ containing $\hat{b}_k$ or $\hat{b}_{-k}$ (i.e., the Hermitian conjugate terms in \cref{eq:MT_with_jump_operators}) will annihilate the bath state and thus vanish upon acting on $\ket{\Omega}_B$. Moreover, after tracing out the bath, non-diagonal terms such as $\ket{01}\bra{10}$ or $\ket{10}\bra{01}$ do not contribute due to the orthogonality of the bath states. Therefore, the approximation of $\mathcal{E}_k(\rho_k)$ as given in \cref{eq:CPTP_map} simplifies to:
+\begin{align}
+    e^{-i h_k t} \left( \rho_k + l_1 \rho_k l_1^\dag + l_2 \rho_k l_2^\dag \right) e^{i h_k t}.
+    \label{eq:nonCPTP_map}
+\end{align}
+Note that we omitted here the time dependence of the operators $l_1,l_2$ for brevity.
+
+As mentioned before, the map in \cref{eq:nonCPTP_map} is not CPTP, because we have only kept terms up to first order in the Dyson expansion.
+To ensure the map is CPTP, we need to include additional terms, which naturally arise from the second-order expansion of $M_{k,t}$ (as done in \cref{app:CM_derivation}). However, we can also correct it without computing the second order in the expansion by recognizing that the correct evolution (up to the unitary evolution with $h_k$) is governed by a (sum of) Lindbladians, as explained above (see Ref.~\cite{Wolf2008Dividing}).
+\begin{align}
+    \mathcal{E}_k(\rho_k) &= e^{-i h_k t} e^{\mathcal{L}_k}(\rho_k) e^{i h_k t},
+\end{align}
+where $\mathcal{L}_k = \mathcal{L}_1 + \mathcal{L}_2$, and the Lindblad superoperators $\mathcal{L}_i(\rho_k)$ are defined as:
+\begin{align}
+    \mathcal{L}_1(\rho_k) &= l_1 \rho_k l_1^\dag - \frac{1}{2} \{ l_1^\dag l_1, \rho_k \},\\
+    \mathcal{L}_2(\rho_k) &= l_2 \rho_k l_2^\dag - \frac{1}{2} \{ l_2^\dag l_2, \rho_k \}.
+\end{align}
+This ensures that the map is CPTP while matching the first-order expansion in \cref{eq:nonCPTP_map}. The complete cooling map for a single cycle and a pair $\pm k$ is therefore given by:
+\begin{align}
+    \label{eq:approxiMap}
+    \mathcal{E}_k(\rho_k) &= e^{-i h_k t} \left( \rho_k + \mathcal{L}_1(\rho_k) + \mathcal{L}_2(\rho_k) \right) e^{i h_k t} \nonumber\\
+                          &\approx e^{-i h_k t} e^{\mathcal{L}_k}(\rho_k) e^{i h_k t}.
+\end{align}
+This map has a particularly simple interpretation: apart from the system evolution, given by $e^{-i h_k t}$, we have dissipative terms resulting from the coupling to the bath, which lead to cooling as explained in the main text.
+
+Note that a phase can be added to these jump operators, since every term in the Lindbladian has both $l_i$ and $l_i^\dag$. For example, the results of \cref{sec:single_frequency} make use of an extra factor $e^{-i\varphi_k}$ to simplify the expressions of $l_1$ and $l_2$.
+
+When looking at the full system, we can create the map as a tensor product of all of the maps for each $k$-mode, yielding the following approximation:
+\begin{equation}
+    \mathcal{E}(\rho)\approx e^{-i H_S t} e^{\mathcal{L}_C}(\rho) e^{i H_S t}.
+    \label{eq:full_cooling_map_approx}
+\end{equation}
+
+In the special case of $nn=0$ with $\lambda_0=\mu_0=1$, the jump operators simplify to:
+\begin{align}
+    l_1 &= e^{-i\varphi_k}(x_k\hat{a}_k-iy_k\hat{a}_{-k}^\dag),\\
+    l_2 &= e^{i\varphi_k}(x_k\hat{a}_{-k}-iy_k\hat{a}_{k}^\dag).
+\end{align}
+Clearly, these phases can be ignored here, as they cancel out in the Lindbladian.
+\subsection{The steady state in the noiseless weak coupling regime}
+\label{subapp:rho_ss_noiseless}
+Next, we will determine the steady state of the map $\mathcal{E}_k(\rho_k)$, which satisfies the fixed point equation $\mathcal{E}_k(\rho_\text{ss}^{(k)})=\rho_\text{ss}^{(k)}$.
+Clearly, this can be done in a brute force way, as it is given by a $4\times 4$ matrix. Using the invariant subspaces under the action of $\mathcal{E}_k$ leads to the following parametrization of the steady state density matrix
+\begin{equation}
+    \rho_\text{ss}^{(k)}=\begin{pmatrix}
+        m       &0 &0 &\beta\\
+        0       &n &0 &0\\
+        0       &0 &p &0\\
+        \beta^* &0 &0 &q
+    \end{pmatrix}.
+\end{equation}
+The basis states for this matrix representation are $\ket{00}$,\ldots, $\ket{11}$, where the first and second digits represent the occupation of mode $k$ and $-k$, respectively.
+
+
+The entries will be lengthy expressions in terms of the parameters of the map, but as long as we only want to determine the energy, there is no need to determine them explicitly. With the conditions obtained from the trace condition and from the fixed-point equation, we obtain the following result for energy (per two modes):
+\begin{align}
+    E_{ss}^k &=\tr[h_{k}\rho_\text{ss}^{(k)}]=\frac{\epsilon_k}{2}(-2\rho_\text{ss}^{0,0}+2\rho_\text{ss}^{1,1})\nonumber\\
+             &= \epsilon_k(q-m)=\epsilon_k\frac{-|A_k x_k|^2+|B_k y_k|^2}{|A_k x_k|^2+|B_k y_k|^2},
+    \label{eq:steady_state_energy_mode}
+\end{align}
+where $A_k, B_k$ are given in \cref{eq:Ak in hsb_k,eq:Bk in hsb_k} and $x_k, y_k$ are given in \cref{eq:xT_def:app,eq:yT_def:app}.
+
+Note that in the case $nn=0,\ \lambda_0=\mu_0=1$, studied in \cref{sec:multifreq_longtime}, this equation reduces to
+\begin{align}
+    E_{ss}^k &=\epsilon_k\frac{-|x_k|^2+|y_k|^2}{|x_k|^2+| y_k|^2},
+    \label{eq:steady_state_energy_mode_nn0}
+\end{align}
+and perfect cooling for a mode can be achieved (the energy becomes $ \approx -\epsilon_k$) if $|x_k|^2 \gg |y_k|^2$, which is the case if the energy of the mode and the bath frequency are on resonance, i.e., $(\epsilon_k-\Delta)t\ll 1$. In this case, $|y_k|\leq g/\Delta$ but $|x_k|\approx gt$, which leads to the cooling of that mode for long times, i.e., the \textit{cooling limit} $(\Delta t)^2\gg 1$.
+
+There also exist accidental resonances $y_k=0$ that cool down specific modes when $(\Delta+\epsilon_k)t=2\pi r$. More importantly, there is accidental reheating if $x_k\approx 0$, which is the case for $(\Delta-\epsilon_k)t \approx 2\pi r$. As explained in the main text, the fact that these resonances depend on the cycle time allows us to suppress them by considering time randomization.
+
+
+Another result worth mentioning here is that, when reducing \cref{eq:steady_state_energy_mode} to DSP, i.e., taking $h_{S,k}=0$ (equivalently, $\epsilon_k=0$), the dependence on $t$ and $\Delta$ also disappears, yielding the simpler result:
+\begin{equation}
+    E_\text{ss}^k(\text{DSP})=\epsilon_k\frac{-|A_k|^2+|B_k|^2}{|A_k|^2+|B_k|^2}.
+    \label{eq:DSP_steadystate_energy}
+\end{equation}
+
+As can be seen, the only way that DSP can work is by tuning the couplings, and the result will greatly depend on their choice.
+
+\subsection{The steady state energy in the noisy weak coupling regime}
+\label{subapp:noisy_cooling_ss}
+
+We now study how environmental noise affects the cooling process and modifies the steady state energy. We focus on the depolarizing noise model described in~\cref{sec:adding_decoherence} of the main text, and leave the case of finite noise for \cref{app:finite_noise}. The effect of an infinite bath is modeled by the following Lindbladian:
+\begin{equation}
+    \mathcal{L}_E=\kappa\sum_{n=1}^N \mathcal{L}_{a_n}+\mathcal{L}_{a_n^\dag}+\mathcal{L}_{b_n}+\mathcal{L}_{b_n^\dag},
+\end{equation}
+where the superoperator $\mathcal{L}_{O}$ is defined as
+\begin{equation}
+    \mathcal{L}_O(\rho) = O\rho O^\dagger - \frac{1}{2}\{O^\dagger O,\rho\},
+\end{equation}
+and the constant $\kappa$ will model the noise strength. We now use the fact that the cooling and noise maps commute (as proven in~\cref{app:secIV_noise}). This allows us to write the cooling map taking noise into account as
+\begin{align}
+    \mathcal{N}(\rho)=\tr_B\left[e^{-iH_{SB}t}\left(e^{\mathcal{L}_E^S}(\rho)\otimes e^{\mathcal{L}_E^B}(\rho_B)\right)e^{i H_{SB}t}\right].
+\end{align}
+Now we expand this expression keeping only the terms up to order $\mathcal{O}(\kappa t,g^2t^2)$ and find
+\begin{align}
+    \mathcal{N}(\rho) &\approx \tr_B[e^{-iH_{0}t}M_{k,t}(\rho+\mathcal{L}_E^S(\rho))\nonumber\\
+                      &\quad\otimes (\rho_B+\mathcal{O}(\kappa t))M_{k,t}^\dag e^{i H_{0}t}],
+\end{align}
+where $M_{k,t}$ is the perturbative operator defined in~\cref{eq:MT_with_jump_operators}. Expanding the terms in this map, we find
+\begin{align}
+    \mathcal{N}(\rho)
+     &\approx \tr_B\left[e^{-iH_{0}t}M_{k,t}\rho\otimes\rho_B M_{k,t}^\dag e^{i H_{0}t}\right]\nonumber\\
+     &\quad + \tr_B\left[e^{-iH_{0}t}M_{k,t}\mathcal{L}_E^S(\rho)\otimes\rho_B M_{k,t}^\dag e^{i H_{0}t}\right]\nonumber\\
+     &\quad + \tr_B\left[e^{-iH_{0}t}M_{k,t}\rho\otimes\mathcal{O}(\kappa t) M_{k,t}^\dag e^{i H_{0}t}\right].
+\end{align}
+The first term corresponds to the noiseless cooling map $\mathcal{E}(\rho)$. For the second term, to order $\mathcal{O}(g^0)$, $M_{k,t} \approx \Id$, so this term contributes $e^{-iH_{S}t}\mathcal{L}_E^S(\rho)e^{i H_{S}t}$. The third term contributes terms of order $\mathcal{O}(g^2\kappa t^3)$ which we can neglect. Therefore:
+\begin{align}
+    \mathcal{N}(\rho) &\approx \mathcal{E}(\rho) + e^{-iH_{S}t}\mathcal{L}_E^S(\rho)e^{i H_{S}t}\nonumber\\
+                      &\approx e^{-iH_{S}t}e^{\mathcal{L}_C}(\rho)e^{i H_{S}t} + e^{-iH_{S}t}\mathcal{L}_E^S(\rho)e^{i H_{S}t}\nonumber\\
+                      &\approx e^{-iH_{S}t}(e^{\mathcal{L}_C}(\rho) + \mathcal{L}_E^S(\rho))e^{i H_{S}t}\nonumber\\
+                      &\approx e^{-iH_{S}t}e^{\mathcal{L}_C+\mathcal{L}_E^S}(\rho)e^{i H_{S}t},
+\end{align}
+where we have used that $\mathcal{E}(\rho) \approx e^{-iH_{S}t}e^{\mathcal{L}_C}(\rho)e^{i H_{S}t}$ from~\cref{eq:full_cooling_map_approx}, and in the last step we have used that $\mathcal{L}_C$ and $\mathcal{L}_E^S$ commute to combine them into a single exponential.
+
+This shows that the cooling map including noise can be approximated as a Lindbladian with the original cooling jump operators plus additional jump operators from the noise channel. Solving for the steady state energy with this combined Lindbladian, which is done in a similar fashion to the noiseless case of \cref{subapp:rho_ss_noiseless}, modifies \cref{eq:steady_state_energy_mode} to yield:
+\begin{equation}
+    E_{ss}^k= \epsilon_k\frac{-|A_k x_k|^2+|B_k y_k|^2}{|A_k x_k|^2+|B_k y_k|^2+2\kappa t}.
+    \label{eq:steady_state_energy_mode_noisy}
+\end{equation}
+which now shows an extra term in the denominator due to the action of the infinite bath, which modifies the cooling process and tries to drive the state to the maximally mixed state.
+
+This result also extends to multiple frequencies and averaged times, and causes a modification in the values of the cooling and heating rates. In this case, the cooling and noise Lindbladians have the same terms but with different strengths (as seen in~\cref{eq:averaged_lindbladian}), so we can sum them to
+\begin{align}
+    (\mathcal{L}_C+\mathcal{L}_E)(\rho_k) &= \gamma_{k,\text{noisy}}^c \sum_{i=\pm k} \left( \hat{a}_i \rho_k \hat{a}_i^\dag - \frac{1}{2} \left\{ \hat{a}_i^\dag \hat{a}_i, \rho_k \right\} \right)        \nonumber\\
+                                          &\quad + \gamma_{k,\text{noisy}}^h \sum_{i=\pm k} \left( \hat{a}_i^\dag \rho_k \hat{a}_i - \frac{1}{2} \left\{ \hat{a}_i \hat{a}_i^\dag, \rho_k \right\} \right),
+\end{align}
+where the new cooling and heating rates are given by
+\begin{equation}
+    \gamma_{k, \text{noisy}}^{\rm c,h}=\gamma_{k}^{\rm c,h}+\kappa t.
+\end{equation}
+
+
+
+\section{Working with the correlation matrix formalism}
+\label{app:CM_derivation}
+
+As we are throughout considering Gaussian states, all the previous derivations could have been performed using the correlation matrix (CM) formalism.
+This is a well-suited method for systems described by quadratic Hamiltonians evolving initial Gaussian states, as such states remain Gaussian throughout the evolution~\cite{Weedbrook2012Gaussian}.
+Gaussian states are fully characterized by their first and second moments, specifically the correlation matrix $\gamma$ or covariance matrix $\Gamma$ which we will both use for convenience in different contexts. In this appendix, we provide an alternative analysis of the cooling dynamics using this method.
+
+The correlation matrix $\gamma$ for a set of $M$ fermionic operators $\hat{\alpha}_i$ ($i=1, \dots, M$) associated with a state $\rho$ is defined entry-wise as:
+\begin{equation}
+    \gamma_{ij} = \frac{1}{2}\tr(\rho\,[\hat{\alpha}_i,\hat{\alpha}_j^\dagger]),
+    \label{eq:CM_definition}
+\end{equation}
+where $[\cdot,\cdot]$ denotes the commutator and $\hat{\alpha}_i$ are the components of the operator vector $\hat{\vec{\alpha}}$.
+
+
+The CM formalism simplifies operations like partial trace and adding auxiliary systems. For example, combining independent systems corresponds to taking the direct sum of their respective CMs.
+
+
+Due to the translational invariance discussed in \cref{app:Hk_derivation}, the total Hamiltonian $H_{SB}$ decomposes into independent blocks $h_{SB,k}$ (see \cref{eq:hsb_momentum_space_nn>0}) acting on momentum modes $(k, -k)$. We can analyze each block independently using the operator vector $\vec{\hat{\alpha}}_k = (\hat{a}_{k}, \hat{a}_{-k}^\dagger, \hat{b}_{k}, \hat{b}_{-k}^\dagger)^T$.
+
+A cooling cycle involves evolving the initial state $\rho_S \otimes \rho_B^0$ (with CM $\gamma_{S,k}(0) \oplus \gamma_{B,k}^{0}$) for time $t=T/2$ under the joint Hamiltonian $h_{SB,k}$ and then tracing out the bath. The evolution of the CM $\gamma_{SB,k}$ under $h_{SB,k}$ for a time $t$ is given by~\cite{Bravyi2005Lagrangian}
+\begin{equation}
+    \gamma_{SB,k}(t) = e^{-2i h_{SB,k}t}\gamma_{SB,k}(0)e^{2i h_{SB,k}t},
+    \label{eq:gamma_evolution}
+\end{equation}
+where an extra factor 2 appears compared to the evolution of density matrices due to the definition of CM in \cref{eq:CM_definition}.
+For notational convenience, we absorb the factor 2 into the time by setting $T=2t$, where $t$ is the cycle time used in the main text. We then partition the exponential of the Hamiltonian into system and bath components:
+\begin{equation}
+    e^{-ih_{SB,k}T} =
+    \begin{pmatrix}
+        A_{S,k}  &A_{SB,k}\\
+        A_{BS,k} &A_{B,k}
+    \end{pmatrix}.
+    \label{eq:evolution_blocks}
+\end{equation}
+Note that this partitioning is purely for organizational purposes—each submatrix depends on the full Hamiltonian $h_{SB,k}$. Only when the coupling $V_{SB}=0$ would these submatrices evolve independently according to their respective Hamiltonians.
+Using this block structure, we can express the cooling map in the CM formalism. Starting with the definition of the map in \cref{eq:cooling_map0} from the main text, we obtain by taking the system block of the evolved total CM:
+\begin{align}
+    \mathcal{E}_k(\gamma_{S,k}) &= \tr_B\left[e^{-i h_{SB,k} T}(\gamma_{S,k} \oplus \gamma_{B,k}^{0})e^{i h_{SB,k} T}\right] \label{eq:gamma_m_plus_1}\\
+                                &= A_{S,k} \gamma_{S,k} A_{S,k}^\dag + A_{SB,k} \gamma_{B,k}^{0} A_{SB,k}^\dag, \label{eq:cooling_map_cm}
+\end{align}
+where $\gamma_{B,k}^{0}$ is the CM of the bath ground state.
+
+The steady state $\gamma_{S,k}^\text{ss}$ is the fixed point of this map, i.e., $\mathcal{E}_k(\gamma_{S,k}^\text{ss}) = \gamma_{S,k}^\text{ss}$, which gives us:
+\begin{align}
+    \gamma_{S,k}^\text{ss} &= A_{S,k} \gamma_{S,k}^\text{ss} A_{S,k}^\dag + A_{SB,k} \gamma_{B,k}^{0} A_{SB,k}^\dag. \label{eq:cooling-map-CM-notvectorized}
+\end{align}
+This is a linear equation for the matrix $\gamma_{S,k}^\text{ss}$ that can be solved by vectorization, a technique where the matrix equation is converted into a system of linear equations. To this end, we represent the CM as a vector $\ket{\gamma} = \vec{\gamma}$ and transform and solve the matrix equation of the form (assumed to be unique and invertible):
+\begin{equation}
+    \ket{\gamma_{S,k}^\text{ss}} = (A_{S,k} \otimes A_{S,k}^*)\ket{\gamma_{S,k}^\text{ss}} + (A_{SB,k} \otimes A_{SB,k}^*)\ket{\gamma_{B,k}^{0}},
+\end{equation}
+which leads to the solution
+\begin{equation}
+    \ket{\gamma_{S,k}^\text{ss}} = (\Id - A_{S,k} \otimes A_{S,k}^*)^{-1}(A_{SB,k} \otimes A_{SB,k}^*)\ket{\gamma_{B,k}^{0}}.
+    \label{eq:cooling-map-CM}
+\end{equation}
+
+The formula in \cref{eq:cooling-map-CM} can be applied to each mode individually due to the block structure of the CM. The total CM of the system will then be the direct sum of CMs over all modes.
+% For brevity, please note that we will sometimes omit the superscript $k$ in the following derivations.
+
+The mixing time of this map, which determines how quickly the system approaches the steady state, is determined by the largest eigenvalue of $A_{S,k} \otimes A_{S,k}^*$ (excluding the eigenvalue 1 associated with the steady state); the closer this eigenvalue is to 1, the slower the convergence.
+The energy of a given mode for a state with correlation matrix $\gamma$ is computed as $E_k=\tr[h_{S,k}\gamma_{S,k}]$, where $h_{S,k}$ is the 2-by-2 top-left submatrix in $h_{SB,k}$.
+
+For the Hamiltonian after the Bogoliubov transformation, with the bath in its ground state, the initial CM is:
+\begin{equation}
+    \gamma_{B,k}^{0} = \gamma_{S,k}^{GS} = \frac{1}{2}\begin{pmatrix}
+        -1 &0\\
+        0  &1
+    \end{pmatrix}.
+    \label{eq:gamma_b=gamma_gs}
+\end{equation}
+Thus, substituting into \cref{eq:cooling-map-CM}, the steady state can be determined for each mode individually due to the Gaussian nature of the evolution. The total CM of the system will then be the direct sum of the CMs over all modes.
+
+
+To simplify our derivations, we introduce a phase transformation $a_n'= e^{i\pi/4}a_n$, $b_n'= e^{i\pi/4}b_n$, which preserves the canonical anticommutation relations of the fermionic operators. After applying this transformation, the Hamiltonian in the Bogoliubov basis [see \cref{eq:hsb_momentum_space_nn>0}] becomes:
+\begin{align}
+    H_{\text{Bog}}^k &= \vec{\alpha}'^\dag
+    \begin{pmatrix}
+        \epsilon_k &0           &gA_k   &-gC_k\\
+        0          &-\epsilon_k &gC_k   &-gA_k\\
+        gA^*_k     &gC^*_k      &\Delta &0\\
+        -gC^*_k    &-gA^*_k     &0      &-\Delta
+    \end{pmatrix}
+    \vec{\alpha}',\\ \mbox{ with }
+    \vec{\alpha}'    &=(\hat{a}_k'^{\dag},\hat{a}_{-k}',\hat{b}_k'^{\dag},\hat{b}_{-k}')^\dag,
+    \label{eq:H_bogoliubov_appendix}
+\end{align}
+with the coupling coefficients
+\begin{align}
+    A_k &= \sum_{j=-nn}^{nn} e^{-i\phi_k j}(\lambda_j\cos\varphi_k+i\mu_j\sin\varphi_k),\\
+    C_k &= \sum_{j=-nn}^{nn}e^{-i\phi_k j}(\mu_j\cos\varphi_k+i\lambda_j\sin\varphi_k).
+\end{align}
+Here, $\phi_k = 2\pi k/N$ and $\varphi_k$ is the Bogoliubov angle defined in \cref{eq:varphik} in the main text.
+
+Next, we apply another unitary transformation within the system subspace and within the bath subspace, defined by the matrix $\Omega$ acting on pairs of operators:
+\begin{equation}
+    U_\Omega=\begin{pmatrix}
+        \Omega &0\\
+        0      &\Omega
+    \end{pmatrix},\ \Omega = \frac{1}{\sqrt{2}} \begin{pmatrix}
+        1 &1\\
+        i &-i
+    \end{pmatrix},
+    \label{eq:omega_transform}
+\end{equation}
+leading to the Hamiltonian matrix we will work with in this Appendix:
+\begin{equation}
+    h_{SB,k} = i \begin{pmatrix}
+        0          &-\epsilon_k &0      &gf_k\\
+        \epsilon_k &0           &gp_k   &0\\
+        0          &-gp_k^*     &0      &-\Delta\\
+        -gf_k^*    &0           &\Delta &0
+    \end{pmatrix},
+    \label{eq:final_Hsb_pm_k}
+\end{equation}
+where the transformed coupling constants are:
+\begin{align}
+    f_k &= -e^{i\varphi_k} \sum_{j=-nn}^{nn} (\lambda_j + \mu_j) e^{-i\phi_k j},\\
+    p_k &= e^{-i\varphi_k} \sum_{j=-nn}^{nn} (\lambda_j - \mu_j) e^{-i\phi_k j}.
+\end{align}
+This form of the Hamiltonian is going to be particularly convenient for perturbative analysis.
+We can get rid of the minus sign in $f_k$ by setting $\tilde{\lambda}_j = -\mu_j$ and $\tilde{\mu}_j = -\lambda_j$, which leaves $p_k$ invariant. Additionally, the bath CM (transformed according to the extra unitary $\Omega$) will now be, in vectorized form:
+\begin{equation}
+    \ket{\gamma_{B,k}^{0}}=\begin{pmatrix}
+        0\\
+        i/2\\
+        -i/2\\
+        0
+    \end{pmatrix}.
+\end{equation}
+We now assume weak coupling, that is, $(gt)^2\ll 1$ as discussed in \cref{sec:multifreq_longtime}, allowing us to treat the coupling terms as perturbations. The terms $f_k$ and $p_k$ are thus rescaled to be $\mathcal{O}(1)$. In the following, we will omit the $k$ subscript for brevity, since the derivation does not depend on the specific mode.
+
+To perform the perturbative analysis, we express the total Hamiltonian as $h_{SB,k} = h_0 + g v_{SB,k}$, where $h_0$ contains the uncoupled system and bath terms, and $v_{SB,k}$ contains the coupling terms. We then apply a Dyson expansion of the time-evolution operator $e^{-i h_{SB,k} T}$ up to second order in $g$:
+\begin{align}
+    \label{eq:CM_dyson_expansion}
+     &e^{-i h_{SB,k} T} \simeq e^{-i h_0 T} \left[ 1 - i g \int_0^T  \dd t' e^{i h_0 t'} v_{SB,k} e^{-i h_0 t'} \right. \nonumber\\
+     &\quad \left. - g^2 \int_0^T  \dd t' \int_0^{t'}  \dd t'' e^{i h_0 t'} v_{SB,k} e^{-i h_0 t'} e^{i h_0 t''} v_{SB,k} e^{-i h_0 t''} \right].
+\end{align}
+We can write our exponential in block matrix form as in \cref{eq:evolution_blocks}. To second order in $g$, these submatrices can be expressed as:
+\begin{align}
+    A_{S,k}  &\simeq A_{S,k}^{(0)} + g^2 A_{S,k}^{(2)}, \label{eq:As_expansion}\\
+    A_{SB,k} &\simeq g A_{SB,k}^{(1)}. \label{eq:Asb_expansion}
+\end{align}
+where the zeroth, first, and second order terms can be computed from the integrals in \cref{eq:CM_dyson_expansion}. The zeroth-order term represents the free evolution of the system:
+\begin{equation}
+    \label{eq:As0}
+    A_{S,k}^{(0)} = \begin{pmatrix}
+        \cos(\epsilon_k T)  &\sin(\epsilon_k T)\\
+        -\sin(\epsilon_k T) &\cos(\epsilon_k T)
+    \end{pmatrix},
+\end{equation}
+which corresponds to rotation in the phase space of the system.
+
+The first-order term in the system-bath coupling is:
+\begin{align}
+    \label{eq:Asb1}
+    A_{SB,k}^{(1)} &= \begin{pmatrix}
+                          a_1 &a_2\\
+                          a_3 &a_4
+                      \end{pmatrix},\\
+    a_1            &=x_1 \left[\cos(\Delta T) - \cos(\epsilon_k T)\right],\nonumber\\
+    a_2            &=x_1 \sin(\Delta T) + i x_2 \sin(\epsilon_k T),\nonumber\\
+    a_3            &=x_1 \sin(\epsilon_k T) + i x_2 \sin(\Delta T),\nonumber\\
+    a_4            &=-i x_2 \left[\cos(\Delta T) - \cos(\epsilon_k T)\right],\nonumber
+\end{align}
+where $x_1$ and $x_2$ depend on the coupling parameters $f_k, p_k$ and the energy scales $\epsilon_k, \Delta$:
+\begin{align}
+    x_1 &= \frac{\epsilon_k p_k - \Delta f_k}{\epsilon_k^2 - \Delta^2}, \quad
+    x_2 = -i \frac{\epsilon_k f_k - \Delta p_k}{\epsilon_k^2 - \Delta^2}. \label{eq:x1_x2_definition}
+\end{align}
+The second-order term in the system evolution is:
+\begin{align}
+    A_{S,k}^{(2)} &= \begin{pmatrix}
+                         a_{11} &a_{12}\\
+                         a_{21} &a_{22}
+                     \end{pmatrix}, \label{eq:As2}
+\end{align}
+where the entries $a_{ij}$ are given by:
+\begin{align}
+    \label{eq:As2_entries}
+    a_{11} &= |x_1|^2 \left[\cos(\Delta T) - \cos(\epsilon_k T)\right] \nonumber\\
+           &\quad + \frac{T}{2} \sin(\epsilon_k T) \left(i f_k x^*_2 - p_k x^*_1\right), \nonumber\\
+    a_{12} &= i x_1 x^*_2 \sin(\Delta T) - \frac{\sin(\epsilon_k T)}{2} \left(|x_1|^2 + |x_2|^2\right) \nonumber\\
+           &\quad - i \frac{\Delta}{\epsilon_k} \sin(\epsilon_k T) \Im\left(i x_1 x^*_2\right) + \left(p_k x^*_1 - i f_k x^*_2\right) \frac{T}{2} \cos(\epsilon_k T), \nonumber\\
+    a_{21} &= i x_2 x^*_1 \sin(\Delta T) + \frac{\sin(\epsilon_k T)}{2} \left(|x_1|^2 + |x_2|^2\right) \nonumber\\
+           &\quad - i \frac{\Delta}{\epsilon_k} \sin(\epsilon_k T) \Im\left(i x_1 x^*_2\right) - \left(p_k x^*_1 - i f_k x^*_2\right) \frac{T}{2} \cos(\epsilon_k T), \nonumber\\
+    a_{22} &= |x_2|^2 \left[\cos(\Delta T) - \cos(\epsilon_k T)\right] \nonumber\\
+           &\quad + \frac{T}{2} \sin(\epsilon_k T) \left(i f_k x^*_2 - p_k x^*_1\right). \nonumber
+\end{align}
+To find the steady state, we solve the fixed-point equation given by \cref{eq:cooling-map-CM}. In the weak coupling limit, the matrix inverse $(\Id - A_{S,k} \otimes A_{S,k}^*)^{-1}$ can be approximated as:
+\begin{equation}
+    (\Id - A_{S,k} \otimes A_{S,k}^*)^{-1} \approx \frac{1}{g^2 Q} \begin{pmatrix}
+        1 &0  &0  &1\\
+        0 &1  &-1 &0\\
+        0 &-1 &1  &0\\
+        1 &0  &0  &1
+    \end{pmatrix},
+    \label{eq:inverse_matrix}
+\end{equation}
+with
+\begin{align}
+    Q = &\ 2(|x_1|^2 + |x_2|^2)(1 - \cos(\Delta T) \cos(\epsilon_k T))\nonumber\\
+        &+4 \sin(\Delta T) \sin(\epsilon_k T) \Im(x_1 x^*_2).\label{eq:Q_definition}
+\end{align}
+Performing the matrix multiplication in \cref{eq:cooling-map-CM} cancels out the factors of $g$ and the denominators in $x_1$ and $x_2$, leading to the expression for the steady state energy that matches the results derived using the density matrix approach in \cref{app:Single_freq steady state}.
+
+\subsection{Adding noise}
+
+The CM formalism can be readily extended to incorporate the depolarizing noise model discussed in~\cref{sec:adding_decoherence}.
+
+We use the formalism described by Bravyi and König~\cite{Bravyi2012Classical}, which is based on Majorana operators. Let the $4N$ Majorana operators be defined as $c_{2n-1}=a_n+a_n^\dag$, $c_{2n}=i(a_n-a_n^\dag)$ for the system operators ($n=1,\ldots,N$) and $c_{2N+2n-1}=b_n+b_n^\dag$, $c_{2N+2n}=i(b_n-b_n^\dag)$ for the bath operators ($n=1,\ldots,N$).
+
+In the Majorana representation, the master equation takes the form:
+\begin{align}
+    \dot{\rho}=-i[H_{SB},\rho]+\sum_\mu \kappa_\mu (2L_\mu\rho L_\mu^\dag-\{L_\mu^\dag L_\mu,\rho\}),
+\end{align}
+where $H_{SB}=\frac{i}{4}\sum_{jk}\textbf{H}_{jk}c_j c_k$ and the Lindblad operators are $L_{\mu}=\sum_j l_{\mu j}c_j$.
+
+
+Bearing in mind that we can still work in the block-diagonal Hamiltonian for modes $\pm k$, then $N=2$ and the index $j$ is just a reformulation of our notation.
+In this picture, it has been shown~\cite{Bravyi2012Classical} that the evolution of the covariance matrix $\Gamma$ associated with $\rho$ follows:
+\begin{align}
+    \frac{\dd}{\dd t}\Gamma(t) &=X\Gamma(t)+\Gamma(t)X^T+Y\label{eq:CM_differential_eq},\\
+    X                          &=-\textbf{H}-2(M+M^*),\\
+    Y                          &=4i(M^*-M),\\
+    M_{jk}                     &=\sum_{\mu}l_{\mu j}l_{\mu k}^*.
+\end{align}
+In our case, the Lindblad operators $L_\mu$ are of four different types, corresponding to the creation and annihilation operators for both system and bath modes:
+\begin{align}
+    L_{4j-3} &=\frac{\sqrt{\kappa}}{4}(c_{2j-1}-ic_{2j}),\\
+    L_{4j-2} &=\frac{\sqrt{\kappa}}{4}(c_{2j-1}+ic_{2j}),\\
+    L_{4j-1} &=\frac{\sqrt{\kappa}}{4}(c_{2N+2j-1}-ic_{2N+2j}),\\
+    L_{4j}   &=\frac{\sqrt{\kappa}}{4}(c_{2N+2j-1}+ic_{2N+2j}).
+\end{align}
+Calculating $M$ is straightforward: only the diagonal elements $j=k$ contribute, since the off-diagonal elements have contributions $\pm i\frac{\kappa}{16}$ that cancel each other out. Therefore, $M=\kappa\Id$, which gives $Y=0$. This also confirms that our chosen Lindbladian commutes with any fermionic quadratic Hamiltonian, as previously shown in \cref{app:secIV_noise} using the density matrix approach.
+
+The differential equation from \cref{eq:CM_differential_eq} has a steady state that we denote as $\Gamma_\text{ss}$. The solution to this equation gives the time evolution:
+\begin{equation}
+    \Gamma(t)=\Gamma_\text{ss}+e^{Xt}(\Gamma(0)-\Gamma_\text{ss})e^{X^T t},
+\end{equation}
+which, in our particular case, translates to:
+\begin{equation}
+    \Gamma(t)=\Gamma_\text{ss}+e^{-4\kappa t}e^{-\textbf{H}t}(\Gamma(0)-\Gamma_\text{ss})e^{\textbf{H}t}e^{-4\kappa t}.\label{eq:CM_k_time_evol}
+\end{equation}
+This shows that the effect of the environment is to add a damping factor $e^{-4\kappa t}$ to the ideal evolution.
+
+As the steady state of the system and bath is what we want to determine, it remains to trace out the bath. Following from~\cref{eq:CM_differential_eq}, the fixed point can be chosen to be $\Gamma_\text{ss}=0$ (the maximally mixed state) since $Y=0$, and this in turn simplifies~\cref{eq:CM_k_time_evol}:
+\begin{equation}
+    \Gamma(t)=e^{-4\kappa t}e^{-\textbf{H}t}\Gamma(0)e^{\textbf{H}t}e^{-4\kappa t}.\label{eq:CM_simplified_time_evol}
+\end{equation}
+Now that we know the effect of the environment, we can return to the correlation matrix formalism and simply follow the same steps outlined for the ideal scenario in~\cref{app:CM_derivation}, where now $A_{S,k}$ and $A_{SB,k}$ are modified by the damping factor $e^{-4\kappa t}$. Taking into account the change $T=2t$, we obtain
+\begin{equation}
+    \ket{\gamma_S^\text{ss}} = (\Id -e^{-4\kappa T} A_{S,k} \otimes A^*_{S,k})^{-1} (e^{-4\kappa T}A_{SB,k} \otimes A^*_{SB,k}) \ket{\gamma_0^B}.
+    \label{eq:steady_state_equation_vectorized}
+\end{equation}
+
+The noise considered here will always be smaller or equal to the bath coupling $g$, so we can once again use the weak coupling limit and keep only the highest orders in $gt,\kappa t$.
+
+Firstly, we approximate the exponential by a Taylor series and only keep the first-order terms $\mathcal{O}(g^2t^2,\kappa t)$; this implies that $e^{-2\kappa T}A_{S,k} \simeq A_{S,k}^{(0)}(1-2\kappa T) + g^2 A_{S,k}^{(2)}$ and $e^{-2\kappa T}A_{SB,k} \simeq gA_{SB,k}^{(1)}$, which slightly modifies the inverse of $(\Id-A_{S,k}\otimes A^*_{S,k})$. This simplification of results, analogous to the one in \cref{app:Single_freq steady state}, is equivalent to considering that the change undergone by the bath as a result of the environment is negligible, since it will have a higher-order contribution on the system.
+
+
+\section{Averaging Over Randomized Times}
+\label{app:long_time_averages}
+In this Appendix, we will continue working in the weak coupling regime. We now consider the scenario where, for each cooling cycle $j$, the cycle time $t_j$ is chosen from a random uniform distribution $[0, 2t]$ with mean value $t$. We are interested in understanding how averaging over the times affects the steady state of the system, particularly when $t$ is large.
+
+To analyze this, we consider the concatenation of multiple such maps with different cycle times. For simplicity, we begin by examining two consecutive maps. Applying the CPTP map twice, we have
+\begin{align}
+     &\mathcal{E}_{t_2}( \mathcal{E}_{t_1}(\rho_k) ) \approx \mathcal{E}_{t_2} \left( e^{-i h_k t_1}\left( \rho_k + \mathcal{L}_{t_1}(\rho_k) \right)e^{i h_k t_1} \right) \nonumber\\
+     &\approx e^{-i h_k (t_1 + t_2)} \left( \rho_k + \mathcal{L}_{t_1}(\rho_k) + \tilde{\mathcal{L}}_{t_1, t_2}(\rho_k) \right) e^{i h_k (t_1 + t_2)},
+\end{align}
+where the modified superoperator $\tilde{\mathcal{L}}_{t_1, t_2}$ accounts for the effect of the second cooling cycle on the system:
+\begin{align}
+    \tilde{\mathcal{L}}_{t_1, t_2}(\rho_k) &= e^{i h_k t_1} \mathcal{L}_{t_2} \left( e^{-ih_k t_1} \rho_k e^{i h_k t_1} \right) e^{-i h_k t_1} \nonumber\\
+                                           &= \sum_{i=1}^2 \tilde{l}_{i2} \rho_k \tilde{l}_{i2}^\dag - \frac{1}{2} \left\{ \tilde{l}_{i2}^\dag \tilde{l}_{i2}, \rho_k \right\},
+\end{align}
+with the transformed jump operators given by
+\begin{align}
+    \tilde{l}_{i2} = e^{i h_k t_1} l_{i}(t_2) e^{-i h_k t_1}, \quad i = 1,2.
+\end{align}
+From here, it can be deduced that if $L\gg 1$ maps with random cycle times $t_j$ are concatenated, the total map will have a sum of Lindbladians $\tilde{\mathcal{L}}_{j}$, $j\in\{1,\ldots,L\}$ of the following form:
+\begin{align}
+    \mathcal{E}_{\text{total}}(\rho_k) &\approx e^{-i h_k (\sum_{j=1}^L t_j)} \left( \rho_k + \sum_{j=1}^L \tilde{\mathcal{L}}_{j}(\rho_k) \right) e^{i h_k (\sum_{j=1}^L t_j)}\nonumber\\
+                                       &\approx e^{-i h_k L t} \left( \rho_k + \sum_{j=1}^L \tilde{\mathcal{L}}_j(\rho_k) \right) e^{i h_k L t},
+\end{align}
+where $\tilde{\mathcal{L}}_j(\rho_k)$ represents the contribution from the $j$-th cooling cycle:
+\begin{align}
+    \tilde{\mathcal{L}}_{j}(\rho_k) &= g^2\sum_{i=1}^2 \tilde{l}_{i j} \rho_k \tilde{l}_{i j}^\dag - \frac{1}{2} \left\{ \tilde{l}_{i j}^\dag \tilde{l}_{i j}, \rho_k \right\},
+\end{align}
+and the transformed jump operators for each cycle are:
+\begin{align}
+    \tilde{l}_{1j} &= A^*_k\, x_k(t_j)\, e^{-i \epsilon_k \tilde{T}_j} \hat{a}_k + B^*_k\, y_k(t_j)\, e^{i \epsilon_k \tilde{T}_j} \hat{a}_{-k}^\dag,\\
+    \tilde{l}_{2j} &= A_k\, x_k(t_j)\, e^{-i \epsilon_k \tilde{T}_j} \hat{a}_{-k} - B_k\, y_k(t_j)\, e^{i \epsilon_k \tilde{T}_j} \hat{a}_k^\dag,
+\end{align}
+with $\tilde{T}_j = \sum_{m=1}^{j-1} t_m$ being the cumulative time up to the $(j-1)$-th cycle (for $j=1$ we set it to $0$). We work for now in the general case $nn\geq0$, but we will remark the final results for the $nn=0$ case as well.
+
+For $j = 1$, we have $\tilde{\mathcal{L}}_1 = \mathcal{L}_{t_1}$. For $j > 1$, averaging over the different times $t_j$ causes the rapidly oscillating terms $e^{\pm 2i \epsilon_k \tilde{T}_j}$ to average out to zero.
+This is because $\tilde{T}_j$ is a sum of random variables, and for large $j$, the phase $2\epsilon_k \tilde{T}_j$ becomes uniformly distributed over $[0, 2\pi)$, causing the average of the exponential to vanish.
+This effectively eliminates the cross terms between modes $\hat{a}_k$ and $\hat{a}_{-k}$.
+
+This averaging process leads to a diagonal Lindbladian for the averaged map, where only terms proportional to $\hat{a}_k^\dag \hat{a}_k$ and $\hat{a}_{-k}^\dag \hat{a}_{-k}$ survive. The averaged Lindbladian $\overline{\tilde{\mathcal{L}}_{j}(\rho_k)}$ becomes:
+\begin{align}
+    \overline{\tilde{\mathcal{L}}_{j}(\rho_k)}
+     &= \frac{1}{(2t)^j} \int_{0}^{2t} \dd t_{j - 1} \cdots \int_{0}^{2t} \dd t_1 \tilde{\mathcal{L}}_j(\rho_k)\nonumber\\
+     &= \gamma_k^{\rm c} \sum_{i=\pm k} \left( \hat{a}_i \rho_k \hat{a}_i^\dag - \frac{1}{2} \left\{ \hat{a}_i^\dag \hat{a}_i, \rho_k \right\} \right) \nonumber\\
+     &\quad + \gamma_k^{\rm h} \sum_{i=\pm k} \left( \hat{a}_i^\dag \rho_k \hat{a}_i - \frac{1}{2} \left\{ \hat{a}_i \hat{a}_i^\dag, \rho_k \right\} \right),
+    \label{eq:averaged_lindbladian}
+\end{align}
+where the rates $\gamma_k^{\rm c}$ and $\gamma_k^{\rm h}$ are given by averaging over the random times:
+\begin{align}
+    \gamma_k^{\rm c} &= \frac{1}{2t} \int_0^{2t} g^2 |A_k x_{k,t'}|^2 \dd t'\nonumber\\
+                     &= g^2|A_k|^2 \left(\frac{2}{(\epsilon_k - \Delta)^2}-\frac{\sin\left[(\Delta-\epsilon_k)2t\right]}{(\Delta-\epsilon_k)^3t}\right),
+\end{align}
+and similarly for the heating rate $\gamma_k^{\rm h}$:
+\begin{align}
+    \gamma_k^{\rm h} &= \frac{1}{2t} \int_0^{2t} g^2 |B_k y_{k,t'}|^2 \dd t'\nonumber\\
+                     &= g^2|B_k|^2 \left(\frac{2}{(\epsilon_k + \Delta)^2}-\frac{\sin\left[(\Delta+\epsilon_k)2t\right]}{(\Delta+\epsilon_k)^3t}\right).
+\end{align}
+
+While these are the exact results, they are cumbersome to work with. We can approximate them using another function that behaves in the same way in the resonant limit $|\Delta-\epsilon_k|t\ll 1$ and in the off-resonant limit $|\Delta-\epsilon_k|t\gg 1$. In this case, a Lorentzian can be shown numerically to work well (see~\cref{fig:Fig3}):
+\begin{align}
+    \gamma_k^{\rm c} &= \frac{2g^2|A_k|^2}{(\epsilon_k - \Delta)^2+\gamma_0^2},\\
+    \gamma_k^{\rm h} &= \frac{2g^2|B_k|^2}{(\epsilon_k + \Delta)^2+\gamma_0^2},\\
+    \gamma_0^2       &= \frac{3}{2t^2},
+\end{align}
+where in particular, for the case $nn=0$, $|A_k|^2=|B_k|^2=1$ as mentioned in the main text (see~\cref{eq:gammac_def,eq:gammah_def,eq:tau0a}). We assume that, since we aim to cool, $\Delta t\gg 1$ and therefore we can neglect $\gamma_0$ in $\gamma_k^{\rm h}$. However, in the cooling term, $\gamma_0$ becomes the leading term when we approach resonant conditions.
+For $j=1$, the diagonal terms give the same result, but the cross terms do not vanish, since we only average over $l_{i1} l_{i1}^\dag$. These terms have weights $\gamma_\text{cross}$ and $\gamma^*_\text{cross}$, with:
+\begin{equation}
+    \gamma_\text{cross} = \frac{A_k B^*_k}{\epsilon_k^2 - \Delta^2}.
+\end{equation}
+However, in the limit $L \gg 1$, the single off-diagonal contribution from $j=1$ is negligible compared to the sum of the diagonal terms $L \gamma_k^{\rm c,h}$. Thus, we can safely neglect these off-diagonal terms. Moreover, the concatenation of the $L$ maps can be approximated by a single averaged map applied $L$ times. That is,
+\begin{align}
+    \mathcal{E}_{\text{total}}(\rho_k) &\approx \mathcal{E}_{\text{avg}}^L(\rho_k) = e^{-i h_{S,k} Lt} \left( \rho_k + L \mathcal{L}^\text{avg}(\rho_k) \right) e^{i h_{S,k} Lt},\\
+    \mathcal{L}^\text{avg}(\rho_k)     &= \gamma_k^{\rm c} \sum_{i=\pm k} \left( \hat{a}_i \rho_k \hat{a}_i^\dag - \frac{1}{2} \left\{ \hat{a}_i^\dag \hat{a}_i, \rho_k \right\} \right)        \nonumber\\
+                                       &\quad + \gamma_k^{\rm h} \sum_{i=\pm k} \left( \hat{a}_i^\dag \rho_k \hat{a}_i - \frac{1}{2} \left\{ \hat{a}_i \hat{a}_i^\dag, \rho_k \right\} \right).
+    \label{eq:averaged_map}
+\end{align}
+This Lindbladian describes a process where the system relaxes towards a steady state determined by the rates $\gamma_k^{\rm c,h}$. Note that, crucially, the jump operators no longer couple the modes $\pm k$. Hence, they can be treated individually.
+
+The resulting steady state is a thermal-like state with populations dependent on these rates, identical for both modes. Explicitly, the steady-state density matrix $\rho_{\text{ss}}^{(k)}$, energy $E_{\text{ss}}^k$ and fidelity for the $(k,-k)$ mode are:
+\begin{align}
+     &\rho_{\text{ss}}^{(k)} = \left( m_k \ket{\Omega}\bra{\Omega} + (1 - m_k) \ket{1}\bra{1} \right)^{\otimes 2},\\
+     &m_k = \frac{\gamma_k^{\rm c}}{\gamma_k^{\rm c} + \gamma_k^{\rm h}}, \label{eq:ss_density_matrix}\\
+     &E_{\text{ss}}^k = \epsilon_k \left( \frac{-\gamma_k^{\rm c} +\gamma_k^{\rm h}}{\gamma_k^{\rm c} + \gamma_k^{\rm h}} \right),\quad \mathcal{F}_k=m_k^2.
+    \label{eq:avg_longtime_ss_app}
+\end{align}
+
+
+Furthermore, we can verify that dissipative state preparation (DSP) will not be effective in this regime. In DSP, setting $\epsilon_k = 0$ for the evolution eliminates the possibility of performing the rotating wave approximation (RWA), and thus obtaining a result close to the ground state would require fine-tuning of the couplings.
+
+
+Furthermore, we can now calculate the convergence rate for the Lindbladian in \cref{eq:averaged_map} explicitly. We start by considering a general density matrix for some $k$-mode (since now we can treat $\pm k$ separately) and approximate the action of the average map after one cycle:
+\begin{align}
+    \rho_k^0(0)                         &=\begin{pmatrix}
+                                              m_k^0(0)         &\beta_k^0(0)\\
+                                              {\beta_k^0}^*(0) &1-m_k^0(0)
+                                          \end{pmatrix},\\
+    \mathcal{E}_\text{avg}(\rho_k^0(0)) &=\begin{pmatrix}
+                                              m_k^0(t)          &\beta_k^0(t)\\
+                                              {\beta_k^0}^* (t) &1-m_k^0(t)
+                                          \end{pmatrix},\\
+    m_k^0(t)                            &\approx\frac{\gamma_k^{\rm c}}{\gamma_k^{\rm c}+\gamma_k^{\rm h}}+e^{-(\gamma_k^{\rm c}+\gamma_k^{\rm h})}\left(m_k^0(0)-\frac{\gamma_k^{\rm c}}{\gamma_k^{\rm c}+\gamma_k^{\rm h}}\right),\\
+    \beta_k^0(t)                        &\approx\beta_k^0(0)e^{-(\gamma_k^{\rm c}+\gamma_k^{\rm h})/2+i\epsilon_k t}.
+\end{align}
+The matrix $\mathcal{E}_\text{avg}(\rho_k^0(0))$ is the new starting point for the next cycle, i.e. $\rho_k^1(0)$. Repeating the map $n$ times yields the following result:
+\begin{align}
+    \mathcal{E}_\text{avg}^n(\rho_k^0(0)) &=\begin{pmatrix}
+                                                m_k^n(t)         &\beta_k^n(t)\\
+                                                {\beta_k^n}^*(t) &1-m_k^n(t)
+                                            \end{pmatrix},\\
+    m_k^n(t)                              &\approx\frac{\gamma_k^{\rm c}}{\gamma_k^{\rm c}+\gamma_k^{\rm h}}+e^{-(\gamma_k^{\rm c}+\gamma_k^{\rm h})n}\left(m_k^0(0)-\frac{\gamma_k^{\rm c}}{\gamma_k^{\rm c}+\gamma_k^{\rm h}}\right),\\
+    \beta_k^n(t)                          &\approx\beta_k^0(0)e^{-(\gamma_k^{\rm c}+\gamma_k^{\rm h})n/2+i\epsilon_k t n}.
+\end{align}
+Thus, the convergence to $m_k\equiv m_k^\infty(t)$ is driven by an exponential in $-\alpha_k n=-(\gamma_k^{\rm c}+\gamma_k^{\rm h})n$. This also shows explicitly that, since in this particular case the action of $\exp(-ih_{S,k} t)$ commutes with the action of $\mathcal{L}^\text{avg}$, we fulfill the following identity:
+\begin{equation}
+    \left(e^{-ih_{S,k} t}e^{\mathcal{L}^\text{avg}}(\rho_k)e^{i h_{S,k} t}\right)^n=e^{-ih_{S,k} n t}e^{n\mathcal{L}^\text{avg}}(\rho_k)e^{i h_{S,k} n t}.
+\end{equation}
+
+\section{Multifrequency cooling}
+\label{app:multifrequency_cooling}
+
+In this Appendix we present some details of the calculations used to derive the results of \cref{subsec:multi_freq}, starting from the generalization of the previous Appendix to multiple frequencies.
+
+
+Starting from \cref{eq:gammach} in the main text, the average cooling and heating rates are given by:
+\begin{equation}
+    \gamma^{\rm c,h}_k = \frac{1}{R} \sum_{r=1}^R \gamma^{\rm c,h}_{r,k},
+\end{equation}
+where $\gamma^{\rm c,h}_{r,k}$ are the rates for a single frequency $\Delta_r$, given by \cref{eq:gammac_def,eq:gammah_def} in the main text:
+\begin{align}
+    \gamma^{\rm c}_{r,k} &= \frac{2g^2}{(\Delta_r-\epsilon_k)^2+ \gamma_0^2},\\
+    \gamma^{\rm h}_{r,k} &= \frac{2g^2}{(\Delta_r+\epsilon_k)^2}.
+\end{align}
+In the limit $R \gg 1$, we can approximate the sum over frequencies by an integral. We define the frequency spacing $\delta = (\epsilon_{\rm M} - \epsilon_{\rm m}) / R$, and the frequencies are chosen as $\Delta_r = \epsilon_{\rm m} + \delta (r - \frac{1}{2})$, where $\epsilon_{\rm M,\ m} = \sqrt{1\pm \sin(2\theta)}$ are the maximum and minimum values of $\epsilon_k$ as defined in the main text.
+
+In the limit $R\gg 1$, the average cooling and heating rates can be expressed as an integral:
+\begin{align}
+    \gamma_k^{\rm h} &= \frac{1}{R} \sum_{r=1}^R \frac{2g^2}{(\Delta_r+\epsilon_k)^2} \nonumber\\
+                     &\approx \frac{1}{(\epsilon_{\rm M}-\epsilon_{\rm m})} \int_{\epsilon_{\rm m}}^{\epsilon_{\rm M}} \frac{2g^2}{(\Delta+\epsilon_k)^2} \dd\Delta,\\
+    \gamma_k^{\rm c} &= \frac{1}{R} \sum_{r=1}^R \frac{2g^2}{(\Delta_r-\epsilon_k)^2+ \gamma_0^2} \nonumber\\
+                     &\approx \frac{1}{(\epsilon_{\rm M}-\epsilon_{\rm m})} \int_{\epsilon_{\rm m}}^{\epsilon_{\rm M}} \frac{2g^2}{(\Delta-\epsilon_k)^2+ \gamma_0^2} \dd\Delta.
+\end{align}
+
+Evaluating the integral for the heating rate $\gamma_k^{\rm h}$ yields
+\begin{align}
+    \gamma_k^{\rm h} &\approx \frac{1}{(\epsilon_{\rm M}-\epsilon_{\rm m})} \int_{\epsilon_{\rm m}}^{\epsilon_{\rm M}} \frac{2g^2}{(\Delta+\epsilon_k)^2} \dd\Delta\nonumber\\
+                     &= \frac{2g^2}{(\epsilon_{\rm M}+\epsilon_k)(\epsilon_{\rm m}+\epsilon_k)}.
+\end{align}
+Evaluating the integral for the cooling rate $\gamma_k^{\rm c}$ with the substitution $u = (\Delta - \epsilon_k) / \gamma_0$ and $\dd\Delta = \gamma_0 \dd u$ yields
+\begin{align}
+    \gamma_k^{\rm c} &\approx \frac{1}{(\epsilon_{\rm M}-\epsilon_{\rm m})} \int_{\epsilon_{\rm m}}^{\epsilon_{\rm M}} \frac{2g^2}{(\Delta-\epsilon_k)^2+ \gamma_0^2} \dd\Delta\nonumber\\
+                     &= \frac{2g^2 t \beta_k}{(\epsilon_{\rm M}-\epsilon_{\rm m})}.
+\end{align}
+where we defined
+\begin{align}
+    \beta_k &=\left[\tan^{-1}\left(\frac{\Delta-\epsilon_k}{\gamma_0}\right)\right]_{\epsilon_{\rm m}}^{\epsilon_{\rm M}}\sqrt{\frac{2}{3}}\nonumber\\
+            &= \sqrt{\frac{2}{3}} \left[ \tan^{-1}(z_M) - \tan^{-1}(z_m) \right],
+\end{align}
+and $z_M = (\epsilon_{\rm M}-\epsilon_k)t \sqrt{\frac{2}{3}}$ and $z_m = (\epsilon_{\rm m}-\epsilon_k)t \sqrt{\frac{2}{3}}$.
+This constant can be approximated depending on the regime we are in.
+
+If $R\gg|\epsilon_{\rm M}-\epsilon_{\rm m}|t\gg1$, we have $(\epsilon_{\rm M}-\epsilon_{\rm m})t \gg \gamma_0^{-1}$, so $z_M$ and $z_m$ are large, and this implies that at least one of the energies $\epsilon_{M,m}$ fulfills $\epsilon_{M,m}t\gg1$. Thus, its associated $\tan^{-1}$ can be approximated as $\pm\pi/2$, and the maximum value attainable happens when both can be approximated as such, giving a value of $\pi$. Therefore, in this regime we have that $\sqrt{3/2}\ \beta_k\in[\pi/2,\pi]$.
+
+In the second regime we considered here, namely $R\gg1\gg|\epsilon_{\rm M}-\epsilon_{\rm m}|t$, we have $(\epsilon_{\rm M}-\epsilon_{\rm m})t \ll \gamma_0^{-1}$, so $z_M$ and $z_m$ are small.
+We can use the Taylor expansion $\arctan(z) \approx z$ for small $z$. Then,
+\begin{align}
+    \beta_k &\approx \sqrt{\frac{2}{3}} \left[ z_M - z_m \right]\nonumber\\
+            &= \frac{2}{3} t (\epsilon_{\rm M}-\epsilon_{\rm m}).
+\end{align}
+
+Using these derivations we analyzed in the main text the performance of the multifrequency cooling algorithm.
+
+\section{Effect of noise caused by a finite environment}
+\label{app:finite_noise}
+
+In \cref{sec:adding_decoherence} we defined a common way of modeling noise in system dynamics, via a master equation. However, as discussed in \cref{sec:nn_cooling}, this kind of noise can be easily overcome in DSP by setting $t\rightarrow 0$. Therefore, in this Appendix we introduce and study, both numerically and analytically, a different noise model, which showcases the advantage of cooling over DSP in the presence of an external environment.
+\subsection{Model}
+\label{subapp:finite_noise_model}
+
+We describe the influence of an uncontrollable, external environment by connecting both the system and the bath to separate sets of $N$ independent fermionic sites, denoted $E_1$ and $E_2$. The coupling terms are local and designed to mimic spontaneous absorption and emission processes:
+\begin{align}
+    V_{SE_1} &= \kappa'\sum_{n=1}^N \left(a_n {c}_n^\dag + \text{h.c.}\right), \label{eq:V_SE}\\
+    V_{BE_2} &= \kappa'\sum_{n=1}^N \left({b}_n {d}_n^\dag + \text{h.c.}\right), \label{eq:V_BE}
+\end{align}
+and the environment Hamiltonians are
+\begin{align}
+    H_{E_1} &= \frac{\Delta_E}{2} \sum_{n=1}^N \left({c}_n^\dag {c}_n - c_n {c}_n^\dag\right), \label{eq:H_E1}\\
+    H_{E_2} &= \frac{\Delta_E}{2}\sum_{n=1}^N \left({d}_n^\dag {d}_n - d_n {d}_n^\dag \right), \label{eq:H_E2}
+\end{align}
+where the fermionic operators $c_n$ and $d_n$ act on the $n$-th fermionic site of environments $E_1$ and $E_2$, respectively. The environments are characterized by the energy splitting $\Delta_E$, the coupling strength $\kappa'$, and an initial state, $\rho_E$. We will assume that they are the same for both environments. Note that now $\kappa'$ has a different meaning than the $\kappa$ in the master equation of \cref{sec:adding_decoherence}, since before $\kappa$ was a rate and now $\kappa'$ is a coupling.
+
+During a cooling cycle, the entire system (system $S$, bath $B$, and environments $E_1, E_2$) evolves under the total Hamiltonian:
+\begin{equation}
+    H_{\text{tot}} = H_{SB} + H_{E_1} + H_{E_2} + V_{SE_1} + V_{BE_2},
+    \label{eq:H_tot}
+\end{equation}
+after which both environments and the bath are traced out and reset. In this description, the bath and the environments are treated similarly, except that the environment parameters and initial states are not controlled. Hence, the map corresponding to a cooling cycle is given by
+\begin{equation}
+    \mathcal{N}'(\rho_S) = \tr_{E_1 E_2 B}\left[e^{-iH_\text{tot}t}\left(\rho_S \otimes \rho_B\otimes \rho_{E_1}\otimes\rho_{E_2}\right)e^{i H_\text{tot}t}\right].
+    \label{eq:cooling_mapdiss}
+\end{equation}
+This map $\mathcal{N}'$ is related to the master equation-based noisy map $\mathcal{N}$, but it has more free parameters.
+Still, it is very different from the one considered in \cref{sec:adding_decoherence}. For instance, if $\rho_{E_{1,2}}$ is the vacuum of $c_n, d_n$ operators, in the perturbative limit the environment can only extract particles from the system, unlike the master equation, where the environment can also introduce them.
+To be more specific, we will consider translationally-invariant initial states $\rho_{E_{1,2}}$ dependent on a parameter $p_E\in[-1,1]$ that can be expressed in the following form for each $(k,-k)$ block:
+\begin{align}
+    \rho_{E_{1,2}}   &=\bigotimes_k\rho_{E_{1,2}}^k,\\
+    \rho_{E_{1,2}}^k &=\left[\frac{1+p_E}{2}\ket{\Omega}\bra{\Omega}+\frac{1-p_E}{2}\ket{1}\bra{1}\right]^{\otimes2}.
+    \label{eq:rho_E_def}
+\end{align}
+This parameter $p_E$ encompasses a wide range of options, from the ground state ($p_E=1$) to the most excited state ($p_E=-1$) and the maximally mixed state ($p_E=0$).Additionally, the form in \cref{eq:rho_E_def}  still allows us to work in each $(k,-k)$ block independently, as we have been doing throughout the paper.
+
+\subsection{Steady state of the system}
+We will now follow a similar derivation as shown in \cref{subapp:dyson_expansion_noiseless}, with the difference that our approximation via the Dyson expansion now includes additional terms $\kappa' V_{SE_1},\ \kappa' V_{BE_2}$ coming from the action of the finite environments:
+\begin{align}
+    \mathcal{E}_k(\rho_k) &\approx \tr_{BE_1E_2} \left[ e^{-i h_0 t} M_{k,t}' \left( \rho_k \otimes \rho_{BE_1E_2} \right) M_{k,t}'^\dag e^{i h_0 t} \right],\label{eq:expanded_map_finite_noise}
+\end{align}
+where
+\begin{align}    \rho_{BE_1E_2} &=\ket{\Omega}\bra{\Omega}_B\otimes\rho_{E_{1}}^k\otimes\rho_{E_{2}}^k,\\
+                 M_{k,t}'       &=\Id-i\int_0^t e^{i h_0 \tau}(gv_{SB}^k+\kappa' (v_{SE_1}^k+v_{BE_2}^k))e^{-i h_0 \tau}\dd \tau.
+\end{align}
+This expansion, analogous to the noiseless case, would result in three contributions to the system evolution. However, the contribution that would come from the interaction between the bath $B$ and its environment $E_2$ disappears when applying the partial trace over $BE_1E_2$ and considering terms only up to $\mathcal{O}(g^2t^2,\kappa'^2t^2,g\kappa' t^2)$. Note that, since $\kappa'$ is a coupling strength, it is different from the rate $\kappa$ used in depolarizing noise, and terms must be considered up to the same order as terms involving $g$. Therefore, we are left with two Lindbladians acting on the system: the original one for the noiseless cooling $\mathcal{L}_C$ (generated by $v_{SB}^k$), and an additional one resulting from the interaction with $E_1$, which we call $\mathcal{L}_{E_1}$ (generated by $v_{SE_1}^k$).
+
+The final result for the map $\mathcal{N}'_k$ is very similar to the one for depolarizing noise, namely
+\begin{equation}
+    \mathcal{N}'(\rho)\approx e^{-iH_{S}t}e^{\mathcal{L}_C+\mathcal{L}_{E_1}}(\rho) e^{i H_{S}t}.
+\end{equation}
+Extending the result of \cref{eq:steady_state_energy_mode} to accommodate the finite environment is straightforward, as the Lindbladian generated by $E_1$ has a similar shape as the one generated by $B$ but different $A_k^{(i)},B_k^{(i)}$ and $\Delta^{(i)}$. Additionally, one has to take into account that now the environment is initially not in the ground state, but in some initial state defined by $p_E$ [\cref{eq:rho_E_def}].
+The corresponding Lindbladian is:
+\begin{equation}
+    \mathcal{L}_{E_1}=\frac{1+p_E}{2}(\mathcal{L}_{l_1^E}+\mathcal{L}_{l_2^E})+\frac{1-p_E}{2}(\mathcal{L}_{l_1^{E\dag}}+\mathcal{L}_{l_2^{E\dag}}),
+\end{equation}
+where the jump operators $l_{1,2}^E$ are defined analogously to the jump operators $l_{1,2}$ in \cref{eq:L1_def_app,eq:L2_def_app}, coming from the bath interaction. Now, however, we have extra jump operators $l_{1,2}^{E\dag}$ stemming from the fact that the environment is initially not in the ground state (note that choosing $p_E=1$ would get rid of these extra terms). Therefore, we can group the terms in both Lindbladians and again calculate the steady state, which translates into a sum in the numerator and denominator and the following result for the steady-state energy:
+\begin{equation}
+    E_{ss}^k= \epsilon_k\frac{\sum_{i=B,E_1}p_i(-|A^{(i)}_k x_k^{(i)}|^2+|B^{(i)}_k y_k^{(i)}|^2)}{\sum_{i=B,E_1}(|A^{(i)}_k x^{(i)}_k|^2+|B^{(i)}_k y_k^{(i)}|^2)}.\label{eq:steady_state_energy_multibath}
+\end{equation}
+where the $p_i$ characterize the initial state of both the bath ($p_B=1$) and the environment $E_1$ ($p_E\in[-1,1]$).
+
+We can qualitatively see the effect that $p_i$ has on the energy by disconnecting the environment (i.e., setting $\kappa'=0$). We then focus on the case of a bath that is not in the ground state: for $p_B=-1$, $B$ is fully excited and the energy in the steady state flips sign compared to the $p_B=1$ case. Thus, we heat up instead of cooling. For the case of $p_B=0$, the bath state is maximally mixed and the energy of the steady state becomes zero, similarly to the case of the depolarizing noise.
+
+Note that in this Appendix, we will always use $\lambda_0^E=1,\ \mu_0^E=0$ in the environment (as defined in \cref{eq:V_SE}), thus the corresponding coupling coefficients are $A_k^E=\cos\varphi_k$, $B_k^E=-\sin\varphi_k$.
+
+As a final remark, if we want to work in the CM formalism (see \cref{app:CM_derivation}), the addition of a finite environment translates into an equation similar to the result of \cref{eq:cooling-map-CM}, but with a sum of contributions from the bath and the environment in the fixed-point equation:
+\begin{align}
+    \ket{\gamma_{S,k}^\text{ss}} &= \frac{A_{SB,k}\otimes A^*_{SB,k}\ket{\gamma_{0,k}^B}+A_{SE_1,k}\otimes A^*_{SE_1,k}\ket{\gamma_{0,k}^{E_1}}}{\Id-A_{S,k}\otimes A^*_{S,k}}\nonumber\\
+                                 &= \frac{A_{SB,k}\otimes A^*_{SB,k}+p_E A_{SE_1,k}\otimes A^*_{SE_1,k}}{\Id-A_{S,k}\otimes A^*_{S,k}}\ket{\gamma_{0,k}^{B}}.
+    \label{eq:noisy-cooling-map-CM}
+\end{align}
+Here, we use the simplification $\gamma_0^{E_1}=p_E\gamma_0^B$ since we assume the bath to be in the ground state and that we are in the eigenbasis for both bath and environment. Solving \cref{eq:noisy-cooling-map-CM} yields \cref{eq:steady_state_energy_multibath}.
+
+\subsection{Numerical results}
+\label{subapp:finite_noise_numerics}
+Given the finite noise model and the corresponding steady state from the previous subsection, we will now numerically analyze cooling and DSP under such a model, as well as covering re-optimization of parameters analogously to~\cref{sec:nn_cooling}. The analysis is different from the case of depolarizing noise, since in this case the steady state energy depends both on the parameters of the environment $(\Delta_E, \kappa')$ and on its initial state, characterized by $p_E$. The modified optimization becomes:
+
+\begin{equation}
+    \min_{\{\lambda_j, \mu_j, \Delta, t\}} e_{\text{noisy}}(\kappa', \Delta_E, p_E,\theta).
+    \label{eq:finite_noise_optimization}
+\end{equation}
+The numerical results reveal several interesting features. Both the environment energy gap $\Delta_E$ and the initial state parameter $p_E$ of the environment affect the reheating rate. The environment in the most excited state ($p_E=-1$) has the worst effect both in cooling and DSP, as it introduces more reheating. For cooling, the gap of the bath also plays an important role: for $\Delta \ll \Delta_E$, there is minimal effect of the environment, whereas for $\Delta_E \approx \Delta$ there is a small increase in relative energy, as seen in \cref{fig:DeltaEsweep_cooling}. The effect of noise, however, does not drive the system too far from the ground state, showing an increase in energy density of approximately $10^{-2}$ in the worst-case scenario.
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.48\textwidth]{newFig17_contour_cooling.pdf}
+    \caption{Contour plot of the relative energy $e$ (indicated by the colorbar) for the cooling protocol as a function of the relative environment energy splitting $\Delta_E/\Delta$ and the environment initial state parameter $p_E$. Parameters used are the noiseless-optimal ones for $N=20$, $nn=2$, $\theta=1.0$, with noise strength $\kappa'/g=0.04$. Darker blue regions indicate lower relative energy (better cooling), while lighter regions show higher energy due to environmental reheating.}
+    \label{fig:DeltaEsweep_cooling}
+\end{figure}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.48\textwidth]{newFig20_contour_DSP.pdf}
+    \caption{Same as \cref{fig:DeltaEsweep_cooling} but for DSP. DSP is more sensitive to the environment, with relative energies reaching much higher values}
+    \label{fig:DeltaEsweep_DSP}
+\end{figure}
+
+For weak noise ($\kappa' \ll g$), the increase in energy $E_{ss}$ in the steady state scales quadratically with the noise strength:
+\begin{equation}
+    E_{ss}^{\text{noisy}}-E_{ss}^{\text{noiseless}} \propto (\kappa')^2,
+    \label{eq:energy_increase}
+\end{equation}
+consistent with a perturbative expansion of~\cref{eq:steady_state_energy_multibath}.
+
+\begin{figure}[ht]
+    \includegraphics[width=0.48\textwidth,height=\textheight,keepaspectratio]{FigActual18_dsp_phase-averaged.pdf}
+    \caption{Comparison of DSP performance using noiseless and re-optimized phase-averaged parameters for $N=20$, $nn=1$, with the environment in its ground state ($p_E=1$) and $\Delta_E=10^{-5}\Delta$. The relative energy $e$ is plotted against $\theta/\pi$ for various noise strengths $\kappa'/g \in \{0.01, 0.04, 0.10\}$. Solid lines represent ideal parameters, while dashed lines show results using re-optimized parameters according to \cref{eq:finite_noise_optimization}. Re-optimization provides some improvement, but the benefits are less pronounced than in the cooling case.}
+    \label{fig:noisy_reoptimization_stateprep}
+\end{figure}
+\begin{figure}[ht]
+    \includegraphics[width=0.48\textwidth,height=\textheight,keepaspectratio]{FigActual19_cooling_phase-averaged.pdf}
+    \caption{Same as \cref{fig:noisy_reoptimization_stateprep}, but for cooling. Re-optimization significantly improves cooling performance, especially for stronger noise, demonstrating the potential to mitigate environmental effects through parameter tuning.}
+    \label{fig:noisy_reoptimization}
+\end{figure}
+
+
+For the dissipative state preparation (DSP) protocol, introducing environmental noise has a much more detrimental effect compared to the cooling algorithm.
+Even with minimal coupling strength, the addition of an environment significantly increases the relative energy, occasionally driving the system close to its most excited state (see~\cref{fig:DeltaEsweep_DSP}).
+
+Furthermore, the relative energy in the DSP case exhibits a cyclic behavior that persists beyond the regime of $\Delta_E \approx \Delta$, which can be attributed to higher-order contributions from the system's environment: terms of the form $(1 - \cos(x t))/x^2$ appear when expanding the equation for the energy density, creating the pattern seen in \cref{fig:DeltaEsweep_DSP}.
+
+Quantitatively, the environment connected to the bath plays a small but non-negligible role in the case of DSP. This is evidenced by the fact that \cref{eq:steady_state_energy_multibath} does not accurately capture the change in energy density. The result after the re-optimization of parameters is also not very reliable (see \cref{fig:noisy_reoptimization_stateprep}): it depends heavily on noise strength, which is difficult to infer from the original energy density
+While re-optimization can alleviate some effects of the environment, we still see here a significant advantage of cooling over DSP: even without re-optimization, cooling still performs better than re-optimized DSP in many instances. As shown in \cref{fig:noisy_reoptimization}, even for phase-averaged parameters the total energy density in the cooling protocol is kept under $10^{-3}$ for the whole phase up to noise strengths of $10\%$ of the coupling strength $g$.
+
+\section{Scalability of the optimal parameters with system size}
+\label{app:scalability}
+To assess the scalability of our cooling protocols, we apply the noiseless optimized coupling parameters obtained for $N=20$ to larger system sizes.
+The relative energy remains our primary figure of merit, as it naturally accounts for intensive quantities.
+Fig.~\ref{fig:1bath_Nscaling_average} illustrates the cooling performance for systems up to $N=2000$ using the phase-averaged parameters optimized for $nn=2$. The relative energy remains consistently lwo (below $10^{-3}$  for most $\theta$) across most of the parameter space as the system size increases, demonstrating the scalability and robustness of the optimized protocol.
+A slight increase in relative energy is observed near the critical point ($\theta \approx \pi/4$) for larger system sizes. In this region, the value of $g$ starts to be similar to that of $\epsilon_k$ for some modes $k$ as the gap closes, which means the coupling term can no longer be treated as a perturbation.
+\begin{figure}[ht]
+    \includegraphics[width=0.48\textwidth,height=\textheight,keepaspectratio]{FigActual21_cooling_scalability.pdf}
+    \caption{Scalability analysis of cooling using phase-averaged parameters optimized for $nn=2$ and $N=20$. The relative energy $e$ is plotted against $\theta/\pi$ for system sizes ranging from $N=20$ to $N=2000$. Cooling performance remains consistent as the system size increases, with relative energies showing no variation across most of the parameter space, demonstrating the scalability of the optimized protocol. A slight deviation is only observed near the critical point ($\theta \approx \pi/4$) for larger system sizes, where the relative energy increases with system size. This highlights the protocol's robustness across different system sizes and phases.}
+    \label{fig:1bath_Nscaling_average}
+\end{figure}

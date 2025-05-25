@@ -1,0 +1,34 @@
+\section{Comparison with the Variational Quantum Algorithm}
+
+To provide a comparative perspective on the performance of the cooling algorithm, we solve the same non-integrable Ising model using a variational quantum algorithm (VQA) with brickwork circuits of varying depths. The VQA is a hybrid quantum-classical approach that uses a parameterized quantum circuit to prepare trial states and a classical optimizer to minimize the energy expectation value. By comparing the results of the cooling algorithm with those of the VQA, we can assess the relative strengths and weaknesses of the two methods in tackling the ground state preparation problem.
+
+The VQA simulations are performed using the PastaQ.jl library, which provides a framework for designing and simulating quantum circuits. The gradients required for the classical optimization are obtained by autodifferentiating the noisy matrix product operators (MPO) that represent the quantum circuits.
+
+We employ a hardware-efficient variational ansatz~\citep{Kandala2017Hardwareefficient}, which consists of alternating layers of single-qubit rotations and entangling gates, as depicted in Fig.~\ref{fig:QVE_ansatz}. The single-qubit rotations are parametrized by Euler angles $\mathbf{\theta}$ and implemented as a sequence of $R_z(\theta_1^{q,i})$, $R_x(\theta_2^{q,i})$, and $R_z(\theta_3^{q,i})$ gates, where $q$ identifies the qubit and $i$ refers to the depth position. The entangling gates $U_{\text{ENT}}$ are fixed two-qubit operations, such as controlled-NOT (CNOT) gates, that introduce entanglement between neighboring qubits.
+
+The trial states are prepared by applying the variational circuit to the initial state $\ket{+}^{\otimes N}$, where $N$ is the number of qubits. The depth of the circuit, denoted by $d$, determines the expressiveness of the ansatz. The total number of variational parameters in the circuit is $p=N(3d+1)$.
+
+To estimate the energy expectation value of the prepared trial states, the VQA measures the individual Pauli terms in the Hamiltonian and combines the results. These measurements are subject to statistical noise due to the finite number of samples. The energy estimates are then used to update the variational parameters using a gradient-based optimizer, such as the Adam algorithm.
+
+In Fig.~\ref{fig:VQEoptimization}, we present the results of the VQA optimization for a system size of $N=10$ qubits and a circuit depth of $d=1$, corresponding to $p=40$ variational parameters. We compare the performance of the VQA in the presence and absence of noise, with a noise strength of $p_e=0.01$ for the noisy case. The energy density and ground state overlap are plotted as a function of the number of optimization steps.
+
+The results show that the VQA can effectively minimize the energy and prepare states with high overlap with the ground state in the absence of noise. However, the performance of the algorithm is significantly impacted by the presence of noise, leading to slower convergence and a higher final energy density compared to the noiseless case. This highlights the sensitivity of the VQA to experimental imperfections and the challenges associated with mitigating their effects.
+
+In contrast, the cooling algorithm demonstrates a higher level of resilience to noise, as evidenced by its ability to prepare low-energy states with high fidelity even in the presence of relatively strong depolarizing noise. This robustness can be attributed to the inherent error-correcting properties of the cooling process, which allows the system to dissipate excess entropy and maintain a low-energy state despite the presence of noise.
+
+While the VQA offers a flexible and expressive framework for preparing variational states, the cooling algorithm leverages the natural dynamics of the system-bath interaction to drive the system towards the ground state. The comparison between the two approaches highlights the potential advantages of the cooling algorithm in terms of noise resilience and the ability to prepare low-energy states in the presence of experimental imperfections.
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.5\textwidth]{Figs/VQE/VQE.pdf}
+	\caption{Hardware-efficient quantum circuit ansatz \citep{Kandala2017Hardwareefficient}, shown for five qubits. For each depth $k$, the circuit composes of a sequence of interleaved single-qubit rotation $U^{q,d}(\mathbf{\theta}_k)$ and entangling unitary operations $U_{ENT}$ that entangles all of the qubits in the circuit.}
+	\label{fig:QVE_ansatz}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.5\textwidth]{Figures/VQA_vs_NoisyVQA.pdf}
+	\caption{Energy density as a function of the number of optimization steps in a variational quantum eigensolver. The energy decreases as we increase the number of iterations. The results of the noiseless case are depicted as the blue curve, and the results of the noisy case are depicted as the orange curve. The exact ground state energy (from DMRG) of the Hamiltonian is plotted as the black line. The simulation is performed with the help of matrix product operators.
+	}
+	\label{fig:VQEoptimization}
+\end{figure}

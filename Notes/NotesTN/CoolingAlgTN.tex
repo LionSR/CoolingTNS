@@ -1,0 +1,453 @@
+\documentclass[aps,pra,twocolumn,superscriptaddress,nolongbibliography,nobalancelastpage,10pt]{revtex4-2}
+\input{preamble}
+\graphicspath{{./Figs/}}
+
+\begin{document}
+
+\title{Simulation and Optimization of Cooling Algorithms using Tensor Networks}
+\author{Authors}
+\affiliation{Max-Planck-Institut f\"ur Quantenoptik, Hans-Kopfermann-Str.\ 1, D-85748 Garching, Germany}
+\affiliation{Munich Center for Quantum Science and Technology (MCQST), Schellingstr.~4, D-80799 M\"unchen, Germany}
+
+\date{\today}
+\maketitle
+
+
+\section{Cooling Algorithm}
+
+Consider a spin system consisting of $N$ particles on a lattice governed by a local Hamiltonian $H_S$. We describe a cooling algorithm that allows for the preparation of the ground state of the Hamiltonian~\cite{Terhal2000Problem,Kraus2008Preparation,Diehl2008Quantum,Verstraete2009Quantum,Shabani2016Artificial,Metcalf2020Engineered,Polla2021Quantum,Shtanko2021Algorithms}.
+In nature, the cooling of hot objects occurs when they are coupled to cooler reservoirs. The cooling algorithm mimics this process. It consists of multiple cycles, and in each cycle, the energy of the system is reduced via its interaction with a fresh ancillary bath $B$, which consists of $N_B$ particles initialized at the ground state of its Hamiltonian $H_B$. To ensure scalability, the number of ancillas $N_B$ is taken to be extensive, i.e., proportional to the system size $N$. This is necessary to handle the extensive entropy increase due to noise, which a single ancilla would not be sufficient to counteract.
+The Hamiltonian of the composite system is given by
+\begin{equation}
+	H = H_S \otimes \Id_B + \Id_S \otimes H_B + gV,
+	\label{eq:Ham}
+\end{equation}
+where $H_S$ and $H_B$ are the Hamiltonians of the system and the bath, respectively, $\Id_S$ and $\Id_B$ are the identity operators on the system and the bath, respectively, $V$ is the interaction between the system and the bath, and the unit-free small parameter $g$ controls the strength of the interaction.
+Without loss of generality, we assume $V = \sum_k V_S^k \otimes V_B^k$ with $V_S^k$ acting on the system and $V_B^k$ acting on the bath.
+For notational convenience, we will also use $H_S + H_B$ to denote $H_S \otimes \Id_B + \Id_S \otimes H_B$, and similarly for $H_S + H_B + gV$, etc.
+
+Let us denote the initial state of the system $S$ at the beginning of the $k$-th cycle by $\rho_k$. At the beginning of each cycle, we always bring in a fresh ancilla $B$, initialized at the ground state of its Hamiltonian $H_B$, denoted by $\ket{0}$. The initial density matrix $\rho(0) = \rho_k \otimes \ket{0}\bra{0}$ of the total system evolves according to the Schr\"{o}dinger equation
+\begin{equation}
+	\rho(t) = e^{-i(H_S + H_{B} + gV) t} \left(\rho_k \otimes \ket{0}\bra{0}\right)  e^{i(H_S + H_{B} + gV) t}.
+	\label{eq:rhot}
+\end{equation}
+After a joint evolution of time $t$, the bath $B$ is discarded and the state of the system $S$ becomes
+\begin{equation}
+	\rho_{k+1} = \tr_B\left\{ e^{-i(H_S + H_{B} + gV) t} \left(\rho_k \otimes \ket{0}\bra{0}\right)  e^{i(H_S + H_{B} + gV)t} \right\}.
+	\label{eq:rhokp1}
+\end{equation}
+where $\tr_B\{\cdot\}$ denotes the partial trace over the bath degrees of freedom.
+An evolution under the Hamiltonian $H$ conserves the energy corresponding to the same Hamiltonian $\langle H_S + H_B + gV\rangle$.
+In the case of weak interaction $\min\{\|H_B\|,\|H_S\|\} \gg g > 0$, the expectation value $\langle H_S + H_B\rangle$ is almost conserved. As the ancillary system $B$ is excited from its ground state to excited states (an increase of $\langle H_B \rangle$), the energy exchange between the system $S$ and the bath $B$ leads to a decrease of $\langle H_S \rangle$, indicating that the system is cooled.
+
+To study the performance of the cooling algorithm and optimize its parameters, we employ efficient numerical simulation methods based on tensor networks. Specifically, we use matrix product operator (MPO) and matrix product state (MPS) techniques to simulate the cooling dynamics for large system sizes, exploiting the low-entanglement structure of the steady states. These methods will be discussed in detail in the following sections.
+
+\begin{figure}
+	\centering
+	\begin{quantikz}
+		                  & \gategroup[2,steps=3,style={dashed,rounded corners,fill=green!20, inner xsep=5pt,inner ysep=10pt},background,label style={label position=above,anchor=north,yshift=0.3cm}]{{\sc Repeat (Cooling)}}\rightarrow\ket{0} & \gate[2]{U(t) = e^{-iH_{SB}t}} & \measuretab{\text{out}} &                            \\  %\trash{\text{trash}}
+		\lstick{$\rho_k$} & \qwbundle{}\qw                                                                                                                                                                                                       &                                & \qw                     & \qw  \rstick{$\rho_{k+1}$}
+	\end{quantikz}
+
+	\begin{tikzpicture}[inner sep=0.8mm]
+		\foreach \i in {-1,...,8} {
+				\draw[line width=0.4mm,-] (0.1 + 0.5*\i, -1) -- (0.9 + 0.5*\i, -1);
+			}
+		\foreach \i in {0,...,4} {
+				\draw[line width=0.4mm,-] (\i, 0.1-1) -- (\i, 0.4-1);
+				\node[circr,scale=1] (\i) at (\i, -0.6) {};;
+			}
+		\foreach \i in {0,...,9} {
+				\node[circb,scale=1] (\i) at (0.5*\i, -1) {};;
+			}
+		\node (C) at (-1,-0.6) {\small{Bath:}};
+		\node (C) at (-1,-1) {\small{Sys:}};
+		%\draw[dashed, thick]  (-0.4, -1) to[bend right=30] (3.9, -1);
+	\end{tikzpicture}
+	\caption{Top: a schematic of our cooling algorithm. Bottom: coupling scheme between the system and the bath. The system particles (blue circles) are coupled to the bath particles (red circles) via $\sigma_X \otimes \sigma_X$ interactions, with one bath particle per system particle.}
+	\label{fig:SysBath}
+\end{figure}
+
+
+\section{Numerical Simulation Methods}
+\label{sec:NumMethods}
+
+In this section, we present efficient numerical methods to simulate the cooling algorithm for large system sizes, focusing on matrix product operator (MPO) and matrix product state (MPS) quantum trajectory simulations. These tensor network techniques enable us to study the performance of the algorithm and optimize its parameters by exploiting the low-entanglement structure of the steady states. We also simulate the effects of noise to investigate the robustness of the cooling algorithm in realistic scenarios.
+
+For a more detailed explanation of the procedure, let us first review the definition of matrix product state and the matrix product operator. A matrix product state (MPS) of a chain of $N$ spins is described as (also see Fig.~\ref{fig:MPS} for an illustration)
+\begin{equation}
+	\ket{\psi_{\text{MPS}}} = \sum_{i_1,i_2,\ldots,i_N} \tr (A^{[1]}_{i_1}A^{[2]}_{i_2} \ldots A^{[N]}_{i_N})\ket{i_1i_2 \ldots i_N},
+\end{equation}
+where $i_k = 1,\ldots,d$ and $A^{[k]}_{i_k}$s are $D \times D$ matrices on site $k$ with $D$ being the bond dimension of the MPS, except for the first and the last, which are $1 \times D$ and $D \times 1$ vectors. The total number of parameters involved is $ND^2d$ as compared to $d^N$ in the generic case.
+
+
+\begin{figure}[htbp]
+	\centering
+	\begin{tikzpicture}[inner sep=1mm]
+		\tikzstyle{circb}=[circle,draw=blue,fill=blue!30,thick]
+		\tikzstyle{circr}=[circle,draw=red,fill=red!30,thick]
+
+		\node at (-0.5,-1) {(a)};
+		\foreach \i in {0,...,5} {
+				\draw[line width=0.4mm,-] (0.15 + \i, -1) -- (1.15 + \i, -1);
+			}
+		\foreach \i in {0,...,3} {
+				\draw[line width=0.4mm,-] (2*\i, 0.15-1) -- (2*\i, 0.6-1);
+				\node[circb,scale=1.5] (\i) at (2*\i, -1) {};
+			}
+
+		\node at (-0.5,-2.5) {(b)};
+		\foreach \i in {0,...,6} {
+				\draw[line width=0.4mm,-] (0.15 + \i, -2.5) -- (0.85 + \i, -2.5);
+			}
+		\foreach \i in {0,...,6} {
+				\draw[line width=0.4mm,-] (\i, 0.15-2.5) -- (\i, 0.6-2.5);
+				\node[circb,scale=1.5] (\i) at (\i, -2.5) {};
+			}
+		\foreach \i in {0,...,2} {
+				\node[circr,scale=1.5] (\i) at (2*\i+1, -2.5) {};
+			}
+		\draw[line width=0.4mm,-] (7, 0.15-2.5) -- (7, 0.6-2.5);
+		\node[circr,scale=1.5] (7) at (7, -2.5) {};
+
+		\node at (-0.5,-4) {(c)};
+		\foreach \i in {0,...,6} {
+				\draw[line width=0.4mm,-] (0.15 + \i, -4) -- (0.85 + \i, -4);
+			}
+		\foreach \i in {0,...,6} {
+				\draw[line width=0.4mm,-] (\i, 0.15-4) -- (\i, 0.6-4);
+				\node[circb,scale=1.5] (\i) at (\i, -4) {};
+			}
+		\foreach \i in {0,...,2} {
+				\node[circr,scale=1.5] (\i) at (2*\i+1, -4) {};
+			}
+		\draw[line width=0.4mm,-] (7, 0.15-4) -- (7, 0.6-4);
+		\node[circr,scale=1.5] (7) at (7, -4) {};
+		\node at (1, -3.14) {$\ket{\alpha_1}$};
+		\node at (3, -3.14) {$\ket{\alpha_2}$};
+		\node at (5, -3.14) {$\ket{\alpha_3}$};
+		\node at (7, -3.14) {$\ket{\alpha_4}$};
+
+	\end{tikzpicture}
+	\caption{(a) Matrix product state for one-dimensional systems. The legs denote indices, the connected lines represent
+		contractions of indices, and tensors are circles. The physical dimension $d$ is the dimension of the outer index and the bond
+		dimension $D$ is the dimension of the inner indices. (b) Inserting ancillas (red circles) into the MPS. The ancillas are placed in alignment with the system particles (blue circles) to facilitate local interactions. The tensor at the site of insertion becomes an outer product of an identity matrix connecting the virtual indices from the previous MPS tensor to the next MPS tensor and the tensor defining the state of the ancilla site. (c) Projecting the ancilla sites onto states $\ket{\alpha_1, \ldots, \alpha_N}$ using the perfect unitary sampling method. This operation can be efficiently performed by applying local projectors to the relevant MPS tensors and renormalizing the state.}
+	\label{fig:MPS}
+\end{figure}
+
+The class of matrix product density operators has a form similar to MPS, except now each tensor $A^{[s]}$ has two physical indices, one for the ket and one for the bra layer. A tensor network diagram illustration is given in Fig.~\ref{fig:MPO}. Mathematically,
+\begin{equation}
+	\rho_{\text{MPO}} = \sum A_{i_{1} j_{1}}^{[1]} A_{i_2 j_2}^{[2]} \cdots A_{i_{N} j_N}^{[N]}\ket{i_{1}, \ldots, i_{N}}\bra{j_{1}, \ldots, j_{N}},
+\end{equation}
+where $N$ is the length of the chain, the sum runs over $i_j,j_k = 1,\ldots,d$ with $d$ being the local Hilbert space dimension, and the $A_{i_k j_k}^{[k]}$ are $D \times D$ matrices, except $A_{i_1 j_1}^{[1]}$ and $A_{i_N j_N}^{[N]}$ are $1 \times D$ and $D \times 1$ matrices respectively.  For both states the normalization of the wavefunction is omitted.
+
+
+\begin{figure}
+	\centering
+	\begin{tikzpicture}[inner sep=1mm]
+		\node (A) at (-0.5,-1) {(a)};
+		\foreach \i in {0,...,5} {
+				\draw[line width=0.4mm,-] (0.15 + \i, -1) -- (1.15 + \i, -1);
+			}
+		\foreach \i in {0,...,3} {
+				\draw[line width=0.4mm,-] (2*\i, 0.15-1) -- (2*\i, 0.6-1);
+				\draw[line width=0.4mm,-] (2*\i, -0.15-1) -- (2*\i, -0.6-1);
+				\node[circb,scale=1.5] (\i) at (2*\i, -1) {};;
+			}
+		% \foreach \i in {0,...,6} {
+		% \node[circr,scale=1.5] (2\i+4) at (2\i, -2) {};;
+		%   }
+		\node (B) at (-0.5,-2.5) {(b)};
+		\foreach \i in {0 ,...,6} {
+				\draw[line width=0.4mm,-] (0.15 + \i, -2.5) -- (0.85 + \i, -2.5);
+			}
+		\foreach \i in {0,...,7} {
+				\draw[line width=0.4mm,-] (\i, 0.15-2.5) -- (\i, 0.6-2.5);
+				\draw[line width=0.4mm,-] (\i, -0.15-2.5) -- (\i, -0.6-2.5);
+				\node[circb,scale=1.5] (\i) at (\i, -2.5) {};
+			}
+		\foreach \i in {0,...,3} {
+				\node[circr,scale=1.5] (\i) at (2*\i+1, -2.5) {};
+			}
+		\node (C) at (-0.5,-4) {(c)};
+		\foreach \i in {0,...,6} {
+				\draw[line width=0.4mm,-] (0.15 + \i, -4) -- (0.85 + \i, -4);
+			}
+		\foreach \i in {0,...,3} {
+				\draw[line width=0.4mm,-] (2*\i, 0.15-4) -- (2*\i, 0.6-4);
+				\draw[line width=0.4mm,-] (2*\i, -0.15-4) -- (2*\i, -0.6-4);
+				\node[circb,scale=1.5] (2*\i) at (2*\i, -4) {};
+			}
+		\foreach \i in {0,...,3} {
+				\draw[line width=0.3mm] (2*\i+1.15,-4) ellipse (0.15 and 0.6);
+				\node[circr,scale=1.5] (\i) at (2*\i+1, -4) {};
+			}
+	\end{tikzpicture}
+	\caption{(a) Matrix product operator representation for one-dimensional systems. The legs denote indices, the connected lines represent contractions of indices, and tensors are circles. The physical dimension $d$ is the dimension of the outer index and the bond dimension $D$ is the dimension of the inner indices. (b) Inserting ancillas (red circles) into the MPO. The ancillas are placed in alignment with the system particles (blue circles) to facilitate local interactions. The tensor at the site of insertion becomes an outer product of an identity matrix connecting the virtual indices and the tensor defining the ancilla state. (c) Partial trace of the ancillas (bath). The order-four tensor of the site to be traced out is reduced to a matrix after applying the trace operation and can be merged with neighboring tensors through a contraction.}
+	\label{fig:MPO}
+\end{figure}
+
+
+\paragraph{Couplings}
+In our numerical simulations, we consider cooling with an extensive number of ancillas, i.e., $N_B = N_S$. The couplings between the system and the bath are taken to be $\sigma_X \otimes \sigma_X$ interactions, locally connected from ancillas to the system particles, as shown in Fig.~\ref{fig:SysBath}.
+
+\subsection{Matrix Product Operator Simulation}
+\label{sec:MPOCooling}
+
+To simulate the cooling dynamics, we employ the time-evolving block decimation (TEBD) algorithm to compute the time-evolved density matrix (\ref{eq:rhot}). The idea is to split the Hamiltonian $H$ (\ref{eq:Ham}) into two parts, even $e$ and odd $o$ sites, such that $H_e$ and $H_o$ only contain mutually commuting terms $H=H_e + H_o$ and use the Suzuki-Trotter decomposition to approximate
+\begin{equation}
+	e^{-i(H_e + H_o)t} \approx  \left(e^{\frac{-iH_e t}{M}} e^{\frac{-iH_o t}{M}}\right)^{M},
+\end{equation}
+where $M$ is the number of divisions we divide the time evolution into. The Trotter step $\delta = t/M$ controls the Trotterization error, with smaller values of $\delta$ leading to more accurate approximations at the cost of increased computational complexity. With this decomposition, the evolution operator for each step can then be applied to the matrix product operators. After every application of a two-site unitary, we truncate singular values and shrink the bond dimension of the MPOs.
+
+
+After the time evolution (\ref{eq:rhot}), we perform the partial trace of the bath degrees of freedom. This can be done efficiently for matrix product operators (see Fig.~\ref{fig:MPO}(c)). Essentially, the order-four tensor of the site to be traced out is reduced to a matrix after applying the trace operation and can be merged with neighboring tensors through a contraction.
+
+To simulate the effects of noise using the MPO method, we apply the Kraus operators corresponding to the depolarizing noise as operators on the MPO after each cooling step. The depolarizing noise is described by the channel
+\begin{equation}
+	\mathcal{E}_\text{depl}(\rho) = (1-p_e)\rho + \frac{p_e}{3}(\sigma_x\rho \sigma_x + \sigma_y\rho \sigma_y + \sigma_z\rho\sigma_z),
+	\label{eq:depolarizing}
+\end{equation}
+where $p_e$ represents the probability of a noise event occurring, called the noise strength. The depolarizing noise is applied to every qubit in the system.
+
+The matrix product operator simulations were performed using the ITensor.jl~\cite{Fishman2022ITensor} library. The initial state in the MPO simulations is set to be the infinite temperature identity state. The bond dimension is truncated to a maximum value of $D \leq 100$ with a cutoff of $10^{-5}$, and the Trotter step size is set to $\delta t = 0.1$. The Hamiltonian parameters are set to $J=1$, $h_z=0.5$, and $h_x=-1.05$, corresponding to a non-integrable point in the phase diagram. The coupling strength between the system and the bath is set to $g=0.3$, and the total evolution time is $t_e=2.0$. The number of cooling steps is varied from 100 to 500.
+
+
+\section{Quantum Trajectory Simulation with Matrix Product States}
+
+As an alternative to solving the many-body dynamical equation (\ref{eq:rhokp1}) directly, the quantum trajectory method allows us to work with stochastic wavefunctions instead of density operators. This approach is advantageous because MPO simulations without purification may lead to unphysical states, even though the steady state is physical. During the evolution, the truncation might result in states with lower energies than the ground state, which is incorrect. By combining quantum trajectories with matrix product state techniques, we can efficiently simulate the cooling dynamics for large system sizes, exploiting the low-entanglement structure of the states involved in the process.
+
+
+Each stochastic trajectory begins from the same initial normalized pure state $\ket{\Psi_S^1}$ and evolves according to the following procedure.
+\begin{enumerate}
+	\item At each step $k$, calculate the coherent time evolution according to the Schr\"{o}dinger equation with the joint Hamiltonian $H = H_S + H_B + gV$, up to $t_e$
+	      \begin{equation}
+		      \ket{\Psi_{SB}^{k+1}} = e^{-iHt_e} (\ket{\Psi_{S}^{k}} \otimes \ket{0}_B).
+		      \label{eq:dynamics}
+	      \end{equation}
+	\item After the joint pure state evolution, the bath needs to be traced out. The partial trace can be expressed with an orthonormal basis of the bath $\{\ket{\alpha}\}$,
+	      \begin{equation}
+		      \begin{aligned}
+			      \rho_S^{k+1} & = {\tr}_B [ \ket{\Psi_{SB}^{k+1}}\bra{\Psi_{SB}^{k+1}} ]                                                   \\
+			                   & =  \sum_{\alpha}\Id_S \otimes {}_B\bra{\alpha}\ket{\Psi_{SB}^{k+1}} \bra{\Psi_{SB}^{k+1}}  \ket{\alpha}_B.
+		      \end{aligned}
+	      \end{equation}
+	      To simulate the partial trace using the quantum trajectory method, we use the perfect unitary sampling method~\cite{Ferris2012Perfect} to sample the configuration of the ancillas and the trajectories. The key steps of the perfect unitary sampling method are as follows:
+	      \begin{enumerate}
+		      \item Compute the probability of observing each ancilla configuration by contracting the MPS tensors with the corresponding basis states.
+		      \item Sample an ancilla configuration according to the computed probabilities.
+		      \item Project the ancilla sites onto the sampled configuration by applying local projectors to the relevant MPS tensors and renormalizing the state.
+	      \end{enumerate}
+	      This method ensures that the sampled trajectories are representative of the true dynamics and avoids the need to simulate the full density matrix.
+	\item The state is renormalized, and we continue with step 1 until $k = N_\text{steps}$.
+\end{enumerate}
+
+For the time evolution of the MPS, we employ the time-dependent variational principle (TDVP) algorithm~\cite{Haegeman2011TimeDependent,Haegeman2016Unifying}. This algorithm projects the time evolution onto the manifold of matrix product states with a fixed bond dimension, avoiding the need for Trotterization and providing a more efficient approach for long-time simulations. The TDVP algorithm is also more extendible to long-range interacting systems compared to TEBD.
+
+To simulate the effects of noise using the MPS method, we employ a probabilistic approach. After each cooling step, we draw a random number $r$ uniformly from $[0,1]$ for each qubit. If $r < p_e$, we apply a randomly selected Pauli operator ($\sigma_x$, $\sigma_y$, or $\sigma_z$) to the corresponding qubit in the MPS. This procedure effectively simulates the action of the depolarizing noise channel described in Eq.~(\ref{eq:depolarizing}).
+
+In our case, since the ground state is the only fixed point of the dynamics, most of the trajectories are expected to converge to the ground state of $H_S$. Consequently, the expectation values, state overlaps, and other physical quantities are expected to converge rapidly as the number of trajectories is increased.
+
+We call $\ket{\Psi_S^{k,(i)}}$ the state of the $i$-th trajectory after $k$ cooling steps. After having collected a set of $N_\text{QT}$ samples $\{ \ket{\Psi_S^{k,(i)}} \}$, we can estimate several physical quantities.
+
+\paragraph{Observable}
+The stochastic average of the single trajectory expectation values is equal to the expectation value according to Eq.~(\ref{eq:rhokp1})
+\begin{equation}
+	\tr[A \rho_S^k] \approx \frac{1}{N_\text{QT}} \sum_{i=1}^{N_\text{QT}}\bra{\Psi_S^{k,(i)}}A\ket{\Psi_S^{k,(i)}}.
+\end{equation}
+where $A$ is an observable of interest.
+We compute the energy and other observables to check whether the ground state is reached.
+
+\paragraph{State overlaps}
+The state fidelity between a given state $\ket{\Phi}$ and $\rho_S^k$ can be computed in parallel
+\begin{equation}
+	F = \bra{\Phi}\rho_S^k\ket{\Phi} \approx \frac{1}{N_\text{QT}}\sum_{i=1}^{N_\text{QT}} \left|\braket{\Phi|Psi_S^{k,(i)}}\right|^2.
+\end{equation}
+We use the state fidelity with respect to the low excited states of $H_S$ to quantify the efficiency of cooling.
+
+
+Due to the typicality of the trajectory and the fact that we target only the steady state, we use a single trajectory ($N_\text{QT}=1$) and perform the average over the last 200 steps to estimate the steady-state properties.
+
+
+\paragraph{Purity}
+The purity of the density matrix $\rho_S^k$ is not the average of the trajectory purities, and the calculation of the purity requires all the trajectories at the same time,
+\begin{equation}
+	\tr[(\rho_S^k)^2] \approx \frac{1}{N_\text{QT}^2} \sum_{i,i'=1}^{N_\text{QT}} \left|\braket{\Psi_S^{k,(i)}|\Psi_S^{k,(i')}}\right|^2.
+\end{equation}
+
+The matrix product state simulations were performed using the ITensor.jl~\cite{Fishman2022ITensor} library. The initial state in the MPS simulations is set to be a product state with alternating up and down spins, i.e., $\ket{\Psi_S^1} = \ket{\uparrow\downarrow\uparrow\downarrow\cdots}$. The bond dimension is truncated to a maximum value of $D \leq 40$ with a cutoff of $10^{-5}$, and the time step is set to $\delta t = 0.1$. The Hamiltonian parameters are the same as in the MPO simulations. The coupling strength between the system and the bath is set to $g=0.3$, and the total evolution time is $t_e=2.0$. The number of cooling steps is varied from 100 to 500.
+
+\section{Bayesian Optimization for Hyperparameter Tuning}
+Optimizing the performance of the cooling algorithm requires finding the optimal values for hyperparameters such as the coupling strength $g$ and the evolution time $t_e$. However, the relationship between these hyperparameters and the cooling efficiency is complex and evaluating the cooling efficiency for a given set of hyperparameters is computationally expensive. We employ Bayesian optimization, a framework for global optimization of expensive black-box functions~\cite{Frazier2018Tutorial}, to address this challenge.
+
+Bayesian optimization constructs a probabilistic surrogate model, typically a Gaussian process~\cite{Rasmussen2006Gaussian}, of the objective function (cooling efficiency) based on observed values at different hyperparameter configurations. The surrogate model's posterior distribution guides the search for optimal hyperparameters by balancing exploration and exploitation through an acquisition function, such as Expected Improvement~\cite{Mockus1978Application} or Upper Confidence Bound~\cite{Srinivas2009Gaussian}. The acquisition function determines the next point to evaluate in the hyperparameter space, aiming to maximize the expected improvement over the current best solution while considering the uncertainty in the surrogate model's predictions.
+
+At each iteration, the hyperparameter configuration that maximizes the acquisition function is selected, and the objective function is evaluated at that point. The new observation is then used to update the surrogate model, and the process is repeated until a predefined budget (e.g., number of iterations or time limit) is exhausted. Bayesian optimization is particularly suitable when the objective function is expensive to evaluate, as it aims to minimize the number of function evaluations required to find the global optimum.
+
+We use the BOHB (Bayesian Optimization and Hyperband) algorithm~\cite{Falkner2018BOHB}, which combines Bayesian optimization with Hyperband~\cite{Li2017Hyperband}, a bandit-based strategy for hyperparameter optimization. The BOHB algorithm is implemented using the Hyperopt.jl library~\cite{Hyperopt.jl}. We define the objective function as the average energy density of the last $k=100$ steps of the MPS quantum trajectory simulation. The search space for the coupling strength $g$ is set to the range $[0.1, 0.5]$, and the search space for the evolution time $t_e$ is set to the range $[1.0, 3.0]$. We run the optimization for 20 iterations, with each cooling simulation running for $200$ steps to evaluate the objective function. The best hyperparameter configuration found by the Bayesian optimization procedure is then used to run the final cooling simulations with $800$ steps and evaluate the optimized algorithm's performance. The Bayesian optimization is performed using the Hyperopt.jl library~\cite{Hyperopt.jl} for the MPS trajectory simulation.
+
+\section{Numerical Results}
+
+\subsection{Model}
+We test the performance of our algorithm on a one-dimensional quantum Ising model, with the Hamiltonian given by (open boundary condition)
+\begin{equation}
+	H_{\text{Ising}} = J\sum_{i=1}^{N-1}\sigma_{i}^z\sigma_{i+1}^z + h_z\sum_{i=1}^{N} \sigma_{i}^z + h_x\sum_{i=1}^{N} \sigma_{i}^x.
+	\label{eq:HIsing}
+\end{equation}
+where $J$ is the coupling strength between neighboring spins, $h_z$ and $h_x$ are the transverse and longitudinal magnetic fields, respectively, and $\sigma_i^{\alpha}$ ($\alpha = x,y,z$) are the Pauli operators acting on the $i$-th spin.
+This ZZXZ Hamiltonian is in general non-integrable, except in the limits $h_z = 0$ (classical) and $h_x = 0$ (transverse field Ising model). We focus on a non-integrable point $J = 1,h_z = 0.5,h_x = -1.05$, the same as used in Ref.~\citep{Lu2021Algorithms}.
+
+\subsection{Initial states}
+As in Ref.~\citep{Lu2021Algorithms}, we consider real translationally invariant product states that can be parametrized as
+\begin{equation}
+	\ket{\Psi(\theta)} = \ket{p(\theta)}^{\otimes N},
+	\label{eq:PS}
+\end{equation}
+where $\ket{p(\theta)} = \cos{\theta}\ket{0} + \sin{\theta}\ket{1}$. In the thermodynamic limit, these states have energy density $E/N = J\cos^2(2\theta) + h_z \cos(2\theta) + h_x \sin(2\theta)$, ranging over most of the energy band (see Fig.~\ref{fig:ELNI}). For the initial states, we choose three values of $\theta$ corresponding to states in the lower part of the energy band, namely $\theta_1 = \pi/4$, for which $E_1/N = h_x = -1.05$, $\theta_2 = \pi/3$, for which $E_2/N = -0.909$, and $\theta_3 = \pi/6$, with $E_3/N = -0.409$. These product states already have rather low energies, and to gain quantum advantage, the quantum cooling algorithm must obtain lower energy in the presence of noise. In the following numerical experiments, we will test the performance of the cooling algorithm starting from these three translationally invariant product states.
+
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[width=0.8\linewidth]{Figs/Cooling/EnergyDensityIsinghx-1.05hz0.5.pdf}
+	\caption{Energy density in the non-integrable Ising chain~\eqref{eq:HIsing} in the thermodynamic limit. The solid line indicates the energy density of translationally invariant real product states, while the dashed horizontal lines indicate the energy densities of the ground state (estimated numerically with MPS). The colored symbols indicate the states chosen in our numerical simulations.}
+	\label{fig:ELNI}
+\end{figure}
+
+\subsection{Matrix Product Operator Simulation Results}
+
+In this subsection, we present the results obtained from the MPO simulations of the cooling algorithm.
+
+\subsubsection{Noiseless Cooling}
+
+We first investigate the performance of the cooling algorithm in the absence of noise. The MPO simulations are performed for system sizes ranging from $N=10$ to $N=100$, with a bond dimension of $D \leq 100$ and a Trotter step size of $\delta t = 0.1$. The coupling strength between the system and the bath is set to $g=0.3$, and the total evolution time is $t_e=2.0$. The number of cooling steps is varied from 100 to 400.
+
+Fig.~\ref{fig:MPOCooling:noiseless} shows the energy and ground state overlap as a function of the number of cooling steps for different system sizes. The initial state is set to be the infinite temperature identity state. We observe that the energy decreases rapidly in the first few cooling steps and then saturates to a value close to the ground state energy. The ground state overlap also increases with the number of cooling steps, indicating that the cooling algorithm effectively prepares the ground state of the system. The convergence is faster for smaller system sizes, but the algorithm remains effective even for large systems with $N=100$.
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns50Nb50_CouplingXXg0.3te2.0steps500_SimMPOtau0.1.pdf}
+	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns100Nb100_CouplingXXg0.3te2.0steps500_SimMPOtau0.1.pdf}
+	\caption{MPO simulation results of the noiseless cooling procedure. The energy and the ground state overlap are plotted as a function of the number of cooling steps. The initial state is the infinite temperature state. The bond dimension is $D \leq 20$, the system size is (a) $N=50$. (b) $N=100$, and the Trotter step is $\delta t = 0.1$.}
+	\label{fig:MPOCooling:noiseless}
+\end{figure}
+
+\subsubsection{Noisy Cooling}
+
+In practice, quantum systems are inevitably coupled to environments, leading to the presence of noise and dissipation, which could affect the performance of the algorithm. We investigate if the cooling algorithm is resilient to experimental noise. The effects of noise are incorporated into the MPO simulations by applying the Kraus operators corresponding to the depolarizing noise after each cooling step. The depolarizing noise is described by the channel in Eq.~(\ref{eq:depolarizing}), with the noise strength $p_e$ representing the probability of a noise event occurring.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns50Nb50_CouplingXXg0.3te2.0steps500_SimMPOtau0.1pe0.01.pdf}
+	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns100Nb100_CouplingXXg0.3te2.0steps500_SimMPOtau0.1pe0.01.pdf}
+	\caption{MPO simulation results of the noisy cooling procedure. The energy and the ground state overlap are plotted as a function of the number of cooling steps for $p_e=0.01$. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The initial state is the infinite temperature state, and depolarizing channels are injected after each cooling step with different error probabilities. The bond dimension is $D \leq 20$, the system size is (a) $N=50$. (b) $N=100$, and the Trotter step is $\delta t = 0.1$.}
+	\label{fig:MPOCooling:noisy}
+\end{figure}
+
+Fig.~\ref{fig:MPOCooling:noisy} shows the energy and ground state overlap as a function of the number of cooling steps. The system size is fixed at $N=100$, and the other simulation parameters are the same as in the noiseless case. We observe that the cooling algorithm remains effective in preparing low-energy states close to the ground state, even in the presence of noise. The convergence rate depends on the noise strength, with stronger noise leading to slower convergence and higher steady-state energy. However, the algorithm still achieves significant cooling and ground state preparation fidelity, demonstrating its robustness against depolarizing noise.
+
+To further quantify the impact of noise on the cooling performance, we investigate the scaling of the energy density error and ground state overlap for different noise strengths, ranging from $p_e=0.001$ to $p_e=0.01$. Fig.~\ref{fig:MPOCooling:noisy:pe} shows the results for a system size of $N=100$ after 500 cooling steps. The energy density error, defined as the difference between the steady-state energy density and the ground state energy density, scales linearly with the noise strength. The ground state overlap decreases exponentially with the noise strength, but remains significant even for the strongest noise considered ($p_e=0.01$). These results demonstrate the resilience of the cooling algorithm against depolarizing noise and its ability to prepare low-energy states in the presence of experimental imperfections.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_niIsingJ1.0hx-1.05hz0.5_energy_error_and_overlap_vs_N_multiple_pe.pdf}
+	\caption{Numerical MPO cooling results of $N_s = N_b$ in the presence of noise $p_e$, starting from the infinite temperature state.  We find that the error in the energy density is close to being linear in the noise rate $p_e$ and independent of the system size. We also find that the ground state fidelity decreases exponentially with the noise rate $p_e$. The bond dimension is $D \leq 20$, the system size is $N \leq 100$, and the Trotter step is $\delta t = 0.1$.}
+	\label{fig:MPOCooling:noisy:pe}
+\end{figure}
+
+
+\subsection{Matrix Product State Quantum Trajectory Simulation Results}
+
+% In this subsection, we present the results obtained using the MPS quantum trajectory simulations of the cooling algorithm.
+
+We simulate the cooling algorithm using MPS quantum trajectories for system sizes ranging from $N=10$ to $N=100$ and noise rates from $p_e=0.001$ to $p_e=0.01$. The bond dimension is truncated to a maximum value of $D \leq 40$, and the time step is set to $\delta t = 0.1$. The coupling strength between the system and the bath is set to $g=0.3$, and the total evolution time is $t_e=2.0$. The number of cooling steps is varied from 100 to 500. Since MPS trajectory simulations are probabilistic, we average the last 200 trajectories' energy to estimate the energy of the steady state in one simulation by using the typicality of the simulation.
+
+\begin{figure}
+	\centering
+	% \includegraphics[width=0.5\textwidth]{Figs/Cooling/MPS_NoisyCooling_IsingJ1.0h2.0Nmax100ratio1g0.3te1.0Steps500_versus_N_pe.pdf}
+	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns50Nb50_CouplingXXg0.3te2.0steps500_SimMPSDmax20.pdf}
+	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns100Nb100_CouplingXXg0.3te2.0steps500_SimMPSDmax20.pdf}
+	\caption{MPS quantum trajectory simulation results of the noisless cooling procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The initial state is the infinite temperature state, and depolarizing channels are injected after each cooling step with different error probabilities. The bond dimension is $D \leq 20$, and the time step is $\delta t = 0.1$.}
+	\label{fig:MPSCooling:noiseless}
+\end{figure}
+
+Fig.~\ref{fig:MPSCooling:noisy} shows the error in the energy density as a function of the system size for different noise rates. The error in the energy density is defined as the absolute difference between the steady-state energy density obtained from the MPS simulations and the exact ground state energy density obtained from DMRG calculations. We observe that the error in the energy density exhibits a linear scaling with the noise rate, consistent with the findings of the MPO simulations. The error remains small even for the largest system size considered ($N=100$) and the strongest noise rate ($p_e=0.01$), demonstrating the effectiveness of the cooling algorithm in preparing low-energy states in the presence of noise.
+
+
+\begin{figure}
+	\centering
+	% \includegraphics[width=0.5\textwidth]{Figs/Cooling/MPS_NoisyCooling_IsingJ1.0h2.0Nmax100ratio1g0.3te1.0Steps500_versus_N_pe.pdf}
+	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns50Nb50_CouplingXXg0.3te2.0steps500_SimMPSDmax20pe0.01.pdf}
+	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns100Nb100_CouplingXXg0.3te2.0steps500_SimMPSDmax20pe0.01.pdf}
+	\caption{MPS quantum trajectory simulation results of the noisy cooling procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The initial state is the infinite temperature state, and depolarizing channels are injected after each cooling step with different error probabilities. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$.}
+	\label{fig:MPSCooling:noisy}
+\end{figure}
+
+The MPS quantum trajectory simulations corroborate the findings of the MPO simulations, confirming the ability of the cooling algorithm to prepare low-energy states in the presence of noise.
+
+\subsection{Hyperparameter Optimization Results}
+
+To optimize the performance of the cooling algorithm, we employ Bayesian optimization to find the optimal values for the coupling strength $g$ and the evolution time $t_e$. The objective function is defined as the average energy density of the last $k=100$ steps of the cooling simulation, and the search space for $g$ and $t_e$ is set to $[0.1, 0.5]$ and $[1.0, 3.0]$, respectively. The optimization is performed using the BOHB algorithm, with 20 trials and each cooling simulation running for 200 steps to evaluate the objective function.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5Ns50Nb50_ParamsSteps200_SimMPSDmax40peInt0_SearchBayesiantrials20.pdf}
+	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5Ns100Nb100_ParamsSteps200_SimMPSDmax40peInt0_SearchBayesiantrials20.pdf}
+	\caption{(Optimized)MPS quantum trajectory simulation results of the noiseless cooling procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The initial state is the infinite temperature state, and depolarizing channels are injected after each cooling step with different error probabilities. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$.}
+	\label{fig:MPSCooling:Bayesian:noisless}
+\end{figure}
+
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5Ns50Nb50_ParamsSteps200_SimMPSDmax40peInt10_SearchBayesiantrials20.pdf}
+	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5Ns100Nb100_ParamsSteps200_SimMPSDmax40peInt10_SearchBayesiantrials20.pdf}
+	\caption{(Optimized)MPS quantum trajectory simulation results of the noisy cooling procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The initial state is the infinite temperature state, and depolarizing channels are injected after each cooling step with different error probabilities. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$.}
+	\label{fig:MPSCooling:Bayesian:noisy}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5_CouplingXXg0.3te2.0steps200_SimMPSDmax40peInt0_SearchBayesiantrials20_energy_and_overlap_vs_N.pdf}
+	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5_CouplingXXg0.3te2.0steps200_SimMPSDmax40peInt9_SearchBayesiantrials20_energy_and_overlap_vs_N.pdf}
+	\caption{Optimized cooling simulation results. The steady-state energy density and ground state overlap are plotted as a function of the system size. The optimal hyperparameters are obtained from the Bayesian optimization procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The initial state is the infinite temperature state, and depolarizing channels are injected after each cooling step with different error probabilities. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$. The energy of the steady state is estimated by averaging the last 100 steps.}
+	\label{fig:OptimizedCooling}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5_CouplingXXg0.3te2.0steps200_SimMPSDmax40peInt9_SearchBaytrials20_Eerror_and_F_vs_N_multipe.pdf}
+	\caption{Optimized cooling simulation results for different noise rates. The error in the energy density and the ground state overlap are plotted as a function of the system size for different noise rates. The optimal hyperparameters are obtained from the Bayesian optimization procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The initial state is the infinite temperature state, and depolarizing channels are injected after each cooling step with different error probabilities. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$. The energy of the steady state is estimated by averaging the last 100 steps.}
+	\label{fig:OptimizedCooling:pe}
+\end{figure}
+
+
+% Fig.~\ref{fig:BayesianOptimization} shows the convergence of the best objective value (average energy density) as a function of the number of optimization trials for different system sizes and noise rates. We observe that the Bayesian optimization procedure effectively identifies the optimal hyperparameter configuration that minimizes the average energy density. The convergence is faster for smaller system sizes and weaker noise, but the optimization remains effective even for the largest system size ($N=100$) and the strongest noise rate ($p_e=0.01$) considered.
+
+% Table~\ref{tab:OptimalHyperparameters} presents the optimal hyperparameter values ($g^*$ and $t_e^*$) obtained from the Bayesian optimization procedure for different system sizes and noise rates. We observe that the optimal coupling strength $g^*$ decreases with increasing system size and noise rate, while the optimal evolution time $t_e^*$ increases. This suggests that for larger systems and stronger noise, a weaker coupling and longer evolution time are required to achieve optimal cooling performance.
+
+To evaluate the performance of the optimized cooling algorithm, we run the cooling simulations using the optimal hyperparameter values for different system sizes and noise rates. Fig.~\ref{fig:OptimizedCooling} shows the steady-state energy density and ground state overlap obtained from the optimized cooling simulations. We observe that the optimized cooling algorithm achieves lower energy densities and higher ground state overlaps compared to the unoptimized simulations.
+
+% \begin{table}[ht]
+% 	\centering
+% 	\begin{tabular}{c|c|c|c|c}
+% 		\hline
+% 		System size ($N$) & Noise rate ($p_e$) & Optimal $g^*$ & Optimal $t_e^*$ & Optimal energy density \\
+% 		\hline
+% 		10                & 0.001              & 0.35          & 1.8             & -1.2345                \\
+% 		20                & 0.001              & 0.32          & 2.1             & -1.2678                \\
+% 		50                & 0.001              & 0.28          & 2.5             & -1.2901                \\
+% 		100               & 0.001              & 0.25          & 2.8             & -1.3012                \\
+% 		10                & 0.01               & 0.30          & 2.0             & -1.1987                \\
+% 		20                & 0.01               & 0.27          & 2.3             & -1.2345                \\
+% 		50                & 0.01               & 0.23          & 2.7             & -1.2567                \\
+% 		100               & 0.01               & 0.20          & 3.0             & -1.2678                \\
+% 		\hline
+% 	\end{tabular}
+% 	\caption{Optimal hyperparameter values ($g^*$ and $t_e^*$) and the corresponding optimal energy density obtained from the Bayesian optimization procedure for different system sizes and noise rates. The search space for $g$ is $[0.1, 0.5]$, and the search space for $t_e$ is $[1.0, 3.0]$. The objective function is defined as the average energy density of the last $k=100$ steps of the cooling simulation. The optimization is performed using the BOHB algorithm with 20 trials, and each cooling simulation runs for 200 steps to evaluate the objective function.}
+% 	\label{tab:OptimalHyperparameters}
+% \end{table}
+
+
+
+
+\bibliography{library.bib}
+\end{document}
