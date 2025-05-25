@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(grep:*)",
-      "Bash(rm:*)"
+      "Bash(git add:*)",
+      "Bash(rg:*)",
+      "Bash(gh pr view:*)",
+      "Bash(find:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(mkdir:*)",
+      "Bash(julia:*)"
     ],
     "deny": []
   }

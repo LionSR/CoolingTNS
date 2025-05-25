@@ -1,6 +1,6 @@
 using ArgParse
 
-function parse_commandline()
+function parse_commandline(args=ARGS)
     s = ArgParseSettings()
     @add_arg_table! s begin
         "--search_method"
@@ -62,8 +62,15 @@ function parse_commandline()
         arg_type = Int
         default = 20
         "--method"
-        help = "simulation method for cooling (valid choices: MPS, MPO, and TrotterMPS)"
+        help = "simulation method for cooling (valid choices: MPS, MPO, TrotterMPS, ED)"
         default = "MPS"
+        "--ed_method"
+        help = "ED simulation method (valid choices: density_matrix, monte_carlo)"
+        default = "density_matrix"
+        "--n_trajectories"
+        help = "number of trajectories for Monte Carlo wavefunction method"
+        arg_type = Int
+        default = 100
         "--peInt"
         help = "pe: noise strength (will be times by 1e-3)"
         arg_type = Int
@@ -81,5 +88,5 @@ function parse_commandline()
         arg_type = Float64
         default = 0.0
     end
-    return parse_args(s)
+    return parse_args(args, s)
 end

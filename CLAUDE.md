@@ -4,15 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CoolingTNS is a Julia-based quantum physics simulation framework for studying cooling protocols in spin systems using tensor network methods. It implements various algorithms to simulate the dynamics of quantum systems coupled to thermal baths.
+CoolingTNS is a Julia-based quantum physics simulation framework for studying cooling protocols in spin systems. It implements various algorithms to simulate the dynamics of quantum systems coupled to thermal baths, supporting both tensor network methods and exact diagonalization.
 
 ## Common Development Commands
 
 ### Running Simulations
 
 ```bash
-# Basic cooling simulation
+# Basic cooling simulation with tensor networks
 julia Cooling.jl --N 10 --problem niIsing --method MPS --coupling XX --g 0.1 --te 10.0 --steps 100
+
+# Exact diagonalization (small systems)
+julia Cooling.jl --N 6 --problem niIsing --method ED --ed_method density_matrix --coupling XX --g 0.1 --te 5.0 --steps 50
 
 # With precompiled sysimage (faster startup)
 julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so Cooling.jl [args]
@@ -24,12 +27,15 @@ julia optCooling.jl --search_method Bayesian --num_trials 20 --N 10 --problem ni
 ### Common Parameters
 - `--N`: Number of spins in the system
 - `--problem`: Problem type (Ising, niIsing, Rydberg)
-- `--method`: Simulation method (MPS, MPO, TrotterMPS)
+- `--method`: Simulation method (MPS, MPO, TrotterMPS, ED)
 - `--coupling`: Coupling type (XX, YY, ZZ, XY, XZ, YZ)
 - `--g`: Coupling strength
 - `--te`: Total evolution time
 - `--steps`: Number of time steps
-- `--Dmax`: Maximum bond dimension for MPS
+- `--Dmax`: Maximum bond dimension for tensor network methods
+- `--ed_method`: ED simulation type (density_matrix, monte_carlo)
+- `--init_state`: Initial state type (product, identity, theta)
+- `--theta`: Parameterized initial state angle (in units of π)
 
 ### HPC Cluster Submission
 
@@ -46,16 +52,21 @@ sbatch SubmitOptCooling.sh
 ### Core Simulation Flow
 
 1. **Parameter Setup** (`setup_common_parameters`): Parses command-line arguments and creates parameter structures
-2. **Problem Initialization** (`setup_problem_*`): Creates quantum states, Hamiltonians, and evolution operators based on the chosen method
-3. **Evolution** (`run_cooling_*`): Performs time evolution using the selected tensor network method
+2. **Problem Initialization**: Creates quantum states, Hamiltonians, and evolution operators based on the chosen backend
+3. **Evolution**: Performs time evolution using the selected simulation method
 4. **Analysis**: Computes observables like fidelity, energy, and mutual information
 
 ### Key Architectural Components
 
-**Tensor Network Methods**:
-- **MPS (Matrix Product States)**: Efficient representation of quantum states with controlled entanglement
-- **MPO (Matrix Product Operators)**: Operator representation for time evolution
-- **TrotterMPS**: Trotter decomposition combined with MPS for time evolution
+**Simulation Backends**:
+- **ED (Exact Diagonalization)**: Full quantum dynamics for small systems (N ≤ 10)
+- **MPS (Matrix Product States)**: Efficient representation with controlled entanglement
+- **MPO (Matrix Product Operators)**: Density matrix evolution with tensor networks
+- **TrotterMPS**: Trotter decomposition combined with MPS
+
+**Simulation Methods**:
+- **Density Matrix**: Full quantum state tracking (MPO, ED with density matrix)
+- **Monte Carlo Wavefunction**: Stochastic trajectories (MPS, TrotterMPS, ED with MC)
 
 **Physical Models**:
 - **Ising**: Standard transverse field Ising model
@@ -68,12 +79,13 @@ The framework supports various coupling operators between system and bath spins:
 - Off-diagonal couplings: XY, XZ, YZ
 
 **Optimization Framework**:
-Uses Hyperopt.jl for Bayesian optimization of coupling parameters to maximize cooling efficiency (final ground state fidelity).
+Uses Hyperopt.jl for Bayesian optimization of coupling parameters to maximize cooling efficiency.
 
 ### Module Structure
 
 - `src/ham.jl`: Hamiltonian construction for different models
-- `src/cooling_functions_*.jl`: Core evolution algorithms for each method
+- `src/cooling_functions_*.jl`: Core evolution algorithms for each backend
+- `src/cooling_functions_ed.jl`: Exact diagonalization with Yao.jl
 - `src/utils_*.jl`: Utility functions for tensor operations
 - `src/policy.jl`: Time-dependent coupling policies
 - `src/noise.jl`: Noise models for realistic simulations
@@ -83,7 +95,7 @@ Uses Hyperopt.jl for Bayesian optimization of coupling parameters to maximize co
 ### Data Flow
 
 1. Results are saved as HDF5 files with structured metadata
-2. MATLAB reference implementations in `ExactDiagonalization/` validate tensor network results
+2. Common interface allows easy comparison between different backends
 3. Plotting scripts (`plotCooling.jl`, `plotOptCooling.jl`) generate publication-quality figures
 
 ## Development Notes
@@ -93,65 +105,54 @@ Uses Hyperopt.jl for Bayesian optimization of coupling parameters to maximize co
 - Thread safety: Set `JULIA_NUM_THREADS=1` and `OPENBLAS_NUM_THREADS=1` for cluster runs
 - Results directory structure: `{ID}_{type}_{Ham}_{Coupling}_{Sim}`
 
-## Exact Diagonalization Reference Implementation
+## Simulation Backends
 
-The `ExactDiagonalization/` directory contains MATLAB reference implementations for validating tensor network results:
+### Exact Diagonalization (ED)
+- Uses Yao.jl for quantum state manipulation
+- ExponentialUtilities.jl for efficient time evolution
+- KrylovKit.jl for ground state calculations
+- Supports both density matrix and Monte Carlo wavefunction methods
+- Limited to small systems (N ≤ 10) due to exponential scaling
 
-### Key Scripts
-- `MatlabRho/CoolingMultiBath.m`: Main script (now uses Julia naming conventions)
-- `MatlabRho/EvolveMultiBath.m`: Time evolution using matrix exponentiation
-- `MatlabRho/plotCoolingMultiBath.m`: Plotting script for visualization
-- `MatlabRho/test_resonant_cooling.m`: Test script demonstrating usage
-- `MatlabRho/test_julia_consistency.m`: Shows MATLAB-Julia parameter correspondence
+### Tensor Network Methods
+- **MPS**: Matrix Product States with TDVP time evolution
+- **MPO**: Matrix Product Operators with TEBD evolution
+- **TrotterMPS**: Trotter gates with MPS compression
+- Can handle larger systems with controlled approximation
 
-### Running MATLAB Simulations
-```matlab
-% MATLAB now uses Julia naming conventions
-N = 5;                  % System size
-J = 1.0; hx = -1.05; hz = 0.5;  % Hamiltonian parameters
-coupling = "XX";        % Coupling type (was coupling_types)
-steps = 1000;           % Number of cooling iterations (was Niter)
-g = 0.1;                % Coupling strength
-te = 5.0;               % Total evolution time per step (was t)
+## Initial State Options
 
-% Run simulation
-CoolingMultiBath;
-```
-
-### Key Implementation Details
-- **Resonant Cooling**: Default sets `delta = -gap` where gap is the system energy gap
-- **Bath Initialization**: Bath spins initialized in ground state (|1⟩ for Δ<0, |0⟩ for Δ>0)
-- **Time Evolution**: Uses matrix exponentiation with optimized algorithms (expmv/expokit)
-- **Observables**: Tracks energy, ground state overlap, purity, and bath magnetization
-- **Multi-State Analysis**: Tests multiple initial states (θ = -0.5π, 0π, 0.5π)
-
-### Results Format
-- Saved as `.mat` files with naming: `CI_MB_N{N}J{J}hx{hx}hz{hz}_{coupling}{steps}delta{delta}g{g}te{te}.mat`
-- Includes energy evolution, ground state overlap, purity, population dynamics
-- Automatically generates PDF plots for visualization
-
-## Consistency Features
-
-### Initial State Options
-The Julia implementation now supports multiple initial state types to match MATLAB capabilities:
+The framework supports multiple initial state types:
 
 ```bash
 # Product state (default)
 julia Cooling.jl --init_state product ...
 
-# Identity/maximally mixed state (like MATLAB default for MPO)
+# Identity/maximally mixed state
 julia Cooling.jl --init_state identity --method MPO ...
 
 # Theta-parameterized states
-julia Cooling.jl --init_state theta --theta -0.5  # All down
-julia Cooling.jl --init_state theta --theta 0.0   # X+ state
-julia Cooling.jl --init_state theta --theta 0.5   # All up
+julia Cooling.jl --init_state theta --theta -0.5  # All down |111...⟩
+julia Cooling.jl --init_state theta --theta 0.0   # X+ state |+++...⟩
+julia Cooling.jl --init_state theta --theta 0.5   # All up |000...⟩
 ```
 
-### Parameter Name Consistency
-Both MATLAB and Julia now use the same parameter names:
-- `delta` - bath detuning (MATLAB previously used `Delta`)
-- `te` - total evolution time per step (MATLAB previously used `t`)
-- `steps` - number of cooling iterations (MATLAB previously used `Niter`)
-- `coupling` - coupling type (MATLAB previously used `coupling_types`)
-- `g`, `N`, `J`, `hx`, `hz` - unchanged
+## Testing
+
+Run tests with:
+```bash
+julia --project=. tests/runtests.jl
+```
+
+Individual test files:
+- `tests/test_cooling_backends.jl`: Compare different simulation backends
+- `tests/test_initial_states.jl`: Test initial state preparation
+- `tests/test_hamiltonians.jl`: Verify Hamiltonian construction
+- `tests/test_observables.jl`: Check observable calculations
+
+# Important Instructions
+- Focus on Julia implementation best practices
+- Use multiple dispatch for clean interfaces
+- Leverage Julia's type system for performance
+- Keep the codebase DRY with proper abstractions
+- Test edge cases and ensure consistency across backends

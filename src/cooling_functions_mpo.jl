@@ -41,11 +41,11 @@ function setup_init_state_mpo(sites; init_type="identity", theta=0.0)
     elseif init_type == "theta"
         # Create state based on theta angle (in units of pi)
         ψ_s = setup_init_state_mps(sites; init_type="theta", theta=theta)
-        ρ_s = outer(ψ_s, ψ_s)
+        ρ_s = outer(ψ_s', ψ_s)
     else
         # Product state - create from MPS outer product
         ψ_s = MPS(sites_sys, [isodd(n) ? "Up" : "Dn" for n in 1:N])
-        ρ_s = outer(ψ_s, ψ_s)
+        ρ_s = outer(ψ_s', ψ_s)
     end
     return ρ_s
 end

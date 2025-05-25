@@ -4,57 +4,42 @@ end
 
 using CoolingTNS
 
-
 function run_cooling(parsed_args)
     println(parsed_args)
 
+    # Setup common parameters
     N, problem, ham_params, ham_name, coupling_params = CoolingTNS.setup_common_parameters(parsed_args)
     sim_params = CoolingTNS.create_sim_params(parsed_args)
 
-    method = parsed_args["method"]
-
-    if method == "MPS"
-        sites, H_sys, ϕ₀, e₀, H_sys_bath = CoolingTNS.setup_problem_mps(N, problem, ham_params, coupling_params, sim_params)
-        initial_state = CoolingTNS.setup_init_state_mps(sites; init_type=parsed_args["init_state"], theta=parsed_args["theta"])
-        results = CoolingTNS.run_cooling_mps(
-            sites,
-            H_sys,
-            ϕ₀,
-            H_sys_bath,
-            initial_state,
-            coupling_params,
-            sim_params
-        )
-    elseif method == "MPO"
-        sites, H_sys, ϕ₀, e₀, gates = CoolingTNS.setup_problem_mpo(N, problem, ham_params, coupling_params, sim_params)
-        initial_state = CoolingTNS.setup_init_state_mpo(sites; init_type=parsed_args["init_state"], theta=parsed_args["theta"])
-        results = CoolingTNS.run_cooling_mpo(
-            sites,
-            H_sys,
-            ϕ₀,
-            gates,
-            initial_state,
-            coupling_params,
-            sim_params
-        )
-    elseif method == "TrotterMPS"
-        sites, H_sys, H_total, ϕ₀, e₀, gates = CoolingTNS.setup_problem_trotter_mps(N, problem, ham_params, coupling_params, sim_params)
-        initial_state = CoolingTNS.setup_init_state_mps(sites; init_type=parsed_args["init_state"], theta=parsed_args["theta"])
-        results = CoolingTNS.run_cooling_trotter_mps(
-            sites,
-            H_sys,
-            H_total,
-            ϕ₀,
-            gates,
-            initial_state,
-            coupling_params,
-            sim_params,
-            ham_params
-        )
-    else
-        error("Invalid method: $method. Choose 'MPS', 'MPO', or 'TrotterMPS'.")
-    end
-
+    # Get backend from method string
+    backend = CoolingTNS.get_backend(parsed_args["method"])
+    
+    # Get simulation method (relevant for ED)
+    ed_method = get(parsed_args, "ed_method", "")
+    sim_method = CoolingTNS.get_simulation_method(backend, ed_method)
+    
+    # Setup problem using unified interface
+    cooling_problem = CoolingTNS.setup_problem(backend, N, problem, ham_params, coupling_params, sim_params)
+    
+    # Setup initial state using unified interface
+    initial_state = CoolingTNS.setup_initial_state(
+        cooling_problem, 
+        parsed_args["init_state"], 
+        parsed_args["theta"];
+        method=sim_method
+    )
+    
+    # Run cooling simulation using unified interface
+    results = CoolingTNS.run_cooling(
+        cooling_problem,
+        initial_state,
+        coupling_params,
+        sim_params,
+        ham_params  # Only used by TrotterMPS
+    )
+    
+    # Post-processing (same for all methods)
+    e₀ = cooling_problem.e₀
     println("The ground state energy density is e₀/N = $(e₀/N)")
 
     window_size = parsed_args["window_size"]
@@ -63,11 +48,14 @@ function run_cooling(parsed_args)
     GS_overlap_final = CoolingTNS.mean_last_window(results["GS_overlap_list"], window_size)
     println("After cooling: E_final/N=$Edensity_final, GS_overlap_final=$GS_overlap_final")
 
+    # Save results
     filename = CoolingTNS.create_filename(ham_name, N, coupling_params, sim_params)
     results["E_final"] = E_final
     results["Edensity_final"] = Edensity_final
     results["GS_overlap_final"] = GS_overlap_final
     CoolingTNS.save_results(filename, results, e₀, ham_name, parsed_args)
+    
+    # Plot results
     CoolingTNS.plot_energy_and_overlap(results["E_list"], results["GS_overlap_list"], e₀, N, filename; moving_average=true)
 end
 

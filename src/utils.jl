@@ -51,7 +51,8 @@ function create_sim_params(parsed_args)
         "peInt" => parsed_args["peInt"],
         "method" => parsed_args["method"],
         "trotter_steps" => Int(parsed_args["te"] / parsed_args["tau"]),
-        "tau" => parsed_args["tau"]
+        "tau" => parsed_args["tau"],
+        "n_trajectories" => get(parsed_args, "n_trajectories", 100)
     )
 end
 
