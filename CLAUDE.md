@@ -202,8 +202,17 @@ Files are named: `Cooling_Ham{model}_Coupling{type}_Sim{backend}Dmax{D}`
 - ITensors.jl and ITensorMPS.jl for tensor network operations
 - KrylovKit.jl for eigenvalue problems and sparse matrix operations
 - LinearAlgebra.jl and SparseArrays.jl for ED backend matrix operations
-- Clean Float64-only implementation for ED backend (no complex arithmetic)
+- Complex matrices for quantum states, real sparse matrices for operators
+- Cached evolution operators in ED backend to avoid repeated diagonalization
 - MKL on Linux for optimized BLAS/LAPACK
+
+### K-Space Measurements
+
+For ED simulations with periodic/antiperiodic boundary conditions:
+- Automatically computes momentum distribution n_k using Jordan-Wigner transformation
+- Generates plots showing n_k and e_k = ε_k × n_k evolution during cooling
+- Only enabled for Ising model (integrable system)
+- Ground state and its n_k should be computed numerically for accurate comparison
 
 ### Getting doucmentations from Julia packages:
 Use ITensors.jl or ITensorMPS.jl, you can get the documentation of a function by running:
@@ -292,7 +301,7 @@ struct EDBackend <: CoolingBackend end
 **Architecture Overhaul:**
 - **Pure Dispatch Architecture**: Completely implemented using Julia's multiple dispatch 
 - **Unified File Structure**: Eliminated all duplicate `*_ed.jl` files - everything now in single unified files
-- **Clean ED Backend**: Float64-only implementation without any Yao.jl dependencies
+- **Clean ED Backend**: Complex matrix support for proper quantum mechanics
 - **Type-Based Routing**: All method selection uses types, no string comparisons
 
 **Backend Implementations:**
@@ -300,6 +309,12 @@ struct EDBackend <: CoolingBackend end
 - **EDBackend**: Clean exact diagonalization using LinearAlgebra + SparseArrays + KrylovKit
 - **Unified Interfaces**: Same dispatch signatures work for both backends
 - **Multiple Method Support**: DensityMatrix + MonteCarloWavefunction × ContinuousEvolution + TrotterEvolution
+
+**New Features:**
+- **Boundary Conditions**: Support for periodic and anti-periodic BC in ED backend
+- **K-Space Measurements**: Momentum distribution measurements for PBC/APBC using Jordan-Wigner transformation
+- **Evolution Caching**: Cached evolution operators for ED backend performance
+- **Complex Jordan-Wigner**: Proper complex fermionic operators with real Pauli matrices
 
 **File Organization:**
 - All legacy duplicate files removed (`system_hamiltonian_ed.jl`, `cooling_evolution_ed.jl`, etc.)
@@ -309,25 +324,29 @@ struct EDBackend <: CoolingBackend end
 ### ⚠️ Known Issues
 
 **Physics Problems:**
-- **ED Cooling Energy**: Energy increases instead of decreases during cooling - fundamental physics issue
-- **Bath Energy Setup**: May need debugging of sign conventions and resonant frequency setup
+- **ED Cooling Rate**: Cooling is very slow with current parameters - may need stronger coupling or longer evolution times
 - **TN Measurements**: Some TN backend measurement combinations missing
 
 **Performance:**
-- **Precompilation Time**: Long compilation due to ITensors/Yao dependencies
-- **Debug Efficiency**: Need faster iteration for physics debugging
+- **Precompilation Time**: Long compilation due to ITensors dependencies
+- **ED Scaling**: ED backend limited to small systems (N ≤ 12) due to exponential scaling
 
 ### 🔧 Development Guidelines
 
-**For ED Backend Debugging:**
-- Use small systems (N=3) for fast testing
-- Focus on sign conventions matching TN backend exactly  
-- Debug resonant frequency computation
-- Check system-bath coupling implementation
-- Verify time evolution physics
+**For ED Backend Usage:**
+- Use small systems (N ≤ 10) for reasonable performance
+- Density matrix method more reliable than Monte Carlo for ED
+- Enable periodic/antiperiodic BC for k-space measurements
+- Use cached evolution operators for better performance
+
+**Jordan-Wigner Convention:**
+- |↑⟩ = vacuum (no fermion), |↓⟩ = occupied (one fermion)
+- a = (X - Y_real)/2 = σ^+ (annihilation)
+- a† = (X + Y_real)/2 = σ^- (creation)
+- Real Pauli Y matrix: Y_real = [0 -1; 1 0]
 
 **Architecture Maintenance:**
 - Keep unified dispatch pattern - no new duplicate files
 - All new features use multiple dispatch on backend types
-- Maintain Float64-only ED backend (no complex numbers)
+- Complex matrices for quantum states, real matrices for operators when possible
 - Follow established type hierarchy patterns
