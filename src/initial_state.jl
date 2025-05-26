@@ -67,8 +67,8 @@ function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::Uni
             ψ_s = MPS(sites_sys, [isodd(n) ? "Up" : "Dn" for n in 1:N])
         end
     else
-        # Default product state
-        ψ_s = MPS(sites_sys, [isodd(n) ? "Up" : "Dn" for n in 1:N])
+        # Default product state - all up |00...0⟩
+        ψ_s = MPS(sites_sys, "Up")
     end
     return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, ψ_s)
 end
@@ -115,14 +115,8 @@ function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::Uni
             state = EDStateVector(data, N_sys)
         end
     else
-        # Default product state (alternating up/down for system)
-        config = 0
-        for i in 0:(N_sys-1)
-            if isodd(i+1)  # Julia is 1-indexed
-                config |= (1 << i)
-            end
-        end
-        state = product_state_ed(N_sys, config)
+        # Default product state - all up |00...0⟩
+        state = zero_state_ed(N_sys)
     end
     
     return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, state)
@@ -161,8 +155,8 @@ function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::Uni
         end
         ρ_s = outer(ψ_s', ψ_s)
     else
-        # Product state - create from MPS outer product
-        ψ_s = MPS(sites_sys, [isodd(n) ? "Up" : "Dn" for n in 1:N])
+        # Product state - all up |00...0⟩
+        ψ_s = MPS(sites_sys, "Up")
         ρ_s = outer(ψ_s', ψ_s)
     end
     return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, ρ_s)
@@ -212,14 +206,8 @@ function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::Uni
                 ψ = EDStateVector(data, N_sys)
             end
         else
-            # Default product state (alternating up/down)
-            config = 0
-            for i in 0:(N_sys-1)
-                if isodd(i+1)  # Julia is 1-indexed
-                    config |= (1 << i)
-                end
-            end
-            ψ = product_state_ed(N_sys, config)
+            # Default product state - all up |00...0⟩
+            ψ = zero_state_ed(N_sys)
         end
         # Convert pure state to density matrix
         ρ = state_to_density_ed(ψ)

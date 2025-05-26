@@ -14,6 +14,11 @@ using Statistics
 
 # ED backend types are already included by CoolingTNS.jl
 
+# Include shared ED functions
+if !@isdefined(prepare_combined_state_ed)
+    include("cooling_evolution_ed_shared.jl")
+end
+
 # ============================================================================
 # Main Cooling Evolution Interface
 # ============================================================================
@@ -241,79 +246,30 @@ end
 # --- Exact Diagonalization + Density Matrix + Continuous Evolution ---
 
 function prepare_combined_state(problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend,DensityMatrix,ContinuousEvolution})
-    # Get N from problem parameters, not from state size
-    N_sys = problem.extra.ham_params.N
-    N_bath = N_sys
-    
-    # Handle both clean ED types and legacy Matrix types
-    if isa(state.state, EDDensityMatrix)
-        # Clean ED backend
-        if state.state.n_qubits == 2*N_sys
-            ρ_sys = trace_out_bath_ed(state.state, N_sys)
-        else
-            ρ_sys = state.state
-        end
-        ρ_bath = state_to_density_ed(zero_state_ed(N_bath))
-        return kron_density_ed(ρ_sys, ρ_bath)
+    N_bath = problem.extra.ham_params.N
+    # Ensure we have system-only state
+    if state.state.n_qubits == 2*N_bath
+        ρ_sys = trace_out_bath_ed(state.state, N_bath)
     else
-        # Legacy matrix format
-        if size(state.state, 1) == 2^(2*N_sys)
-            ρ_sys = tr_bath(state.state, N_sys, N_bath)
-        else
-            ρ_sys = state.state
-        end
-        
-        # Use clean ED backend for bath
-        ρ_bath = state_to_density_ed(zero_state_ed(N_bath))
-        return kron(ρ_sys, ρ_bath.data)
+        ρ_sys = state.state
     end
+    return prepare_combined_state_ed(ρ_sys, N_bath)
 end
 
 function evolve_cooling_step(problem::CoolingProblem{EDBackend}, ρ_total::EDDensityMatrix, te::Float64,
                            sim_params::UnifiedSimulationParameters{DensityMatrix,ContinuousEvolution},
                            ham_params)
-    # Get sparse Hamiltonian matrix
     H_sparse = problem.H_sys_bath
-    if !isa(H_sparse, AbstractMatrix)
-        error("Expected sparse matrix Hamiltonian for ED backend")
-    end
-    
-    # Time evolution
-    return evolve_ed(H_sparse, ρ_total, te)
+    return evolve_cooling_step_ed(H_sparse, ρ_total, te, nothing)  # nil tau for continuous
 end
 
-function evolve_cooling_step(problem::CoolingProblem{EDBackend}, ρ_total::Matrix, te::Float64,
-                           sim_params::UnifiedSimulationParameters{DensityMatrix,ContinuousEvolution},
-                           ham_params)
-    # Get sparse Hamiltonian matrix
-    # Convert to sparse if not already
-    H_sparse = sparse(problem.H_sys_bath)
-    
-    # Use ExponentialUtilities for efficient sparse matrix exponentiation
-    # For density matrix evolution: ρ(t) = U ρ(0) U†, where U = exp(-i H t)
-    # We can use expv for ρ_vec evolution: d/dt ρ_vec = -i (H⊗I - I⊗H^T) ρ_vec
-    n = size(ρ_total, 1)
-    
-    # Create the Liouvillian superoperator L = -i(H⊗I - I⊗H^T)
-    # For density matrix evolution: d/dt ρ = -i[H,ρ] = -i(Hρ - ρH)
-    # In vectorized form: d/dt |ρ⟩⟩ = -i(H⊗I - I⊗H^T)|ρ⟩⟩
-    # Note: We need the transpose, NOT conjugate transpose
-    L = -im * (kron(H_sparse, I(n)) - kron(I(n), transpose(H_sparse)))
-    
-    # Vectorize the density matrix
-    ρ_vec = vec(ρ_total)
-    
-    # Use Krylov exponentiation for efficient computation
-    ρ_vec_evolved = expv(te, L, ρ_vec)
-    
-    # Reshape back to matrix form
-    return reshape(ρ_vec_evolved, n, n)
-end
 
-function apply_noise(ρ::Matrix, problem::CoolingProblem{EDBackend}, pe::Float64)
-    N_total = size(ρ, 1) |> x -> Int(log2(x))
-    ρ_noise = I(2^N_total) / 2^N_total
-    return (1 - pe) * ρ + pe * ρ_noise
+function apply_noise(ρ::EDDensityMatrix, problem::CoolingProblem{EDBackend}, pe::Float64)
+    N_total = ρ.n_qubits
+    dim = 2^N_total
+    ρ_noise = Matrix{Float64}(I, dim, dim) / dim
+    ρ_noisy_data = (1 - pe) * ρ.data + pe * ρ_noise
+    return EDDensityMatrix(ρ_noisy_data, N_total)
 end
 
 function process_bath_and_update(problem::CoolingProblem{EDBackend}, ρ_evolved::EDDensityMatrix,
@@ -321,6 +277,122 @@ function process_bath_and_update(problem::CoolingProblem{EDBackend}, ρ_evolved:
                                sim_params)
     # For density matrix, we keep the full state and trace out bath during measurements
     return QuantumState(state.backend, state.sim_method, state.evolution_method, ρ_evolved), nothing
+end
+
+# --- Exact Diagonalization + Density Matrix + Trotter Evolution ---
+
+function prepare_combined_state(problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend,DensityMatrix,TrotterEvolution})
+    # Same as continuous evolution
+    N_sys = problem.extra.ham_params.N
+    N_bath = N_sys
+    
+    if state.state.n_qubits == 2*N_sys
+        ρ_sys = trace_out_bath_ed(state.state, N_sys)
+    else
+        ρ_sys = state.state
+    end
+    ρ_bath = state_to_density_ed(zero_state_ed(N_bath))
+    return kron_density_ed(ρ_sys, ρ_bath)
+end
+
+function evolve_cooling_step(problem::CoolingProblem{EDBackend}, ρ_total::EDDensityMatrix, te::Float64,
+                           sim_params::UnifiedSimulationParameters{DensityMatrix,TrotterEvolution},
+                           ham_params)
+    # Get Hamiltonian
+    H_sparse = problem.H_sys_bath
+    
+    # Trotter evolution using repeated small steps
+    n_steps = Int(te / sim_params.tau)
+    dt = sim_params.tau
+    
+    ρ_evolved = ρ_total
+    for _ in 1:n_steps
+        ρ_evolved = evolve_ed(H_sparse, ρ_evolved, dt)
+    end
+    
+    return ρ_evolved
+end
+
+function process_bath_and_update(problem::CoolingProblem{EDBackend}, ρ_evolved::EDDensityMatrix,
+                               state::QuantumState{EDBackend,DensityMatrix,TrotterEvolution},
+                               sim_params)
+    # Same as continuous evolution
+    return QuantumState(state.backend, state.sim_method, state.evolution_method, ρ_evolved), nothing
+end
+
+# --- Exact Diagonalization + Monte Carlo + Continuous Evolution ---
+
+function prepare_combined_state(problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend,MonteCarloWavefunction,ContinuousEvolution})
+    # Append bath in ground state
+    N_bath = problem.extra.ham_params.N
+    ψ_sys = state.state
+    ψ_bath = zero_state_ed(N_bath)
+    return kron_states_ed(ψ_sys, ψ_bath)
+end
+
+function evolve_cooling_step(problem::CoolingProblem{EDBackend}, ψ_total::EDStateVector, te::Float64,
+                           sim_params::UnifiedSimulationParameters{MonteCarloWavefunction,ContinuousEvolution},
+                           ham_params)
+    # Get Hamiltonian
+    H_sparse = problem.H_sys_bath
+    
+    # Time evolve the state vector
+    return evolve_state_ed(H_sparse, ψ_total, te)
+end
+
+function process_bath_and_update(problem::CoolingProblem{EDBackend}, ψ_evolved::EDStateVector,
+                               state::QuantumState{EDBackend,MonteCarloWavefunction,ContinuousEvolution},
+                               sim_params)
+    # Measure and collapse bath
+    N_sys = problem.extra.ham_params.N
+    N_bath = N_sys
+    bath_qubits = [2*i for i in 1:N_bath]  # Bath at even positions
+    
+    # Measure bath qubits
+    ψ_sys, bath_outcomes = measure_ed!(ψ_evolved, bath_qubits)
+    
+    # Return system state and bath measurement outcomes
+    return QuantumState(state.backend, state.sim_method, state.evolution_method, ψ_sys), bath_outcomes
+end
+
+# --- Exact Diagonalization + Monte Carlo + Trotter Evolution ---
+
+function prepare_combined_state(problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend,MonteCarloWavefunction,TrotterEvolution})
+    # Same as continuous
+    N_bath = problem.extra.ham_params.N
+    ψ_sys = state.state
+    ψ_bath = zero_state_ed(N_bath)
+    return kron_states_ed(ψ_sys, ψ_bath)
+end
+
+function evolve_cooling_step(problem::CoolingProblem{EDBackend}, ψ_total::EDStateVector, te::Float64,
+                           sim_params::UnifiedSimulationParameters{MonteCarloWavefunction,TrotterEvolution},
+                           ham_params)
+    # Get Hamiltonian
+    H_sparse = problem.H_sys_bath
+    
+    # Trotter evolution
+    n_steps = Int(te / sim_params.tau)
+    dt = sim_params.tau
+    
+    ψ_evolved = ψ_total
+    for _ in 1:n_steps
+        ψ_evolved = evolve_state_ed(H_sparse, ψ_evolved, dt)
+    end
+    
+    return ψ_evolved
+end
+
+function process_bath_and_update(problem::CoolingProblem{EDBackend}, ψ_evolved::EDStateVector,
+                               state::QuantumState{EDBackend,MonteCarloWavefunction,TrotterEvolution},
+                               sim_params)
+    # Same as continuous
+    N_sys = problem.extra.ham_params.N
+    N_bath = N_sys
+    bath_qubits = [2*i for i in 1:N_bath]
+    
+    ψ_sys, bath_outcomes = measure_ed!(ψ_evolved, bath_qubits)
+    return QuantumState(state.backend, state.sim_method, state.evolution_method, ψ_sys), bath_outcomes
 end
 
 function process_bath_and_update(problem::CoolingProblem{EDBackend}, ρ_evolved::Matrix,
@@ -461,6 +533,38 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     end
 end
 
+# --- Tensor Network + Density Matrix + Continuous Evolution ---
+
+function prepare_combined_state(problem::CoolingProblem{TNBackend}, state::QuantumState{TNBackend,DensityMatrix,ContinuousEvolution})
+    # For continuous evolution with MPO, append zero bath states
+    sites = problem.extra.sites
+    return appendzeros_MPO(state.state, sites)
+end
+
+function evolve_cooling_step(problem::CoolingProblem{TNBackend}, ρ_sb::MPO, te::Float64,
+                           sim_params::UnifiedSimulationParameters{DensityMatrix,ContinuousEvolution},
+                           ham_params)
+    # TDVP does not support MPO evolution
+    error("Continuous evolution for density matrices (MPO) is not supported by TDVP in ITensors. Please use either:
+    1. monte_carlo + continuous (uses MPS with TDVP)
+    2. density_matrix + trotter (uses MPO with gates)
+    3. monte_carlo + trotter (uses MPS with gates)")
+end
+
+function process_bath_and_update(problem::CoolingProblem{TNBackend}, ρ_evolved::MPO,
+                               state::QuantumState{TNBackend,DensityMatrix,ContinuousEvolution},
+                               sim_params)
+    # Partial trace out bath
+    sites = problem.extra.sites
+    N = length(sites) ÷ 2
+    sites_sys = sites[1:2:2N-1]
+    
+    ρ_s = partial_trace_bath(ρ_evolved, sites, sites_sys)
+    ρ_s /= tr(ρ_s)
+    
+    return QuantumState(state.backend, state.sim_method, state.evolution_method, ρ_s), nothing
+end
+
 # --- Tensor Network + Density Matrix + Trotter Evolution (MPO) ---
 
 function prepare_combined_state(problem::CoolingProblem{TNBackend}, state::QuantumState{TNBackend,DensityMatrix,TrotterEvolution})
@@ -519,6 +623,22 @@ end
 
 function perform_backend_measurements!(measurements, step::Int, problem::CoolingProblem{TNBackend},
                                      state::QuantumState{TNBackend,DensityMatrix,TrotterEvolution},
+                                     ham_params, bath_info=nothing)
+    ρ_s = state.state
+    H_sys = problem.H_sys
+    ϕ₀ = problem.ϕ₀
+    N = ham_params.N
+    
+    measurements["E_list"][step] = real(inner(ρ_s, H_sys))
+    measurements["GS_overlap_list"][step] = real(inner(ρ_s, projector_mpo(ϕ₀)))
+    measurements["purity_list"][step] = real(tr(apply(ρ_s, ρ_s)))
+    
+    # Note: Bath magnetization not easily accessible for MPO method
+end
+
+# TN + DensityMatrix + ContinuousEvolution measurements
+function perform_backend_measurements!(measurements, step::Int, problem::CoolingProblem{TNBackend},
+                                     state::QuantumState{TNBackend,DensityMatrix,ContinuousEvolution},
                                      ham_params, bath_info=nothing)
     ρ_s = state.state
     H_sys = problem.H_sys
@@ -625,4 +745,86 @@ function compute_bath_magnetization(ρ_bath::Matrix, N_bath::Int)
     end
     
     return mag
+end
+
+# ============================================================================
+# Missing ED Backend Measurement Methods
+# ============================================================================
+
+# ED backend measurements for Monte Carlo continuous evolution
+function perform_backend_measurements!(measurements, step::Int, problem::CoolingProblem{EDBackend},
+                                     state::QuantumState{EDBackend,MonteCarloWavefunction,ContinuousEvolution},
+                                     ham_params, bath_info=nothing)
+    # For Monte Carlo, state is a wave function
+    ψ_s = state.state
+    H_sys_mat = problem.H_sys
+    ϕ₀ = problem.ϕ₀
+    
+    # Energy: <ψ|H|ψ>
+    measurements["E_list"][step] = expect_ed(H_sys_mat, ψ_s)
+    
+    # Ground state overlap: |<ϕ₀|ψ>|²
+    overlap = abs2(dot(ϕ₀.data, ψ_s.data))
+    measurements["GS_overlap_list"][step] = overlap
+    
+    # For Monte Carlo, purity is always 1 (pure state)
+    # No bath magnetization for system-only state
+end
+
+# ED backend measurements for Monte Carlo Trotter evolution
+function perform_backend_measurements!(measurements, step::Int, problem::CoolingProblem{EDBackend},
+                                     state::QuantumState{EDBackend,MonteCarloWavefunction,TrotterEvolution},
+                                     ham_params, bath_info=nothing)
+    # Same as continuous evolution for Monte Carlo
+    ψ_s = state.state
+    H_sys_mat = problem.H_sys
+    ϕ₀ = problem.ϕ₀
+    
+    measurements["E_list"][step] = expect_ed(H_sys_mat, ψ_s)
+    overlap = abs2(dot(ϕ₀.data, ψ_s.data))
+    measurements["GS_overlap_list"][step] = overlap
+end
+
+# ED backend measurements for density matrix Trotter evolution
+function perform_backend_measurements!(measurements, step::Int, problem::CoolingProblem{EDBackend},
+                                     state::QuantumState{EDBackend,DensityMatrix,TrotterEvolution},
+                                     ham_params, bath_info=nothing)
+    # Same implementation as continuous evolution
+    ρ_total = state.state
+    N_sys = ham_params.N
+    
+    # Get system density matrix
+    if ρ_total.n_qubits == 2*N_sys
+        # Full system+bath state - trace out bath
+        ρ_sys = trace_out_bath_ed(ρ_total, N_sys)
+    else
+        # Just system state
+        ρ_sys = ρ_total
+    end
+    
+    # Energy
+    H_sys_mat = problem.H_sys
+    measurements["E_list"][step] = expect_ed(H_sys_mat, ρ_sys)
+    
+    # Ground state overlap: <ϕ₀|ρ|ϕ₀>
+    ϕ₀ = problem.ϕ₀
+    measurements["GS_overlap_list"][step] = real(ϕ₀.data' * ρ_sys.data * ϕ₀.data)
+    
+    # Purity
+    if haskey(measurements, "purity_list")
+        measurements["purity_list"][step] = purity_ed(ρ_sys)
+    end
+    
+    # Bath magnetization (only if we have full state and not first step)
+    if step > 1 && ρ_total.n_qubits == 2*N_sys && haskey(measurements, "bath_mag_list")
+        N_bath = N_sys
+        ρ_bath = trace_out_system_ed(ρ_total, N_sys)
+        # Compute magnetization
+        mag = 0.0
+        for i in 1:N_bath
+            Z_i = pauli_z(i, N_bath)
+            mag += expect_ed(Z_i, ρ_bath)
+        end
+        measurements["bath_mag_list"][step] = mag / N_bath
+    end
 end
