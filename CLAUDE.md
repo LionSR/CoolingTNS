@@ -57,6 +57,9 @@ julia Cooling.jl --N 4 --problem Ising --backend ED --sim_method monte_carlo --e
 ## trotter evolution of density matrix
 julia Cooling.jl --N 4 --problem Ising --backend ED --sim_method density_matrix --evolution_method trotter --tau 0.1 --coupling XX --g 0.1 --te 0.5 --steps 5
 
+## ED with periodic BC and k-space measurements (only for Ising model)
+julia Cooling.jl --N 6 --problem Ising --backend ED --bc periodic --sim_method density_matrix --evolution_method continuous --coupling XX --g 0.3 --te 2.0 --steps 20 --J 1.0 --h 2.0
+
 # With precompiled sysimage (faster startup)
 julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so Cooling.jl [args]
 
