@@ -65,12 +65,18 @@ struct HamiltonianParameters{M<:HamiltonianModel}
     model::M
     N::Int  # Number of system spins
     params::NamedTuple
+    bc::Symbol  # Boundary conditions: :open, :periodic, :antiperiodic
 end
 
-# Convenience constructors
-IsingParameters(N::Int, J, h) = HamiltonianParameters(IsingModel(), N, (J=J, h=h))
-NiIsingParameters(N::Int, J, hx, hz) = HamiltonianParameters(NiIsingModel(), N, (J=J, hx=hx, hz=hz))
-RydbergParameters(N::Int, Ω, Δ, V) = HamiltonianParameters(RydbergModel(), N, (Ω=Ω, Δ=Δ, V=V))
+# Convenience constructors with default open BC
+IsingParameters(N::Int, J, h) = HamiltonianParameters(IsingModel(), N, (J=J, h=h), :open)
+NiIsingParameters(N::Int, J, hx, hz) = HamiltonianParameters(NiIsingModel(), N, (J=J, hx=hx, hz=hz), :open)
+RydbergParameters(N::Int, Ω, Δ, V) = HamiltonianParameters(RydbergModel(), N, (Ω=Ω, Δ=Δ, V=V), :open)
+
+# Versions with explicit BC
+IsingParameters(N::Int, J, h, bc::Symbol) = HamiltonianParameters(IsingModel(), N, (J=J, h=h), bc)
+NiIsingParameters(N::Int, J, hx, hz, bc::Symbol) = HamiltonianParameters(NiIsingModel(), N, (J=J, hx=hx, hz=hz), bc)
+RydbergParameters(N::Int, Ω, Δ, V, bc::Symbol) = HamiltonianParameters(RydbergModel(), N, (Ω=Ω, Δ=Δ, V=V), bc)
 
 # Generate name for HamiltonianParameters
 function hamiltonian_name(ham_params::HamiltonianParameters{IsingModel})

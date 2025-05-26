@@ -80,10 +80,25 @@ function run_cooling(parsed_args)
     save_data["E_final"] = [E_final]
     save_data["Edensity_final"] = [Edensity_final]
     save_data["GS_overlap_final"] = [GS_overlap_final]
+    save_data["delta"] = cooling_problem.extra.coupling_params.delta
     CoolingTNS.save_results(filename, save_data, e₀, ham_name, parsed_args)
     
     # Plot results
     CoolingTNS.plot_energy_and_overlap(results["E_list"], results["GS_overlap_list"], e₀, ham_params.N, filename; moving_average=true)
+    
+    # Generate k-space plots for ED simulations with PBC/APBC (only for Ising model)
+    if backend isa CoolingTNS.EDBackend && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, CoolingTNS.IsingModel)
+        if haskey(results, "momentum_dist") && haskey(results, "k_values")
+            println("\nGenerating k-space plots...")
+            full_filename = joinpath("Results", "$(filename).h5")
+            try
+                CoolingTNS.plot_momentum_distribution(full_filename; save_fig=true)
+                println("K-space line plot saved.")
+            catch e
+                println("Warning: Could not generate k-space plots: $e")
+            end
+        end
+    end
 end
 
 # Parse command line arguments and run the cooling simulation

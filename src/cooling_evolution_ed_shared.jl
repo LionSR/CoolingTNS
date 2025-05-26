@@ -56,7 +56,7 @@ end
 Shared function to measure and collapse bath for Monte Carlo methods.
 Returns (system_state, bath_outcomes).
 """
-function process_bath_ed_monte_carlo(state::EDStateVector, N_sys::Int, N_bath::Int)
+function process_bath_ed_monte_carlo(state::EDStateVector, N_bath::Int)
     # Bath qubits are at even positions in alternating layout
     bath_qubits = [2*i for i in 1:N_bath]
     
@@ -73,14 +73,12 @@ end
 
 Shared measurement function for ED backend.
 """
-function perform_measurements_ed!(measurements, step::Int, problem::CoolingProblem{EDBackend},
-                                 state::Union{EDStateVector, EDDensityMatrix}, is_monte_carlo::Bool,
-                                 ham_params, bath_info=nothing)
-    H_sys_mat = problem.H_sys
-    ϕ₀ = problem.ϕ₀
+function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVector, EDDensityMatrix},
+                                H_sys_mat::AbstractMatrix, ϕ₀::EDStateVector,
+                                ham_params, bath_info=nothing)
     N_sys = ham_params.N
     
-    if is_monte_carlo
+    if isa(state, EDStateVector)
         # Monte Carlo: state is a wave function (system only)
         ψ_s = state
         
@@ -128,6 +126,32 @@ function perform_measurements_ed!(measurements, step::Int, problem::CoolingProbl
                 mag += expect_ed(Z_i, ρ_bath)
             end
             measurements["bath_mag_list"][step] = mag / N_bath
+        end
+    end
+    
+    # K-space measurements for ED with periodic/antiperiodic BC (only for Ising model)
+    if haskey(measurements, "momentum_dist") && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
+        if isa(state, EDStateVector)
+            # For pure states
+            k_values, n_k = measure_momentum_distribution_ed(state, ham_params)
+            if step == 1
+                measurements["k_values"][:] = k_values
+            end
+            measurements["momentum_dist"][step, :] .= n_k
+        else
+            # For density matrices, we need to get the system state
+            if ρ_total.n_qubits == 2*N_sys
+                ρ_sys = trace_out_bath_ed(ρ_total, N_sys)
+            else
+                ρ_sys = ρ_total
+            end
+            
+            # Measure momentum distribution from density matrix
+            k_values, n_k = measure_momentum_distribution_ed(ρ_sys, ham_params)
+            if step == 1
+                measurements["k_values"][:] = k_values
+            end
+            measurements["momentum_dist"][step, :] .= n_k
         end
     end
 end

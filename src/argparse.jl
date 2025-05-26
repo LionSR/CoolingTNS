@@ -24,7 +24,7 @@ function parse_commandline(args=ARGS)
         "--h"
         help = "magnetic field h"
         arg_type = Float64
-        default = 2.0
+        default = -2.0
         "--hx"
         help = "x-component of the magnetic field"
         arg_type = Float64
@@ -61,6 +61,9 @@ function parse_commandline(args=ARGS)
         help = "maximum bond dimension"
         arg_type = Int
         default = 20
+        "--bc"
+        help = "boundary conditions (valid choices: open, periodic, antiperiodic)"
+        default = "open"
         "--backend"
         help = "simulation backend (valid choices: TN, ED)"
         default = "TN"

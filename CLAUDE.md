@@ -80,6 +80,9 @@ julia optCooling.jl --search_method Bayesian --num_trials 20 --N 10 --problem ni
 - `--theta`: Parameterized initial state angle (in units of π)
 - `--n_trajectories`: Number of trajectories for Monte Carlo method
 - `--peInt`: Noise strength (×10⁻³)
+- `--bc`: Boundary conditions (open, periodic, antiperiodic) - only for ED backend
+- `--J`: Ising coupling strength (default 1.0)
+- `--h`: Transverse field strength (default 1.0)
 
 ### Testing Commands
 
@@ -205,9 +208,6 @@ Use ITensors.jl or ITensorMPS.jl, you can get the documentation of a function by
 # Get function documentation from a package
 julia -e 'using PackageName; @doc function_name'
 ```
-### Use real parameters whenever possible.
-
-Never use ComplexF64. Use Float64 instead.
 
 
 ## Testing

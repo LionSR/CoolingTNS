@@ -22,10 +22,10 @@ if !@isdefined(EDStateVector)
     Represents a pure quantum state as a vector in the computational basis.
     """
     struct EDStateVector
-        data::Vector{Float64}  # Real amplitudes only
+        data::Vector{ComplexF64}  # Complex amplitudes for proper quantum mechanics
         n_qubits::Int
         
-        function EDStateVector(data::Vector{Float64}, n_qubits::Int)
+        function EDStateVector(data::Vector{ComplexF64}, n_qubits::Int)
             @assert length(data) == 2^n_qubits "Vector dimension must be 2^n_qubits"
             new(normalize(data), n_qubits)
         end
@@ -39,12 +39,12 @@ if !@isdefined(EDDensityMatrix)
     Represents a mixed quantum state as a density matrix.
     """
     struct EDDensityMatrix
-        data::Matrix{Float64}  # Real density matrix
+        data::Matrix{ComplexF64}  # Complex density matrix
         n_qubits::Int
         
-        function EDDensityMatrix(data::Matrix{Float64}, n_qubits::Int)
+        function EDDensityMatrix(data::Matrix{ComplexF64}, n_qubits::Int)
             @assert size(data, 1) == size(data, 2) == 2^n_qubits "Matrix dimension must be 2^n_qubits"
-            @assert issymmetric(data) "Density matrix must be symmetric for real states"
+            @assert ishermitian(data) "Density matrix must be Hermitian"
             @assert abs(tr(data) - 1.0) < 1e-10 "Density matrix must have trace 1 (got $(tr(data)))"
             new(data, n_qubits)
         end
@@ -69,7 +69,7 @@ config=0 means all qubits in |0⟩, config=1 means |00...01⟩, etc.
 """
 function product_state_ed(n_qubits::Int, config::Int=0)
     @assert 0 <= config < 2^n_qubits "Configuration out of range"
-    data = zeros(Float64, 2^n_qubits)
+    data = zeros(ComplexF64, 2^n_qubits)
     data[config + 1] = 1.0  # Julia is 1-indexed
     return EDStateVector(data, n_qubits)
 end
@@ -87,7 +87,9 @@ zero_state_ed(n_qubits::Int) = product_state_ed(n_qubits, 0)
 Create a random normalized pure state with real amplitudes.
 """
 function random_state_ed(n_qubits::Int)
-    return EDStateVector(randn(Float64, 2^n_qubits), n_qubits)
+    # Generate random complex state
+    data = randn(ComplexF64, 2^n_qubits)
+    return EDStateVector(data, n_qubits)
 end
 
 """
@@ -97,7 +99,7 @@ Create the maximally mixed state I/2^n.
 """
 function maximally_mixed_ed(n_qubits::Int)
     dim = 2^n_qubits
-    return EDDensityMatrix(Matrix{Float64}(I, dim, dim) / dim, n_qubits)
+    return EDDensityMatrix(Matrix{ComplexF64}(I, dim, dim) / dim, n_qubits)
 end
 
 # ============================================================================
@@ -128,7 +130,9 @@ end
 Convert pure state to density matrix: |ψ⟩⟨ψ|.
 """
 function state_to_density_ed(ψ::EDStateVector)
-    return EDDensityMatrix(ψ.data * ψ.data', ψ.n_qubits)
+    # |ψ⟩⟨ψ| is automatically Hermitian
+    ρ = ψ.data * ψ.data'
+    return EDDensityMatrix(ρ, ψ.n_qubits)
 end
 
 # ============================================================================
@@ -161,7 +165,7 @@ function measure_ed!(ψ::EDStateVector, qubits::Vector{Int})
             end
         end
         
-        probs[outcome + 1] += ψ.data[state_idx + 1]^2
+        probs[outcome + 1] += abs2(ψ.data[state_idx + 1])
     end
     
     # Sample outcome based on probabilities
@@ -174,7 +178,7 @@ function measure_ed!(ψ::EDStateVector, qubits::Vector{Int})
     end
     
     # Collapse state and trace out measured qubits
-    collapsed_data = zeros(Float64, 2^n_remaining)
+    collapsed_data = zeros(ComplexF64, 2^n_remaining)
     
     # Create mask for remaining qubits
     remaining_qubits = setdiff(0:(n_total-1), qubits_0)
@@ -228,6 +232,7 @@ end
 Compute expectation value ⟨ψ|op|ψ⟩.
 """
 function expect_ed(op::AbstractMatrix, ψ::EDStateVector)
+    # For Hermitian operators, expectation values are real
     return real(dot(ψ.data, op * ψ.data))
 end
 
@@ -260,7 +265,7 @@ function partial_trace_ed(ρ::EDDensityMatrix, keep_qubits::Vector{Int})
     keep_qubits_0 = keep_qubits .- 1
     trace_qubits_0 = setdiff(0:(n_total-1), keep_qubits_0)
     
-    ρ_reduced = zeros(Float64, dim_keep, dim_keep)
+    ρ_reduced = zeros(ComplexF64, dim_keep, dim_keep)
     
     for i in 0:(dim_keep-1), j in 0:(dim_keep-1)
         # Sum over traced out degrees of freedom
@@ -323,41 +328,41 @@ end
 # Time Evolution Functions
 # ============================================================================
 
+# Cache for time evolution operators exp(-iHt)
+const EVOLUTION_OP_CACHE = Dict{Tuple{UInt64, Float64}, Matrix{ComplexF64}}()
+
+"""
+    get_evolution_operator(H::AbstractMatrix, t::Float64) -> Matrix{ComplexF64}
+    
+Get the cached evolution operator U = exp(-iHt) for Hamiltonian H and time t.
+"""
+function get_evolution_operator(H::AbstractMatrix, t::Float64)
+    # Use hash of H and t as cache key
+    H_hash = hash(H)
+    cache_key = (H_hash, t)
+    
+    if haskey(EVOLUTION_OP_CACHE, cache_key)
+        return EVOLUTION_OP_CACHE[cache_key]
+    end
+    
+    # Compute exp(-iHt) via eigendecomposition
+    F = eigen(Symmetric(Matrix(H)))
+    phases = exp.(-im * t * F.values)
+    U = F.vectors * Diagonal(phases) * F.vectors'
+    
+    EVOLUTION_OP_CACHE[cache_key] = U
+    return U
+end
+
 """
     evolve_ed(H::AbstractMatrix, ψ::EDStateVector, t::Float64) -> EDStateVector
 
 Time evolve a state vector under Hamiltonian H for time t.
 """
 function evolve_ed(H::AbstractMatrix, ψ::EDStateVector, t::Float64)
-    # For real Hamiltonians and real initial states, we can use real arithmetic
-    # exp(-iHt)|ψ⟩ = cos(Ht)|ψ⟩ - i*sin(Ht)|ψ⟩
-    # Since |ψ⟩ is real and H is real, the evolved state stays real if we project
-    
-    n = size(H, 1)
-    
-    # Compute eigendecomposition (more stable for small systems)
-    if n <= 64  # For small systems, full diagonalization is fine
-        F = eigen(Symmetric(Matrix(H)))
-        # exp(-iHt) = V * exp(-iΛt) * V'
-        phases = exp.(-im * t * F.values)
-        U = F.vectors * Diagonal(phases) * F.vectors'
-        evolved_data = real(U * ψ.data)
-    else
-        # For larger systems, use Krylov approximation
-        # Compute action of exp(-iHt) using Arnoldi iteration
-        evolved_data = ψ.data
-        dt = t / 10
-        
-        for _ in 1:10
-            # One step of evolution
-            # Use Taylor expansion: exp(-iHdt) ≈ I - iHdt - H²dt²/2
-            Hψ = H * evolved_data
-            H2ψ = H * Hψ
-            evolved_data = evolved_data - dt^2/2 * H2ψ
-            evolved_data = evolved_data / norm(evolved_data)
-        end
-    end
-    
+    # Use cached evolution operator
+    U = get_evolution_operator(H, t)
+    evolved_data = U * ψ.data
     return EDStateVector(evolved_data, ψ.n_qubits)
 end
 
@@ -367,45 +372,12 @@ end
 Time evolve a density matrix under Hamiltonian H for time t using vectorization.
 """
 function evolve_ed(H::AbstractMatrix, ρ::EDDensityMatrix, t::Float64)
-    n = size(H, 1)
-    
-    # For density matrix: ρ(t) = U(t)ρ(0)U†(t) where U(t) = exp(-iHt)
-    # Direct approach for small systems
-    if n <= 64
-        F = eigen(Symmetric(Matrix(H)))
-        phases = exp.(-im * t * F.values)
-        U = F.vectors * Diagonal(phases) * F.vectors'
-        ρ_evolved = U * ρ.data * U'
-        ρ_real = real(ρ_evolved)
-        # Enforce symmetry to avoid numerical errors
-        ρ_sym = (ρ_real + ρ_real') / 2
-        return EDDensityMatrix(ρ_sym, ρ.n_qubits)
-    else
-        # For larger systems, use vectorized approach
-        # d/dt vec(ρ) = -i(H⊗I - I⊗H) vec(ρ)
-        
-        # Since we want real arithmetic, and H is real symmetric:
-        # We can work in the eigenbasis of H
-        
-        # Simple approach: multiple small steps
-        ρ_current = ρ.data
-        dt = t / 10
-        
-        for _ in 1:10
-            # Compute [H, ρ]
-            commutator = H * ρ_current - ρ_current * H
-            # Update: ρ(t+dt) ≈ ρ(t) - i*dt*[H,ρ]
-            # Since we want real result, we use ρ(t+dt) ≈ ρ(t) - dt²/2*[H,[H,ρ]]
-            commutator2 = H * commutator - commutator * H
-            ρ_current = ρ_current - dt^2/2 * commutator2
-            
-            # Ensure Hermiticity and trace preservation
-            ρ_current = (ρ_current + ρ_current') / 2
-            ρ_current = ρ_current / tr(ρ_current)
-        end
-        
-        return EDDensityMatrix(ρ_current, ρ.n_qubits)
-    end
+    # Use cached evolution operator
+    U = get_evolution_operator(H, t)
+    ρ_evolved = U * ρ.data * U'
+    # Enforce Hermiticity to avoid numerical errors
+    ρ_sym = (ρ_evolved + ρ_evolved') / 2
+    return EDDensityMatrix(ρ_sym, ρ.n_qubits)
 end
 
 # ============================================================================
@@ -513,7 +485,8 @@ function ground_state_ed(H::AbstractMatrix)
     # Find ground state
     vals, vecs, _ = eigsolve(H, 1, :SR; krylovdim=min(30, size(H, 1)))
     E0 = real(vals[1])
-    ψ0_data = real(vecs[1])  # Take real part
+    # Ground state eigenvector can be complex even for real Hamiltonian
+    ψ0_data = ComplexF64.(vecs[1])
     
     # Convert to dense vector if sparse
     if isa(ψ0_data, SparseVector)
@@ -539,7 +512,7 @@ end
 Apply depolarizing noise with probability p to specified qubits.
 """
 function apply_depolarizing_ed(ψ::EDStateVector, p::Float64, qubits::Vector{Int})
-    ψ_noisy = EDStateVector(copy(ψ.data), ψ.n_qubits)
+    ψ_noisy_data = copy(ψ.data)
     
     for q in qubits
         if rand() < p
@@ -553,11 +526,11 @@ function apply_depolarizing_ed(ψ::EDStateVector, p::Float64, qubits::Vector{Int
                 op = pauli_z(q, ψ.n_qubits)
             end
             
-            ψ_noisy = EDStateVector(op * ψ_noisy.data, ψ_noisy.n_qubits)
+            ψ_noisy_data = op * ψ_noisy_data
         end
     end
     
-    return ψ_noisy
+    return EDStateVector(ψ_noisy_data, ψ.n_qubits)
 end
 
 """
@@ -606,4 +579,245 @@ function fidelity_ed(ρ1::EDDensityMatrix, ρ2::EDDensityMatrix)
     # For pure states or when one is pure, this simplifies
     sqrt_ρ1 = sqrt(ρ1.data)
     return real(tr(sqrt(sqrt_ρ1 * ρ2.data * sqrt_ρ1)))^2
+end
+
+# ============================================================================
+# K-Space Measurement Functions (for PBC/APBC)
+# ============================================================================
+
+# Cache for Jordan-Wigner operators to avoid recomputation
+const JW_CACHE = Dict{Tuple{Int, Int}, Tuple{SparseMatrixCSC{Float64, Int}, SparseMatrixCSC{Float64, Int}}}()
+
+"""
+    jordan_wigner_transform(i::Int, n_qubits::Int) -> Tuple{SparseMatrixCSC, SparseMatrixCSC}
+
+Returns the Jordan-Wigner transformed creation and annihilation operators for site i.
+a_i = (-1)^(sum_{j<i} n_j) * (X_i - iY_i)/2
+a†_i = (-1)^(sum_{j<i} n_j) * (X_i + iY_i)/2
+"""
+function jordan_wigner_transform(i::Int, n_qubits::Int)
+    # Check cache first
+    cache_key = (i, n_qubits)
+    if haskey(JW_CACHE, cache_key)
+        return JW_CACHE[cache_key]
+    end
+    # Build the string operator (-1)^(sum_{j<i} n_j) = Π_{j<i} Z_j
+    string_op = sparse(I, 2^n_qubits, 2^n_qubits)
+    for j in 1:i-1
+        string_op = string_op * pauli_z(j, n_qubits)
+    end
+    
+    # Build fermionic operators
+    X_i = pauli_x(i, n_qubits)
+    Y_i = pauli_y(i, n_qubits)
+    
+    # Standard convention: |↑⟩ = vacuum, |↓⟩ = occupied
+    # a† creates fermion: |↑⟩ → |↓⟩, so a† = σ^-
+    # a annihilates fermion: |↓⟩ → |↑⟩, so a = σ^+
+    # With real Y matrix: Y_real = -i*Y_complex
+    # σ^+ = (X + iY)/2 = (X - Y_real)/2
+    # σ^- = (X - iY)/2 = (X + Y_real)/2
+    a = string_op * (X_i - Y_i) / 2      # σ^+
+    a_dag = string_op * (X_i + Y_i) / 2  # σ^-
+    
+    result = (a, a_dag)
+    JW_CACHE[cache_key] = result
+    return result
+end
+
+"""
+    momentum_state_overlap_ed(ψ::EDStateVector, k::Float64, bc::Symbol) -> Float64
+
+Compute |⟨k|ψ⟩|² where |k⟩ is a momentum eigenstate.
+k is in units of 2π/N (so k ∈ [-N/2, N/2] for PBC, k ∈ [-(N-1)/2, (N-1)/2] for APBC).
+bc is :periodic or :antiperiodic.
+"""
+function momentum_state_overlap_ed(ψ::EDStateVector, k::Float64, bc::Symbol)
+    N = ψ.n_qubits
+    
+    # Create the momentum eigenstate |k⟩ in real space
+    # |k⟩ = (1/√N) Σ_n exp(2πikn/N) a†_n |0⟩
+    
+    # Start with vacuum state
+    vacuum = zeros(ComplexF64, 2^N)
+    vacuum[1] = 1.0  # |00...0⟩
+    
+    # Build momentum state by applying Fourier-transformed creation operator
+    k_state = zeros(ComplexF64, 2^N)
+    
+    for n in 1:N
+        phase_real = cos(2π * k * n / N) / sqrt(N)
+        phase_imag = sin(2π * k * n / N) / sqrt(N)
+        
+        # Get Jordan-Wigner transformed operators
+        _, a_dag_n = jordan_wigner_transform(n, N)
+        
+        # Apply a†_n with phase factor
+        phase = (phase_real + im * phase_imag)
+        k_state += phase * a_dag_n * vacuum
+    end
+    
+    # Compute overlap for complex states
+    overlap = dot(k_state, ψ.data)
+    
+    return abs2(overlap)
+end
+
+# Cache for correlation operators a†_m a_n
+const CORRELATION_OP_CACHE = Dict{Tuple{Int, Int, Int}, SparseMatrixCSC}()
+
+"""
+    get_correlation_operator(m::Int, n::Int, N::Int) -> SparseMatrixCSC
+    
+Get the cached operator a†_m a_n for sites m and n in a system of N qubits.
+"""
+function get_correlation_operator(m::Int, n::Int, N::Int)
+    cache_key = (m, n, N)
+    if haskey(CORRELATION_OP_CACHE, cache_key)
+        return CORRELATION_OP_CACHE[cache_key]
+    end
+    
+    # Get Jordan-Wigner operators
+    a_n, _ = jordan_wigner_transform(n, N)
+    _, a_m_dag = jordan_wigner_transform(m, N)
+    
+    # a†_m a_n operator
+    op = a_m_dag * a_n
+    
+    CORRELATION_OP_CACHE[cache_key] = op
+    return op
+end
+
+"""
+    measure_momentum_distribution_ed(ψ::EDStateVector, ham_params::HamiltonianParameters) -> Tuple{Vector{Float64}, Vector{Float64}}
+
+Measure the momentum distribution n_k = ⟨a†_k a_k⟩ for all allowed k values.
+Returns (k_values, n_k) where k_values are in units of 2π/N.
+"""
+function measure_momentum_distribution_ed(ψ::EDStateVector, ham_params::HamiltonianParameters)
+    N = ham_params.N
+    bc = ham_params.bc
+    
+    # Determine allowed k values based on boundary conditions
+    if bc == :periodic
+        # k = -N/2+1, ..., N/2 for even N
+        k_values = collect(-div(N,2)+1:div(N,2))
+    elseif bc == :antiperiodic
+        # k = -(N-1)/2, ..., (N-1)/2 for antiperiodic
+        k_values = collect(-div(N-1,2):div(N-1,2))
+    else
+        error("Momentum distribution only defined for periodic/antiperiodic BC")
+    end
+    
+    n_k = zeros(Float64, length(k_values))
+    
+    # For efficiency in ED, we compute ⟨a†_k a_k⟩ directly
+    # a_k = (1/√N) Σ_n exp(-2πikn/N) a_n
+    # a†_k = (1/√N) Σ_n exp(2πikn/N) a†_n
+    # So ⟨a†_k a_k⟩ = (1/N) Σ_m,n exp(2πik(m-n)/N) ⟨a†_m a_n⟩
+    
+    # First compute all ⟨a†_m a_n⟩ in real space
+    correlations = zeros(Float64, N, N)
+    for m in 1:N
+        for n in 1:N
+            # Get Jordan-Wigner operators
+            a_n, _ = jordan_wigner_transform(n, N)
+            _, a_m_dag = jordan_wigner_transform(m, N)
+            
+            # ⟨a†_m a_n⟩ = ⟨ψ| a†_m a_n |ψ⟩
+            correlations[m, n] = real(dot(ψ.data, a_m_dag * a_n * ψ.data))
+        end
+    end
+    
+    # Fourier transform to get momentum distribution
+    for (ki, k) in enumerate(k_values)
+        nk = 0.0
+        for m in 1:N
+            for n in 1:N
+                phase = cos(2π * k * (m - n) / N)
+                nk += phase * correlations[m, n] / N
+            end
+        end
+        n_k[ki] = nk
+    end
+    
+    # Convert k indices to actual momentum values in units of 2π/N
+    k_momentum = [2π * k / N for k in k_values]
+    return k_momentum, n_k
+end
+
+"""
+    measure_momentum_distribution_ed(ρ::EDDensityMatrix, ham_params::HamiltonianParameters) -> Tuple{Vector{Float64}, Vector{Float64}}
+
+Measure the momentum distribution n_k = ⟨a†_k a_k⟩ for all allowed k values from a density matrix.
+Returns (k_values, n_k) where k_values are in units of 2π/N.
+"""
+function measure_momentum_distribution_ed(ρ::EDDensityMatrix, ham_params::HamiltonianParameters)
+    N = ham_params.N
+    bc = ham_params.bc
+    
+    # Determine allowed k values based on boundary conditions
+    if bc == :periodic
+        # k = -N/2+1, ..., N/2 for even N
+        k_values = collect(-div(N,2)+1:div(N,2))
+    elseif bc == :antiperiodic
+        # k = -(N-1)/2, ..., (N-1)/2 for antiperiodic
+        k_values = collect(-div(N-1,2):div(N-1,2))
+    else
+        error("Momentum distribution only defined for periodic/antiperiodic BC")
+    end
+    
+    n_k = zeros(Float64, length(k_values))
+    
+    # For density matrices: ⟨a†_k a_k⟩ = Tr(ρ a†_k a_k)
+    # a_k = (1/√N) Σ_n exp(-2πikn/N) a_n
+    # a†_k = (1/√N) Σ_n exp(2πikn/N) a†_n
+    # So ⟨a†_k a_k⟩ = (1/N) Σ_m,n exp(2πik(m-n)/N) Tr(ρ a†_m a_n)
+    
+    # First compute all Tr(ρ a†_m a_n) in real space
+    correlations = zeros(ComplexF64, N, N)
+    for m in 1:N
+        for n in 1:N
+            # Get Jordan-Wigner operators
+            a_n, _ = jordan_wigner_transform(n, N)
+            _, a_m_dag = jordan_wigner_transform(m, N)
+            
+            # Tr(ρ a†_m a_n)
+            correlations[m, n] = tr(ρ.data * a_m_dag * a_n)
+        end
+    end
+    
+    # Fourier transform to get momentum distribution
+    for (ki, k) in enumerate(k_values)
+        nk = 0.0 + 0.0im
+        for m in 1:N
+            for n in 1:N
+                phase = exp(2π * im * k * (m - n) / N)
+                nk += phase * correlations[m, n] / N
+            end
+        end
+        n_k[ki] = real(nk)  # Should be real for physical density matrices
+    end
+    
+    # Convert k indices to actual momentum values in units of 2π/N
+    k_momentum = [2π * k / N for k in k_values]
+    return k_momentum, n_k
+end
+
+"""
+    projector_ed(bit::Int, qubit::Int, n_qubits::Int) -> SparseMatrixCSC{Float64, Int}
+
+Create projector onto |bit⟩ (0 or 1) for specified qubit.
+"""
+function projector_ed(bit::Int, qubit::Int, n_qubits::Int)
+    @assert bit ∈ [0, 1] "bit must be 0 or 1"
+    @assert 1 ≤ qubit ≤ n_qubits "qubit must be in range 1:n_qubits"
+    
+    if bit == 0
+        # |0⟩⟨0| = (I + Z)/2
+        return (I + pauli_z(qubit, n_qubits)) / 2
+    else
+        # |1⟩⟨1| = (I - Z)/2
+        return (I - pauli_z(qubit, n_qubits)) / 2
+    end
 end

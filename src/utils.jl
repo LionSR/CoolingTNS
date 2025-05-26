@@ -7,16 +7,25 @@ function setup_common_parameters(parsed_args)
     problem = parsed_args["problem"]
     
     # Create proper HamiltonianParameters struct
+    # Get boundary condition
+    bc_str = get(parsed_args, "bc", "open")
+    bc = Symbol(bc_str)
+    
+    # For TN backend, always use open BC
+    if get(parsed_args, "backend", "TN") == "TN"
+        bc = :open
+    end
+    
     if problem == "Ising"
-        ham_params = IsingParameters(N, parsed_args["J"], parsed_args["h"])
+        ham_params = IsingParameters(N, parsed_args["J"], parsed_args["h"], bc)
     elseif problem == "niIsing"
-        ham_params = NiIsingParameters(N, parsed_args["J"], parsed_args["hx"], parsed_args["hz"])
+        ham_params = NiIsingParameters(N, parsed_args["J"], parsed_args["hx"], parsed_args["hz"], bc)
     elseif problem == "Rydberg"
         # Add default Rydberg parameters if needed
         Ω = get(parsed_args, "Omega", 1.0)
         Δ = get(parsed_args, "Delta", 0.0)
         V = get(parsed_args, "V", 1.0)
-        ham_params = RydbergParameters(N, Ω, Δ, V)
+        ham_params = RydbergParameters(N, Ω, Δ, V, bc)
     else
         error("Unknown problem type: $problem")
     end
@@ -78,37 +87,41 @@ function create_search_name_part(search_params)
 end
 
 function create_filename(ham_params::HamiltonianParameters, coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters, backend::CoolingBackend)
-    # Use the HamiltonianParameters to generate name
-    ham_part = hamiltonian_name(ham_params)
+    # Ham group: HamIsingJ1.0h1.0 (no underscores within group)
+    ham_name = hamiltonian_name(ham_params)
+    ham_group = "Ham$(ham_name)"
     
-    # Concise coupling part
-    coupling_part = "$(coupling_params.coupling)_g$(coupling_params.g)_t$(coupling_params.te)_s$(coupling_params.steps)"
-    
-    # Concise backend/sim part
-    backend_str = backend isa TNBackend ? "TN" : "ED"
-    sim_part = backend_str
-    
-    # Add key method parameters only
-    if backend isa TNBackend && sim_params.Dmax != 100  # Only add if not default
-        sim_part *= "_D$(sim_params.Dmax)"
-    end
-    
-    if sim_params.evolution_method isa TrotterEvolution
-        sim_part *= "_tau$(sim_params.tau)"
-    end
-    
-    if sim_params.pe > 0
-        pe_int = Int(round(sim_params.pe * 1000))
-        sim_part *= "_pe$(pe_int)"
-    end
+    # Coupling group: CouplingXXg0.1te10.0steps100 (no underscores within group)
+    coupling_group = "Coupling$(coupling_params.coupling)g$(coupling_params.g)te$(coupling_params.te)steps$(coupling_params.steps)"
     
     # Add delta if specified
     if coupling_params.delta !== nothing
         delta_str = @sprintf("%.3f", coupling_params.delta)
-        coupling_part *= "_d$(delta_str)"
+        coupling_group *= "delta$(delta_str)"
     end
     
-    return join([ham_part, coupling_part, sim_part], "_")
+    # Sim group: SimTNDmax100 or SimED (no underscores within group)
+    backend_str = backend isa TNBackend ? "TN" : "ED"
+    sim_method_str = sim_params.sim_method isa DensityMatrix ? "DM" : "MC"
+    sim_group = "Sim$(backend_str)$(sim_method_str)"
+    
+    # Add key method parameters to sim group
+    if backend isa TNBackend && sim_params.Dmax != 100  # Only add if not default
+        sim_group *= "Dmax$(sim_params.Dmax)"
+    end
+    
+    # Add other sim parameters if non-default
+    if sim_params.evolution_method isa TrotterEvolution
+        sim_group *= "tau$(sim_params.tau)"
+    end
+    
+    if sim_params.pe > 0
+        pe_int = Int(round(sim_params.pe * 1000))
+        sim_group *= "pe$(pe_int)"
+    end
+    
+    # Join the three groups with underscores
+    return "Cooling_$(ham_group)_$(coupling_group)_$(sim_group)"
 end
 
 # Overloaded version for plotting functions that pass N directly (now ignored)

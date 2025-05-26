@@ -18,6 +18,10 @@ include("utils_mps.jl")
 include("coupling_utils.jl")
 include("utils_mpo.jl")
 include("plotting.jl")
+include("plot_energy_dispersion.jl")
+include("plot_dispersion_with_gs.jl")
+include("plot_nk_evolution.jl")
+include("plot_ek_evolution.jl")
 include("policy.jl")
 include("argparse.jl")
 include("noise.jl")
@@ -36,6 +40,7 @@ include("system_bath_hamiltonian.jl") # System-bath coupling
 include("trotter.jl")               # Trotter circuit construction
 include("initial_state.jl")         # Initial state preparation
 include("evolution.jl")             # Time evolution functions
+include("cooling_evolution_ed_shared.jl") # Shared ED backend functions
 include("cooling_evolution.jl")     # Cooling evolution
 include("setup.jl")                 # setup_problem implementations
 

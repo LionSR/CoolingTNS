@@ -1,6 +1,7 @@
 using HDF5
 using PythonCall
 using LaTeXStrings
+using Printf
 
 function safe_read_data(filename)
     if !isfile(filename)
@@ -265,4 +266,170 @@ function plot_vs_N_pe_range(ham_name, coupling_params, sim_params, N_values, peI
 
     isdir("$(directory)/Figs") || mkpath("$(directory)/Figs")
     fig.savefig("$(directory)/Figs/$(filename_saveto)", dpi=300)
+end
+
+
+"""
+    plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true)
+
+Plot the momentum distribution n_k vs k as a function of cooling steps.
+Shows how population in different k modes changes during cooling.
+Marks the resonant frequency delta with a vertical line.
+"""
+function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true)
+    plt = pyimport("matplotlib.pyplot")
+    
+    # Read data
+    if !isfile(filename)
+        @warn "File not found: $filename"
+        return
+    end
+    
+    data = Dict{String, Any}()
+    h5open(filename, "r") do file
+        for key in keys(file)
+            data[key] = read(file, key)
+        end
+    end
+    
+    # Check if k-space data exists
+    if !haskey(data, "momentum_dist") || !haskey(data, "k_values")
+        @warn "No k-space data found in file $filename"
+        return
+    end
+    
+    momentum_dist = data["momentum_dist"]
+    k_values = data["k_values"]
+    total_steps = size(momentum_dist, 1)
+    
+    # Determine which steps to plot
+    if steps_to_plot === nothing
+        # Default: plot initial, 25%, 50%, 75%, and final
+        step_indices = unique([1, 
+                              div(total_steps, 4), 
+                              div(total_steps, 2), 
+                              div(3*total_steps, 4), 
+                              total_steps])
+    else
+        step_indices = steps_to_plot
+    end
+    
+    # Create figure
+    fig, ax = plt.subplots(figsize=(8, 6))
+    
+    # Color map for different steps
+    cmap = plt.get_cmap("viridis")
+    colors = [cmap(i / (length(step_indices) - 1)) for i in 0:length(step_indices)-1]
+    
+    # Plot momentum distribution for each selected step
+    for (i, step) in enumerate(step_indices)
+        if step <= total_steps
+            n_k = momentum_dist[step, :]
+            label = step == 1 ? "Initial" : "Step $step"
+            ax.plot(k_values, n_k, "o-", color=colors[i], label=label, markersize=4)
+        end
+    end
+    
+    # Add vertical line at resonant frequency if delta is available
+    if haskey(data, "delta") && data["delta"] !== nothing
+        delta = data["delta"]
+        N = length(k_values)
+        
+        # Find k value corresponding to delta
+        # For Ising model: ε_k = sqrt(1 + sin(2θ)cos(2πk/N))
+        # At resonance: delta = ε_k
+        # This requires solving for k, which depends on model parameters
+        
+        # For now, just mark delta on a secondary y-axis
+        ax2 = ax.twinx()
+        ax2.axhline(y=delta, color="red", linestyle="--", alpha=0.7, label="Bath freq δ")
+        ax2.set_ylabel("Energy", color="red")
+        ax2.tick_params(axis="y", labelcolor="red")
+    end
+    
+    ax.set_xlabel(L"Momentum $k$ (units of $2\pi/N$)")
+    ax.set_ylabel(L"Occupation $n_k$")
+    ax.set_title("Momentum Distribution Evolution")
+    ax.legend()
+    ax.grid(true, alpha=0.3)
+    
+    plt.tight_layout()
+    
+    if save_fig
+        base_name = splitext(basename(filename))[1]
+        fig_name = "momentum_dist_$(base_name).pdf"
+        fig_dir = dirname(filename)
+        isdir("$(fig_dir)/Figs") || mkpath("$(fig_dir)/Figs")
+        fig.savefig("$(fig_dir)/Figs/$(fig_name)", dpi=300)
+        println("Figure saved to $(fig_dir)/Figs/$(fig_name)")
+    end
+    
+    plt.show()
+end
+
+"""
+    plot_momentum_distribution_heatmap(filename; save_fig=true)
+
+Plot the momentum distribution as a heatmap showing n_k vs (k, step).
+This gives a comprehensive view of how all modes evolve during cooling.
+"""
+function plot_momentum_distribution_heatmap(filename; save_fig=true)
+    plt = pyimport("matplotlib.pyplot")
+    
+    # Read data
+    if !isfile(filename)
+        @warn "File not found: $filename"
+        return
+    end
+    
+    data = Dict{String, Any}()
+    h5open(filename, "r") do file
+        for key in keys(file)
+            data[key] = read(file, key)
+        end
+    end
+    
+    # Check if k-space data exists
+    if !haskey(data, "momentum_dist") || !haskey(data, "k_values")
+        @warn "No k-space data found in file $filename"
+        return
+    end
+    
+    momentum_dist = data["momentum_dist"]
+    k_values = data["k_values"]
+    total_steps = size(momentum_dist, 1)
+    
+    # Create figure
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    # Create heatmap
+    im = ax.imshow(transpose(momentum_dist), aspect="auto", origin="lower", 
+                   extent=[1, total_steps, k_values[1], k_values[end]],
+                   cmap="hot", interpolation="nearest")
+    
+    ax.set_xlabel("Cooling Step")
+    ax.set_ylabel(L"Momentum $k$ (units of $2\pi/N$)")
+    ax.set_title("Momentum Distribution Evolution Heatmap")
+    
+    # Add colorbar
+    cbar = plt.colorbar(im, ax=ax)
+    cbar.set_label(L"Occupation $n_k$")
+    
+    # Add horizontal line at k=0 if it exists
+    if 0 in k_values
+        ax.axhline(y=0, color="white", linestyle="--", alpha=0.5, linewidth=1)
+    end
+    
+    plt.tight_layout()
+    
+    if save_fig
+        base_name = splitext(basename(filename))[1]
+        fig_name = "momentum_dist_heatmap_$(base_name).pdf"
+        fig_dir = dirname(filename)
+        isdir("$(fig_dir)/Figs") || mkpath("$(fig_dir)/Figs")
+        fig.savefig("$(fig_dir)/Figs/$(fig_name)", dpi=300)
+        println("Figure saved to $(fig_dir)/Figs/$(fig_name)")
+    end
+    
+    plt.show()
 end

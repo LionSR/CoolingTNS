@@ -81,6 +81,7 @@ end
 function construct_system_hamiltonian(ham_params::HamiltonianParameters{IsingModel}, backend::EDBackend, ::Int)
     J, h = ham_params.params.J, ham_params.params.h
     N = ham_params.N
+    bc = ham_params.bc
     
     # Transverse field Ising model using clean ED backend
     H_sys = spzeros(Float64, 2^N, 2^N)
@@ -88,6 +89,13 @@ function construct_system_hamiltonian(ham_params::HamiltonianParameters{IsingMod
     # ZZ interactions
     for i in 1:N-1
         H_sys += J * pauli_zz(i, i+1, N)
+    end
+    
+    # Boundary term for PBC/APBC
+    if bc == :periodic
+        H_sys += J * pauli_zz(N, 1, N)
+    elseif bc == :antiperiodic
+        H_sys -= J * pauli_zz(N, 1, N)
     end
     
     # X field
@@ -101,6 +109,7 @@ end
 function construct_system_hamiltonian(ham_params::HamiltonianParameters{NiIsingModel}, backend::EDBackend, ::Int)
     J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
     N = ham_params.N
+    bc = ham_params.bc
     
     # Non-integrable Ising model using clean ED backend
     H_sys = spzeros(Float64, 2^N, 2^N)
@@ -108,6 +117,13 @@ function construct_system_hamiltonian(ham_params::HamiltonianParameters{NiIsingM
     # ZZ interactions
     for i in 1:N-1
         H_sys += J * pauli_zz(i, i+1, N)
+    end
+    
+    # Boundary term for PBC/APBC
+    if bc == :periodic
+        H_sys += J * pauli_zz(N, 1, N)
+    elseif bc == :antiperiodic
+        H_sys -= J * pauli_zz(N, 1, N)
     end
     
     # X field
