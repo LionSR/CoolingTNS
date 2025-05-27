@@ -1,1 +1,0 @@
-Step 1: energy/N=0.75, overlap=0.028518631231612145, purity=1.0
