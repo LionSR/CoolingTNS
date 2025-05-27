@@ -330,7 +330,24 @@ The string operators $S_n S_m$ depends on the relative positions of $n$ and $m$:
 \end{align}
 The mode energy $\epsilon_k = \epsilon_k (2\hat{a}_k^\dagger \hat{a}_k - 1)$ can thus be measured through correlation functions of Pauli operators, allowing us to track which modes are resonating and being cooled during the protocol.
 
-\subsection{Which one is the GS?}
+\subsection{Ground State Parity and Gap Structure}
+
+The parity operator $P = \prod_{j=1}^{N} \sigma_{j,z}$ commutes with $H_{\mathrm{spin}}$, splitting the Hilbert space into even ($P = +1$) and odd ($P = -1$) sectors. From the mapping $g_F = -g_I \cdot P$, the spin PBC ($g_I = 1$) yields fermionic APBC ($g_F = -1$) in the even sector and fermionic PBC ($g_F = +1$) in the odd sector.
+
+The ground state parity is determined by comparing the lowest energies in each sector:
+\begin{align}
+    E_0^{\mathrm{even}} &= \sum_{k \in \mathrm{APBC}} (-\epsilon_k) + \frac{\sin\theta N}{2}\\
+    E_0^{\mathrm{odd}} &= \sum_{k \in \mathrm{PBC}} (-\epsilon_k) + \frac{\sin\theta N}{2}
+\end{align}
+where the APBC sum runs over half-integer $k$ values while PBC uses integer $k$.
+
+Two distinct gaps emerge:
+\begin{align}
+    \Delta_{\mathrm{intra}} &= 2\epsilon_{\min}^{\mathrm{APBC/PBC}} \quad \text{(single particle-hole excitation)}\\
+    \Delta_{\mathrm{inter}} &= |E_0^{\mathrm{odd}} - E_0^{\mathrm{even}}| \quad \text{(parity-changing excitation)}
+\end{align}
+
+The hierarchy $\Delta_{\mathrm{inter}} < \Delta_{\mathrm{intra}}$ arises when the energy difference between filled modes in different parity sectors is smaller than creating a particle-hole pair within a sector. For parity-preserving dynamics, excitations are confined within sectors, making $\Delta_{\mathrm{intra}}$ the relevant energy scale.
 
 
 
@@ -422,7 +439,7 @@ The eigenvalues (squared energies) for these eigenvectors are:
 \end{align}
 giving us the energy eigenvalues:
 \begin{align}
-    \epsilon_k = \epsilon_k = \sqrt{1 + \sin(2\theta)\cos\omega_k}
+    E_k = \epsilon_k = \sqrt{1 + \sin(2\theta)\cos\omega_k}
 \end{align}
 The diagonalized Hamiltonian takes the form:
 \begin{align}

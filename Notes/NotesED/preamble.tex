@@ -1,0 +1,61 @@
+\usepackage{xcolor,amsthm,amsmath,amssymb,amsxtra,amsfonts,dsfont,graphicx,bm,bbm,bbold,braket,natbib,booktabs}
+\usepackage[colorlinks,citecolor=blue,linkcolor=blue,urlcolor=blue]{hyperref}
+
+\usepackage[normalem]{ulem}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+
+\usepackage[percent]{overpic}
+\usepackage{placeins}
+\usepackage[caption=false]{subfig}
+\usepackage[capitalize]{cleveref}
+\crefname{appendix}{App.}{App.}
+% \crefformat{equation}{#2(#1)#3}
+% \Crefformat{equation}{#2(#1)#3}
+
+\setcounter{secnumdepth}{3}
+
+\newtheorem{thm}{Theorem}
+\newtheorem{prop}[thm]{Proposition}
+\newtheorem{defn}[thm]{Definition}
+\newtheorem{example}[thm]{Example}
+
+\usepackage{tikz}
+\usetikzlibrary{quantikz}
+\tikzstyle{circb}=[circle,draw=blue!50,fill=blue!30,thick]
+\tikzstyle{circr}=[circle,draw=red!50,fill=red!30,thick]
+\tikzstyle{circg}=[circle,draw=green!50,fill=green!50,thick]
+\tikzstyle{circk}=[circle,draw=black!50,fill=black!50,thick]
+
+
+\def\Id{{\openone}}
+\newcommand{\be}{\begin{equation} }
+		\newcommand{\ee}{\end{equation} }
+
+\newcommand*\dd{\mathop{}\!\mathrm{d}}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\Tr}{Tr}
+\DeclareMathOperator{\E}{\mathbb{E}}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\newcommand{\argminR}{\mathrm{argmin}}
+
+\newif\ifshowcomments
+	\showcommentstrue % Show comments
+	% \showcommentsfalse % Hide comments
+
+\newcommand{\rem}[1]{\ifshowcomments{\color{red}{\textbf{[#1]}}}\fi}
+\newcommand{\todo}[1]{\ifshowcomments{\color{red}TODO:\@#1}\fi}
+\newcommand{\change}[1]{{\color{blue}#1}}
+
+% Allows referencing phantom subfigures, i.e. when (a), (b)~are part of an image itself.
+\renewcommand\thesubfigure{(\alph{subfigure})}
+\captionsetup[subfigure]{subrefformat=simple,labelformat=simple,listofformat=subsimple}
+\newcommand{\phantomsubfloat}[1]{%
+	{%
+			\captionsetup[subfloat]{farskip=0pt,captionskip=0pt}
+			\captionsetup[subfigure]{labelformat=empty}
+			\subfloat{#1}
+		}
+}

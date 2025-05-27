@@ -41,10 +41,11 @@ CoolingTNS is a Julia-based quantum physics simulation framework for studying co
 julia Cooling.jl --N 10 --problem Ising --backend TN --sim_method monte_carlo --evolution_method continuous --coupling XX --g 0.1 --te 10.0 --steps 20
 
 ## Trotter evolution with MPS
-julia Cooling.jl --N 10 --problem Ising --backend TN --sim_method monte_carlo --evolution_method trotter --tau 0.1 --coupling YY --g 0.2 --te 2.0 --steps 20
+julia Cooling.jl --N 10 --problem Ising --backend TN --sim_method monte_carlo --evolution_method trotter --tau 0.1 --coupling XX --g 0.2 --te 2.0 --steps 20
 
 ## Tensor network with MPO
-julia Cooling.jl --N 10 --problem Ising --backend TN --sim_method density_matrix --evolution_method trotter --tau 0.1 --coupling YY --g 0.2 --te 2.0 --steps 20
+julia Cooling.jl --N 10 --problem Ising --backend TN --sim_method density_matrix --evolution_method trotter --tau 0.1 --coupling XX --g 0.2 --te 2.0 --steps 20
+
 
 # Exact diagonalization
 
@@ -350,3 +351,79 @@ struct EDBackend <: CoolingBackend end
 - All new features use multiple dispatch on backend types
 - Complex matrices for quantum states, real matrices for operators when possible
 - Follow established type hierarchy patterns
+
+
+### Rules about *.tex LaTeX notes
+
+1. **Equation References**: Always use `\ref{eq:label}` or `\cref{eq:label}` instead of hardcoded equation numbers:
+   ```latex
+   % Bad: According to equation (82), the constant term is...
+   % Good: According to Eq.~\ref{eq:transformed_hamiltonian}, the constant term is...
+   % Also good: According to \cref{eq:transformed_hamiltonian}, the constant term is...
+   ```
+
+2. **Citing Specific Results**: When referring to equations from the notes in code comments:
+   ```julia
+   # From Eq. \ref{eq:mode_energy} in MapToSpin.tex
+   ε_k = sqrt(1 + sin(2θ) * cos(2π*k/N))
+   
+   # NOT: From equation (260) in the notes
+   ```
+
+3. **Label Conventions**: Use descriptive labels that won't change if equations are reordered:
+   - `\label{eq:spin_hamiltonian}` for the spin Hamiltonian
+   - `\label{eq:JW_transformation}` for Jordan-Wigner transformation
+   - `\label{eq:mode_energy}` for mode energies
+   
+4. **Cross-referencing**: When implementing formulas from the notes, always include the LaTeX label:
+   ```julia
+   # Computing ground state energy from Eq. \ref{eq:gs_energy}
+   # where the APBC sum runs over half-integer k values
+   ```
+
+### Investigation Philosophy
+
+When investigating physics problems:
+
+1. **Start Simple**: Begin with minimal implementations to verify core concepts before adding complexity
+2. **Test Systematically**: When discrepancies arise, test across multiple parameter values (different N, θ, etc.) to identify patterns
+3. **Validate Known Limits**: Check special cases where analytical results are known (e.g., θ=π/2 for pure transverse field)
+4. **Compare Observable by Observable**: Verify each physical quantity separately (e.g., gaps vs absolute energies)
+
+### Debugging Best Practices
+
+1. **No Hardcoded Conclusions**: Never use statements like `println("These match!")`. Instead:
+   ```julia
+   if abs(value1 - value2) < tolerance
+       println("✓ Values match within tolerance")
+   else
+       println("✗ Mismatch: $(abs(value1 - value2))")
+   end
+   ```
+
+2. **Avoid Magic Numbers**: Don't hardcode numerical values from previous runs:
+   ```julia
+   # Bad: println("Discrepancy: 0.369")
+   # Good: println("Discrepancy: $discrepancy")
+   ```
+
+3. **Use Descriptive Variables**: Create meaningful variable names for comparisons:
+   ```julia
+   # Instead of: println("Ratio: $(discrepancy/ε_π)")
+   ratio_to_special_mode = discrepancy/ε_π
+   println("Ratio to π-mode energy: $ratio_to_special_mode")
+   ```
+
+4. **Systematic Output**: Structure output to be machine-readable when scanning parameters:
+   ```julia
+   @printf("%.3f\t%.6f\t%.6f\n", param, result1, result2)
+   ```
+
+### Physics Validation Approach
+
+When comparing analytical and numerical results:
+
+1. **Check Symmetries First**: Verify conserved quantities (e.g., parity sectors)
+2. **Test Gap Structure**: Energy differences are often more robust than absolute energies
+3. **Scan Parameter Space**: Look for patterns across different values of N, θ, coupling strengths
+4. **Identify Special Limits**: Find parameter values where the problem simplifies (e.g., θ=π/2 removes interactions)
