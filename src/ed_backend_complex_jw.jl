@@ -61,7 +61,7 @@ function measure_momentum_distribution_ed_clean(ψ::EDStateVector, ham_params)
                 phase = exp(2π * im * k * (m - n) / N) / N
                 
                 # Contribution to ⟨a†_k a_k⟩
-                nk += real(phase * dot(ψ.data, a_m_dag * a_n * ψ.data))
+                nk += phase * dot(ψ.data, a_m_dag * a_n * ψ.data)
             end
         end
         
@@ -102,7 +102,7 @@ function measure_momentum_distribution_ed_clean(ρ::EDDensityMatrix, ham_params)
                 phase = exp(2π * im * k * (m - n) / N) / N
                 
                 # Tr(ρ a†_m a_n) with phase
-                nk += real(phase * tr(ρ.data * a_m_dag * a_n))
+                nk += phase * tr(ρ.data * a_m_dag * a_n)
             end
         end
         
