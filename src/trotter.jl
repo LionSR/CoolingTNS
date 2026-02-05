@@ -40,8 +40,8 @@ function build_trotter_circuit(ham_params::HamiltonianParameters{IsingModel},
             h * op("X", s1)
         end
         
-        # System-bath coupling
-        hsb = g * op(op1, s1) * op(op2, b1) - Δ / 2 * op("I", s1) * op("Z", b1)
+        # System-bath coupling + bath term (match construct_system_bath_hamiltonian sign)
+        hsb = g * op(op1, s1) * op(op2, b1) + Δ / 2 * op("I", s1) * op("Z", b1)
         
         push!(gates, exp(-1.0im * tau / 2 * hs), exp(-1.0im * tau / 2 * hsb))
     end
@@ -67,8 +67,8 @@ function build_trotter_circuit(ham_params::HamiltonianParameters{NiIsingModel},
             hx * op("X", s1) + hz * op("Z", s1)
         end
         
-        # System-bath coupling
-        hsb = g * op(op1, s1) * op(op2, b1) - Δ / 2 * op("I", s1) * op("Z", b1)
+        # System-bath coupling + bath term (match construct_system_bath_hamiltonian sign)
+        hsb = g * op(op1, s1) * op(op2, b1) + Δ / 2 * op("I", s1) * op("Z", b1)
         
         push!(gates, exp(-1.0im * tau / 2 * hs), exp(-1.0im * tau / 2 * hsb))
     end
@@ -93,10 +93,62 @@ function build_trotter_circuit_bath_coupling(ham_params::HamiltonianParameters, 
     gates = ITensor[]
     for ind in eachindex(sites_sys)
         s1, b1 = sites_sys[ind], sites_bath[ind]
-        hb = -Δ / 2 * op("Z", b1)
+        # Bath term (match construct_system_bath_hamiltonian sign)
+        hb = Δ / 2 * op("Z", b1)
         hsb = g * op(op1, s1) * op(op2, b1)
         push!(gates, exp(-1.0im * tau / 2 * hb), exp(-1.0im * tau / 2 * hsb))
     end
+    append!(gates, reverse(gates))
+    return gates
+end
+
+# ============================================================================
+# System-Only Trotter Circuit (for density matrix evolution)
+# ============================================================================
+
+function build_system_trotter_circuit(ham_params::HamiltonianParameters, sites_sys::Vector{<:Index}, sim_params::UnifiedSimulationParameters)
+    error("build_system_trotter_circuit not implemented for model $(typeof(ham_params.model))")
+end
+
+function build_system_trotter_circuit(ham_params::HamiltonianParameters{IsingModel},
+                                     sites_sys::Vector{<:Index}, sim_params::UnifiedSimulationParameters)
+    N = ham_params.N
+    J, h = ham_params.params.J, ham_params.params.h
+    tau = sim_params.tau
+
+    gates = ITensor[]
+
+    # Two-site ZZ terms
+    for i in 1:N-1
+        push!(gates, exp(-1.0im * tau / 2 * J * op("Z", sites_sys[i]) * op("Z", sites_sys[i+1])))
+    end
+    # One-site X terms
+    for i in 1:N
+        push!(gates, exp(-1.0im * tau / 2 * h * op("X", sites_sys[i])))
+    end
+
+    append!(gates, reverse(gates))
+    return gates
+end
+
+function build_system_trotter_circuit(ham_params::HamiltonianParameters{NiIsingModel},
+                                     sites_sys::Vector{<:Index}, sim_params::UnifiedSimulationParameters)
+    N = ham_params.N
+    J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
+    tau = sim_params.tau
+
+    gates = ITensor[]
+
+    # Two-site ZZ terms
+    for i in 1:N-1
+        push!(gates, exp(-1.0im * tau / 2 * J * op("Z", sites_sys[i]) * op("Z", sites_sys[i+1])))
+    end
+    # One-site X and Z terms
+    for i in 1:N
+        push!(gates, exp(-1.0im * tau / 2 * hx * op("X", sites_sys[i])))
+        push!(gates, exp(-1.0im * tau / 2 * hz * op("Z", sites_sys[i])))
+    end
+
     append!(gates, reverse(gates))
     return gates
 end

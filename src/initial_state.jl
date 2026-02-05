@@ -137,7 +137,7 @@ function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::Uni
     if init_type == "identity"
         # Maximally mixed state (identity matrix)
         ρ_s = MPO(sites_sys, "Id")
-        ρ_s = ρ_s ./ √2
+        ρ_s = ρ_s / (2.0^N)
     elseif init_type == "theta"
         # Create state based on theta angle (in units of pi)
         # First create MPS state with theta
@@ -214,4 +214,3 @@ function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::Uni
         return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, ρ)
     end
 end
-

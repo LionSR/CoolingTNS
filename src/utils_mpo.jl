@@ -6,8 +6,8 @@ function appendzeros_MPO(ρ::MPO, sites::Vector{<:Index})
     data_ρ = ITensors.data(ρ)
     dataρ_appended = ITensors.data(ρ_appended)
     for i = 1:N
-        # Bath in excited state |↓⟩ = |1⟩ for cooling
-        ψ0 = onehot(sites[2i] => 2)  # Changed from 1 to 2 for excited state
+        # Bath in ground state |0⟩ for cooling (consistent with MPS path)
+        ψ0 = onehot(sites[2i] => 1)
         ρ0 = ψ0 * ψ0'
         if i < N
             ll = sim(linkind(ρ, i))
@@ -22,15 +22,14 @@ function appendzeros_MPO(ρ::MPO, sites::Vector{<:Index})
             dataρ_appended[2i] = ρ0 * dag(lT)
         end
     end
-    # ρ_appended = MPO(dataρ_appended)
-    ρ_appended = MPO([dataρ_appended[2j-1] * dataρ_appended[2j] for j in 1:N])
-    ρ_appended
+    # Keep interlaced system+bath MPO (length = 2N)
+    return MPO(dataρ_appended)
 end
 
 function partial_trace_bath(ρ_sb::MPO, sites::Vector{<:Index}, sites_sys::Vector{<:Index})
     N = length(sites_sys)
-    ρ_s = MPO([ρ_sb[i] * delta(sites[2i], sites[2i]') for i in 1:N])
-    ρ_s
+    # Trace out bath (even sites) and merge system+bath tensors back into N-site MPO
+    return MPO([ρ_sb[2i-1] * ρ_sb[2i] * delta(sites[2i], sites[2i]') for i in 1:N])
 end
 
 # Alias for consistency with cooling_evolution_dispatch.jl

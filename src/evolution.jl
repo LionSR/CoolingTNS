@@ -62,9 +62,10 @@ end
 # Density Matrix + Trotter Evolution + MPO
 function evolve_state(ham_params::HamiltonianParameters, sim_params::UnifiedSimulationParameters{DensityMatrix, TrotterEvolution}, 
                      backend::TNBackend, gates, ρ, t::Float64, sites::Vector{<:Index}; kwargs...)
-    Dmax, cutoff, trotter_steps = sim_params.Dmax, sim_params.cutoff, sim_params.trotter_steps
+    Dmax, cutoff = sim_params.Dmax^2, sim_params.cutoff
+    steps = max(1, Int(floor(t / sim_params.tau)))
     
-    for _ in 1:trotter_steps
+    for _ in 1:steps
         ρ = apply(gates, ρ; apply_dag=true, cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
     end
     
