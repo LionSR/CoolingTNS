@@ -17,7 +17,13 @@
       "Bash(rm:*)",
       "Bash(ls:*)",
       "Bash(chmod:*)",
-      "Bash(gtimeout:*)"
+      "Bash(gtimeout:*)",
+      "Bash(wc:*)",
+      "Bash(JULIA_DEBUG=CoolingTNS julia:*)",
+      "Bash(julia_itensors --project=. -e:*)",
+      "Bash(julia_itensors:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }

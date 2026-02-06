@@ -9,23 +9,111 @@ Shared functions for ED backend cooling evolution to follow DRY principles.
 # ============================================================================
 
 """
-    prepare_combined_state_ed(state::EDStateVector, N_bath::Int)
+    get_bath_ground_state_ed(N_bath::Int, coupling::String) -> EDStateVector
 
-Prepare system+bath state vector for ED backend.
+Create bath ground state for ED backend based on coupling type.
+- XX, XY, XZ coupling → bath H = (Δ/2)Z → ground state |↓↓...↓⟩ (all 1s config)
+- ZZ, YZ coupling → bath H = (Δ/2)X → ground state |−−...−⟩
 """
-function prepare_combined_state_ed(state::EDStateVector, N_bath::Int)
-    ψ_bath = zero_state_ed(N_bath)
-    return kron_states_ed(state, ψ_bath)
+function get_bath_ground_state_ed(N_bath::Int, coupling::String)
+    if coupling in ["ZZ", "YZ"]
+        # X-basis ground state: |−⟩^⊗N where |−⟩ = (|0⟩ - |1⟩)/√2
+        # Build as product of single-qubit |−⟩ states
+        minus = ComplexF64[1/sqrt(2), -1/sqrt(2)]
+        data = minus
+        for _ in 2:N_bath
+            data = kron(data, minus)
+        end
+        return EDStateVector(data, N_bath)
+    else
+        # Z-basis ground state: |↓↓...↓⟩ = |11...1⟩ (all ones config)
+        config = (1 << N_bath) - 1  # All bits set to 1
+        return product_state_ed(N_bath, config)
+    end
 end
 
 """
-    prepare_combined_state_ed(state::EDDensityMatrix, N_bath::Int)
+    interleave_system_bath_ed(ψ_sys::EDStateVector, ψ_bath::EDStateVector) -> EDStateVector
 
-Prepare system+bath density matrix for ED backend.
+Create interleaved system+bath state: [sys₁, bath₁, sys₂, bath₂, ...]
+from sequential system and bath states.
 """
-function prepare_combined_state_ed(state::EDDensityMatrix, N_bath::Int)
-    ρ_bath = state_to_density_ed(zero_state_ed(N_bath))
-    return kron_density_ed(state, ρ_bath)
+function interleave_system_bath_ed(ψ_sys::EDStateVector, ψ_bath::EDStateVector)
+    N = ψ_sys.n_qubits
+    @assert ψ_bath.n_qubits == N "System and bath must have same number of qubits"
+
+    N_total = 2 * N
+    dim_total = 2^N_total
+    data = zeros(ComplexF64, dim_total)
+
+    # For each basis state in the combined space
+    for sys_idx in 0:(2^N - 1)
+        for bath_idx in 0:(2^N - 1)
+            # Interleave the bits: sys₁ bath₁ sys₂ bath₂ ...
+            combined_idx = 0
+            for i in 0:(N-1)
+                sys_bit = (sys_idx >> i) & 1
+                bath_bit = (bath_idx >> i) & 1
+                combined_idx |= (sys_bit << (2*i))      # System at odd positions (0, 2, 4...)
+                combined_idx |= (bath_bit << (2*i + 1)) # Bath at even positions (1, 3, 5...)
+            end
+            data[combined_idx + 1] = ψ_sys.data[sys_idx + 1] * ψ_bath.data[bath_idx + 1]
+        end
+    end
+
+    return EDStateVector(data, N_total)
+end
+
+"""
+    prepare_combined_state_ed(state::EDStateVector, N_bath::Int, coupling::String="XX")
+
+Prepare system+bath state vector for ED backend with INTERLEAVED layout.
+Bath initialized in appropriate ground state based on coupling type.
+Layout: [sys₁, bath₁, sys₂, bath₂, ...] matching Hamiltonian convention.
+"""
+function prepare_combined_state_ed(state::EDStateVector, N_bath::Int, coupling::String="XX")
+    ψ_bath = get_bath_ground_state_ed(N_bath, coupling)
+    return interleave_system_bath_ed(state, ψ_bath)
+end
+
+"""
+    prepare_combined_state_ed(state::EDDensityMatrix, N_bath::Int, coupling::String="XX")
+
+Prepare system+bath density matrix for ED backend with INTERLEAVED layout.
+Bath initialized in appropriate ground state based on coupling type.
+Layout: [sys₁, bath₁, sys₂, bath₂, ...] matching Hamiltonian convention.
+"""
+function prepare_combined_state_ed(state::EDDensityMatrix, N_bath::Int, coupling::String="XX")
+    # For density matrix, create from pure state interleaving then trace if needed
+    # Or directly interleave the density matrices
+
+    N = state.n_qubits
+    @assert N_bath == N "System and bath must have same number of qubits"
+
+    ψ_bath = get_bath_ground_state_ed(N_bath, coupling)
+    ρ_bath = state_to_density_ed(ψ_bath)
+
+    N_total = 2 * N
+    dim_total = 2^N_total
+    data = zeros(ComplexF64, dim_total, dim_total)
+
+    # Interleave density matrices
+    for sys_i in 0:(2^N - 1), sys_j in 0:(2^N - 1)
+        for bath_i in 0:(2^N - 1), bath_j in 0:(2^N - 1)
+            # Interleave indices
+            combined_i = 0
+            combined_j = 0
+            for k in 0:(N-1)
+                combined_i |= ((sys_i >> k) & 1) << (2*k)
+                combined_i |= ((bath_i >> k) & 1) << (2*k + 1)
+                combined_j |= ((sys_j >> k) & 1) << (2*k)
+                combined_j |= ((bath_j >> k) & 1) << (2*k + 1)
+            end
+            data[combined_i + 1, combined_j + 1] = state.data[sys_i + 1, sys_j + 1] * ρ_bath.data[bath_i + 1, bath_j + 1]
+        end
+    end
+
+    return EDDensityMatrix(data, N_total)
 end
 
 """

@@ -252,8 +252,9 @@ end
 
 function prepare_combined_state(problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend,DensityMatrix,E}) where E<:EvolutionMethod
     N_bath = problem.extra.ham_params.N
+    coupling = problem.extra.coupling_params.coupling
     ρ_sys = state.state.n_qubits == 2*N_bath ? trace_out_bath_ed(state.state, N_bath) : state.state
-    return prepare_combined_state_ed(ρ_sys, N_bath)
+    return prepare_combined_state_ed(ρ_sys, N_bath, coupling)
 end
 
 function process_bath_and_update(::CoolingProblem{EDBackend}, ρ_evolved::EDDensityMatrix,
@@ -281,7 +282,8 @@ end
 # --- Exact Diagonalization + Monte Carlo (shared for Continuous/Trotter) ---
 
 function prepare_combined_state(problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend,MonteCarloWavefunction,E}) where E<:EvolutionMethod
-    return prepare_combined_state_ed(state.state, problem.extra.ham_params.N)
+    coupling = problem.extra.coupling_params.coupling
+    return prepare_combined_state_ed(state.state, problem.extra.ham_params.N, coupling)
 end
 
 function process_bath_and_update(problem::CoolingProblem{EDBackend}, ψ_evolved::EDStateVector,
