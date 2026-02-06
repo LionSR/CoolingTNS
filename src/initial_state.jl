@@ -8,18 +8,6 @@ using ITensors
 using ITensorMPS
 using LinearAlgebra
 
-
-# ============================================================================
-# Helper Functions
-# ============================================================================
-
-"""Create completely mixed state (maximally mixed density matrix)"""
-function completely_mixed_state(N::Int)
-    # ρ = I / 2^N
-    dim = 2^N
-    return Matrix(I, dim, dim) / dim
-end
-
 # ============================================================================
 # Main Initial State Interface
 # ============================================================================
@@ -31,9 +19,60 @@ Direct dispatch implementation for initial state setup.
 """
 
 # Generic fallback
-function setup_initial_state(problem::CoolingProblem{B}, sim_params::UnifiedSimulationParameters{S,E}, 
+function setup_initial_state(problem::CoolingProblem{B}, sim_params::UnifiedSimulationParameters{S,E},
                            init_type::String, theta::Float64) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
     error("setup_initial_state not implemented for sim_method=$S, backend=$B")
+end
+
+# ============================================================================
+# ED Backend Helper: Create theta-parameterized state vector
+# ============================================================================
+
+"""
+    create_theta_state_ed(N::Int, init_type::String, theta::Float64) -> EDStateVector
+
+Create an ED state vector based on init_type and theta parameter.
+"""
+function create_theta_state_ed(N::Int, init_type::String, theta::Float64)::EDStateVector
+    if init_type == "identity"
+        # Equal superposition state (uniform distribution)
+        data = ComplexF64.(ones(2^N) / sqrt(2^N))
+        return EDStateVector(data, N)
+    end
+
+    if init_type != "theta"
+        # Default product state - all zeros |00...0⟩
+        return zero_state_ed(N)
+    end
+
+    # Theta-parameterized state
+    theta_rad = theta * π
+
+    # Special cases for efficiency
+    if abs(theta + 0.5) < 1e-10  # All down (theta = -0.5)
+        return zero_state_ed(N)
+    elseif abs(theta - 0.5) < 1e-10  # All up (theta = 0.5)
+        config = (1 << N) - 1  # All bits set to 1
+        return product_state_ed(N, config)
+    elseif abs(theta) < 1e-10  # X+ state (theta = 0)
+        data = ComplexF64.(ones(2^N) / sqrt(2^N))
+        return EDStateVector(data, N)
+    end
+
+    # General theta state: |θ⟩ = cos(θπ/2)|0⟩ + sin(θπ/2)|1⟩ for each qubit
+    data = ones(ComplexF64, 2^N)
+    cos_half = cos(theta_rad / 2)
+    sin_half = sin(theta_rad / 2)
+
+    for idx in 0:(2^N - 1)
+        amplitude = 1.0
+        for i in 0:(N - 1)
+            bit = (idx >> i) & 1
+            amplitude *= (bit == 0) ? cos_half : sin_half
+        end
+        data[idx + 1] = amplitude
+    end
+    return EDStateVector(data, N)
 end
 
 # ============================================================================
@@ -43,82 +82,36 @@ end
 # Monte Carlo + TN
 function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, E},
                            init_type::String, theta::Float64) where E<:EvolutionMethod
-    # Get sites from the ground state MPS
     ϕ₀ = problem.ϕ₀
-    sites_sys = siteinds(ϕ₀)  # ϕ₀ already has only system sites
+    sites_sys = siteinds(ϕ₀)
     N = length(sites_sys)
 
     if init_type == "identity"
-        # Create maximally mixed state (equal superposition)
         ψ_s = randomMPS(sites_sys, linkdims=1)
         normalize!(ψ_s)
     elseif init_type == "theta"
-        # Create state based on theta angle (in units of pi)
         theta_rad = theta * π
-        if abs(theta + 0.5) < 1e-10  # All down
+        if abs(theta + 0.5) < 1e-10
             ψ_s = MPS(sites_sys, "Dn")
-        elseif abs(theta - 0.5) < 1e-10  # All up
+        elseif abs(theta - 0.5) < 1e-10
             ψ_s = MPS(sites_sys, "Up")
-        elseif abs(theta) < 1e-10  # X+ state
+        elseif abs(theta) < 1e-10
             ψ_s = MPS(sites_sys, "X+")
         else
-            # General theta not implemented for tensor networks yet
             @warn "General theta states not implemented for tensor networks, using default alternating"
             ψ_s = MPS(sites_sys, [isodd(n) ? "Up" : "Dn" for n in 1:N])
         end
     else
-        # Default product state - all up |00...0⟩
         ψ_s = MPS(sites_sys, "Up")
     end
     return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, ψ_s)
 end
 
-
 # Monte Carlo + ED
 function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, E},
                            init_type::String, theta::Float64) where E<:EvolutionMethod
-    
     N = problem.extra.ham_params.N
-    N_sys = N  # System qubits
-    
-    if init_type == "identity"
-        # Create equal superposition state (uniform distribution)
-        data = ones(Float64, 2^N_sys) / sqrt(2^N_sys)
-        state = EDStateVector(data, N_sys)
-    elseif init_type == "theta"
-        # Create theta-parameterized product state
-        theta_rad = theta * π
-        if abs(theta + 0.5) < 1e-10  # All down
-            state = zero_state_ed(N_sys)
-        elseif abs(theta - 0.5) < 1e-10  # All up  
-            # All up state
-            config = (1 << N_sys) - 1  # All bits set to 1
-            state = product_state_ed(N_sys, config)
-        elseif abs(theta) < 1e-10  # X+ state (uniform superposition)
-            data = ones(Float64, 2^N_sys) / sqrt(2^N_sys)
-            state = EDStateVector(data, N_sys)
-        else
-            # General theta state: |θ⟩ = cos(θπ/2)|0⟩ + sin(θπ/2)|1⟩ for each qubit
-            data = ones(Float64, 2^N_sys)
-            for idx in 0:(2^N_sys-1)
-                amplitude = 1.0
-                for i in 0:(N_sys-1)
-                    bit = (idx >> i) & 1
-                    if bit == 0
-                        amplitude *= cos(theta_rad / 2)
-                    else
-                        amplitude *= sin(theta_rad / 2)
-                    end
-                end
-                data[idx+1] = amplitude
-            end
-            state = EDStateVector(data, N_sys)
-        end
-    else
-        # Default product state - all up |00...0⟩
-        state = zero_state_ed(N_sys)
-    end
-    
+    state = create_theta_state_ed(N, init_type, theta)
     return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, state)
 end
 
@@ -129,88 +122,43 @@ end
 # Density Matrix + TN
 function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::UnifiedSimulationParameters{DensityMatrix, E},
                            init_type::String, theta::Float64) where E<:EvolutionMethod
-    # Get sites from ground state or H_sys
     ϕ₀ = problem.ϕ₀
-    sites_sys = siteinds(ϕ₀)  # ϕ₀ already has only system sites
+    sites_sys = siteinds(ϕ₀)
     N = length(sites_sys)
-    
+
     if init_type == "identity"
-        # Maximally mixed state (identity matrix)
         ρ_s = MPO(sites_sys, "Id")
         ρ_s = ρ_s / (2.0^N)
     elseif init_type == "theta"
-        # Create state based on theta angle (in units of pi)
-        # First create MPS state with theta
         theta_rad = theta * π
-        if abs(theta + 0.5) < 1e-10  # All down
+        if abs(theta + 0.5) < 1e-10
             ψ_s = MPS(sites_sys, "Dn")
-        elseif abs(theta - 0.5) < 1e-10  # All up
+        elseif abs(theta - 0.5) < 1e-10
             ψ_s = MPS(sites_sys, "Up")
-        elseif abs(theta) < 1e-10  # X+ state
+        elseif abs(theta) < 1e-10
             ψ_s = MPS(sites_sys, "X+")
         else
-            # General theta not implemented for tensor networks yet
             @warn "General theta states not implemented for tensor networks, using default alternating"
             ψ_s = MPS(sites_sys, [isodd(n) ? "Up" : "Dn" for n in 1:N])
         end
         ρ_s = outer(ψ_s', ψ_s)
     else
-        # Product state - all up |00...0⟩
         ψ_s = MPS(sites_sys, "Up")
         ρ_s = outer(ψ_s', ψ_s)
     end
     return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, ρ_s)
 end
 
-
-
-# Density Matrix + ED  
+# Density Matrix + ED
 function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::UnifiedSimulationParameters{DensityMatrix, E},
                            init_type::String, theta::Float64) where E<:EvolutionMethod
-    
     N = problem.extra.ham_params.N
-    N_sys = N  # We only need system state for initial state
+
     if init_type == "identity"
-        # Maximally mixed state: ρ = I/2^N
-        ρ = maximally_mixed_ed(N_sys)
-        return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, ρ)
+        ρ = maximally_mixed_ed(N)
     else
-        # Create pure state first using clean ED backend, then convert to density matrix
-        if init_type == "theta"
-            # Create theta-parameterized product state
-            theta_rad = theta * π
-            if abs(theta + 0.5) < 1e-10  # All down
-                ψ = zero_state_ed(N_sys)
-            elseif abs(theta - 0.5) < 1e-10  # All up  
-                # All up state
-                config = (1 << N_sys) - 1  # All bits set to 1
-                ψ = product_state_ed(N_sys, config)
-            elseif abs(theta) < 1e-10  # X+ state
-                data = ones(Float64, 2^N_sys) / sqrt(2^N_sys)
-                ψ = EDStateVector(data, N_sys)
-            else
-                # General theta state: |θ⟩ = cos(θπ/2)|0⟩ + sin(θπ/2)|1⟩ for each qubit
-                data = ones(Float64, 2^N_sys)
-                for idx in 0:(2^N_sys-1)
-                    amplitude = 1.0
-                    for i in 0:(N_sys-1)
-                        bit = (idx >> i) & 1
-                        if bit == 0
-                            amplitude *= cos(theta_rad / 2)
-                        else
-                            amplitude *= sin(theta_rad / 2)
-                        end
-                    end
-                    data[idx+1] = amplitude
-                end
-                ψ = EDStateVector(data, N_sys)
-            end
-        else
-            # Default product state - all up |00...0⟩
-            ψ = zero_state_ed(N_sys)
-        end
-        # Convert pure state to density matrix
+        ψ = create_theta_state_ed(N, init_type, theta)
         ρ = state_to_density_ed(ψ)
-        return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, ρ)
     end
+    return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, ρ)
 end

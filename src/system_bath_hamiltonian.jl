@@ -9,10 +9,6 @@ using LinearAlgebra
 using SparseArrays
 using KrylovKit
 
-if !@isdefined(construct_coupling_term)
-    include("system_hamiltonian.jl")  # For pauli operators
-end
-
 
 # ============================================================================
 # System-Bath Hamiltonian Construction Interface  
@@ -31,76 +27,65 @@ end
 # Tensor Network System-Bath Hamiltonians
 # ============================================================================
 
-function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{IsingModel}, 
-                                         backend::TNBackend, sites::Vector{<:Index}, coupling_params::CouplingParameters)
+# Note: OpSum uses immutable operations (+=), so bath/coupling terms are inlined in each constructor
+
+"""
+    get_bath_operator(coupling::String) -> String
+
+Return the bath Hamiltonian operator that doesn't commute with the coupling.
+- XX, XY, XZ coupling → bath feels Z
+- ZZ, YZ coupling → bath feels X
+- YY coupling → bath feels Z
+"""
+function get_bath_operator(coupling::String)
+    # Bath operator must NOT commute with coupling for energy transfer
+    if coupling in ["ZZ", "YZ"]
+        return "X"  # Z coupling → bath feels X
+    else
+        return "Z"  # X or Y coupling → bath feels Z
+    end
+end
+
+function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{IsingModel},
+                                         ::TNBackend, sites::Vector{<:Index}, coupling_params::CouplingParameters)
     J, h = ham_params.params.J, ham_params.params.h
-    g, Δ, coupling = coupling_params.g, coupling_params.delta, coupling_params.coupling
-    
     N = ham_params.N
-    # Use site indices (integers) instead of Index objects
-    sys_sites = 1:2:2N-1
-    bath_sites = 2:2:2N
-    
+    g, Δ, coupling = coupling_params.g, coupling_params.delta, coupling_params.coupling
     op1, op2 = parse_coupling(coupling)
-    
+    bath_op = get_bath_operator(coupling)
+
     terms = OpSum()
-    
-    # System Hamiltonian
     for i in 1:N-1
-        # sys_sites[i] is the i-th system site, sys_sites[i+1] is the next system site
-        terms += J, "Z", 2i-1, "Z", 2(i+1)-1  # Direct calculation: site 1,3,5,7...
+        terms += J, "Z", 2i-1, "Z", 2(i+1)-1
     end
     for i in 1:N
-        terms += h, "X", 2i-1  # System sites: 1,3,5,7...
+        terms += h, "X", 2i-1
+        terms += Δ/2, bath_op, 2i             # Bath site - operator depends on coupling
+        terms += g, op1, 2i-1, op2, 2i        # System-bath coupling
     end
-    
-    # Bath Hamiltonians  
-    for i in 1:N
-        terms += Δ/2, "Z", 2i  # Bath sites: 2,4,6,8... (positive for cooling)
-    end
-    
-    # System-Bath coupling
-    for i in 1:N
-        terms += g, op1, 2i-1, op2, 2i  # System site coupled to adjacent bath site
-    end
-    
+
     return MPO(terms, sites)
 end
 
-function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{NiIsingModel}, 
-                                         backend::TNBackend, sites::Vector{<:Index}, coupling_params::CouplingParameters)
+function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{NiIsingModel},
+                                         ::TNBackend, sites::Vector{<:Index}, coupling_params::CouplingParameters)
     J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
-    g, Δ, coupling = coupling_params.g, coupling_params.delta, coupling_params.coupling
-    
     N = ham_params.N
-    # Use site indices (integers) instead of Index objects
-    sys_sites = 1:2:2N-1
-    bath_sites = 2:2:2N
-    
+    g, Δ, coupling = coupling_params.g, coupling_params.delta, coupling_params.coupling
     op1, op2 = parse_coupling(coupling)
-    
+    bath_op = get_bath_operator(coupling)
+
     terms = OpSum()
-    
-    # System Hamiltonian
     for i in 1:N-1
-        # sys_sites[i] is the i-th system site, sys_sites[i+1] is the next system site
-        terms += J, "Z", 2i-1, "Z", 2(i+1)-1  # Direct calculation: site 1,3,5,7...
+        terms += J, "Z", 2i-1, "Z", 2(i+1)-1
     end
     for i in 1:N
-        terms += hx, "X", 2i-1  # System sites: 1,3,5,7...
+        terms += hx, "X", 2i-1
         terms += hz, "Z", 2i-1
+        terms += Δ/2, bath_op, 2i             # Bath site - operator depends on coupling
+        terms += g, op1, 2i-1, op2, 2i        # System-bath coupling
     end
-    
-    # Bath Hamiltonians
-    for i in 1:N
-        terms += Δ/2, "Z", 2i  # Bath sites: 2,4,6,8...
-    end
-    
-    # System-Bath coupling
-    for i in 1:N
-        terms += g, op1, 2i-1, op2, 2i  # System site coupled to adjacent bath site
-    end
-    
+
     return MPO(terms, sites)
 end
 
@@ -124,13 +109,17 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     add_system_hamiltonian_ed!(H_sb, H_sys, N, N_total)
     
     # Add bath terms (at resonance with system gap if not specified)
-    Δ = coupling_params.delta !== nothing ? coupling_params.delta : -compute_gap_ed(H_sys)
+    # Δ > 0 so bath ground state is eigenvalue -1 (|↓⟩ for Z, |−⟩ for X)
+    Δ = coupling_params.delta !== nothing ? coupling_params.delta : compute_gap_ed(H_sys)
     
     # Bath qubits are at positions: 2, 4, 6, ..., 2N
-    # Copy TN backend exactly: use Δ/2 for bath energy
+    # Bath operator depends on coupling type (must not commute with coupling)
+    coupling_type = coupling_params.coupling
+    bath_op_func = (coupling_type in ["ZZ", "YZ"]) ? pauli_x : pauli_z
+
     for i in 1:N
         bath_idx = 2*i
-        H_sb += (Δ/2) * pauli_z(bath_idx, N_total)
+        H_sb += (Δ/2) * bath_op_func(bath_idx, N_total)
     end
     
     # Add coupling terms
@@ -204,39 +193,38 @@ function map_system_to_full_basis_ed(sys_state::Int, N::Int)
     return full_state
 end
 
+# Map coupling types to Pauli operator pairs for ED backend
+const COUPLING_PAULI_MAP = Dict(
+    "XX" => (pauli_x, pauli_x),
+    "YY" => (pauli_y, pauli_y),
+    "ZZ" => (pauli_z, pauli_z),
+    "XY" => (pauli_x, pauli_y),
+    "XZ" => (pauli_x, pauli_z),
+    "YZ" => (pauli_y, pauli_z)
+)
+
 """
     construct_coupling_term_ed(sys_idx::Int, bath_idx::Int, N_total::Int, coupling_type::String, g::Float64)
 
 Construct coupling term between system and bath qubits.
+For symmetric couplings (XX, YY, ZZ): g * A⊗A
+For mixed couplings (XY, XZ, YZ): g * (A⊗B + B⊗A)
 """
 function construct_coupling_term_ed(sys_idx::Int, bath_idx::Int, N_total::Int, coupling_type::String, g::Float64)
-    if coupling_type == "XX"
-        return g * pauli_x(sys_idx, N_total) * pauli_x(bath_idx, N_total)
-        
-    elseif coupling_type == "YY"
-        return g * pauli_y(sys_idx, N_total) * pauli_y(bath_idx, N_total)
-        
-    elseif coupling_type == "ZZ"
-        return g * pauli_z(sys_idx, N_total) * pauli_z(bath_idx, N_total)
-        
-    elseif coupling_type == "XY"
-        # XY = X⊗Y + Y⊗X
-        return g * (pauli_x(sys_idx, N_total) * pauli_y(bath_idx, N_total) +
-                   pauli_y(sys_idx, N_total) * pauli_x(bath_idx, N_total))
-        
-    elseif coupling_type == "XZ"
-        # XZ = X⊗Z + Z⊗X
-        return g * (pauli_x(sys_idx, N_total) * pauli_z(bath_idx, N_total) +
-                   pauli_z(sys_idx, N_total) * pauli_x(bath_idx, N_total))
-        
-    elseif coupling_type == "YZ"
-        # YZ = Y⊗Z + Z⊗Y
-        return g * (pauli_y(sys_idx, N_total) * pauli_z(bath_idx, N_total) +
-                   pauli_z(sys_idx, N_total) * pauli_y(bath_idx, N_total))
-        
-    else
-        error("Unknown coupling type: $coupling_type")
+    haskey(COUPLING_PAULI_MAP, coupling_type) || error("Unknown coupling type: $coupling_type")
+
+    op_a, op_b = COUPLING_PAULI_MAP[coupling_type]
+    A_sys = op_a(sys_idx, N_total)
+    B_bath = op_b(bath_idx, N_total)
+
+    if op_a === op_b
+        return g * A_sys * B_bath
     end
+
+    # Mixed coupling: symmetrized form A⊗B + B⊗A
+    B_sys = op_b(sys_idx, N_total)
+    A_bath = op_a(bath_idx, N_total)
+    return g * (A_sys * B_bath + B_sys * A_bath)
 end
 
 """

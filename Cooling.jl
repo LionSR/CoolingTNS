@@ -7,28 +7,11 @@ using CoolingTNS
 # Helper function to create simulation parameters from new argument structure
 function create_sim_params_new(parsed_args)
     backend = CoolingTNS.get_backend(parsed_args["backend"])
-    
-    sim_method_str = parsed_args["sim_method"]
-    evolution_method_str = parsed_args["evolution_method"]
-    
-    sim_method = if sim_method_str == "density_matrix"
-        CoolingTNS.DensityMatrix()
-    elseif sim_method_str == "monte_carlo"
-        CoolingTNS.MonteCarloWavefunction()
-    else
-        error("Unknown simulation method: $sim_method_str")
-    end
-    
-    evolution_method = if evolution_method_str == "continuous"
-        CoolingTNS.ContinuousEvolution()
-    elseif evolution_method_str == "trotter"
-        CoolingTNS.TrotterEvolution()
-    else
-        error("Unknown evolution method: $evolution_method_str")
-    end
-    
-    return CoolingTNS.create_sim_params(backend; sim_method=sim_method, evolution_method=evolution_method, 
-                                       Dmax=parsed_args["Dmax"], cutoff=parsed_args["cutoff"], 
+    sim_method = CoolingTNS.get_sim_method(parsed_args["sim_method"])
+    evolution_method = CoolingTNS.get_evolution_method(parsed_args["evolution_method"])
+
+    return CoolingTNS.create_sim_params(backend; sim_method=sim_method, evolution_method=evolution_method,
+                                       Dmax=parsed_args["Dmax"], cutoff=parsed_args["cutoff"],
                                        tau=parsed_args["tau"], pe=parsed_args["peInt"]*1e-3,
                                        n_trajectories=parsed_args["n_trajectories"])
 end

@@ -1,36 +1,40 @@
-using HDF5
-using PythonCall
-using LaTeXStrings
-using Printf
+# Uses shared utilities from plot_utils.jl (included by main module)
 
+"""
+    safe_read_data(filename) -> Tuple
+
+Read cooling results from an HDF5 file.
+Returns (e0, E_list, GS_overlap_list, Edensity_final) or (nothing, nothing, nothing, nothing) on failure.
+"""
 function safe_read_data(filename)
     if !isfile(filename)
         @warn "File not found: $filename"
         return nothing, nothing, nothing, nothing
     end
-    
+
     try
         h5open(filename, "r") do file
-            e₀ = read(file, "e₀")
+            e0 = read(file, "e₀")
             E_list = read(file, "E_list")
             GS_overlap_list = read(file, "GS_overlap_list")
             Edensity_final = read(file, "Edensity_final")
-            return e₀, E_list, GS_overlap_list, Edensity_final
+            return e0, E_list, GS_overlap_list, Edensity_final
         end
     catch e
-        if isa(e, KeyError)
-            @warn "Missing key in file $filename: $(e.key)"
+        msg = if isa(e, KeyError)
+            "Missing key: $(e.key)"
         elseif isa(e, HDF5.HDF5Error)
-            @warn "HDF5 error while reading $filename: $(e.msg)"
+            "HDF5 error: $(e.msg)"
         else
-            @warn "Failed to read data from $filename: $e"
+            "Error: $e"
         end
+        @warn "Failed to read $filename: $msg"
         return nothing, nothing, nothing, nothing
     end
 end
 
-function plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename; moving_average=false)
-    plt = pyimport("matplotlib.pyplot")
+function plot_energy_and_overlap(E_list, GS_overlap_list, e0, N, filename; moving_average=false)
+    plt = get_pyplot()
 
     steps = length(E_list) - 1
 
@@ -44,7 +48,7 @@ function plot_energy_and_overlap(E_list, GS_overlap_list, e₀, N, filename; mov
     end
     ax.set_xlabel("Steps")
     ax.set_ylabel(L"Energy density $E/N$")
-    ax.axhline(y=e₀ / N, xmin=0, xmax=1, linewidth=1.5, color="black", label=L"$E_0/N$")
+    ax.axhline(y=e0 / N, xmin=0, xmax=1, linewidth=1.5, color="black", label=L"$E_0/N$")
     ax.legend()
 
     ax = axs[1]
@@ -63,12 +67,12 @@ end
 
 function plot_vs_N(ham_name::String, coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters,
                   backend::CoolingBackend, N_values::Vector{Int}; is_optimization=false)
-    plt = pyimport("matplotlib.pyplot")
+    plt = get_pyplot()
 
     energy_densities = Float64[]
     final_overlaps = Float64[]
     valid_N_values = Int[]
-    e₀_values = Float64[]
+    e0_values = Float64[]
 
     directory = is_optimization ? "ResultsOpt" : "Results"
     prefix = is_optimization ? "Optimize" : ""
@@ -93,12 +97,12 @@ function plot_vs_N(ham_name::String, coupling_params::CouplingParameters, sim_pa
         end
         full_filename = "$(directory)/$(filename).h5"
 
-        e₀, E_final, GS_overlap_final, Edensity_final = safe_read_data(full_filename)
-        if e₀ !== nothing && E_final !== nothing && GS_overlap_final !== nothing && Edensity_final !== nothing
+        e0, E_final, GS_overlap_final, Edensity_final = safe_read_data(full_filename)
+        if e0 !== nothing && E_final !== nothing && GS_overlap_final !== nothing && Edensity_final !== nothing
             push!(energy_densities, Edensity_final)
             push!(final_overlaps, GS_overlap_final)
             push!(valid_N_values, N)
-            push!(e₀_values, e₀)
+            push!(e0_values, e0)
         end
     end
 
@@ -112,7 +116,7 @@ function plot_vs_N(ham_name::String, coupling_params::CouplingParameters, sim_pa
     ax1.plot(valid_N_values, energy_densities, marker="o", linestyle="-", label="Energy density")
     ax1.set_xlabel("System size (N)")
     ax1.set_ylabel("Energy density")
-    ax1.plot(valid_N_values, e₀_values ./ valid_N_values, linestyle="--", color="black", label=L"$E_0/N$")
+    ax1.plot(valid_N_values, e0_values ./ valid_N_values, linestyle="--", color="black", label=L"$E_0/N$")
     ax1.legend()
 
     ax2.plot(valid_N_values, final_overlaps, marker="o", linestyle="-", label="Final overlap")
@@ -140,7 +144,7 @@ function plot_vs_N(ham_name::String, coupling_params::CouplingParameters, sim_pa
 end
 
 function plot_cooling_curve_noise(ham_name, N, coupling_params, sim_params, peInt_range; is_optimization=false)
-    plt = pyimport("matplotlib.pyplot")
+    plt = get_pyplot()
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
@@ -171,8 +175,8 @@ function plot_cooling_curve_noise(ham_name, N, coupling_params, sim_params, peIn
         end
         full_filename = "$(directory)/$(filename).h5"
 
-        e₀, E_list, GS_overlap_list, _ = safe_read_data(full_filename)
-        if e₀ !== nothing && E_list !== nothing && GS_overlap_list !== nothing
+        e0, E_list, GS_overlap_list, _ = safe_read_data(full_filename)
+        if e0 !== nothing && E_list !== nothing && GS_overlap_list !== nothing
             steps = length(E_list)
             ax1.plot(1:steps, E_list ./ N, label="pe=$pe")
             ax2.plot(1:steps, GS_overlap_list, label="pe=$pe")
@@ -209,7 +213,7 @@ function plot_cooling_curve_noise(ham_name, N, coupling_params, sim_params, peIn
 end
 
 function plot_vs_N_pe_range(ham_name, coupling_params, sim_params, N_values, peInt_range; is_optimization=false)
-    plt = pyimport("matplotlib.pyplot")
+    plt = get_pyplot()
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
@@ -235,9 +239,9 @@ function plot_vs_N_pe_range(ham_name, coupling_params, sim_params, N_values, peI
             end
             full_filename = "$(directory)/$(filename).h5"
 
-            e₀, E_final, GS_overlap_final, Edensity_final = safe_read_data(full_filename)
-            if e₀ !== nothing && E_final !== nothing && GS_overlap_final !== nothing && Edensity_final !== nothing
-                push!(energy_errors, abs(Edensity_final - e₀ / N))
+            e0, E_final, GS_overlap_final, Edensity_final = safe_read_data(full_filename)
+            if e0 !== nothing && E_final !== nothing && GS_overlap_final !== nothing && Edensity_final !== nothing
+                push!(energy_errors, abs(Edensity_final - e0 / N))
                 push!(final_overlaps, GS_overlap_final)
                 push!(valid_N_values, N)
             end
@@ -277,51 +281,24 @@ Shows how population in different k modes changes during cooling.
 Marks the resonant frequency delta with a vertical line.
 """
 function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true)
-    plt = pyimport("matplotlib.pyplot")
-    
-    # Read data
-    if !isfile(filename)
-        @warn "File not found: $filename"
-        return
-    end
-    
-    data = Dict{String, Any}()
-    h5open(filename, "r") do file
-        for key in keys(file)
-            data[key] = read(file, key)
-        end
-    end
-    
-    # Check if k-space data exists
+    plt = get_pyplot()
+
+    data = read_h5_data(filename)
+    data === nothing && return
+
     if !haskey(data, "momentum_dist") || !haskey(data, "k_values")
         @warn "No k-space data found in file $filename"
         return
     end
-    
+
     momentum_dist = data["momentum_dist"]
     k_values = data["k_values"]
     total_steps = size(momentum_dist, 1)
-    
-    # Determine which steps to plot
-    if steps_to_plot === nothing
-        # Default: plot initial, 25%, 50%, 75%, and final
-        step_indices = unique([1, 
-                              div(total_steps, 4), 
-                              div(total_steps, 2), 
-                              div(3*total_steps, 4), 
-                              total_steps])
-    else
-        step_indices = steps_to_plot
-    end
-    
-    # Create figure
+    step_indices = select_evolution_steps(total_steps; steps_to_plot=steps_to_plot)
+
     fig, ax = plt.subplots(figsize=(8, 6))
-    
-    # Color map for different steps
-    cmap = plt.get_cmap("viridis")
-    colors = [cmap(i / (length(step_indices) - 1)) for i in 0:length(step_indices)-1]
-    
-    # Plot momentum distribution for each selected step
+    colors = get_evolution_colors(plt, length(step_indices))
+
     for (i, step) in enumerate(step_indices)
         if step <= total_steps
             n_k = momentum_dist[step, :]
@@ -329,41 +306,26 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
             ax.plot(k_values, n_k, "o-", color=colors[i], label=label, markersize=4)
         end
     end
-    
-    # Add vertical line at resonant frequency if delta is available
+
     if haskey(data, "delta") && data["delta"] !== nothing
-        delta = data["delta"]
-        N = length(k_values)
-        
-        # Find k value corresponding to delta
-        # For Ising model: ε_k = sqrt(1 + sin(2θ)cos(2πk/N))
-        # At resonance: delta = ε_k
-        # This requires solving for k, which depends on model parameters
-        
-        # For now, just mark delta on a secondary y-axis
         ax2 = ax.twinx()
-        ax2.axhline(y=delta, color="red", linestyle="--", alpha=0.7, label="Bath freq δ")
+        ax2.axhline(y=data["delta"], color="red", linestyle="--", alpha=0.7, label="Bath freq delta")
         ax2.set_ylabel("Energy", color="red")
         ax2.tick_params(axis="y", labelcolor="red")
     end
-    
+
     ax.set_xlabel(L"Momentum $k$ (units of $2\pi/N$)")
     ax.set_ylabel(L"Occupation $n_k$")
     ax.set_title("Momentum Distribution Evolution")
     ax.legend()
     ax.grid(true, alpha=0.3)
-    
     plt.tight_layout()
-    
+
     if save_fig
-        base_name = splitext(basename(filename))[1]
-        fig_name = "momentum_dist_$(base_name).pdf"
-        fig_dir = dirname(filename)
-        isdir("$(fig_dir)/Figs") || mkpath("$(fig_dir)/Figs")
-        fig.savefig("$(fig_dir)/Figs/$(fig_name)", dpi=300)
-        println("Figure saved to $(fig_dir)/Figs/$(fig_name)")
+        base_name = extract_filename_base(filename)
+        save_figure(fig, dirname(filename), "momentum_dist_$(base_name).pdf")
     end
-    
+
     plt.show()
 end
 
@@ -374,62 +336,43 @@ Plot the momentum distribution as a heatmap showing n_k vs (k, step).
 This gives a comprehensive view of how all modes evolve during cooling.
 """
 function plot_momentum_distribution_heatmap(filename; save_fig=true)
-    plt = pyimport("matplotlib.pyplot")
-    
-    # Read data
-    if !isfile(filename)
-        @warn "File not found: $filename"
-        return
-    end
-    
-    data = Dict{String, Any}()
-    h5open(filename, "r") do file
-        for key in keys(file)
-            data[key] = read(file, key)
-        end
-    end
-    
-    # Check if k-space data exists
+    plt = get_pyplot()
+
+    data = read_h5_data(filename)
+    data === nothing && return
+
     if !haskey(data, "momentum_dist") || !haskey(data, "k_values")
         @warn "No k-space data found in file $filename"
         return
     end
-    
+
     momentum_dist = data["momentum_dist"]
     k_values = data["k_values"]
     total_steps = size(momentum_dist, 1)
-    
-    # Create figure
+
     fig, ax = plt.subplots(figsize=(10, 6))
-    
-    # Create heatmap
-    im = ax.imshow(transpose(momentum_dist), aspect="auto", origin="lower", 
+
+    im = ax.imshow(transpose(momentum_dist), aspect="auto", origin="lower",
                    extent=[1, total_steps, k_values[1], k_values[end]],
                    cmap="hot", interpolation="nearest")
-    
+
     ax.set_xlabel("Cooling Step")
     ax.set_ylabel(L"Momentum $k$ (units of $2\pi/N$)")
     ax.set_title("Momentum Distribution Evolution Heatmap")
-    
-    # Add colorbar
+
     cbar = plt.colorbar(im, ax=ax)
     cbar.set_label(L"Occupation $n_k$")
-    
-    # Add horizontal line at k=0 if it exists
+
     if 0 in k_values
         ax.axhline(y=0, color="white", linestyle="--", alpha=0.5, linewidth=1)
     end
-    
+
     plt.tight_layout()
-    
+
     if save_fig
-        base_name = splitext(basename(filename))[1]
-        fig_name = "momentum_dist_heatmap_$(base_name).pdf"
-        fig_dir = dirname(filename)
-        isdir("$(fig_dir)/Figs") || mkpath("$(fig_dir)/Figs")
-        fig.savefig("$(fig_dir)/Figs/$(fig_name)", dpi=300)
-        println("Figure saved to $(fig_dir)/Figs/$(fig_name)")
+        base_name = extract_filename_base(filename)
+        save_figure(fig, dirname(filename), "momentum_dist_heatmap_$(base_name).pdf")
     end
-    
+
     plt.show()
 end

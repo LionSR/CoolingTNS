@@ -24,13 +24,31 @@ struct TNBackend <: CoolingBackend end  # Tensor Network Backend
 Convert string method name to backend type.
 """
 function get_backend(method::String)
-    if method == "ED"
-        return EDBackend()
-    elseif method == "TN"
-        return TNBackend()
-    else
-        error("Unknown method: $method. Use 'ED' for exact diagonalization or 'TN' for tensor network")
-    end
+    method == "ED" && return EDBackend()
+    method == "TN" && return TNBackend()
+    error("Unknown backend: $method. Use 'ED' for exact diagonalization or 'TN' for tensor network")
+end
+
+"""
+    get_sim_method(method::String) -> SimulationMethod
+
+Convert string to SimulationMethod type.
+"""
+function get_sim_method(method::String)
+    method == "density_matrix" && return DensityMatrix()
+    method == "monte_carlo" && return MonteCarloWavefunction()
+    error("Unknown simulation method: $method. Use 'density_matrix' or 'monte_carlo'")
+end
+
+"""
+    get_evolution_method(method::String) -> EvolutionMethod
+
+Convert string to EvolutionMethod type.
+"""
+function get_evolution_method(method::String)
+    method == "continuous" && return ContinuousEvolution()
+    method == "trotter" && return TrotterEvolution()
+    error("Unknown evolution method: $method. Use 'continuous' or 'trotter'")
 end
 
 # Default simulation methods for backends
@@ -285,29 +303,7 @@ function create_coupling_params(coupling::String, g::Float64, steps::Int, te::Fl
     end
 end
 
-"""
-    create_sim_params(method::SimulationMethod; kwargs...)
-
-Create appropriate SimulationParameters struct based on simulation method.
-"""
-function create_sim_params(method::DensityMatrix; kwargs...)
-    pe = get(kwargs, :pe, 0.0)
-    dephasing = get(kwargs, :dephasing, 0.0)
-    amplitude_damping = get(kwargs, :amplitude_damping, 0.0)
-    
-    return DensityMatrixParameters(pe, dephasing, amplitude_damping)
-end
-
-function create_sim_params(method::MonteCarloWavefunction; kwargs...)
-    n_trajectories = get(kwargs, :n_trajectories, 10)
-    pe = get(kwargs, :pe, 0.0)
-    parallel = get(kwargs, :parallel, false)
-    
-    return MonteCarloParameters(n_trajectories, pe, parallel)
-end
-
-# Legacy backend dispatch functions - now handled by UnifiedSimulationParameters
-# These can be removed as they're no longer used in the new architecture
+# Note: create_sim_params with backend dispatch is defined in utils.jl
 
 # ============================================================================
 # Utility Functions

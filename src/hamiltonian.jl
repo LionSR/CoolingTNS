@@ -12,21 +12,27 @@ This file serves as a convenient single import for all Hamiltonian operations.
 # Utility Functions
 # ============================================================================
 
+# Model string to type mapping for dispatch-based construction
+const MODEL_TYPE_MAP = Dict(
+    "Ising" => IsingModel,
+    "niIsing" => NiIsingModel,
+    "Rydberg" => RydbergModel
+)
+
+const MODEL_PARAM_MAP = Dict(
+    "Ising" => IsingParameters,
+    "niIsing" => NiIsingParameters,
+    "Rydberg" => RydbergParameters
+)
+
 """
     get_model_from_string(problem::String) -> HamiltonianModel
 
 Convert problem string to HamiltonianModel type.
 """
 function get_model_from_string(problem::String)
-    if problem == "Ising"
-        return IsingModel()
-    elseif problem == "niIsing"
-        return NiIsingModel()
-    elseif problem == "Rydberg"
-        return RydbergModel()
-    else
-        error("Unknown problem type: $problem")
-    end
+    haskey(MODEL_TYPE_MAP, problem) || error("Unknown problem type: $problem")
+    return MODEL_TYPE_MAP[problem]()
 end
 
 """
@@ -35,13 +41,6 @@ end
 Create HamiltonianParameters from problem string and parameters.
 """
 function create_hamiltonian_params(problem::String, params...)
-    if problem == "Ising"
-        return IsingParameters(params...)
-    elseif problem == "niIsing"
-        return NiIsingParameters(params...)
-    elseif problem == "Rydberg"
-        return RydbergParameters(params...)
-    else
-        error("Unknown problem type: $problem")
-    end
+    haskey(MODEL_PARAM_MAP, problem) || error("Unknown problem type: $problem")
+    return MODEL_PARAM_MAP[problem](params...)
 end

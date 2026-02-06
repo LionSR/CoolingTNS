@@ -384,80 +384,36 @@ end
 # Operator Construction Functions
 # ============================================================================
 
-"""
-    pauli_x(i::Int, n_qubits::Int) -> SparseMatrixCSC
+# Local Pauli matrices (constant)
+const PAULI_X_LOCAL = sparse([0.0 1.0; 1.0 0.0])
+const PAULI_Y_LOCAL = sparse([0.0 -1.0; 1.0 0.0])  # Real representation
+const PAULI_Z_LOCAL = sparse([1.0 0.0; 0.0 -1.0])
+const IDENTITY_2X2 = sparse(I, 2, 2)
 
-Pauli X operator on qubit i (1-indexed).
-Convention: qubit 1 is the least significant bit (rightmost in tensor product)
 """
-function pauli_x(i::Int, n_qubits::Int)
+    single_site_operator(local_op::SparseMatrixCSC, i::Int, n_qubits::Int) -> SparseMatrixCSC
+
+Build a single-site operator acting on qubit i in an n_qubit system.
+Qubit 1 is the least significant bit (rightmost in tensor product).
+"""
+function single_site_operator(local_op::SparseMatrixCSC, i::Int, n_qubits::Int)
     @assert 1 <= i <= n_qubits "Qubit index out of range"
-    
-    X_local = sparse([0.0 1.0; 1.0 0.0])
-    
-    # Build operator using tensor products
-    # Qubit ordering: |q_n q_{n-1} ... q_2 q_1⟩
-    # So for qubit i, we need I⊗...⊗I⊗X⊗I⊗...⊗I with X at position i from the right
+
     op = sparse(1.0I, 1, 1)
     for j in n_qubits:-1:1
-        if j == i
-            op = kron(op, X_local)
-        else
-            op = kron(op, sparse(I, 2, 2))
-        end
+        op = kron(op, j == i ? local_op : IDENTITY_2X2)
     end
-    
     return op
 end
 
-"""
-    pauli_y(i::Int, n_qubits::Int) -> SparseMatrixCSC
+"""Pauli X operator on qubit i (1-indexed)."""
+pauli_x(i::Int, n_qubits::Int) = single_site_operator(PAULI_X_LOCAL, i, n_qubits)
 
-Pauli Y operator on qubit i (1-indexed).
-Convention: qubit 1 is the least significant bit (rightmost in tensor product)
-"""
-function pauli_y(i::Int, n_qubits::Int)
-    @assert 1 <= i <= n_qubits "Qubit index out of range"
-    
-    # Real representation of Y: [0 -1; 1 0]
-    Y_local = sparse([0.0 -1.0; 1.0 0.0])
-    
-    # Build operator using tensor products
-    op = sparse(1.0I, 1, 1)
-    for j in n_qubits:-1:1
-        if j == i
-            op = kron(op, Y_local)
-        else
-            op = kron(op, sparse(I, 2, 2))
-        end
-    end
-    
-    return op
-end
+"""Pauli Y operator on qubit i (1-indexed). Uses real representation [0 -1; 1 0]."""
+pauli_y(i::Int, n_qubits::Int) = single_site_operator(PAULI_Y_LOCAL, i, n_qubits)
 
-"""
-    pauli_z(i::Int, n_qubits::Int) -> SparseMatrixCSC
-
-Pauli Z operator on qubit i (1-indexed).
-Convention: qubit 1 is the least significant bit (rightmost in tensor product)
-"""
-function pauli_z(i::Int, n_qubits::Int)
-    @assert 1 <= i <= n_qubits "Qubit index out of range"
-    
-    Z_local = sparse([1.0 0.0; 0.0 -1.0])
-    
-    # Build operator using tensor products
-    op = sparse(1.0I, 1, 1)
-    for j in n_qubits:-1:1
-        if j == i
-            op = kron(op, Z_local)
-        else
-            op = kron(op, sparse(I, 2, 2))
-        end
-    end
-    
-    return op
-end
+"""Pauli Z operator on qubit i (1-indexed)."""
+pauli_z(i::Int, n_qubits::Int) = single_site_operator(PAULI_Z_LOCAL, i, n_qubits)
 
 """
     pauli_zz(i::Int, j::Int, n_qubits::Int) -> SparseMatrixCSC
@@ -511,25 +467,19 @@ end
 
 Apply depolarizing noise with probability p to specified qubits.
 """
+# Pauli operator selectors for random sampling
+const PAULI_OPERATORS = (pauli_x, pauli_y, pauli_z)
+
 function apply_depolarizing_ed(ψ::EDStateVector, p::Float64, qubits::Vector{Int})
     ψ_noisy_data = copy(ψ.data)
-    
+
     for q in qubits
         if rand() < p
-            # Apply random Pauli
-            pauli_choice = rand(1:3)
-            if pauli_choice == 1
-                op = pauli_x(q, ψ.n_qubits)
-            elseif pauli_choice == 2
-                op = pauli_y(q, ψ.n_qubits)
-            else
-                op = pauli_z(q, ψ.n_qubits)
-            end
-            
+            op = PAULI_OPERATORS[rand(1:3)](q, ψ.n_qubits)
             ψ_noisy_data = op * ψ_noisy_data
         end
     end
-    
+
     return EDStateVector(ψ_noisy_data, ψ.n_qubits)
 end
 
@@ -689,118 +639,76 @@ function get_correlation_operator(m::Int, n::Int, N::Int)
 end
 
 """
-    measure_momentum_distribution_ed(ψ::EDStateVector, ham_params::HamiltonianParameters) -> Tuple{Vector{Float64}, Vector{Float64}}
+    get_allowed_k_values(N::Int, bc::Symbol) -> Vector{Int}
 
-Measure the momentum distribution n_k = ⟨a†_k a_k⟩ for all allowed k values.
-Returns (k_values, n_k) where k_values are in units of 2π/N.
+Get allowed k indices based on boundary conditions.
 """
-function measure_momentum_distribution_ed(ψ::EDStateVector, ham_params::HamiltonianParameters)
-    N = ham_params.N
-    bc = ham_params.bc
-    
-    # Determine allowed k values based on boundary conditions
-    if bc == :periodic
-        # k = -N/2+1, ..., N/2 for even N
-        k_values = collect(-div(N,2)+1:div(N,2))
-    elseif bc == :antiperiodic
-        # k = -(N-1)/2, ..., (N-1)/2 for antiperiodic
-        k_values = collect(-div(N-1,2):div(N-1,2))
-    else
-        error("Momentum distribution only defined for periodic/antiperiodic BC")
-    end
-    
-    n_k = zeros(Float64, length(k_values))
-    
-    # For efficiency in ED, we compute ⟨a†_k a_k⟩ directly
-    # a_k = (1/√N) Σ_n exp(-2πikn/N) a_n
-    # a†_k = (1/√N) Σ_n exp(2πikn/N) a†_n
-    # So ⟨a†_k a_k⟩ = (1/N) Σ_m,n exp(2πik(m-n)/N) ⟨a†_m a_n⟩
-    
-    # First compute all ⟨a†_m a_n⟩ in real space
-    correlations = zeros(Float64, N, N)
-    for m in 1:N
-        for n in 1:N
-            # Get Jordan-Wigner operators
-            a_n, _ = jordan_wigner_transform(n, N)
-            _, a_m_dag = jordan_wigner_transform(m, N)
-            
-            # ⟨a†_m a_n⟩ = ⟨ψ| a†_m a_n |ψ⟩
-            correlations[m, n] = real(dot(ψ.data, a_m_dag * a_n * ψ.data))
-        end
-    end
-    
-    # Fourier transform to get momentum distribution
-    for (ki, k) in enumerate(k_values)
-        nk = 0.0
-        for m in 1:N
-            for n in 1:N
-                phase = cos(2π * k * (m - n) / N)
-                nk += phase * correlations[m, n] / N
-            end
-        end
-        n_k[ki] = nk
-    end
-    
-    # Convert k indices to actual momentum values in units of 2π/N
-    k_momentum = [2π * k / N for k in k_values]
-    return k_momentum, n_k
+function get_allowed_k_values(N::Int, bc::Symbol)
+    bc == :periodic && return collect(-div(N,2)+1:div(N,2))
+    bc == :antiperiodic && return collect(-div(N-1,2):div(N-1,2))
+    error("Momentum distribution only defined for periodic/antiperiodic BC")
 end
 
 """
-    measure_momentum_distribution_ed(ρ::EDDensityMatrix, ham_params::HamiltonianParameters) -> Tuple{Vector{Float64}, Vector{Float64}}
+    compute_real_space_correlations(state::EDStateVector, N::Int) -> Matrix{Float64}
 
-Measure the momentum distribution n_k = ⟨a†_k a_k⟩ for all allowed k values from a density matrix.
-Returns (k_values, n_k) where k_values are in units of 2π/N.
+Compute real-space fermionic correlations ⟨a†_m a_n⟩ for a pure state.
 """
-function measure_momentum_distribution_ed(ρ::EDDensityMatrix, ham_params::HamiltonianParameters)
-    N = ham_params.N
-    bc = ham_params.bc
-    
-    # Determine allowed k values based on boundary conditions
-    if bc == :periodic
-        # k = -N/2+1, ..., N/2 for even N
-        k_values = collect(-div(N,2)+1:div(N,2))
-    elseif bc == :antiperiodic
-        # k = -(N-1)/2, ..., (N-1)/2 for antiperiodic
-        k_values = collect(-div(N-1,2):div(N-1,2))
-    else
-        error("Momentum distribution only defined for periodic/antiperiodic BC")
+function compute_real_space_correlations(state::EDStateVector, N::Int)
+    correlations = zeros(Float64, N, N)
+    for m in 1:N, n in 1:N
+        a_n, _ = jordan_wigner_transform(n, N)
+        _, a_m_dag = jordan_wigner_transform(m, N)
+        correlations[m, n] = real(dot(state.data, a_m_dag * a_n * state.data))
     end
-    
-    n_k = zeros(Float64, length(k_values))
-    
-    # For density matrices: ⟨a†_k a_k⟩ = Tr(ρ a†_k a_k)
-    # a_k = (1/√N) Σ_n exp(-2πikn/N) a_n
-    # a†_k = (1/√N) Σ_n exp(2πikn/N) a†_n
-    # So ⟨a†_k a_k⟩ = (1/N) Σ_m,n exp(2πik(m-n)/N) Tr(ρ a†_m a_n)
-    
-    # First compute all Tr(ρ a†_m a_n) in real space
+    return correlations
+end
+
+"""
+    compute_real_space_correlations(state::EDDensityMatrix, N::Int) -> Matrix{ComplexF64}
+
+Compute real-space fermionic correlations Tr(ρ a†_m a_n) for a density matrix.
+"""
+function compute_real_space_correlations(state::EDDensityMatrix, N::Int)
     correlations = zeros(ComplexF64, N, N)
-    for m in 1:N
-        for n in 1:N
-            # Get Jordan-Wigner operators
-            a_n, _ = jordan_wigner_transform(n, N)
-            _, a_m_dag = jordan_wigner_transform(m, N)
-            
-            # Tr(ρ a†_m a_n)
-            correlations[m, n] = tr(ρ.data * a_m_dag * a_n)
-        end
+    for m in 1:N, n in 1:N
+        a_n, _ = jordan_wigner_transform(n, N)
+        _, a_m_dag = jordan_wigner_transform(m, N)
+        correlations[m, n] = tr(state.data * a_m_dag * a_n)
     end
-    
-    # Fourier transform to get momentum distribution
+    return correlations
+end
+
+"""
+    fourier_transform_correlations(correlations::AbstractMatrix, k_values::Vector{Int}, N::Int) -> Vector{Float64}
+
+Fourier transform real-space correlations to momentum distribution.
+"""
+function fourier_transform_correlations(correlations::AbstractMatrix, k_values::Vector{Int}, N::Int)
+    n_k = zeros(Float64, length(k_values))
     for (ki, k) in enumerate(k_values)
         nk = 0.0 + 0.0im
-        for m in 1:N
-            for n in 1:N
-                phase = exp(2π * im * k * (m - n) / N)
-                nk += phase * correlations[m, n] / N
-            end
+        for m in 1:N, n in 1:N
+            phase = exp(2π * im * k * (m - n) / N)
+            nk += phase * correlations[m, n] / N
         end
-        n_k[ki] = real(nk)  # Should be real for physical density matrices
+        n_k[ki] = real(nk)
     end
-    
-    # Convert k indices to actual momentum values in units of 2π/N
-    k_momentum = [2π * k / N for k in k_values]
+    return n_k
+end
+
+"""
+    measure_momentum_distribution_ed(state::Union{EDStateVector, EDDensityMatrix}, ham_params::HamiltonianParameters)
+
+Measure momentum distribution n_k = ⟨a†_k a_k⟩ for all allowed k values.
+Returns (k_values, n_k) where k_values are in units of 2π/N.
+"""
+function measure_momentum_distribution_ed(state::Union{EDStateVector, EDDensityMatrix}, ham_params::HamiltonianParameters)
+    N = ham_params.N
+    k_indices = get_allowed_k_values(N, ham_params.bc)
+    correlations = compute_real_space_correlations(state, N)
+    n_k = fourier_transform_correlations(correlations, k_indices, N)
+    k_momentum = [2π * k / N for k in k_indices]
     return k_momentum, n_k
 end
 
@@ -808,16 +716,11 @@ end
     projector_ed(bit::Int, qubit::Int, n_qubits::Int) -> SparseMatrixCSC{Float64, Int}
 
 Create projector onto |bit⟩ (0 or 1) for specified qubit.
+|0⟩⟨0| = (I + Z)/2, |1⟩⟨1| = (I - Z)/2
 """
 function projector_ed(bit::Int, qubit::Int, n_qubits::Int)
-    @assert bit ∈ [0, 1] "bit must be 0 or 1"
-    @assert 1 ≤ qubit ≤ n_qubits "qubit must be in range 1:n_qubits"
-    
-    if bit == 0
-        # |0⟩⟨0| = (I + Z)/2
-        return (I + pauli_z(qubit, n_qubits)) / 2
-    else
-        # |1⟩⟨1| = (I - Z)/2
-        return (I - pauli_z(qubit, n_qubits)) / 2
-    end
+    @assert bit in (0, 1) "bit must be 0 or 1"
+    @assert 1 <= qubit <= n_qubits "qubit must be in range 1:n_qubits"
+    sign = 1 - 2 * bit  # +1 for bit=0, -1 for bit=1
+    return (I + sign * pauli_z(qubit, n_qubits)) / 2
 end

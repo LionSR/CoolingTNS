@@ -17,6 +17,9 @@ include("utils.jl")
 include("utils_mps.jl")
 include("coupling_utils.jl")
 include("utils_mpo.jl")
+
+# Plotting utilities and visualization
+include("plot_utils.jl")
 include("plotting.jl")
 include("plot_energy_dispersion.jl")
 include("plot_dispersion_with_gs.jl")
@@ -64,6 +67,6 @@ export DensityMatrixResults, MonteCarloResults, TensorNetworkResults
 export create_coupling_params, create_sim_params, create_results
 export to_dict
 export setup_common_parameters, create_filename, save_results
-export get_backend, mean_last_window
+export get_backend, get_sim_method, get_evolution_method, mean_last_window
 
 end

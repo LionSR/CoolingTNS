@@ -1,14 +1,36 @@
 using ITensors
 
-function appendzeros_MPO(ρ::MPO, sites::Vector{<:Index})
+# get_bath_ground_state is defined in utils_mps.jl, which is included before this file
+
+"""
+    appendzeros_MPO(ρ::MPO, sites::Vector{<:Index}, coupling::String="XX")
+
+Append bath qubits in appropriate ground state density matrix to system MPO.
+Bath basis depends on coupling type:
+- XX, XY, XZ coupling → bath in |↓⟩⟨↓| (Z-basis)
+- ZZ, YZ coupling → bath in |−⟩⟨−| (X-basis)
+"""
+function appendzeros_MPO(ρ::MPO, sites::Vector{<:Index}, coupling::String="XX")
     N = length(ρ)
+
+    # Get bath ground state based on coupling type
+    _, bath_amps = get_bath_ground_state(coupling)
+
     ρ_appended = MPO(sites, "Id")
     data_ρ = ITensors.data(ρ)
     dataρ_appended = ITensors.data(ρ_appended)
+
     for i = 1:N
-        # Bath in ground state |0⟩ for cooling (consistent with MPS path)
-        ψ0 = onehot(sites[2i] => 1)
-        ρ0 = ψ0 * ψ0'
+        # Create bath density matrix |ψ₀⟩⟨ψ₀| from amplitudes
+        s = sites[2i]
+        ψ0 = ITensor(ComplexF64, s)
+        for (state_idx, amp) in enumerate(bath_amps)
+            if abs(amp) > 1e-15
+                ψ0[s => state_idx] = amp
+            end
+        end
+        ρ0 = ψ0 * prime(dag(ψ0), s)
+
         if i < N
             ll = sim(linkind(ρ, i))
             lr = linkind(ρ, i)
@@ -32,17 +54,3 @@ function partial_trace_bath(ρ_sb::MPO, sites::Vector{<:Index}, sites_sys::Vecto
     return MPO([ρ_sb[2i-1] * ρ_sb[2i] * delta(sites[2i], sites[2i]') for i in 1:N])
 end
 
-# Alias for consistency with cooling_evolution_dispatch.jl
-const appendbath_MPO = appendzeros_MPO
-
-"""
-    rdm_mpo(ρ::MPO, sites, site_indices)
-
-Compute reduced density matrix by tracing out unwanted sites.
-"""
-function rdm_mpo(ρ::MPO, sites::Vector{<:Index}, site_indices)
-    # For now, use partial trace of bath (assuming we want system only)
-    # This is a simplified implementation
-    sites_sys = sites[site_indices]
-    return partial_trace_bath(ρ, sites, sites_sys)
-end

@@ -9,45 +9,43 @@ Shared functions for ED backend cooling evolution to follow DRY principles.
 # ============================================================================
 
 """
-    prepare_combined_state_ed(state::Union{EDStateVector, EDDensityMatrix}, N_bath::Int)
+    prepare_combined_state_ed(state::EDStateVector, N_bath::Int)
 
-Shared function to prepare system+bath state for ED backend.
-Works for both state vectors and density matrices.
+Prepare system+bath state vector for ED backend.
 """
-function prepare_combined_state_ed(state::Union{EDStateVector, EDDensityMatrix}, N_bath::Int)
-    if isa(state, EDStateVector)
-        # For state vector: append bath in ground state |00...0⟩
-        ψ_bath = zero_state_ed(N_bath)
-        return kron_states_ed(state, ψ_bath)
-    else
-        # For density matrix: append bath in ground state
-        ρ_bath = state_to_density_ed(zero_state_ed(N_bath))
-        return kron_density_ed(state, ρ_bath)
-    end
+function prepare_combined_state_ed(state::EDStateVector, N_bath::Int)
+    ψ_bath = zero_state_ed(N_bath)
+    return kron_states_ed(state, ψ_bath)
 end
 
 """
-    evolve_cooling_step_ed(H::AbstractMatrix, state::Union{EDStateVector, EDDensityMatrix}, 
+    prepare_combined_state_ed(state::EDDensityMatrix, N_bath::Int)
+
+Prepare system+bath density matrix for ED backend.
+"""
+function prepare_combined_state_ed(state::EDDensityMatrix, N_bath::Int)
+    ρ_bath = state_to_density_ed(zero_state_ed(N_bath))
+    return kron_density_ed(state, ρ_bath)
+end
+
+"""
+    evolve_cooling_step_ed(H::AbstractMatrix, state::Union{EDStateVector, EDDensityMatrix},
                           te::Float64, tau::Union{Float64, Nothing}=nothing)
 
-Shared function to evolve ED states for both continuous and Trotter evolution.
+Evolve ED states for both continuous (tau=nothing) and Trotter (tau specified) evolution.
+Uses dispatch on state type via evolve_ed.
 """
-function evolve_cooling_step_ed(H::AbstractMatrix, state::Union{EDStateVector, EDDensityMatrix}, 
+function evolve_cooling_step_ed(H::AbstractMatrix, state::Union{EDStateVector, EDDensityMatrix},
                                te::Float64, tau::Union{Float64, Nothing}=nothing)
-    if tau === nothing
-        # Continuous evolution - single step
-        return evolve_ed(H, state, te)
-    else
-        # Trotter evolution - multiple small steps
-        n_steps = Int(ceil(te / tau))
-        dt = te / n_steps  # Adjust dt to exactly cover te
-        
-        evolved = state
-        for _ in 1:n_steps
-            evolved = evolve_ed(H, evolved, dt)
-        end
-        return evolved
+    tau === nothing && return evolve_ed(H, state, te)
+
+    n_steps = Int(ceil(te / tau))
+    dt = te / n_steps
+    evolved = state
+    for _ in 1:n_steps
+        evolved = evolve_ed(H, evolved, dt)
     end
+    return evolved
 end
 
 """
@@ -75,7 +73,7 @@ Shared measurement function for ED backend.
 """
 function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVector, EDDensityMatrix},
                                 H_sys_mat::AbstractMatrix, ϕ₀::EDStateVector,
-                                ham_params, bath_info=nothing)
+                                ham_params, _bath_info=nothing)
     N_sys = ham_params.N
     
     if isa(state, EDStateVector)

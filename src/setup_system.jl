@@ -36,8 +36,10 @@ function setup_system(ham_params::HamiltonianParameters, backend::TNBackend, sit
     
     # Find ground state and gap using dispatch
     e₀, ϕ₀, gap = find_ground_state(H_sys, backend, sites)
-    Δ_dmrg = -gap  # Resonant cooling
-    
+    # Δ > 0 so bath ground state is Z=-1 (|↓⟩) for Z-coupling,
+    # or X=-1 (|−⟩) for X-coupling. Bath absorbs energy gap when excited.
+    Δ_dmrg = gap
+
     return H_sys, Δ_dmrg, e₀, ϕ₀
 end
 
@@ -61,39 +63,12 @@ function setup_system(ham_params::HamiltonianParameters, backend::EDBackend)
     
     # Find ground state and gap using dispatch
     e₀, ϕ₀, gap = find_ground_state(H_sys, backend)
-    Δ_ed = -gap  # Resonant cooling
-    
+    # Δ > 0 so bath ground state is Z=-1 (|↓⟩) for Z-coupling,
+    # or X=-1 (|−⟩) for X-coupling. Bath absorbs energy gap when excited.
+    Δ_ed = gap
+
     return H_sys, Δ_ed, e₀, ϕ₀
 end
 
 # Ground state computation now handled by ground_state.jl
 
-# ============================================================================
-# Backend-Agnostic Interface (Auto-detects from parameters)
-# ============================================================================
-
-"""
-    setup_system_auto(ham_params::HamiltonianParameters; backend=nothing, sites=nothing)
-
-Automatically choose between ED and TN backends based on system size and availability.
-"""
-function setup_system_auto(ham_params::HamiltonianParameters; backend=nothing, sites=nothing)
-    if backend !== nothing
-        if backend isa EDBackend
-            return setup_system(ham_params, backend)
-        elseif backend isa TNBackend && sites !== nothing
-            return setup_system(ham_params, backend, sites)
-        else
-            error("TNBackend requires sites to be provided")
-        end
-    else
-        # Auto-detect: use ED for small systems, TN for larger ones
-        if ham_params.N <= 10 && sites === nothing
-            return setup_system(ham_params, EDBackend())
-        elseif sites !== nothing
-            return setup_system(ham_params, TNBackend(), sites)
-        else
-            error("For N > 12, sites must be provided for tensor network backend")
-        end
-    end
-end
