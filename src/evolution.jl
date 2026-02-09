@@ -47,25 +47,17 @@ end
 # ============================================================================
 
 function evolve_state(ham_params::HamiltonianParameters, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, TrotterEvolution},
-                     backend::TNBackend, ::Any, ψ, t::Float64, sites::Vector{<:Index}; gates=nothing, kwargs...)
+                     ::TNBackend, ::Any, ψ, t::Float64, ::Vector{<:Index}; gates=nothing, kwargs...)
     gates === nothing && error("Trotter evolution requires pre-computed gates")
 
     Dmax, cutoff, tau = sim_params.Dmax, sim_params.cutoff, sim_params.tau
     steps = Int(t / tau)
     ψ_evolved = copy(ψ)
 
-    H_sys_zero = construct_zero_coupling_hamiltonian(ham_params, backend, sites)
-
+    # All Hamiltonian terms (system + bath + coupling) are in the interleaved gates,
+    # matching the MPO DM+Trotter decomposition for consistency.
     for _ in 1:steps
-        # Evolve with system-only Hamiltonian using TDVP
-        ψ_evolved = tdvp(H_sys_zero, -im * tau, ψ_evolved;
-                        nsteps=1, reverse_step=false, normalize=true,
-                        maxdim=Dmax, cutoff=cutoff, outputlevel=0)
-
-        # Apply the pre-computed gates
         ψ_evolved = apply(gates, ψ_evolved; cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
-
-        orthogonalize!(ψ_evolved, 2)
         normalize!(ψ_evolved)
     end
 

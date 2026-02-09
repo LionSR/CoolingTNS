@@ -6,471 +6,640 @@
 
 \begin{document}
 
+\title{Numerical Studies of Cooling in the Spin Model}
+\date{\today}
+
+\maketitle
+
 \section{Exact Diagonalization Study of Cooling in the Spin Model}
 
+We analyze cooling protocols for fermionic systems and connect them to spin systems via the Jordan-Wigner (JW) transformation. This enables a similar analysis for spin systems, which are more directly implementable in many experimental platforms.
 
-In the main text, we have analyzed cooling protocols for fermionic systems. Here, we connect to spin systems through the Jordan-Wigner(JW) transformations. This allows us to perform a similar analysis for spin systems, which are more directly implementable in many experimental platforms.
-
-A challenge arises when attempting to map both the system and bath together: the JW transformation introduces non-local string operators that make the combined system non-integrable. Therefore, we will apply the transformation only to the system Hamiltonian, allowing us to compute the mode energies $\epsilon_k$ and track which modes are resonating and being cooled during the protocol.
+Mapping both the system and bath together presents a challenge: the JW transformation introduces non-local string operators, rendering the combined system non-integrable. Therefore, we apply the transformation only to the system Hamiltonian, which allows us to compute the mode energies $\epsilon_k$ and track which modes are resonating and being cooled during the protocol.
 
 \subsection{The Transverse Field Ising Model}
 
 We study a related model of spins
 \begin{align}
-    H_{\mathrm{spin}} &= \frac{\cos\theta}{2} \left( \sum_{n=1}^{N-1} \sigma_{n,x}\sigma_{n+1,x} + g_I \sigma_{N,x}\sigma_{1,x} \right) + \frac{\sin\theta}{2} \sum_{n=1}^N \sigma_{n,z}, \label{eq:spin_hamiltonian}
+    H_{\mathrm{spin}} &= \frac{\cos\theta}{2} \left(\sum_{n=1}^{N-1} \sigma_{n,x}\sigma_{n+1,x} + g_I \sigma_{N,x}\sigma_{1,x}\right) + \frac{\sin\theta}{2} \sum_{n=1}^N \sigma_{n,z}, \label{eq:spin_hamiltonian}
 \end{align}
-where $\sigma_{n,\alpha}$ ($\alpha = x, y, z$) are the Pauli operators acting on site $n$, $N$ is the number of spins (assumed to be even). The boundary condition is determined by the parameter $g_I$. For periodic boundary conditions, $g_I = 1$. For open boundary conditions, $g_I = 0$.
+where $\sigma_{n,\alpha}$ ($\alpha = x, y, z$) are the Pauli operators acting on site $n$, and $N$ is the number of spins (assumed to be even). The boundary condition is determined by the parameter $g_I$: $g_I = +1$ for periodic boundary conditions (PBC), $g_I=-1$ for anti-periodic boundary conditions (APBC), and $g_I = 0$ for open boundary conditions (OBC).
 
-\subsection{JW Transformation}
-To map the spin model to fermions, we employ the JW transformation, using the string operator $S_n = \prod_{j=1}^{n-1} \sigma_{j,z}$, defining fermionic creation and annihilation operators:
+\subsection{Jordan-Wigner Transformation}
+To map the spin model to fermions, we employ the JW transformation using the string operator $S_n = \prod_{j=1}^{n-1} \sigma_{j,z}$. The fermionic creation and annihilation operators are defined as:
 \begin{align}
-    a_n         &= \left( -\prod_{j=1}^{n-1} \sigma_{j,z} \right) \cdot \frac{\sigma_{n,x} - i\sigma_{n,y}}{2}= -S_n \cdot \frac{\sigma_{n,x} - i\sigma_{n,y}}{2}, \label{eq:JW_a_n}\\
-    a_n^\dagger &= \left( -\prod_{j=1}^{n-1} \sigma_{j,z} \right) \cdot \frac{\sigma_{n,x} + i\sigma_{n,y}}{2}= -S_n \cdot \frac{\sigma_{n,x} + i\sigma_{n,y}}{2}. \label{eq:JW_a_n_dag}
+    a_n      &= -S_n \cdot \frac{\sigma_{n,x} - i\sigma_{n,y}}{2}, \label{eq:JW_a_n}\\
+    a_n^\dag &= -S_n \cdot \frac{\sigma_{n,x} + i\sigma_{n,y}}{2}. \label{eq:JW_a_n_dag}
 \end{align}
-These operators satisfy the standard fermionic anti-commutation relations $\{a_m, a_n\} = \{a_m^\dagger, a_n^\dagger\} = 0$ and $\{a_m, a_n^\dagger\} = \delta_{mn}$.
+These operators satisfy the standard fermionic anticommutation relations $\{a_m, a_n\} = \{a_m^\dag, a_n^\dag\} = 0$ and $\{a_m, a_n^\dag\} = \delta_{mn}$.
 
-By inverting the transformation, we can express the Pauli operators in terms of fermions:
+Inverting the transformation, we can express the Pauli operators in terms of fermions:
 \begin{align}
-    \sigma_{n,x} &= -S_n(a_n + a_n^\dagger),\\
-    \sigma_{n,y} &= iS_n(a_n - a_n^\dagger),\\
-    \sigma_{n,z} &= 1 - 2a_n^\dagger a_n.
+    \sigma_{n,x} &= -S_n(a_n + a_n^\dag),\\
+    \sigma_{n,y} &= -iS_n(a_n - a_n^\dag),\\
+    \sigma_{n,z} &= 2a_n^\dag a_n - 1 = -(a_n a_n^\dag - a_n^\dag a_n).
 \end{align}
 
 
 \subsection{Transforming the Hamiltonian}
 
-We apply the JW transformation to each term in the Hamiltonian.
+We now apply the JW transformation to each term in the Hamiltonian.
 
-For the longitudinal field term, substituting $\sigma_{n,z} = 1 - 2a_n^\dagger a_n$, we get:
+For the transverse field term, substituting $\sigma_{n,z} = 2a_n^\dag a_n - 1$, we obtain:
 \begin{align}
-    \frac{\sin\theta}{2} \sum_{n=1}^N \sigma_{n,z} &= \frac{\sin\theta}{2} \sum_{n=1}^N (1 - 2a_n^\dagger a_n)\\
-                                                   &= \frac{\sin\theta}{2} \left( N - 2\sum_{n=1}^N a_n^\dagger a_n \right)\\
+    \frac{\sin\theta}{2} \sum_{n=1}^N \sigma_{n,z}
+     &= \frac{\sin\theta}{2} \sum_{n=1}^N (2a_n^\dag a_n - 1) \nn\\
+     &= -\frac{\sin\theta}{2} \sum_{n=1}^N (a_n a_n^\dag - a_n^\dag a_n)
 \end{align}
 
-For the nearest-neighbor interaction terms in the bulk, we find:
+
+For the nearest-neighbor interaction terms in the bulk, $\sigma_{n,x}\sigma_{n+1,x}$, we start from the fermionic representation of $\sigma_{n,x}$:
 \begin{align}
-    \sigma_{n,x}\sigma_{n+1,x} &= S_n S_{n+1} (a_n + a_n^\dagger)(a_{n+1} + a_{n+1}^\dagger)\\
-                               &= \sigma_{n,z}(a_n + a_n^\dagger)(a_{n+1} + a_{n+1}^\dagger)\\
-                               &= (1 - 2a_n^\dagger a_n)(a_n + a_n^\dagger)(a_{n+1} + a_{n+1}^\dagger)\\
-                               &= (a_n - a_n^\dagger)(a_{n+1} + a_{n+1}^\dagger)\\
-                               &= a_n a_{n+1} + a_n a_{n+1}^\dagger - a_n^\dagger a_{n+1} - a_n^\dagger a_{n+1}^\dagger.
+    \sigma_{n,x}\sigma_{n+1,x} &= [-S_n(a_n+a_n^\dag)]\,[-S_{n+1}(a_{n+1}+a_{n+1}^\dag)]\\
+                               &= S_n(a_n+a_n^\dag)\,S_{n+1}(a_{n+1}+a_{n+1}^\dag).
+\end{align}
+Using the identity $S_{n+1}=S_n \sigma_{n,z}$ and $S_n^2=\Id$, we have
+\begin{align}
+    \sigma_{n,x}\sigma_{n+1,x}
+    &= S_n(a_n+a_n^\dag)\,S_n \sigma_{n,z}(a_{n+1}+a_{n+1}^\dag)\nn\\
+    &= (a_n+a_n^\dag)\,\sigma_{n,z}(a_{n+1}+a_{n+1}^\dag),
+\end{align}
+where we used $[S_n,a_n]=0$ and $S_n^2=\Id$.
+Using $\sigma_{n,z}=2a_n^\dag a_n - 1$, one verifies the local identity
+\begin{align}
+    (a_n+a_n^\dag)\sigma_{n,z} = a_n - a_n^\dag.
+\end{align}
+Therefore,
+\begin{align}
+    \sigma_{n,x}\sigma_{n+1,x}
+    &= (a_n - a_n^\dag)(a_{n+1}+a_{n+1}^\dag)\nn\\
+    &= a_n a_{n+1} + a_n a_{n+1}^\dag - a_n^\dag a_{n+1} - a_n^\dag a_{n+1}^\dag.
 \end{align}
 
-The boundary term requires special attention due to the non-local nature of the JW strings. For the boundary term with $g_I = 1$ (periodic boundary conditions), the fermionic Hilbert space splits into two sectors: even and odd parity. The parity operator is defined as
+The boundary term requires special attention due to the non-local nature of the JW strings. For a closed chain ($g_I=\pm 1$), the fermionic Hilbert space splits into two sectors based on fermion parity. The parity operator is defined as
 \begin{align}
-    P = \prod_{j=1}^{N} \sigma_{j,z} = \prod_{j=1}^{N} (1 - 2a_j^\dagger a_j).
+    P = \prod_{j=1}^{N} \sigma_{j,z} = \prod_{j=1}^{N} (2a_j^\dag a_j - 1) =
+    (-1)^{\sum_{j=1}^{N} n_j} = (-1)^{N_f}
 \end{align}
-For the boundary term, we can show that $S_N S_1 = P \cdot \sigma_{N,z}$, where $P$ is the parity operator (since $S_N=\prod_{j=1}^{N-1} \sigma_{j,z}=\prod_{j=1}^{N} \sigma_{j,z}\cdot\sigma_{1,z}$ and $S_1=\Id$). Therefore:
+where $N_f = \sum_{j=1}^{N} n_j$ is the total fermion number.
+For the boundary term, we can show that $S_N S_1 = P \cdot \sigma_{N,z}$, where $P$ is the parity operator (since $S_N=\prod_{j=1}^{N-1} \sigma_{j,z} = \prod_{j=1}^{N} \sigma_{j,z} \cdot \sigma_{N,z}$ and $S_1=\Id$). Therefore:
 \begin{align}
-    \sigma_{N,x}\sigma_{1,x} &= -P \cdot (a_N - a_N^\dagger)(a_1 + a_1^\dagger)\\
-                             &= -P \cdot (a_N a_1 + a_N a_1^\dagger - a_N^\dagger a_1 - a_N^\dagger a_1^\dagger).
+    \sigma_{N,x}\sigma_{1,x} &= -P \cdot (a_N - a_N^\dag)(a_1 + a_1^\dag)\\
+                             &= -P \cdot (a_N a_1 + a_N a_1^\dag - a_N^\dag a_1 - a_N^\dag a_1^\dag).
 \end{align}
 In the even parity sector ($P = 1$):
 \begin{align}
-    \sigma_{N,x}\sigma_{1,x} &= -(a_N a_1 + a_N a_1^\dagger - a_N^\dagger a_1 - a_N^\dagger a_1^\dagger).
+    \sigma_{N,x}\sigma_{1,x} &= -(a_N a_1 + a_N a_1^\dag - a_N^\dag a_1 - a_N^\dag a_1^\dag).
 \end{align}
 In the odd parity sector ($P = -1$):
 \begin{align}
-    \sigma_{N,x}\sigma_{1,x} &= a_N a_1 + a_N a_1^\dagger - a_N^\dagger a_1 - a_N^\dagger a_1^\dagger.
+    \sigma_{N,x}\sigma_{1,x} &= a_N a_1 + a_N a_1^\dag - a_N^\dag a_1 - a_N^\dag a_1^\dag.
 \end{align}
 
 Combining all terms, the transformed Hamiltonian in the even/odd parity sector is:
 \begin{align}
-    H_{\mathrm{spin}}^{e/o} &= \frac{\cos\theta}{2} \left[ \sum_{n=1}^{N-1} (a_n - a_n^\dagger)(a_{n+1} + a_{n+1}^\dagger) - g_I P (a_N - a_N^\dagger)(a_1 + a_1^\dagger) \right] - \sin\theta \sum_{n=1}^N a_n^\dagger a_n + \frac{\sin\theta N}{2}\\
-                            &=\frac{\cos\theta}{2} \left[ \sum_{n=1}^{N-1} (a_n a_{n+1} + a_n a_{n+1}^\dagger - a_n^\dagger a_{n+1} - a_n^\dagger a_{n+1}^\dagger) \right. \nonumber\\
-                            &\quad \left. - g_I P (a_N a_1 + a_N a_1^\dagger - a_N^\dagger a_1 - a_N^\dagger a_1^\dagger) \right] \nonumber\\
-                            &\quad - \sin\theta \sum_{n=1}^N a_n^\dagger a_n + \frac{\sin\theta N}{2}
+    H_{\mathrm{spin}}^{e/o} &= \frac{\cos\theta}{2} \left[\sum_{n=1}^{N-1} (a_n - a_n^\dag)(a_{n+1} + a_{n+1}^\dag)
+    - g_I P (a_N - a_N^\dag)(a_1 + a_1^\dag)\right] \nn\\
+                            &\quad - \frac{\sin\theta}{2} \sum_{n=1}^N (a_n a_n^\dag - a_n^\dag a_n)\\
+                            &=\frac{\cos\theta}{2} \left[\sum_{n=1}^{N-1} (a_n a_{n+1} + a_n a_{n+1}^\dag - a_n^\dag a_{n+1} - a_n^\dag a_{n+1}^\dag)
+    - g_I P (a_N a_1 + a_N a_1^\dag - a_N^\dag a_1 - a_N^\dag a_1^\dag)\right] \nn\\
+                            &\quad - \frac{\sin\theta}{2} \sum_{n=1}^N (a_n a_n^\dag - a_n^\dag a_n)
 \end{align}
+
 where $P$ is the fermion parity, which is $+1$ in the even sector and $-1$ in the odd sector.
 
-To emphasize the role of the boundary condition in the fermionic problem, we can introduce $g_F = -g_I \cdot P$, which gives:
+To emphasize the role of the boundary condition in the fermionic problem, we introduce $g_F = -g_I \cdot P$, which gives:
 \begin{align}
-    H_{\mathrm{spin}}^{e/o} &= \frac{\cos\theta}{2} \left[ \sum_{n=1}^{N-1} (a_n a_{n+1} + a_n a_{n+1}^\dagger - a_n^\dagger a_{n+1} - a_n^\dagger a_{n+1}^\dagger) \right. \nonumber\\
-                            &\quad \left. + g_F (a_N a_1 + a_N a_1^\dagger - a_N^\dagger a_1 - a_N^\dagger a_1^\dagger) \right] \nonumber\\
-                            &\quad + \frac{\sin\theta \cdot N}{2} - \sin\theta \sum_{n=1}^N a_n^\dagger a_n.
+    H_{\mathrm{spin}}^{e/o} &= \frac{\cos\theta}{2} \left[\sum_{n=1}^{N-1} (a_n a_{n+1} + a_n a_{n+1}^\dag - a_n^\dag a_{n+1} - a_n^\dag a_{n+1}^\dag) \right. \nn\\
+                            &\quad \left. + g_F (a_N a_1 + a_N a_1^\dag - a_N^\dag a_1 - a_N^\dag a_1^\dag)\right] \nn\\
+                            &\quad -\frac{\sin\theta}{2} \sum_{n=1}^N (a_n a_n^\dag - a_n^\dag a_n)
 \end{align}
 
-% Therefore, in the fermionic problem, it is possible to have anti-periodic boundary conditions or periodic boundary conditions depending on the parity even if the spin model has periodic boundary conditions. 
+Equivalently, in a fixed parity sector (so $g_F$ is a fixed number), we can write the interaction term in a translation-invariant form by defining
+the fermionic boundary condition
+\begin{align}
+    a_{N+1} = g_F a_1,\qquad a_{N+1}^\dag = g_F a_1^\dag.
+\end{align}
+Then the Hamiltonian can be expressed compactly as
+\begin{align}
+    H_{\mathrm{spin}}^{g_F}
+    &= \frac{\cos\theta}{2}\sum_{n=1}^{N} (a_n-a_n^\dag)(a_{n+1}+a_{n+1}^\dag)
+    -\frac{\sin\theta}{2}\sum_{n=1}^{N} (a_n a_n^\dag - a_n^\dag a_n),
+    \label{eq:H_ferm_realspace}
+\end{align}
+where $a_{N+1}$ is understood via the boundary condition above. This is the starting point for the Fourier/Bogoliubov diagonalization below.
 
-For a spin system with periodic boundary conditions ($g_I = 1$), the fermionic representation has $g_F = -1$ in the even parity sector and $g_F = +1$ in the odd parity sector, corresponding to anti-periodic and periodic boundary conditions for the fermions, respectively.
+% Therefore, in the fermionic problem, it is possible to have antiperiodic boundary conditions or periodic boundary conditions depending on the parity even if the spin model has periodic boundary conditions. 
+
+For a spin system with periodic boundary conditions ($g_I = 1$), the fermionic representation has $g_F = -1$ in the even parity sector and $g_F = +1$ in the odd parity sector, corresponding to antiperiodic and periodic boundary conditions for the fermions, respectively.
+For a spin system with anti-periodic boundary conditions ($g_I=-1$), this is swapped: $g_F=+1$ in the even parity sector and $g_F=-1$ in the odd parity sector.
 
 \subsection{Fourier Transformation}
+To diagonalize the quadratic fermionic Hamiltonian, we define $\phi_k = \frac{2\pi k}{N}$ and transform to momentum space using the Fourier transform:
+\begin{align}
+    \ta_k      &= \frac{1}{\sqrt{N}} \sum_{n=1}^N e^{-i n\phi_{k}} a_n,\\
+    \ta_k^\dag &= \frac{1}{\sqrt{N}} \sum_{n=1}^N e^{+i n\phi_{k}} a_n^\dag.
+\end{align}
+The inverse transformations are:
+\begin{align}
+    a_n      &= \frac{1}{\sqrt{N}} \sum_{k} e^{+i n\phi_k} \ta_k, \label{eq:fourier_def_ann}\\
+    a_n^\dag &= \frac{1}{\sqrt{N}} \sum_{k} e^{-i n\phi_k} \ta_k^\dag. \label{eq:fourier_def_cre}
+\end{align}
+This is the standard ``origin at $n=0$'' Fourier convention written on the site labels $n=1,\dots,N$.
+Using $e^{\pm i(n-1)\phi_k}$ instead (common when emphasizing the site index $n=1$ as the origin)
+would simply redefine the momentum operators by a $k$-dependent phase
+($\ta_k^{(n-1)} = e^{+i\phi_k}\,\ta_k^{(n)}$), and does not affect any physical results as long as the convention
+is used consistently.
+Here, the sum over $k$ is determined by the fermionic boundary conditions, which depend on the spin parity sector. For periodic boundary conditions ($g_F = 1$), $k$ takes integer values $k \in \{-\frac{N}{2}+1, \dots, \frac{N}{2}\}$. For antiperiodic boundary conditions ($g_F = -1$), $k$ takes half-integer values $k \in \{-\frac{N-1}{2}, \dots, \frac{N-1}{2}\}$.
 
-To diagonalize the Hamiltonian, we first transform to momentum space using the Fourier transform:
-\begin{align}
-    \tilde{a}_k         &= \frac{1}{\sqrt{N}} \sum_{n=1}^N e^{i \frac{2\pi k n}{N}} a_n,\\
-    \tilde{a}_k^\dagger &= \frac{1}{\sqrt{N}} \sum_{n=1}^N e^{-i \frac{2\pi k n}{N}} a_n^\dagger
-\end{align}
-For the inverse transformation, we have:
-\begin{align}
-    a_n         &= \frac{1}{\sqrt{N}} \sum_{k} e^{-i\frac{2\pi kn}{N}} \tilde{a}_k, \label{eq:fourier_def_ann}\\
-    a_n^\dagger &= \frac{1}{\sqrt{N}} \sum_{k} e^{i\frac{2\pi kn}{N}} \tilde{a}_k^\dagger. \label{eq:fourier_def_cre}
-\end{align}
-Here the sum over $k$ needs to be choosen differently for the even and odd parity sectors, and correspondingly for the fermionic PBC and APBC cases. For PBC of the fermionic model, we have $g_F = 1$, the inverse Fourier transform is:
-\begin{align}
-    a_n         &= \frac{1}{\sqrt{N}} \sum_{k=-N/2+1}^{N/2} e^{-i\frac{2\pi kn}{N}} \tilde{a}_k, \label{eq:fourier_def_ann_gF1}\\
-    a_n^\dagger &= \frac{1}{\sqrt{N}} \sum_{k=-N/2+1}^{N/2} e^{i\frac{2\pi kn}{N}} \tilde{a}_k^\dagger. \label{eq:fourier_def_cre_gF1}
-\end{align}
-For anti-periodic boundary conditions $g_F = -1$, we would need a different inverse Fourier transform.
-\begin{align}
-    a_n         &= \frac{1}{\sqrt{N}} \sum_{k=-(N-1)/2}^{(N-1)/2} e^{-i\frac{2\pi kn}{N}} \tilde{a}_k, \label{eq:fourier_def_ann_gFm1}\\
-    a_n^\dagger &= \frac{1}{\sqrt{N}} \sum_{k=-(N-1)/2}^{(N-1)/2} e^{i\frac{2\pi kn}{N}} \tilde{a}_k^\dagger. \label{eq:fourier_def_cre_gFm1}
-\end{align}
 
 \subsection{Fermionic PBC $g_F = 1$ Case}
 
-Let's transform each term of the Hamiltonian into momentum space. For the fermionic number operator:
+For $g_F=+1$ (fermionic PBC) the allowed momenta are integers
+$k\in\{-\frac{N}{2}+1,\dots,\frac{N}{2}\}$ (so $\phi_k=\frac{2\pi k}{N}$ includes the special values $\phi=0$ and $\phi=\pi$).
+Using the Fourier transform \cref{eq:fourier_def_ann,eq:fourier_def_cre} and normal ordering, the Hamiltonian decomposes into independent momentum blocks.
+
+It is useful to record the Fourier identities (valid on either momentum grid):
 \begin{align}
-    \sum_{n=1}^N a_n^\dagger a_n &= \sum_{n=1}^N \frac{1}{\sqrt{N}} \sum_{k=-\frac{N}{2}+1}^{\frac{N}{2}} e^{i\frac{2\pi k n}{N}} \tilde{a}_k^\dagger \cdot \frac{1}{\sqrt{N}} \sum_{k'=-\frac{N}{2}+1}^{\frac{N}{2}} e^{-i\frac{2\pi k' n}{N}} \tilde{a}_{k'}\\
-                                 &= \frac{1}{N} \sum_{n=1}^N \sum_{k,k'} e^{i\frac{2\pi(k-k')n}{N}} \tilde{a}_k^\dagger \tilde{a}_{k'}
+    \sum_{n=1}^N a_n^\dag a_{n+1} &= \sum_k e^{+i\phi_k}\,\ta_k^\dag\ta_k, \qquad
+    \sum_{n=1}^N a_n a_{n+1} = \sum_k e^{-i\phi_k}\,\ta_k\ta_{-k},\\
+    \sum_{n=1}^N a_n^\dag a_{n+1}^\dag &= \sum_k e^{+i\phi_k}\,\ta_k^\dag\ta_{-k}^\dag,\qquad
+    \sum_{n=1}^N a_n a_{n+1}^\dag = \sum_k e^{-i\phi_k}\,\ta_k\ta_k^\dag.
 \end{align}
-Using the identity $\sum_{n=1}^N e^{i\frac{2\pi(k-k')n}{N}} = N\delta_{k,k'}$, this simplifies to:
+For completeness, we show the derivation of the first identity (the rest follow analogously).
+Using \cref{eq:fourier_def_ann,eq:fourier_def_cre} and the boundary-compatible momentum grid,
 \begin{align}
-    \sum_{n=1}^N a_n^\dagger a_n &= \sum_{k=-\frac{N}{2}+1}^{\frac{N}{2}} \tilde{a}_k^\dagger \tilde{a}_k
+    \sum_{n=1}^N a_n^\dag a_{n+1}
+    &= \frac{1}{N}\sum_{n=1}^N \sum_{k,k'} e^{-in\phi_k} e^{+i(n+1)\phi_{k'}}\,\ta_k^\dag \ta_{k'} \nn\\
+    &= \frac{1}{N}\sum_{k,k'} e^{+i\phi_{k'}} \left(\sum_{n=1}^N e^{in(\phi_{k'}-\phi_k)}\right)\ta_k^\dag \ta_{k'} \nn\\
+    &= \sum_k e^{+i\phi_k}\,\ta_k^\dag \ta_k,
+\end{align}
+where we used $\sum_{n=1}^N e^{in(\phi_{k'}-\phi_k)}=N\delta_{k,k'}$ on the allowed momentum grid.
+As a second example (relevant for the pairing sector), we derive
+$\sum_n a_n a_{n+1}=\sum_k e^{-i\phi_k}\ta_k\ta_{-k}$:
+\begin{align}
+    \sum_{n=1}^N a_n a_{n+1}
+    &= \frac{1}{N}\sum_{n=1}^N \sum_{k,k'} e^{+in\phi_k} e^{+i(n+1)\phi_{k'}}\,\ta_k \ta_{k'} \nn\\
+    &= \frac{1}{N}\sum_{k,k'} e^{+i\phi_{k'}} \left(\sum_{n=1}^N e^{in(\phi_{k}+\phi_{k'})}\right)\ta_k \ta_{k'} \nn\\
+    &= \sum_k e^{-i\phi_{k}}\,\ta_k \ta_{-k},
+\end{align}
+where we used $\sum_{n=1}^N e^{in(\phi_{k}+\phi_{k'})}=N\delta_{k',-k}$ and $\phi_{-k}=-\phi_k$.
+
+\paragraph{Deriving the $(k,-k)$ block.}
+We now show the intermediate steps leading from the real-space fermion Hamiltonian \cref{eq:H_ferm_realspace}
+to the canonical paired-mode form \cref{eq:H_pair_form}.
+First expand the XX part and use the Fourier identities above:
+\begin{widetext}
+    \begin{align}
+        H_{\mathrm{spin}}^{g_F=1}
+        &= \frac{\cos\theta}{2}\sum_{n=1}^{N}(a_n-a_n^\dag)(a_{n+1}+a_{n+1}^\dag)
+           -\frac{\sin\theta}{2}\sum_{n=1}^{N}(a_n a_n^\dag-a_n^\dag a_n)\nn\\
+        &= \frac{\cos\theta}{2}\sum_{n=1}^{N}\Big(a_n a_{n+1} + a_n a_{n+1}^\dag - a_n^\dag a_{n+1} - a_n^\dag a_{n+1}^\dag\Big)
+           -\frac{\sin\theta}{2}\sum_{n=1}^{N}(a_n a_n^\dag-a_n^\dag a_n)\nn\\
+        &= \frac{\cos\theta}{2}\sum_{k}\Big(e^{-i\phi_k}\ta_k\ta_{-k}
+           + e^{-i\phi_k}\ta_k\ta_k^\dag
+           - e^{+i\phi_k}\ta_k^\dag\ta_k
+           - e^{+i\phi_k}\ta_k^\dag\ta_{-k}^\dag\Big)
+           -\frac{\sin\theta}{2}\sum_{k}\Big(\ta_k\ta_k^\dag-\ta_k^\dag\ta_k\Big).
+        \label{eq:H_momentum_raw}
+    \end{align}
+\end{widetext}
+Now consider a generic paired mode $k\neq 0,N/2$ and group the $k$ and $-k$ contributions (using $\phi_{-k}=-\phi_k$ on either momentum grid).
+It is convenient to separate number and pairing sectors.
+\begin{widetext}
+    \begin{align}
+        \mathcal{N}_{k,-k}
+        &\equiv e^{-i\phi_k}\ta_k\ta_k^\dag - e^{+i\phi_k}\ta_k^\dag\ta_k
+          + e^{+i\phi_k}\ta_{-k}\ta_{-k}^\dag - e^{-i\phi_k}\ta_{-k}^\dag\ta_{-k}\nn\\
+        &= (e^{-i\phi_k}+e^{+i\phi_k})
+           - (e^{-i\phi_k}+e^{+i\phi_k})\,(\ta_k^\dag\ta_k+\ta_{-k}^\dag\ta_{-k})\nn\\
+        &= -2\cos\phi_k\,(\ta_k^\dag\ta_k+\ta_{-k}^\dag\ta_{-k}-1),
+    \end{align}
+\end{widetext}
+where we used normal ordering $\ta_k\ta_k^\dag=1-\ta_k^\dag\ta_k$ and $e^{-i\phi}+e^{+i\phi}=2\cos\phi$.
+Similarly for the pairing sector,
+\begin{widetext}
+    \begin{align}
+        \mathcal{P}_{k,-k}
+        &\equiv e^{-i\phi_k}\ta_k\ta_{-k} - e^{+i\phi_k}\ta_k^\dag\ta_{-k}^\dag
+          + e^{+i\phi_k}\ta_{-k}\ta_k - e^{-i\phi_k}\ta_{-k}^\dag\ta_k^\dag\nn\\
+        &= (e^{-i\phi_k}-e^{+i\phi_k})\,(\ta_k\ta_{-k}+\ta_k^\dag\ta_{-k}^\dag)\nn\\
+        &= -2i\sin\phi_k\,(\ta_k^\dag\ta_{-k}^\dag-\ta_{-k}\ta_k),
+    \end{align}
+\end{widetext}
+where we used fermionic anticommutation to reorder $\ta_{-k}\ta_k=-\ta_k\ta_{-k}$ and $\ta_{-k}^\dag\ta_k^\dag=-\ta_k^\dag\ta_{-k}^\dag$,
+and then Euler's identity $e^{-i\phi}-e^{+i\phi}=-2i\sin\phi$.
+
+Combining the $k$ and $-k$ pieces of \cref{eq:H_momentum_raw} gives
+\begin{widetext}
+    \begin{align}
+        H_{k,-k}
+        &= \frac{\cos\theta}{2}\big(\mathcal{N}_{k,-k}+\mathcal{P}_{k,-k}\big)\nn\\
+        &\quad
+           -\frac{\sin\theta}{2}\Big[(\ta_k\ta_k^\dag-\ta_k^\dag\ta_k)
+           +(\ta_{-k}\ta_{-k}^\dag-\ta_{-k}^\dag\ta_{-k})\Big]\nn\\
+        &= \big(\sin\theta-\cos\theta\cos\phi_k\big)\,(\ta_k^\dag\ta_k+\ta_{-k}^\dag\ta_{-k}-1)\nn\\
+        &\quad
+           + i\big(-\cos\theta\sin\phi_k\big)\,(\ta_k^\dag\ta_{-k}^\dag-\ta_{-k}\ta_k),
+    \end{align}
+\end{widetext}
+which is the canonical form quoted below.
+
+Applying these steps to \cref{eq:H_ferm_realspace} and normal ordering $\ta_k\ta_k^\dag=1-\ta_k^\dag\ta_k$, the $(k,-k)$ contribution for a generic paired mode ($k\neq 0,N/2$) can be written as
+\begin{align}
+    H_{k,-k}
+    &= w_k\,(\ta_k^\dag\ta_k+\ta_{-k}^\dag\ta_{-k}-1)
+       + i r_k\,(\ta_k^\dag\ta_{-k}^\dag-\ta_{-k}\ta_k),
+    \label{eq:H_pair_form}
+\end{align}
+with
+\begin{align}
+    w_k = \sin\theta - \cos\theta\cos\phi_k,\qquad
+    r_k = -\cos\theta\sin\phi_k.
 \end{align}
 
-Next, we transform the interaction terms. For the pairing term:
+For the generic paired modes $k\neq 0, N/2$ we define the Nambu spinor
+$\tal_k=(\ta_k,\ta_{-k}^\dag)^T$ and obtain
 \begin{align}
-    \sum_{n=1}^{N} a_n a_{n+1} &= \sum_{n=1}^{N} \frac{1}{\sqrt{N}} \sum_{k} e^{-i\frac{2\pi k n}{N}} \tilde{a}_k \cdot \frac{1}{\sqrt{N}} \sum_{k'} e^{-i\frac{2\pi k' (n+1)}{N}} \tilde{a}_{k'}\\
-                               &= \frac{1}{N} \sum_{n=1}^{N} \sum_{k,k'} e^{-i\frac{2\pi(kn+k'n+k')}{N}} \tilde{a}_k \tilde{a}_{k'}\\
-                               &= \frac{1}{N} \sum_{k,k'} \tilde{a}_k \tilde{a}_{k'} e^{-i\frac{2\pi k'}{N}} \sum_{n=1}^{N} e^{-i\frac{2\pi(k+k')n}{N}}\\
-                               &= \sum_{k,k'} \tilde{a}_k \tilde{a}_{k'} e^{-i\frac{2\pi k'}{N}} \delta_{k+k',0}\\
-                               &= \sum_{k} \tilde{a}_k \tilde{a}_{-k} e^{+i\frac{2\pi k}{N}}
+    H_{\mathrm{spin}}^{g_F=1}
+    &= \sum_{k=1}^{N/2-1} \tal_k^\dag \tH_k \tal_k + H_{k=0} + H_{k=N/2},
 \end{align}
-where we used $\sum_{n=1}^N e^{i\frac{2\pi(k'-k)n}{N}} = N\delta_{k,k'}$.
-
-% And similarly for the other interaction terms:
-% \begin{align}
-%     \sum_{n=1}^{N} a_n^\dagger a_{n+1}^\dagger &= ...\\
-%     \sum_{n=1}^{N} a_n^\dagger a_{n+1}         &= ...\\
-%     \sum_{n=1}^{N} a_n a_{n+1}^\dagger         &= ...
-% \end{align}
-
-
-Similarly, for the other interaction terms:
+where the $2\times 2$ Bogoliubov--de Gennes block is
 \begin{align}
-    \sum_{n=1}^{N} a_n a_{n+1}^\dagger         &= \sum_{k} \tilde{a}_k \tilde{a}_{k}^\dagger e^{i\frac{2\pi k}{N}}\\
-    \sum_{n=1}^{N} a_n^\dagger a_{n+1}         &= \sum_{k} \tilde{a}_k^\dagger \tilde{a}_{k} e^{-i\frac{2\pi k}{N}}\\
-    \sum_{n=1}^{N} a_n^\dagger a_{n+1}^\dagger &= \sum_{k} \tilde{a}_k^\dagger \tilde{a}_{-k}^\dagger e^{-i\frac{2\pi k}{N}}
-\end{align}
-Collecting all terms and using the anti-commutation relation $\tilde{a}_k \tilde{a}_k^\dagger = 1 - \tilde{a}_k^\dagger \tilde{a}_k$, the Hamiltonian in momentum space becomes:
-\begin{align}
-    H_{\mathrm{spin}}^{g_F=1} &= \frac{\cos\theta}{2} \left[ \sum_{k=-\frac{N}{2}+1}^{\frac{N}{2}} \tilde{a}_k \tilde{a}_{-k} e^{i\frac{2\pi k}{N}} - \sum_{k=-\frac{N}{2}+1}^{\frac{N}{2}} \tilde{a}_k^\dagger \tilde{a}_k e^{i\frac{2\pi k}{N}} \right. \nonumber\\
-                              &\quad \left. - \sum_{k=-\frac{N}{2}+1}^{\frac{N}{2}} \tilde{a}_k^\dagger \tilde{a}_{k} e^{-i\frac{2\pi k}{N}} - \sum_{k=-\frac{N}{2}+1}^{\frac{N}{2}} \tilde{a}_k^\dagger \tilde{a}_{-k}^\dagger e^{-i\frac{2\pi k}{N}} \right] \nonumber\\
-                              &\quad + \frac{\sin\theta \cdot N}{2} - \sin\theta \sum_{k=-\frac{N}{2}+1}^{\frac{N}{2}} \tilde{a}_k^\dagger \tilde{a}_k
-\end{align}
-
-
-Using Euler's formula to express the complex exponentials and grouping terms, we can rewrite this in a more compact form for $k \neq 0, N/2$:
-\begin{align}
-    H_{\mathrm{spin}}^{g_F=1} &= \sum_{k=1}^{N/2-1} \tilde{\alpha}_k^\dagger \tilde{H}_k \tilde{\alpha}_k + H_{k=0} + H_{k=N/2} + \text{const.}
-\end{align}
-where $\tilde{\alpha}_k = (\tilde{a}_k, \tilde{a}_{-k}^\dagger)^T$ and the $2 \times 2$ matrix $\tilde{H}_k$ is:
-\begin{align}
-    \tilde{H}_k &=
+    \tH_k &=
     \begin{pmatrix}
-        -\sin\theta - \cos\theta\cos\left(\frac{2\pi k}{N}\right) &-\cos\theta \sin\left(\frac{2\pi k}{N}\right) i\\
-        \cos\theta \sin\left(\frac{2\pi k}{N}\right) i            &\sin\theta + \cos\theta\cos\left(\frac{2\pi k}{N}\right)
-    \end{pmatrix}\\
-                &=
-    \begin{pmatrix}
-        w_k   &ir_k\\
-        -ir_k &-w_k
-    \end{pmatrix}
+        w_k   & i r_k\\
+        -i r_k& -w_k
+    \end{pmatrix},
+    \qquad
+    w_k = \sin\theta - \cos\theta\cos\phi_k,\qquad
+    r_k = -\cos\theta\sin\phi_k.
+    \label{eq:bdg_block}
 \end{align}
-with $w_k = -\sin\theta - \cos\theta\cos\left(\frac{2\pi k}{N}\right)$ and $r_k = -\cos\theta \sin\left(\frac{2\pi k}{N}\right)$.
-
-For the additional terms at $k=0$ and $k=N/2$, we have:
-we obtain only diagonal terms for both $H_{k=0,N/2}$. In particular, we have
-% \begin{align}
-%     H_{k=0}   &= \left(\frac{\sin\theta}{2} + \frac{\cos\theta}{2}\right)(\tilde{a}_0^\dagger \tilde{a}_0 - \tilde{a}_0 \tilde{a}_0^\dagger)\\
-%     H_{k=N/2} &= \left(\frac{\sin\theta}{2} - \frac{\cos\theta}{2}\right)(\tilde{a}_{N/2}^\dagger \tilde{a}_{N/2} - \tilde{a}_{N/2} \tilde{a}_{N/2}^\dagger)
-% \end{align}
+As a quick consistency check, expanding $\tal_k^\dag\tH_k\tal_k$ gives
 \begin{align}
-    H_{k=0}   &= -(\sin\theta + \cos\theta)(\frac{1}{2} - \tilde{a}_0^\dagger \tilde{a}_0)\\
-    H_{k=N/2} &= -(\sin\theta - \cos\theta)(\frac{1}{2} - \tilde{a}_{N/2}^\dagger \tilde{a}_{N/2})
+    \tal_k^\dag \tH_k \tal_k
+    &= w_k(\ta_k^\dag\ta_k-\ta_{-k}\ta_{-k}^\dag)
+       + i r_k(\ta_k^\dag\ta_{-k}^\dag-\ta_{-k}\ta_k)\nn\\
+    &= w_k(\ta_k^\dag\ta_k+\ta_{-k}^\dag\ta_{-k}-1)
+       + i r_k(\ta_k^\dag\ta_{-k}^\dag-\ta_{-k}\ta_k),
 \end{align}
-which is diagonal in the mode $\tilde{a}_{0}$/$\tilde{a}_{N/2}$.
+which matches \cref{eq:H_pair_form} after normal ordering.
+The special modes have $r_k=0$ and are already diagonal:
+\begin{align}
+    H_{k=0} &= \frac{w_0}{2}(\ta_0^\dag\ta_0 - \ta_0\ta_0^\dag),\qquad w_0=\sin\theta-\cos\theta,\\
+    H_{k=N/2} &= \frac{w_{N/2}}{2}(\ta_{N/2}^\dag\ta_{N/2} - \ta_{N/2}\ta_{N/2}^\dag),\qquad w_{N/2}=\sin\theta+\cos\theta.
+\end{align}
 
 \subsection{Fermionic APBC $g_F = -1$ Case}
 
-For the case with anti-periodic boundary conditions ($g_F = -1$), we use the Fourier transform with half-integer momentum values:
+For $g_F=-1$ (fermionic APBC) the allowed momenta are half-integers
+$k\in\{-\frac{N-1}{2},\dots,\frac{N-1}{2}\}$.
+There are no special modes ($\phi_k\not\in\{0,\pi\}$), and the Hamiltonian again decomposes into independent Nambu blocks of the form \cref{eq:bdg_block}:
 \begin{align}
-    a_n         &= \frac{1}{\sqrt{N}} \sum_{k=-(N-1)/2}^{(N-1)/2} e^{-i\frac{2\pi kn}{N}} \tilde{a}_k,\\
-    a_n^\dagger &= \frac{1}{\sqrt{N}} \sum_{k=-(N-1)/2}^{(N-1)/2} e^{i\frac{2\pi kn}{N}} \tilde{a}_k^\dagger.
+    H_{\mathrm{spin}}^{g_F=-1} &= \sum_{k=1/2}^{(N-1)/2} \tal_k^\dag \tH_k \tal_k.
 \end{align}
-Following similar transformations as in the PBC case, but accounting for the different momentum range and the anti-periodic boundary condition, we transform the Hamiltonian to momentum space.
 
-For the number operator:
+
+\section{Bogoliubov Transformation}
+\label{sec:bogoliubov}
+% NOTE (2026-02-04): Bogoliubov conventions are aligned with the numerical
+% implementation used for ED diagnostics (see Obs/ComputeModeBogoliubovData.m).
+% With the Fourier transform \cref{eq:fourier_def_ann,eq:fourier_def_cre}, the
+% BdG block \cref{eq:bdg_block} has
+%   w_k = \sin\theta - \cos\theta\cos\phi_k,
+%   r_k = -\cos\theta\sin\phi_k,
+%   \epsilon_k = \sqrt{w_k^2+r_k^2} = \sqrt{1-\sin(2\theta)\cos\phi_k},
+% and the special-mode labels are fixed by \phi_0=0 and \phi_{N/2}=\pi so that
+% w_0=\sin\theta-\cos\theta and w_{N/2}=\sin\theta+\cos\theta. No additional
+% gauge shift is applied.
+To fully diagonalize the Hamiltonian and obtain the free quasiparticle energies, we apply a Bogoliubov transformation. For modes with $k \neq 0, N/2$, we need to diagonalize the $2 \times 2$ matrix $\tH_k$. The Bogoliubov transformation mixes the $\ta_k$ and $\ta_{-k}^\dag$ operators:
 \begin{align}
-    \sum_{n=1}^N a_n^\dagger a_n &= \sum_{k=-(N-1)/2}^{(N-1)/2} \tilde{a}_k^\dagger \tilde{a}_k
+    \hat{a}_k         &= \cos(\varphi_k) \ta_k + i\sin(\varphi_k) \ta_{-k}^\dag,\\
+    \hat{a}_{-k}^\dag &= i\sin(\varphi_k) \ta_k + \cos(\varphi_k) \ta_{-k}^\dag,
 \end{align}
-For the interaction terms, we need to carefully treat the boundary term due to the anti-periodic boundary conditions. After performing the transformations, we find:
+where the Bogoliubov angle $\varphi_k$ is chosen to diagonalize $\tH_k$.
+
+To find the angle $\varphi_k$, we need to diagonalize the matrix:
 \begin{align}
-    \sum_{n=1}^{N-1} a_n a_{n+1} + g_F a_N a_1                                 &= \sum_{k=-(N-1)/2}^{(N-1)/2} \tilde{a}_k \tilde{a}_{-k} e^{i\frac{2\pi k}{N}}\\
-    \sum_{n=1}^{N-1} a_n a_{n+1}^\dagger + g_F a_N a_1^\dagger                 &= \sum_{k=-(N-1)/2}^{(N-1)/2} \tilde{a}_k \tilde{a}_{k}^\dagger e^{i\frac{2\pi k}{N}}\\
-    \sum_{n=1}^{N-1} a_n^\dagger a_{n+1} + g_F a_N^\dagger a_1                 &= \sum_{k=-(N-1)/2}^{(N-1)/2} \tilde{a}_k^\dagger \tilde{a}_{k} e^{-i\frac{2\pi k}{N}}\\
-    \sum_{n=1}^{N-1} a_n^\dagger a_{n+1}^\dagger + g_F a_N^\dagger a_1^\dagger &= \sum_{k=-(N-1)/2}^{(N-1)/2} \tilde{a}_k^\dagger \tilde{a}_{-k}^\dagger e^{-i\frac{2\pi k}{N}}
-\end{align}
-Combining all terms, the Hamiltonian in momentum space for the APBC case becomes:
-\begin{align}
-    H_{\mathrm{spin}}^{g_F=-1} &= \sum_{k=-(N-1)/2}^{(N-1)/2} \tilde{\alpha}_k^\dagger \tilde{H}_k \tilde{\alpha}_k + \text{const.}
-\end{align}
-where $\tilde{\alpha}_k = (\tilde{a}_k, \tilde{a}_{-k}^\dagger)^T$ and the $2 \times 2$ matrix $\tilde{H}_k$ has the same form as before, but with the momenta $k$ taking half-integer values:
-\begin{align}
-    \tilde{H}_k &=
-    \begin{pmatrix}
-        -\sin\theta - \cos\theta\cos\left(\frac{2\pi k}{N}\right) &-\cos\theta i\sin\left(\frac{2\pi k}{N}\right)\\
-        \cos\theta i\sin\left(\frac{2\pi k}{N}\right)             &\sin\theta + \cos\theta\cos\left(\frac{2\pi k}{N}\right)
-    \end{pmatrix}\\
-                &=
+    \tH_k &=
     \begin{pmatrix}
         w_k   &ir_k\\
         -ir_k &-w_k
+    \end{pmatrix}.
+\end{align}
+The eigenvalues of this matrix are $\pm\epsilon_k$ where:
+\begin{align}
+    \epsilon_k &= \sqrt{w_k^2 + r_k^2}\\
+               &= \sqrt{(\sin\theta - \cos\theta\cos\phi_k)^2 + (\cos\theta\sin\phi_k)^2}\nn\\
+               &= \sqrt{\sin^2\theta - 2\sin\theta\cos\theta\cos\phi_k + \cos^2\theta(\cos^2\phi_k+\sin^2\phi_k)}\nn\\
+               &= \sqrt{1 - 2\sin\theta\cos\theta\cos\phi_k}
+               = \sqrt{1 - \sin(2\theta)\cos\phi_k}.
+\end{align}
+The Bogoliubov angle is determined by:
+\begin{align}
+    \tan(2\varphi_k) &= \frac{r_k}{w_k}\\
+                     &= \frac{-\cos\theta\sin\phi_k}{\sin\theta - \cos\theta\cos\phi_k}.
+\end{align}
+
+Let us verify that this transformation diagonalizes the Hamiltonian. The transformation can be written in matrix form as:
+\begin{align}
+    \begin{pmatrix}
+        \hat{a}_k\\
+        \hat{a}_{-k}^\dag
     \end{pmatrix}
+    = U_k
+    \begin{pmatrix}
+        \ta_k\\
+        \ta_{-k}^\dag
+    \end{pmatrix},
+    \quad
+    U_k =
+    \begin{pmatrix}
+        \cos\varphi_k  & i\sin\varphi_k\\
+        i\sin\varphi_k &\cos\varphi_k
+    \end{pmatrix}.
 \end{align}
-with $w_k = -\sin\theta - \cos\theta\cos\left(\frac{2\pi k}{N}\right)$ and $r_k = -\cos\theta \sin\left(\frac{2\pi k}{N}\right)$.
-
-Note that in this case, there are no special modes like $k=0$ or $k=N/2$ that require separate treatment, as all momentum values are half-integers.
-
-\section{Bogoliubov Transformation}
-
-To fully diagonalize the Hamiltonian, we apply a Bogoliubov transformation:
+The Hamiltonian matrix for mode $k$ is diagonalized by this transformation.
+With the correct choice of $\varphi_k$, we have:
 \begin{align}
-    \hat{a}_k            &= \cos(\varphi_k) \tilde{a}_k + \sin(\varphi_k) \tilde{a}_{-k}^\dagger,\\
-    \hat{a}_{-k}^\dagger &= -\sin(\varphi_k) \tilde{a}_k + \cos(\varphi_k) \tilde{a}_{-k}^\dagger,
-\end{align}
-where the Bogoliubov angle $\varphi_k$ is determined by:
-\begin{align}
-    \tan(2\varphi_k) &= \frac{-2r_k}{2w_k}\\
-                     &= \frac{\cos\theta\sin\left(\frac{2\pi k}{N}\right)}{\sin\theta + \cos\theta\cos\left(\frac{2\pi k}{N}\right)}
-\end{align}
-With this choice of $\varphi_k$, the Hamiltonian in the new basis becomes:
-\begin{align}
-    \hat{H}_k &=
+    U_k \tH_k U_k^\dag =
     \begin{pmatrix}
         \epsilon_k &0\\
         0          &-\epsilon_k
-    \end{pmatrix}
+    \end{pmatrix}.
 \end{align}
-where $\epsilon_k$ is the mode energy:
-\begin{align}
-    \epsilon_k &= \sqrt{w_k^2 + r_k^2}\\
-               &= \sqrt{(\sin\theta + \cos\theta\cos\left(\frac{2\pi k}{N}\right))^2 + (\cos\theta\sin\left(\frac{2\pi k}{N}\right))^2}\\
-               &= \sqrt{1 + \sin(2\theta)\cos\left(\frac{2\pi k}{N}\right)}
-\end{align}
-This expression for the mode energy applies to both the PBC and APBC cases, with the appropriate momentum values $k$ for each case.
 
-The diagonalized Hamiltonian takes the form:
+Therefore, for $k \in \{1, \ldots, N/2-1\}$:
 \begin{align}
-    H_{\mathrm{spin}}^{g_F=\pm 1} &= \sum_{k} \epsilon_k (2\hat{a}_k^\dagger \hat{a}_k - 1) + \text{const.}
+    \tal_k^\dag \tH_k \tal_k &= \epsilon_k \hat{a}_k^\dag \hat{a}_k - \epsilon_k \hat{a}_{-k} \hat{a}_{-k}^\dag\\
+                             &= \epsilon_k \hat{a}_k^\dag \hat{a}_k - \epsilon_k (1 - \hat{a}_{-k}^\dag \hat{a}_{-k})\\
+                             &= \epsilon_k (\hat{a}_k^\dag \hat{a}_k - \hat{a}_{-k}\hat{a}_{-k}^\dag).
 \end{align}
-where the sum is over the appropriate momentum values.
 
-For the $g_F=1$ case, the Hamiltonian is:
+For the special modes $k=0$ and $k=N/2$ (present only for fermionic PBC, $g_F=+1$), we have $\sin\phi_k=0$ so $r_k=0$ and the Hamiltonian is already diagonal:
 \begin{align}
-    H_{\mathrm{spin}}^{g_F=1} &= \sum_{k=1}^{N/2-1} \epsilon_k (2\hat{a}_k^\dagger \hat{a}_k - 1) \\
-    &\quad + \epsilon_0 (2\hat{a}_0^\dagger \hat{a}_0 - 1) + \epsilon_{N/2} (2\hat{a}_{N/2}^\dagger \hat{a}_{N/2} - 1) + \text{const.}
+    H_{k=0}
+     &= \frac{w_0}{2}(\ta_0^\dag \ta_0 - \ta_0 \ta_0^\dag)
+      = \frac{w_0}{2}(\hat{a}_0^\dag \hat{a}_0 - \hat{a}_0 \hat{a}_0^\dag),\\
+    H_{k=N/2}
+     &= \frac{w_{N/2}}{2}(\ta_{N/2}^\dag \ta_{N/2} - \ta_{N/2} \ta_{N/2}^\dag)
+      = \frac{w_{N/2}}{2}(\hat{a}_{N/2}^\dag \hat{a}_{N/2} - \hat{a}_{N/2} \hat{a}_{N/2}^\dag),
 \end{align}
-where $\epsilon_0 = |\sin\theta + \cos\theta|$ and $\epsilon_{N/2} = |\sin\theta - \cos\theta|$.
+with $w_0=\sin\theta-\cos\theta$ and $w_{N/2}=\sin\theta+\cos\theta$. The corresponding excitation energies are $\epsilon_0=|w_0|$ and $\epsilon_{N/2}=|w_{N/2}|$.
 
-For the $g_F=-1$ case, the Hamiltonian is:
+Collecting all modes, the diagonalized Hamiltonian is
 \begin{align}
-    H_{\mathrm{spin}}^{g_F=-1} &= \sum_{k=-(N-1)/2}^{(N-1)/2} \epsilon_k (2\hat{a}_k^\dagger \hat{a}_k - 1) + \text{const.}
+    H_{\mathrm{spin}}^{g_F=1} &= \sum_{k=1}^{N/2-1} \epsilon_k h_k + \frac{w_0}{2} h_0 + \frac{w_{N/2}}{2} h_{N/2},\\
+    H_{\mathrm{spin}}^{g_F=-1} &= \sum_{k=1/2}^{(N-1)/2} \epsilon_k h_k,
 \end{align}
-where $\epsilon_k = \sqrt{1 + \sin(2\theta)\cos\left(\frac{2\pi k}{N}\right)}$ for half-integer $k$.
+with the mode operators defined as
+\begin{align}
+    h_k &\equiv \hat{a}_k^\dag \hat{a}_k - \hat{a}_{-k}\hat{a}_{-k}^\dag \qquad (k\neq 0,N/2),\\
+    h_k &\equiv \hat{a}_k^\dag \hat{a}_k - \hat{a}_{k}\hat{a}_{k}^\dag = 2\hat{a}_k^\dag \hat{a}_k - 1 \qquad (k=0,N/2).
+\end{align}
+For numerical mode diagnostics it is often convenient to use the equivalent symmetrized form
+\begin{align}
+    H_{\mathrm{spin}}^{g_F} = \frac{1}{2}\sum_{k} \mathrm{coeff}_k\, h_k,
+\end{align}
+where the sum runs over the full allowed $k$ grid (including both $\pm k$), $\mathrm{coeff}_k=\epsilon_k$ for generic modes, and $\mathrm{coeff}_k=w_k$ (signed) for the special modes.
 
 \subsection{Going back to the spin operators}
 
-To track the cooling of specific modes in the spin model, we measure the mode energies:
-\begin{align}
-    \epsilon_k &= \epsilon_k (2\hat{a}_k^\dagger \hat{a}_k - 1)
-\end{align}
-Our goal is to express $\hat{a}_k^\dagger \hat{a}_k$ in terms of the original Pauli operators, which involves tracing back through the sequence of transformations (Bogoliubov, Fourier, JW).
+To track the cooling of specific modes in the spin model, we measure the expectation value of the mode operators $h_k$. Our goal is to express these operators in terms of the original Pauli operators, which involves tracing back through the sequence of transformations (Bogoliubov, Fourier, JW). The operators are defined as $h_k = \hat{a}_k^\dag \hat{a}_k - \hat{a}_{-k}\hat{a}_{-k}^\dag$ for $k \neq 0, N/2$ and $h_k = \hat{a}_k^\dag \hat{a}_k - \hat{a}_k\hat{a}_k^\dag$ for $k = 0, N/2$.
 
-Starting with the Bogoliubov transformation:
+\subsubsection{Generic modes ($k \neq 0, N/2$)}
+
+We start by expressing $h_k$ in terms of the momentum-space fermion operators $\ta_k, \ta_k^\dag$ using the Bogoliubov transformation. Writing
 \begin{align}
-    \hat{a}_k^\dagger \hat{a}_k &= (\cos(\varphi_k) \tilde{a}_k^\dagger + \sin(\varphi_k) \tilde{a}_{-k})(\cos(\varphi_k) \tilde{a}_k + \sin(\varphi_k) \tilde{a}_{-k}^\dagger)\\
-                                &= \cos^2(\varphi_k) \tilde{a}_k^\dagger \tilde{a}_k + \sin^2(\varphi_k) (1 - \tilde{a}_{-k}^\dagger \tilde{a}_{-k})\\
-                                &\quad + \sin(\varphi_k)\cos(\varphi_k) (\tilde{a}_k^\dagger \tilde{a}_{-k}^\dagger + \tilde{a}_{-k}\tilde{a}_k)
+    \begin{pmatrix}
+        \hat{a}_k\\
+        \hat{a}_{-k}^\dag
+    \end{pmatrix}
+    = U_k
+    \begin{pmatrix}
+        \ta_k\\
+        \ta_{-k}^\dag
+    \end{pmatrix},
+    \qquad
+    U_k =
+    \begin{pmatrix}
+        \cos\varphi_k  & i\sin\varphi_k\\
+        i\sin\varphi_k & \cos\varphi_k
+    \end{pmatrix},
 \end{align}
-Using the Fourier transform, we express momentum-space operators in real space:
+and using the fermionic anticommutation relations, one obtains the symmetric form
 \begin{align}
-    \tilde{a}_k^\dagger \tilde{a}_k            &= \frac{1}{N} \sum_{n,m=1}^N e^{i\frac{2\pi k (m-n)}{N}} a_n^\dagger a_m\\
-    \tilde{a}_{-k}^\dagger \tilde{a}_{-k}      &= \frac{1}{N} \sum_{n,m=1}^N e^{i\frac{2\pi k (n-m)}{N}} a_n^\dagger a_m\\
-    \tilde{a}_k^\dagger \tilde{a}_{-k}^\dagger &= \frac{1}{N} \sum_{n,m=1}^N e^{i\frac{2\pi k (m+n)}{N}} a_n^\dagger a_m^\dagger\\
-    \tilde{a}_{-k} \tilde{a}_k                 &= \frac{1}{N} \sum_{n,m=1}^N e^{-i\frac{2\pi k (m+n)}{N}} a_n a_m
+    h_k = \cos(2\varphi_k)(\ta_k^\dag\ta_k + \ta_{-k}^\dag\ta_{-k} - 1) + \sin(2\varphi_k)\, i(\ta_k^\dag\ta_{-k}^\dag - \ta_{-k}\ta_k).
+    \label{eq:hk_bogo_symmetric}
 \end{align}
-Finally, applying the JW transformation to express 
-%the real-space fermionic operators in terms of Pauli operators:
-%
-%\begin{align}
-%    \hat{a}_k^\dagger \hat{a}_k &= \cos^2(\varphi_k) \frac{1}{N} \sum_{n,m=1}^N e^{i\frac{2\pi k (m-n)}{N}} \left(S_n S_m \frac{(\sigma_{n,x} + i\sigma_{n,y})(\sigma_{m,x} - i\sigma_{m,y})}{4}\right)\nonumber\\
-%                                &\quad + \sin^2(\varphi_k) \left(1 - \frac{1}{N} \sum_{n,m=1}^N e^{i\frac{2\pi k (n-m)}{N}} \left(S_n S_m \frac{(\sigma_{n,x} + i\sigma_{n,y})(\sigma_{m,x} - i\sigma_{m,y})}{4}\right) \right)\nonumber\\
-%                                &\quad + \sin(\varphi_k)\cos(\varphi_k) \frac{1}{N} \sum_{n,m=1}^N \left[ e^{i\frac{2\pi k (m+n)}{N}} \left(S_n S_m \frac{(\sigma_{n,x} + i\sigma_{n,y})(\sigma_{m,x} + i\sigma_{m,y})}{4}\right) \right.\nonumber\\
-%                                &\quad \left. + e^{-i\frac{2\pi k (m+n)}{N}} \left(S_n S_m \frac{(\sigma_{n,x} - i\sigma_{n,y})(\sigma_{m,x} - i\sigma_{m,y})}{4}\right) \right]
-%\end{align}
-%This expression can be simplified 
-using spin raising and lowering operators $\sigma_n^{\pm} = \sigma_{n,x} \pm i\sigma_{n,y}$:
+Now, we substitute the Fourier transforms to express $h_k$ in terms of real-space operators $a_n$:
+\begin{align}
+    \ta_k^\dag \ta_k         &= \frac{1}{N} \sum_{n,m=1}^N e^{i (n-m)\phi_k} a_n^\dag a_m,\\
+    \ta_{-k}^\dag \ta_{-k}   &= \frac{1}{N} \sum_{n,m=1}^N e^{i (m-n)\phi_k} a_n^\dag a_m,\\
+    \ta_k^\dag \ta_{-k}^\dag &= \frac{1}{N} \sum_{n,m=1}^N e^{i (n-m)\phi_k} a_n^\dag a_m^\dag,\\
+    \ta_{-k} \ta_k           &= \frac{1}{N} \sum_{n,m=1}^N e^{i (n-m)\phi_k} a_n a_m.
+\end{align}
+
+
+% The fermionic bilinears become two-spin operators dressed by JW strings. To avoid ambiguity in operator ordering, we always write the strings in the split form $S_n\,\sigma_{n,\alpha}\,S_m\,\sigma_{m,\beta}$ (and not $S_n S_m\,\sigma_{n,\alpha} \sigma_{m,\beta}$). Using $\sigma_n^\pm = (\sigma_{n,x} \pm i\sigma_{n,y})/2$ and $a_n = -S_n \sigma_n^-$, we have:
+
+We next rewrite the JW bilinears in terms of split-string spin operators. Using $\sigma_n^\pm = (\sigma_{n,x} \pm i\sigma_{n,y})/2$ and $a_n = -S_n \sigma_n^-$, we obtain the identities
 \begin{widetext}
-\color{red}
-\begin{align}
-    \hat{a}_k^\dagger \hat{a}_k &= \cos^2(\varphi_k) \frac{1}{N} \sum_{n,m=1}^N e^{i\frac{2\pi k (m-n)}{N}} \left(S_n S_m \frac{\sigma_n^{+}\sigma_m^{-}}{4}\right)\\
-                                &\quad + \sin^2(\varphi_k) \left(1 - \frac{1}{N} \sum_{n,m=1}^N e^{i\frac{2\pi k (n-m)}{N}} \left(S_n S_m \frac{\sigma_n^{+}\sigma_m^{-}}{4}\right) \right)\\
-                                &\quad + \sin(\varphi_k)\cos(\varphi_k) \frac{1}{N} \sum_{n,m=1}^N \left[ e^{i\frac{2\pi k (m+n)}{N}} \left(S_n S_m \frac{\sigma_n^{+}\sigma_m^{+}}{4}\right) + e^{-i\frac{2\pi k (m+n)}{N}} \left(S_n S_m \frac{\sigma_n^{-}\sigma_m^{-}}{4}\right) \right]
-\end{align}
+    \begin{align}
+        a_n^\dag a_m      &= S_n \sigma_n^+ S_m \sigma_m^- = \frac{1}{4} S_n (\sigma_{n,x}+i\sigma_{n,y}) S_m (\sigma_{m,x}-i\sigma_{m,y})\nn\\
+                          &= \frac{1}{4}\Big( S_n \sigma_{n,x} S_m \sigma_{m,x} + S_n \sigma_{n,y} S_m \sigma_{m,y}
+        + i(S_n \sigma_{n,y} S_m \sigma_{m,x} - S_n \sigma_{n,x} S_m \sigma_{m,y}) \Big),
+        \label{eq:JW_bilin_1}\\
+        a_n^\dag a_m^\dag &= S_n \sigma_n^+ S_m \sigma_m^+ = \frac{1}{4} S_n (\sigma_{n,x}+i\sigma_{n,y}) S_m (\sigma_{m,x}+i\sigma_{m,y})\nn\\
+                          &= \frac{1}{4}\Big( S_n \sigma_{n,x} S_m \sigma_{m,x} - S_n \sigma_{n,y} S_m \sigma_{m,y}
+        + i(S_n \sigma_{n,x} S_m \sigma_{m,y} + S_n \sigma_{n,y} S_m \sigma_{m,x}) \Big),
+        \label{eq:JW_bilin_2}\\
+        a_n a_m           &= S_n \sigma_n^- S_m \sigma_m^- = \frac{1}{4} S_n (\sigma_{n,x}-i\sigma_{n,y}) S_m (\sigma_{m,x}-i\sigma_{m,y})\nn\\
+                          &= \frac{1}{4}\Big( S_n \sigma_{n,x} S_m \sigma_{m,x} - S_n \sigma_{n,y} S_m \sigma_{m,y}
+        - i(S_n \sigma_{n,x} S_m \sigma_{m,y} + S_n \sigma_{n,y} S_m \sigma_{m,x}) \Big).
+        \label{eq:JW_bilin_3}
+    \end{align}
 \end{widetext}
-The string operators $S_n S_m$ depends on the relative positions of $n$ and $m$:
+For compactness in what follows, we denote the split-string two-point spin correlators by
 \begin{align}
-    S_n S_m =
-    \begin{cases}
-        \prod_{j=\min(n,m)}^{\max(n,m)-1} \sigma_{j,z} & \text{if } n \neq m \\
-        1                                              & \text{if } n = m
-    \end{cases}
+    C^{\alpha\beta}_{nm} \equiv \big\langle S_n \sigma_{n,\alpha} S_m \sigma_{m,\beta} \big\rangle , \qquad \alpha,\beta\in\{x,y\}.
 \end{align}
-The mode energy $\epsilon_k = \epsilon_k (2\hat{a}_k^\dagger \hat{a}_k - 1)$ can thus be measured through correlation functions of Pauli operators, allowing us to track which modes are resonating and being cooled during the protocol.
+
+Third, we compute the expectation value $\langle h_k\rangle$ by combining density and pairing sectors. To this end, define
+\begin{align}
+    c \equiv \cos(2\varphi_k) = \frac{w_k}{\epsilon_k} , \qquad s \equiv \sin(2\varphi_k) = \frac{r_k}{\epsilon_k}.
+\end{align}
+From \cref{eq:hk_bogo_symmetric}, we have
+\begin{align}
+    \langle h_k\rangle
+    &= c\,\Big\langle \ta_k^\dag\ta_k + \ta_{-k}^\dag\ta_{-k} - 1 \Big\rangle
+    + s\,\Big\langle i(\ta_k^\dag\ta_{-k}^\dag - \ta_{-k}\ta_k) \Big\rangle.
+    \label{eq:hk_expect_split}
+\end{align}
+
+We now evaluate the two expectation values in \cref{eq:hk_expect_split} explicitly.
+Introduce the shorthand $\theta_{nm}=(n-m)\phi_k$.
+
+\paragraph{Density sector.}
+Using the Fourier relations in \cref{eq:fourier_def_ann,eq:fourier_def_cre}, we have
+\begin{align}
+    \ta_k^\dag\ta_k
+    &= \frac{1}{N}\sum_{n,m=1}^N e^{i\theta_{nm}}\,a_n^\dag a_m,\\
+    \ta_{-k}^\dag\ta_{-k}
+    &= \frac{1}{N}\sum_{n,m=1}^N e^{-i\theta_{nm}}\,a_n^\dag a_m.
+\end{align}
+Therefore,
+\begin{align}
+    \Big\langle \ta_k^\dag\ta_k + \ta_{-k}^\dag\ta_{-k} \Big\rangle
+    &= \frac{1}{N}\sum_{n,m=1}^N (e^{i\theta_{nm}}+e^{-i\theta_{nm}})\,\langle a_n^\dag a_m\rangle
+    = \frac{2}{N}\sum_{n,m=1}^N \cos\theta_{nm}\,\langle a_n^\dag a_m\rangle.
+\end{align}
+
+\paragraph{Pairing sector.}
+Similarly,
+\begin{align}
+    \ta_k^\dag\ta_{-k}^\dag
+    &= \frac{1}{N}\sum_{n,m=1}^N e^{i\theta_{nm}}\,a_n^\dag a_m^\dag,\\
+    \ta_{-k}\ta_k
+    &= \frac{1}{N}\sum_{n,m=1}^N e^{i\theta_{nm}}\,a_n a_m,
+\end{align}
+so that
+\begin{align}
+    \Big\langle i(\ta_k^\dag\ta_{-k}^\dag - \ta_{-k}\ta_k) \Big\rangle
+    &= \frac{i}{N}\sum_{n,m=1}^N e^{i\theta_{nm}}\,\langle a_n^\dag a_m^\dag - a_n a_m\rangle.
+\end{align}
+
+We next expand the real-space fermion bilinears using the split-string correlators
+$C^{\alpha\beta}_{nm}=\langle S_n\sigma_{n,\alpha}S_m\sigma_{m,\beta}\rangle$.
+From \cref{eq:JW_bilin_1,eq:JW_bilin_2,eq:JW_bilin_3}, we have
+\begin{align}
+    \langle a_n^\dag a_m\rangle
+    &= \frac{1}{4}\left(C^{xx}_{nm}+C^{yy}_{nm}+ i\,[C^{yx}_{nm}-C^{xy}_{nm}]\right),\\
+    \langle a_n^\dag a_m^\dag - a_n a_m\rangle
+    &= \frac{i}{2}\left(C^{xy}_{nm}+C^{yx}_{nm}\right).
+\end{align}
+The second identity follows by subtracting \cref{eq:JW_bilin_3} from \cref{eq:JW_bilin_2}.
+
+As a useful diagonal check, for $n=m$ we have $S_n^2=\Id$ and $\sigma_{n,\alpha}^2=\Id$, hence
+$C^{xx}_{nn}=C^{yy}_{nn}=1$, while the Pauli algebra gives
+$i[C^{yx}_{nn}-C^{xy}_{nn}]=2\langle\sigma_{n,z}\rangle$.
+Thus $\langle a_n^\dag a_n\rangle=\frac{1}{2}(1+\langle\sigma_{n,z}\rangle)$ is recovered automatically from the compact correlator combination above.
+
+Combining these identities yields the explicit result
+\begin{widetext}
+    \begin{align}
+        \langle h_k \rangle
+        &= \frac{c}{2N}\sum_{n,m=1}^N \cos\theta_{nm}\,\left(C^{xx}_{nm}+C^{yy}_{nm}+ i\,[C^{yx}_{nm}-C^{xy}_{nm}]\right)
+        - \frac{s}{2N}\sum_{n,m=1}^N e^{i\theta_{nm}}\,\left(C^{xy}_{nm}+C^{yx}_{nm}\right) - c.
+        \label{eq:hk_final}
+    \end{align}
+\end{widetext}
+The right-hand side is real, since $h_k$ is Hermitian. Any nonzero imaginary part provides a useful numerical check of correlator conventions and implementations. Note that the mixed correlators $C^{xy}$ and $C^{yx}$ are generally non-Hermitian, so they must be evaluated with the split-string order as written for each pair $(n,m)$ (do not fill them by conjugate mirroring unless one also swaps operators appropriately).
+
+\subsubsection{Special modes ($k=0, N/2$)}
+
+Special modes occur only for fermionic PBC ($g_F=+1$), where the momentum grid contains $k=0$ and $k=N/2$ (i.e., $\phi_k\in\{0,\pi\}$).
+For these modes $\sin\phi_k=0$ so $r_k=0$ and there is no Bogoliubov mixing; we set $\varphi_k=0$ and identify $\hat{a}_k=\ta_k$.
+The Hamiltonian contribution is
+\begin{align}
+    H_k = \frac{w_k}{2}\,h_k,\qquad h_k = 2\ta_k^\dag \ta_k - 1,
+\end{align}
+with $w_0=\sin\theta-\cos\theta$ and $w_{N/2}=\sin\theta+\cos\theta$ and excitation energies $\epsilon_k=|w_k|$.
+In a fixed fermion-parity sector, the special-mode occupations are constrained. In particular, in the even-parity sector used for the ED mode diagnostics in this repo, the special modes remain unoccupied so $\langle h_k\rangle=-1$ even when $w_0$ changes sign at $\theta=\pi/4$; the sign change is carried by the \emph{signed} coefficient $w_k$ (a constant shift within that sector), not by a flip of $h_k$.
+
+In terms of split-string correlators, one may obtain $\langle h_k\rangle$ by taking $s=0$ in \cref{eq:hk_final}.
+Since $e^{i\theta_{nm}}=\cos\theta_{nm}$ for $\phi_k\in\{0,\pi\}$, this reduces to
+\begin{align}
+    \langle h_k\rangle
+    = \frac{1}{2N}\sum_{n,m=1}^N \cos\theta_{nm}\,\left(C^{xx}_{nm}+C^{yy}_{nm}+ i\,[C^{yx}_{nm}-C^{xy}_{nm}]\right) - 1,
+\end{align}
+where $\theta_{nm}=(n-m)\phi_k$.
 
 \subsection{Ground State Parity and Gap Structure}
 
 The parity operator $P = \prod_{j=1}^{N} \sigma_{j,z}$ commutes with $H_{\mathrm{spin}}$, splitting the Hilbert space into even ($P = +1$) and odd ($P = -1$) sectors. From the mapping $g_F = -g_I \cdot P$, the spin PBC ($g_I = 1$) yields fermionic APBC ($g_F = -1$) in the even sector and fermionic PBC ($g_F = +1$) in the odd sector.
 
-The ground state parity is determined by comparing the lowest energies in each sector:
+More generally, in a fixed parity sector $P=\pm 1$ the fermionic boundary condition is $g_F=-g_I P$ (equivalently, $g_F=-g_I$ in the even sector and $g_F=+g_I$ in the odd sector), which fixes the allowed momentum grid. In each such sector the Hamiltonian can be written in the symmetrized form
 \begin{align}
-    E_0^{\mathrm{even}} &= \sum_{k \in \mathrm{APBC}} (-\epsilon_k) + \frac{\sin\theta N}{2}\\
-    E_0^{\mathrm{odd}} &= \sum_{k \in \mathrm{PBC}} (-\epsilon_k) + \frac{\sin\theta N}{2}
+    H_{\mathrm{spin}}^{g_F} = \frac{1}{2}\sum_{k\in\mathrm{grid}(g_F)} \mathrm{coeff}_k\, h_k,
 \end{align}
-where the APBC sum runs over half-integer $k$ values while PBC uses integer $k$.
-
-Two distinct gaps emerge:
+with $\mathrm{coeff}_k=\epsilon_k$ for generic modes and $\mathrm{coeff}_k=w_k$ (signed) for the special modes (when present). The Bogoliubov vacuum, defined by
 \begin{align}
-    \Delta_{\mathrm{intra}} &= 2\epsilon_{\min}^{\mathrm{APBC/PBC}} \quad \text{(single particle-hole excitation)}\\
+    \hat{a}_k\ket{0} = 0 \quad \text{for all } k,
+\end{align}
+has $\langle h_k\rangle=-1$ for all modes (with the special modes unoccupied), and therefore its energy is
+\begin{align}
+    E_{\mathrm{vac}}^{g_F} = -\frac{1}{2}\sum_{k\in\mathrm{grid}(g_F)} \mathrm{coeff}_k.
+\end{align}
+For $g_F=-1$ (half-integer $k$ grid) there are no special modes and this reduces to $E_{\mathrm{vac}}^{g_F=-1}=-\sum_{k=1/2}^{(N-1)/2}\epsilon_k$. For $g_F=+1$ (integer $k$ grid) the special modes contribute $\mathrm{coeff}_0=w_0$ and $\mathrm{coeff}_{N/2}=w_{N/2}$ (signed). In a fixed parity sector the true sector ground state can differ from the vacuum when special-mode occupations are constrained; for the even-parity mode diagnostics used in this repo, the vacuum formula above matches ED and is the quantity reported as \texttt{gs\_energy\_modes}.
+
+Let $E_0^{\mathrm{even}}$ and $E_0^{\mathrm{odd}}$ denote the lowest energies in the even and odd parity sectors, respectively.
+There are two distinct energy gaps:
+\begin{align}
+    \Delta_{\mathrm{intra}} &= 2\epsilon_{\min} \quad \text{(parity-preserving excitation within a sector)}\\
     \Delta_{\mathrm{inter}} &= |E_0^{\mathrm{odd}} - E_0^{\mathrm{even}}| \quad \text{(parity-changing excitation)}
 \end{align}
+where $\epsilon_{\min}$ is the smallest generic mode energy $\epsilon_k$ on the corresponding momentum grid.
 
 The hierarchy $\Delta_{\mathrm{inter}} < \Delta_{\mathrm{intra}}$ arises when the energy difference between filled modes in different parity sectors is smaller than creating a particle-hole pair within a sector. For parity-preserving dynamics, excitations are confined within sectors, making $\Delta_{\mathrm{intra}}$ the relevant energy scale.
 
 
 
 \subsection{Keeping the parity}
-The partiy operator $P$ commutes with the system Hamiltonian $H_S$.
-
-If we take the bath and the interaction as
+The parity operator $P$ commutes with the system Hamiltonian $H_S$. If we choose the bath and interaction as
 \begin{align}
-    H_B &= -\frac{\Delta}{2}\sum_{n=1}^{N}\sigma^B_{n,x}\\
-    V_{SB} &= g\sum_{n=1}^{N} \sigma_{n,z} \sigma^B_{n,z}
+    H_B    &= -\frac{\Delta}{2}\sum_{n=1}^{N}\sigma^B_{n,x},\\
+    V_{SB} &= g\sum_{n=1}^{N} \sigma_{n,z} \sigma^B_{n,z},
 \end{align}
-Then the total Hamiltonian $H_{SB}=H_S+H_B+V_{SB}$ commutes with the parity operator
-\begin{align}
-    P = \prod_{n=1}^{N} \sigma_{n,z}
-\end{align}
-But we would also need an initial state that has a fixed parity (for example, even). This can be, for example, all spin up.
+then the total Hamiltonian $H_{SB}=H_S+H_B+V_{SB}$ commutes with the parity operator $P = \prod_{n=1}^{N} \sigma_{n,z}$. This requires an initial state with fixed parity (for example, even), such as the all-spins-up state.
 
 
-\clearpage
-\subsection{Open Boundary Condition Case}
+\section{Numerical Simulation of Cooling Dynamics}
 
-When $g_I=0$, we have $g_F=0$, and the fermionic model has open boundary conditions (OBC). In this case, translational invariance is broken, and we cannot apply the Fourier transformation used for periodic systems. Instead, we express the Hamiltonian in the Bogoliubov-de Gennes (BdG) formalism and use the analytic diagonalization approach developed by Lieb, Schultz, and Mattis.
 
-Starting from the fermionic Hamiltonian with open boundary conditions:
-\begin{align}
-    H_{\mathrm{spin}}^{\mathrm{OBC}} &= \frac{\cos\theta}{2} \sum_{n=1}^{N-1} (a_n a_{n+1} + a_n a_{n+1}^\dagger - a_n^\dagger a_{n+1} - a_n^\dagger a_{n+1}^\dagger) + \frac{\sin\theta \cdot N}{2}\nonumber\\
-                                     &\quad - \sin\theta \sum_{n=1}^N a_n^\dagger a_n
-\end{align}
-We can rewrite this Hamiltonian in matrix form using the Nambu spinor formalism. For the one-body terms $a_n^\dagger a_m$, we define a matrix $A$ with elements:
-\begin{align}
-    A_{nm} &= -\sin\theta \delta_{nm} - \frac{\cos\theta}{2}(\delta_{n,m+1} + \delta_{n+1,m})
-\end{align}
-Similarly, for the pairing terms $a_n a_m$ and $a_n^\dagger a_m^\dagger$, we define an antisymmetric matrix $B$ with elements:
-\begin{align}
-    B_{nm} &= \frac{\cos\theta}{2}(\delta_{n+1,m} - \delta_{n,m+1})
-\end{align}
-Using the $2N$-component Nambu spinor $\bm{\Psi} = (a_1, \dots, a_N, a_1^\dagger, \dots, a_N^\dagger)^T$, the Hamiltonian takes the compact form:
-\begin{align}
-    H_{\mathrm{spin}}^{\mathrm{OBC}}
-     &= \frac{1}{2} \bm{\Psi}^\dagger H_{\mathrm{BdG}} \bm{\Psi} + \frac{\sin\theta \cdot N}{2}
-\end{align}
-where $H_{\mathrm{BdG}}$ is the $2N \times 2N$ Bogoliubov-de Gennes Hamiltonian matrix:
-\begin{align}
-    H_{\mathrm{BdG}} &=
-    \begin{pmatrix}
-        A  &B\\
-        -B &-A
-    \end{pmatrix}
-\end{align}
-To diagonalize $H_{\mathrm{spin}}^{\mathrm{OBC}}$, we use a Bogoliubov transformation to find new fermionic operators $\gamma_k, \gamma_k^\dagger$ that are linear combinations of $a_n, a_n^\dagger$:
-\begin{align}
-    \gamma_k         &= \sum_{n=1}^N (u_{nk} a_n + v_{nk} a_n^\dagger)\\
-    \gamma_k^\dagger &= \sum_{n=1}^N (u_{nk}^* a_n^\dagger + v_{nk}^* a_n)
-\end{align}
-The Bogoliubov-de Gennes eigenvalue equations are:
-\begin{align}
-    A u_k + B v_k  &= \epsilon_k u_k \label{eq:BdG_eq1}\\
-    -B u_k - A v_k &= \epsilon_k v_k \label{eq:BdG_eq2}
-\end{align}
-where $u_k = (u_{1k}, \dots, u_{Nk})^T$ and $v_k = (v_{1k}, \dots, v_{Nk})^T$ are $N$-component vectors containing the coefficients of the transformation.
+\subsection{Split-Operator Trotter Method}
 
-Following Lieb, Schultz, and Mattis, we introduce new vectors $\phi_k = u_k + v_k$ and $\psi_k = u_k - v_k$. Adding and subtracting the BdG equations \cref{eq:BdG_eq1,eq:BdG_eq2}, we get:
-\begin{align}
-    (A - B) \psi_k &= \epsilon_k \phi_k \label{eq:LSM_eq1}\\
-    (A + B) \phi_k &= \epsilon_k \psi_k \label{eq:LSM_eq2}
-\end{align}
-Eliminating $\psi_k$ (or $\phi_k$), we obtain:
-\begin{align}
-    (A - B)(A + B) \phi_k &= \epsilon_k^2 \phi_k \label{eq:E2_phi}\\
-    (A + B)(A - B) \psi_k &= \epsilon_k^2 \psi_k \label{eq:E2_psi}
-\end{align}
-The key insight from the Lieb-Schultz-Mattis approach is that for our specific matrices $A$ and $B$, the products $(A+B)(A-B)$ and $(A-B)(A+B)$ have tridiagonal form. Calculating these products explicitly:
-\begin{align}
-    [(A + B)(A - B)]_{nl} &= \sin^2\theta \delta_{nl} + \sin\theta \cos\theta (\delta_{n,l+1} + \delta_{n+1,l}) + \cos^2\theta \delta_{n+1,l+1}\\
-    [(A - B)(A + B)]_{nl} &= \sin^2\theta \delta_{nl} + \sin\theta \cos\theta (\delta_{n,l-1} + \delta_{n-1,l}) + \cos^2\theta \delta_{n-1,l-1}
-\end{align}
-This tridiagonal structure allows for an analytic solution. The eigenvectors of these matrices have the form:
-\begin{align}
-    \phi_k &= \mathcal{N}_k (\sin\omega_k, \sin 2\omega_k, \ldots, \sin N \omega_k)^T\\
-    \psi_k &= \mathcal{N}_k (\sin N\omega_k, \sin (N-1)\omega_k, \ldots, \sin\omega_k)^T
-\end{align}
-where $\mathcal{N}_k$ is a normalization constant, and the values of $\omega_k$ are determined by the transcendental equation:
-\begin{align}
-    \frac{\sin(N+1)\omega_k}{\sin N\omega_k} = -\frac{\cos\theta}{2\sin\theta}
-\end{align}
-The eigenvalues (squared energies) for these eigenvectors are:
-\begin{align}
-    \epsilon_k^2 = 1 + \sin(2\theta)\cos\omega_k
-\end{align}
-giving us the energy eigenvalues:
-\begin{align}
-    E_k = \epsilon_k = \sqrt{1 + \sin(2\theta)\cos\omega_k}
-\end{align}
-The diagonalized Hamiltonian takes the form:
-\begin{align}
-    H_{\mathrm{spin}}^{\mathrm{OBC}} &= \sum_{k=1}^N \epsilon_k \left(\gamma_k^\dagger \gamma_k - \frac{1}{2}\right) + \mathrm{const.}
-\end{align}
-To express the mode occupation operators $\gamma_k^\dagger \gamma_k$ in terms of the original fermionic operators, we use the Bogoliubov coefficients derived from the eigenvectors:
-\begin{align}
-    u_{nk} &= \frac{\mathcal{N}_k}{2}[\sin n\omega_k + \sin(N+1-n)\omega_k]\\
-    v_{nk} &= \frac{\mathcal{N}_k}{2}[\sin n\omega_k - \sin(N+1-n)\omega_k]
-\end{align}
-The mode occupation is given by:
-\begin{align}
-    \gamma_k^\dagger \gamma_k &= \sum_{n,m=1}^N [u_{nk}^* u_{mk} a_n^\dagger a_m + u_{nk}^* v_{mk} a_n^\dagger a_m^\dagger + v_{nk}^* u_{mk} a_n a_m + v_{nk}^* v_{mk} a_n a_m^\dagger]
-\end{align}
-Using the anticommutation relation $a_n a_m^\dagger = \delta_{nm} - a_m^\dagger a_n$, and applying the JW transformation from \cref{eq:JW_a_n,eq:JW_a_n_dag}, we can express $\gamma_k^\dagger \gamma_k$ in terms of spin operators:
-\begin{widetext}
-\color{red}
-\begin{align}
-    \gamma_k^\dagger \gamma_k &= \sum_{n,m=1}^N \left[u_{nk}^* u_{mk} \left(S_n S_m \frac{\sigma_n^+ \sigma_m^-}{4}\right) + u_{nk}^* v_{mk} \left(S_n S_m \frac{\sigma_n^+ \sigma_m^+}{4}\right) \right. \nonumber\\
-                              &\quad \left. + v_{nk}^* u_{mk} \left(S_n S_m \frac{\sigma_n^- \sigma_m^-}{4}\right) - v_{nk}^* v_{mk} \left(S_n S_m \frac{\sigma_m^+ \sigma_n^-}{4}\right)\right] + \sum_{n=1}^N v_{nk}^* v_{nk}
-\end{align}
-\end{widetext}
-where $\sigma_n^{\pm} = \sigma_{n,x} \pm i\sigma_{n,y}$ are the spin raising and lowering operators, and $S_n S_m$ represents string operators:
-\begin{align}
-    S_n S_m =
-    \begin{cases}
-        \prod_{j=\min(n,m)}^{\max(n,m)-1} \sigma_{j,z} & \text{if } n \neq m \\
-        1                                              & \text{if } n = m
-    \end{cases}
-\end{align}
-The mode energy $\epsilon_k = \epsilon_k (2\gamma_k^\dagger \gamma_k - 1)$ can thus be measured through these correlation functions of Pauli operators.
+For the Hamiltonians we are considering, a very effective approach is the split-operator method based on a Trotter-Suzuki decomposition. The total Hamiltonian is $H = H_S + H_B + V$. We can split the total Hamiltonian into two parts that are each easy to exponentiate: $H = H_z + H_x$, where $H_z$ contains all $\sigma_z$-type terms (e.g., $\sigma_z\sigma_z$, $\sigma_z$) and $H_x$ contains all $\sigma_x$-type terms.
+\begin{equation}
+    e^{-iHt} \approx \left(e^{-iH_z \delta t} e^{-iH_x \delta t}\right)^M, \quad \text{where } t = M\delta t.
+\end{equation}
+This is very efficient to apply to a state vector or density matrix:
+\begin{itemize}
+    \item $e^{-iH_z \delta t}$ is a diagonal operator in the computational ($\sigma_z$) basis. Applying it is just an element-wise multiplication of the state vector by a precomputed vector of phases. This is an $\mathcal{O}(d^N)$ operation.
+    \item $e^{-iH_x \delta t}$ is a product of single-qubit rotations. In the computational basis, this corresponds to applying a tensor product of single-qubit gates, which can also be implemented efficiently.
+\end{itemize}
+This method avoids matrix-matrix or matrix-vector multiplication with large, dense matrices and scales much better. A Trotter step of $\delta t = 0.1$ is typically accurate enough.
+
+
+\subsection{Partial Trace for Density Matrices}
+
+In the simulation of the cooling dynamics, we need to trace out bath qubits from a density matrix $\rho$ represented in the computational basis.
+Tracing out the $k$-th qubit corresponds to summing subblocks of the density matrix. For example, to trace out the first qubit, you partition $\rho$ into four blocks based on the state of the first qubit:
+\begin{equation}
+    \rho = \begin{pmatrix} \rho_{00} & \rho_{01} \\ \rho_{10} & \rho_{11} \end{pmatrix}.
+\end{equation}
+The traced-out matrix is $\rho' = \rho_{00} + \rho_{11}$. This can be done iteratively for all bath qubits.
+For large numbers of bath qubits, this can be implemented without loops using clever indexing in MATLAB or Python, by identifying the indices that need to be summed together.
+
+\subsection{Sampling for Quantum Trajectories}
+
+For the Monte Carlo wave function method, each cooling cycle involves the following steps:
+\begin{enumerate}
+    \item Evolve the joint pure state: $\ket{\Psi_{SB}'} = e^{-iHt} (\ket{\Psi_S} \otimes \ket{0_B})$.
+    \item Compute the probability distribution for measuring the bath in each computational basis state $\ket{n}_B$:
+          \begin{equation}
+              p_n = \bra{\Psi_{SB}'} (\Id_S \otimes \ket{n}_B\bra{n}|) \ket{\Psi_{SB}'}.
+          \end{equation}
+          This vector of $2^{N_B}$ probabilities can be computed efficiently by taking the diagonal elements of the bath's reduced density matrix, $\rho_B = \tr_S(\ket{\Psi_{SB}'}\bra{\Psi_{SB}'})$.
+    \item Sample a specific outcome $\tilde{n}$ from the distribution $\{p_n\}$. A standard way is to compute the cumulative sum of the probabilities, $C_k = \sum_{j=1}^k p_j$, draw a single random number $r \in [0,1]$, and find the first $k$ such that $r \le C_k$.
+    \item The new system state is the postmeasurement state, properly normalized:
+          \begin{equation}
+              \ket{\Psi_S^{\text{new}}} = \frac{(\Id_S \otimes \bra{\tilde{n}}_B) \ket{\Psi_{SB}'}}{\sqrt{p_{\tilde{n}}}}.
+          \end{equation}
+\end{enumerate}
+
+
 
 %\cite{Surace2022Fermionic}
 

@@ -316,24 +316,15 @@ function evolve_cooling_step(problem::CoolingProblem{TNBackend}, ψ_sb::MPS, te:
                            sim_params::UnifiedSimulationParameters{MonteCarloWavefunction,TrotterEvolution},
                            ham_params)
     sites = problem.extra.sites
-    
-    # Get or create Trotter gates
-    gates = get(problem.extra, :gates, nothing)
-    if gates === nothing
-        # Need to split sites into system and bath for build_trotter_circuit
-        N = ham_params.N
-        sites_sys = sites[1:2:2*N-1]
-        sites_bath = sites[2:2:2*N]
-        
-        # Get coupling parameters from problem
+
+    # Use interleaved gates (same circuit as DM+Trotter for consistency)
+    interleaved_gates = get(problem.extra, :interleaved_gates, nothing)
+    if interleaved_gates === nothing
         coupling_params = problem.extra.coupling_params
-        
-        gates = build_trotter_circuit_bath_coupling(ham_params, problem.backend, sites_sys, sites_bath, coupling_params, sim_params)
-        # Note: Cannot modify immutable NamedTuple, gates will be recreated each time
+        interleaved_gates = build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_params, sim_params)
     end
-    
-    # Use evolve_state with gates
-    return evolve_state(ham_params, sim_params, problem.backend, problem.H_sys_bath, ψ_sb, te, sites; gates=gates)
+
+    return evolve_state(ham_params, sim_params, problem.backend, problem.H_sys_bath, ψ_sb, te, sites; gates=interleaved_gates)
 end
 
 # --- Tensor Network + Density Matrix (unified for both evolution methods) ---
@@ -358,40 +349,24 @@ function evolve_cooling_step(problem::CoolingProblem{TNBackend}, ρ_sb::MPO, te:
                            sim_params::UnifiedSimulationParameters{DensityMatrix,TrotterEvolution},
                            ham_params)
     sites = problem.extra.sites
-    N = ham_params.N
-    sites_sys = sites[1:2:2*N-1]
-    
-    # Get or create Trotter gates
-    gates = get(problem.extra, :gates, nothing)
-    if gates === nothing
-        # Need to split sites into system and bath for build_trotter_circuit
-        sites_bath = sites[2:2:2*N]
-        
-        # Get coupling parameters from problem
+
+    # Get or create interleaved Trotter gates (all act on adjacent sites)
+    interleaved_gates = get(problem.extra, :interleaved_gates, nothing)
+    if interleaved_gates === nothing
         coupling_params = problem.extra.coupling_params
-        
-        gates = build_trotter_circuit_bath_coupling(ham_params, problem.backend, sites_sys, sites_bath, coupling_params, sim_params)
-        # Note: Cannot modify immutable NamedTuple
-    end
-    
-    # System-only Trotter gates (match MCWF splitting)
-    system_gates = get(problem.extra, :system_gates, nothing)
-    if system_gates === nothing
-        system_gates = build_system_trotter_circuit(ham_params, sites_sys, sim_params)
+        interleaved_gates = build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_params, sim_params)
     end
 
-    # Apply system evolution + bath/coupling in small steps (no bath reset per substep)
+    # Apply interleaved gates in small steps
     steps = max(1, Int(floor(te / sim_params.tau)))
     ρ_evolved = ρ_sb
-    # MPO bond dimension grows ~D^2; use a capped expansion to balance cost vs. truncation artifacts
     dm_maxdim = max(sim_params.Dmax, 4 * sim_params.Dmax)
     dm_cutoff = sim_params.cutoff / 10
     for _ in 1:steps
-        ρ_evolved = apply(system_gates, ρ_evolved; apply_dag=true, cutoff=dm_cutoff, maxdim=dm_maxdim, move_sites_back=true)
-        ρ_evolved = apply(gates, ρ_evolved; apply_dag=true, cutoff=dm_cutoff, maxdim=dm_maxdim, move_sites_back=true)
+        ρ_evolved = apply(interleaved_gates, ρ_evolved; apply_dag=true, cutoff=dm_cutoff, maxdim=dm_maxdim)
     end
     ρ_evolved /= tr(ρ_evolved)
-    
+
     return ρ_evolved
 end
 

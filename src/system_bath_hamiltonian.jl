@@ -160,18 +160,18 @@ end
     add_system_hamiltonian_ed!(H_sb, H_sys, N, N_total)
 
 Add system Hamiltonian terms to the full system+bath Hamiltonian.
-Maps system indices to alternating qubit layout.
+Embeds H_sys ⊗ I_bath by looping over all bath basis states.
 """
 function add_system_hamiltonian_ed!(H_sb, H_sys, N, N_total)
-    # H_sys acts on N qubits in standard ordering
-    # We need to map it to alternating layout in N_total qubits
-    
-    for i in 1:2^N, j in 1:2^N
-        if H_sys[i,j] != 0
-            # Map system basis states to full space
-            full_i = map_system_to_full_basis_ed(i-1, N)
-            full_j = map_system_to_full_basis_ed(j-1, N)
-            H_sb[full_i+1, full_j+1] = H_sys[i,j]
+    N_bath = N
+    for bath_state in 0:(2^N_bath - 1)
+        for i in 1:2^N, j in 1:2^N
+            val = H_sys[i,j]
+            if val != 0
+                full_i = map_system_bath_to_full_basis_ed(i-1, bath_state, N)
+                full_j = map_system_bath_to_full_basis_ed(j-1, bath_state, N)
+                H_sb[full_i+1, full_j+1] += val
+            end
         end
     end
 end
@@ -179,7 +179,7 @@ end
 """
     map_system_to_full_basis_ed(sys_state::Int, N::Int) -> Int
 
-Map a system basis state to the full system+bath basis.
+Map a system basis state to the full system+bath basis (bath bits set to 0).
 System qubits are at odd positions: 1, 3, 5, ...
 """
 function map_system_to_full_basis_ed(sys_state::Int, N::Int)
@@ -188,6 +188,25 @@ function map_system_to_full_basis_ed(sys_state::Int, N::Int)
         if (sys_state >> i) & 1 == 1
             # System qubit i is at position 2*i in the full space (0-indexed)
             full_state |= (1 << (2*i))
+        end
+    end
+    return full_state
+end
+
+"""
+    map_system_bath_to_full_basis_ed(sys_state::Int, bath_state::Int, N::Int) -> Int
+
+Map system and bath basis states to the full interleaved basis.
+System qubit i → position 2i (0-indexed), bath qubit i → position 2i+1 (0-indexed).
+"""
+function map_system_bath_to_full_basis_ed(sys_state::Int, bath_state::Int, N::Int)
+    full_state = 0
+    for i in 0:(N-1)
+        if (sys_state >> i) & 1 == 1
+            full_state |= (1 << (2*i))       # System qubit at position 2i
+        end
+        if (bath_state >> i) & 1 == 1
+            full_state |= (1 << (2*i + 1))   # Bath qubit at position 2i+1
         end
     end
     return full_state

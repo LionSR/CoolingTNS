@@ -67,21 +67,21 @@ end
 # Density Matrix + Trotter Evolution - Direct substance
 function setup_tn_specific(backend::TNBackend, ::DensityMatrix, ::TrotterEvolution,
                           ham_params, sites, sites_sys, sites_bath, H_sys, e₀, ϕ₀, coupling_params, sim_params)
-    # Use bath/coupling gates and evolve system separately to match MCWF splitting
-    gates = build_trotter_circuit_bath_coupling(ham_params, backend, sites_sys, sites_bath, coupling_params, sim_params)
-    system_gates = build_system_trotter_circuit(ham_params, sites_sys, sim_params)
+    # Use interleaved gates that act on adjacent sites in [s1,b1,s2,b2,...] layout
+    interleaved_gates = build_trotter_circuit_interleaved(ham_params, backend, sites, coupling_params, sim_params)
     return CoolingProblem(backend, H_sys, nothing, ϕ₀, e₀,
-                         (gates=gates, system_gates=system_gates, coupling_params=coupling_params, 
+                         (interleaved_gates=interleaved_gates, coupling_params=coupling_params,
                           coupling=coupling_params.coupling, g=coupling_params.g, sites=sites))
 end
 
 # Monte Carlo + Trotter Evolution - Direct substance
+# Uses same interleaved gates as DM+Trotter for consistency
 function setup_tn_specific(backend::TNBackend, ::MonteCarloWavefunction, ::TrotterEvolution,
                           ham_params, sites, sites_sys, sites_bath, H_sys, e₀, ϕ₀, coupling_params, sim_params)
-    gates = build_trotter_circuit_bath_coupling(ham_params, backend, sites_sys, sites_bath, coupling_params, sim_params)
+    interleaved_gates = build_trotter_circuit_interleaved(ham_params, backend, sites, coupling_params, sim_params)
     H_total = construct_system_bath_hamiltonian(ham_params, backend, sites, coupling_params)
     return CoolingProblem(backend, H_sys, H_total, ϕ₀, e₀,
-                         (gates=gates, H_sys_bath=H_total, ham_param_struct=ham_params, coupling_params=coupling_params,
+                         (interleaved_gates=interleaved_gates, H_sys_bath=H_total, ham_param_struct=ham_params, coupling_params=coupling_params,
                           coupling=coupling_params.coupling, g=coupling_params.g, sites=sites))
 end
 
