@@ -35,7 +35,7 @@ function evolve_state(::HamiltonianParameters, sim_params::UnifiedSimulationPara
 
     # Use nsite=2 to allow bond dimension growth from product states
     ψ_evolved = tdvp(H_total, -im * t, ψ;
-                     time_step=-im * tau, nsite=2, reverse_step=false, normalize=true,
+                     time_step=-im * tau, nsite=2, reverse_step=true, normalize=true,
                      maxdim=Dmax, cutoff=cutoff, outputlevel=0)
     normalize!(ψ_evolved)
     orthogonalize!(ψ_evolved, 2)

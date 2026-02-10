@@ -656,12 +656,12 @@ end
 
     # Both should show cooling
     @test results_mpo["E_list"][end] <= results_mpo["E_list"][1] + 1e-10
-    @test mc_E_avg[end] <= mc_E_avg[1] + 0.5
+    @test mc_E_avg[end] <= mc_E_avg[1] + 0.1
 
     # MC+Continuous should approximately agree with DM+Trotter
     # (difference includes Trotter error + MC noise)
     E_diff = abs(results_mpo["E_list"][end] - mc_E_avg[end])
-    @test E_diff < max(4.0 * mc_E_stderr, 2.0)
+    @test E_diff < max(4.0 * mc_E_stderr, 0.5)
 end
 
 # ============================================================================
