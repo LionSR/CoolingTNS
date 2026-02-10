@@ -51,7 +51,7 @@ function evolve_state(ham_params::HamiltonianParameters, sim_params::UnifiedSimu
     gates === nothing && error("Trotter evolution requires pre-computed gates")
 
     Dmax, cutoff, tau = sim_params.Dmax, sim_params.cutoff, sim_params.tau
-    steps = Int(t / tau)
+    steps = max(1, Int(floor(t / tau)))
     ψ_evolved = copy(ψ)
 
     # All Hamiltonian terms (system + bath + coupling) are in the interleaved gates,

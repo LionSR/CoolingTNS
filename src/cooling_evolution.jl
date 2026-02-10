@@ -357,14 +357,8 @@ function evolve_cooling_step(problem::CoolingProblem{TNBackend}, ρ_sb::MPO, te:
         interleaved_gates = build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_params, sim_params)
     end
 
-    # Apply interleaved gates in small steps
-    steps = max(1, Int(floor(te / sim_params.tau)))
-    ρ_evolved = ρ_sb
-    dm_maxdim = max(sim_params.Dmax, 4 * sim_params.Dmax)
-    dm_cutoff = sim_params.cutoff / 10
-    for _ in 1:steps
-        ρ_evolved = apply(interleaved_gates, ρ_evolved; apply_dag=true, cutoff=dm_cutoff, maxdim=dm_maxdim)
-    end
+    # Delegate to evolve_state (shared Trotter evolution logic)
+    ρ_evolved = evolve_state(ham_params, sim_params, problem.backend, interleaved_gates, ρ_sb, te, sites)
     ρ_evolved /= tr(ρ_evolved)
 
     return ρ_evolved
