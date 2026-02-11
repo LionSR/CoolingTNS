@@ -173,13 +173,18 @@ function sample_bath(rng::AbstractRNG, m::MPS)
     result = zeros(Int, N)
     m_working = copy(m)
 
-    # Sample each bath site from right to left to avoid reindexing issues
-    # Bath sites: 2N, 2N-2, ..., 4, 2
-    for bath_idx in N:-1:1
-        bath_site = 2 * bath_idx  # Even indices: 2, 4, 6, ..., 2N
-        sys_site = 2 * bath_idx - 1  # Odd indices: 1, 3, 5, ..., 2N-1
+    # Orthogonalize once to rightmost bath site (2N).
+    # After this: sites 1..2N-1 are left-canonical, site 2N is the orth center.
+    orthogonalize!(m_working, N_total)
 
-        # Orthogonalize to bath site
+    # Sample each bath site from right to left.
+    # By preserving canonical form info (llim/rlim), each subsequent
+    # orthogonalize! only needs to sweep ~1 site left instead of the full MPS.
+    for bath_idx in N:-1:1
+        bath_site = 2 * bath_idx
+        sys_site = 2 * bath_idx - 1
+
+        # Move orth center to bath_site (cheap: only sweeps from current center)
         orthogonalize!(m_working, bath_site)
         s = siteind(m_working, bath_site)
         d = dim(s)
@@ -204,28 +209,29 @@ function sample_bath(rng::AbstractRNG, m::MPS)
         result[bath_idx] = n
 
         # Contract the projected bath tensor with the system tensor
-        # This effectively traces out the bath qubit
         A_sys = m_working[sys_site]
         A_combined = A_sys * An
         A_combined *= (1.0 / sqrt(max(pn, 1e-15)))
 
-        # Remove the bath site from the MPS
+        # Remove the bath site from the MPS, preserving canonical form.
+        # After contraction: sites 1..sys_site-1 are left-canonical,
+        # sys_site holds the orth center, sites bath_site+1.. are right-canonical.
         current_len = length(m_working)
         if bath_site < current_len
-            # Bath site is not at the end
             new_tensors = vcat(
                 m_working[1:sys_site-1],
                 [A_combined],
                 m_working[bath_site+1:current_len]
             )
         else
-            # Bath site is at the end
             new_tensors = vcat(m_working[1:sys_site-1], [A_combined])
         end
-        m_working = MPS(new_tensors)
+
+        # Preserve canonical form: everything left of sys_site is left-canonical,
+        # everything right of sys_site (in new indexing) is right-canonical.
+        m_working = MPS(new_tensors, sys_site - 1, sys_site + 1)
     end
 
-    # After sampling, m_working should contain only system sites
     if length(m_working) != N
         error("After bath sampling, MPS has incorrect length: expected $N, got $(length(m_working))")
     end
