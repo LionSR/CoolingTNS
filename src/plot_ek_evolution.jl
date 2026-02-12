@@ -21,7 +21,6 @@ function plot_ek_evolution(filename; steps_to_plot=nothing, save_fig=true)
     J = get(data, "J", 1.0)
     h = get(data, "h", 1.0)
     bc = Symbol(get(data, "bc", "open"))
-    delta = get(data, "delta", 0.0)
 
     # Handle both possible orientations of momentum_dist
     if size(momentum_dist, 1) == length(k_values)
@@ -51,21 +50,18 @@ function plot_ek_evolution(filename; steps_to_plot=nothing, save_fig=true)
     ax.plot(k_values/pi, e_k_gs, "k--", linewidth=2.5, label="Ground state")
     ax.plot(k_values/pi, epsilon_k, ":", color="gray", linewidth=1.5, label="epsilon_k", alpha=0.7)
 
-    if delta != 0
-        ax.axvline(x=delta/pi, color="red", linestyle=":", linewidth=2, label="delta/pi", alpha=0.7)
-    end
 
     ax.set_xlabel("k/pi", fontsize=14)
     ax.set_ylabel("e_k = epsilon_k n_k", fontsize=14)
     ax.set_title("Energy Distribution Evolution\n(N=$N, J=$J, h=$h, BC=$bc)", fontsize=16)
     ax.grid(true, alpha=0.3)
     ax.legend(loc="best", fontsize=12)
-    ax.set_xlim(-1, 1)
+    ax.set_xlim(minimum(k_values) / pi, maximum(k_values) / pi)
     plt.tight_layout()
 
     if save_fig
         base_filename = extract_filename_base(filename)
-        save_figure(fig, "Results", "ek_evolution_$(base_filename).pdf")
+        save_figure(fig, dirname(filename), "ek_evolution_$(base_filename).pdf")
     end
 
     return fig

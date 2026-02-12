@@ -21,8 +21,14 @@ function plot_nk_evolution(filename; steps_to_plot=nothing, save_fig=true)
     J = get(data, "J", 1.0)
     h = get(data, "h", 1.0)
     bc = Symbol(get(data, "bc", "open"))
-    delta = get(data, "delta", 0.0)
-    total_steps = size(momentum_dist, 2)
+
+    # Handle both possible orientations of momentum_dist
+    if size(momentum_dist, 1) == length(k_values)
+        total_steps = size(momentum_dist, 2)
+    else
+        momentum_dist = transpose(momentum_dist)
+        total_steps = size(momentum_dist, 2)
+    end
 
     step_indices = select_evolution_steps(total_steps; steps_to_plot=steps_to_plot)
     n_k_gs = compute_ground_state_occupation(k_values, J, h)
@@ -40,9 +46,6 @@ function plot_nk_evolution(filename; steps_to_plot=nothing, save_fig=true)
 
     ax.plot(k_values/pi, n_k_gs, "k--", linewidth=2.5, label="Ground state")
 
-    if delta != 0
-        ax.axvline(x=delta/pi, color="red", linestyle=":", linewidth=2, label="delta/pi", alpha=0.7)
-    end
 
     ax.set_xlabel("k/pi", fontsize=14)
     ax.set_ylabel("n_k", fontsize=14)
@@ -50,12 +53,12 @@ function plot_nk_evolution(filename; steps_to_plot=nothing, save_fig=true)
     ax.grid(true, alpha=0.3)
     ax.legend(loc="best", fontsize=12)
     ax.set_ylim(-0.1, 1.1)
-    ax.set_xlim(0, 2)
+    ax.set_xlim(minimum(k_values) / pi, maximum(k_values) / pi)
     plt.tight_layout()
 
     if save_fig
         base_filename = extract_filename_base(filename)
-        save_figure(fig, "Results", "nk_evolution_$(base_filename).pdf")
+        save_figure(fig, dirname(filename), "nk_evolution_$(base_filename).pdf")
     end
 
     return fig

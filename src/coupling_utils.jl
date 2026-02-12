@@ -4,40 +4,30 @@
 Utilities for parsing and handling system-bath coupling operators.
 """
 
+const _VALID_COUPLING_OPS = ('X', 'Y', 'Z')
+
 """
     parse_coupling(coupling::String) -> (String, String)
 
-Parse coupling string (e.g., "XX", "YZ") into individual operator strings.
+Parse a two-character coupling string (e.g. `"XX"`, `"YZ"`) into individual
+operator labels.
+
+Throws an `ArgumentError` if `coupling` is not exactly two characters long or
+contains characters other than `X`, `Y`, or `Z`.
 """
 function parse_coupling(coupling::String)
     if length(coupling) != 2
-        error("Coupling must be a two-character string like 'XX', 'YZ', etc.")
+        throw(ArgumentError(
+            "Coupling must be a two-character string like \"XX\" or \"YZ\"; got \"$coupling\"."
+        ))
     end
-    return string(coupling[1]), string(coupling[2])
-end
 
-"""
-    get_pauli_operators(backend::CoolingBackend)
+    op1 = coupling[1]
+    op2 = coupling[2]
 
-Get appropriate Pauli operator representations for the given backend.
-"""
-function get_pauli_operators(::TNBackend)
-    # For ITensors, operators are strings
-    return Dict("X" => "X", "Y" => "Y", "Z" => "Z")
-end
-
-"""
-    validate_coupling(coupling::String)
-
-Validate that coupling string contains only valid Pauli operators.
-"""
-function validate_coupling(coupling::String)
-    valid_ops = ["X", "Y", "Z"]
-    op1, op2 = parse_coupling(coupling)
-    
-    if !(op1 in valid_ops) || !(op2 in valid_ops)
-        error("Invalid coupling operators. Must be combinations of X, Y, Z. Got: $coupling")
+    if !(op1 in _VALID_COUPLING_OPS) || !(op2 in _VALID_COUPLING_OPS)
+        throw(ArgumentError("Coupling operators must be X, Y, or Z; got \"$coupling\"."))
     end
-    
-    return true
+
+    return string(op1), string(op2)
 end

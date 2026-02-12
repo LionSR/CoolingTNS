@@ -124,31 +124,44 @@ function create_filename(ham_params::HamiltonianParameters, coupling_params::Cou
     return "Cooling_$(ham_group)_$(coupling_group)_$(sim_group)"
 end
 
-# Overloaded version for plotting functions that pass N directly (now ignored)
-function create_filename(_ham_name, N::Union{Int, Vector{Int}}, coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters, backend::CoolingBackend)
-    # N is no longer part of filename, create a dummy ham_params
+# Backward-compatible overload for plotting workflows that only have `ham_name`
+# (as produced by `hamiltonian_name`) plus an explicit system size N.
+function create_filename(
+    ham_name::AbstractString,
+    N::Union{Int, Vector{Int}},
+    coupling_params::CouplingParameters,
+    sim_params::UnifiedSimulationParameters,
+    backend::CoolingBackend,
+)
+    template = parse_hamiltonian_name(ham_name)
     actual_N = N isa Vector ? N[1] : N
-    ham_params = IsingParameters(actual_N, 1.0, 1.0)
+    ham_params = HamiltonianParameters(template.model, actual_N, template.params, template.bc)
     return create_filename(ham_params, coupling_params, sim_params, backend)
 end
 
-# For backward compatibility with Dict-based sim_params (used in plotting)
-function create_filename(_ham_name, N::Union{Int, Vector{Int}}, coupling_params::Dict, sim_params::Dict)
-    # Convert dicts to proper structs
+# Backward compatibility for legacy plotting scripts that pass Dicts instead of typed parameters.
+function create_filename(
+    ham_name::AbstractString,
+    N::Union{Int, Vector{Int}},
+    coupling_params::Dict,
+    sim_params::Dict,
+)
     coupling = BasicCouplingParameters(
         coupling_params["coupling"],
         coupling_params["g"],
         coupling_params["steps"],
         coupling_params["te"],
-        get(coupling_params, "delta", nothing)
+        get(coupling_params, "delta", nothing),
     )
 
-    # Determine backend from sim_params
     backend = haskey(sim_params, "method") && sim_params["method"] == "ED" ? EDBackend() : TNBackend()
 
-    # Create simulation parameters with defaults
-    sim_method = haskey(sim_params, "sim_method") && sim_params["sim_method"] == "density_matrix" ? DensityMatrix() : MonteCarloWavefunction()
-    evolution_method = haskey(sim_params, "evolution_method") && sim_params["evolution_method"] == "trotter" ? TrotterEvolution() : ContinuousEvolution()
+    sim_method =
+        haskey(sim_params, "sim_method") && sim_params["sim_method"] == "density_matrix" ?
+        DensityMatrix() : MonteCarloWavefunction()
+    evolution_method =
+        haskey(sim_params, "evolution_method") && sim_params["evolution_method"] == "trotter" ?
+        TrotterEvolution() : ContinuousEvolution()
 
     sim = UnifiedSimulationParameters(
         sim_method,
@@ -156,13 +169,13 @@ function create_filename(_ham_name, N::Union{Int, Vector{Int}}, coupling_params:
         Dmax=get(sim_params, "Dmax", 100),
         cutoff=get(sim_params, "cutoff", 1e-8),
         tau=get(sim_params, "tau", 0.1),
-        pe=get(sim_params, "peInt", 0) / 1000.0,  # Convert back from int
-        n_trajectories=get(sim_params, "n_trajectories", 1)
+        pe=get(sim_params, "peInt", 0) / 1000.0,
+        n_trajectories=get(sim_params, "n_trajectories", 1),
     )
 
-    # Create dummy ham_params (N is not used in filename anymore)
+    template = parse_hamiltonian_name(ham_name)
     actual_N = N isa Vector ? N[1] : N
-    ham_params = IsingParameters(actual_N, 1.0, 1.0)
+    ham_params = HamiltonianParameters(template.model, actual_N, template.params, template.bc)
 
     return create_filename(ham_params, coupling, sim, backend)
 end

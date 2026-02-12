@@ -170,7 +170,7 @@ function run_optimization(parsed_args)
     results["num_trials"] = num_trials
     
     CoolingTNS.save_results(filename, results, cooling_problem.e₀, ham_name, parsed_args; is_optimization=true)
-    CoolingTNS.plot_energy_and_overlap(results["E_list"], results["GS_overlap_list"], cooling_problem.e₀, ham_params.N, filename; moving_average=true)
+    CoolingTNS.plot_energy_and_overlap(results["E_list"], results["GS_overlap_list"], cooling_problem.e₀, ham_params.N, filename; moving_average=true, output_dir="ResultsOpt")
 end
 
 # Parse command line arguments and run the optimization

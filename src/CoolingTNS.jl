@@ -1,7 +1,5 @@
 module CoolingTNS
 
-__precompile__(false)  # Disable precompilation for faster debugging
-
 # Import ITensors package
 using ITensors
 using ITensorMPS

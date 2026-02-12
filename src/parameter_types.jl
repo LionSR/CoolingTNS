@@ -98,15 +98,58 @@ RydbergParameters(N::Int, Ω, Δ, V, bc::Symbol) = HamiltonianParameters(Rydberg
 
 # Generate name for HamiltonianParameters
 function hamiltonian_name(ham_params::HamiltonianParameters{IsingModel})
-    return "IsingJ$(ham_params.params.J)h$(ham_params.params.h)"
+    return "IsingN$(ham_params.N)bc$(ham_params.bc)J$(ham_params.params.J)h$(ham_params.params.h)"
 end
 
 function hamiltonian_name(ham_params::HamiltonianParameters{NiIsingModel})
-    return "niIsingJ$(ham_params.params.J)hx$(ham_params.params.hx)hz$(ham_params.params.hz)"
+    return "niIsingN$(ham_params.N)bc$(ham_params.bc)J$(ham_params.params.J)hx$(ham_params.params.hx)hz$(ham_params.params.hz)"
 end
 
 function hamiltonian_name(ham_params::HamiltonianParameters{RydbergModel})
-    return "RydbergOmega$(ham_params.params.Ω)Delta$(ham_params.params.Δ)V$(ham_params.params.V)"
+    return "RydbergN$(ham_params.N)bc$(ham_params.bc)Omega$(ham_params.params.Ω)Delta$(ham_params.params.Δ)V$(ham_params.params.V)"
+end
+
+"""
+    parse_hamiltonian_name(name::AbstractString) -> HamiltonianParameters
+
+Inverse of [`hamiltonian_name`](@ref): parse strings produced by `hamiltonian_name`
+back into a `HamiltonianParameters` object.
+
+This is primarily intended for plotting and file-name based workflows.
+"""
+function parse_hamiltonian_name(name::AbstractString)::HamiltonianParameters
+    if startswith(name, "Ising")
+        m = match(r"^IsingN([0-9]+)bc([A-Za-z]+)J([-+0-9.eE]+)h([-+0-9.eE]+)$", name)
+        m === nothing && throw(ArgumentError("Unrecognized Ising hamiltonian name: \"$name\""))
+
+        N = parse(Int, m.captures[1])
+        bc = Symbol(m.captures[2])
+        J = parse(Float64, m.captures[3])
+        h = parse(Float64, m.captures[4])
+        return IsingParameters(N, J, h, bc)
+    elseif startswith(name, "niIsing")
+        m = match(r"^niIsingN([0-9]+)bc([A-Za-z]+)J([-+0-9.eE]+)hx([-+0-9.eE]+)hz([-+0-9.eE]+)$", name)
+        m === nothing && throw(ArgumentError("Unrecognized niIsing hamiltonian name: \"$name\""))
+
+        N = parse(Int, m.captures[1])
+        bc = Symbol(m.captures[2])
+        J = parse(Float64, m.captures[3])
+        hx = parse(Float64, m.captures[4])
+        hz = parse(Float64, m.captures[5])
+        return NiIsingParameters(N, J, hx, hz, bc)
+    elseif startswith(name, "Rydberg")
+        m = match(r"^RydbergN([0-9]+)bc([A-Za-z]+)Omega([-+0-9.eE]+)Delta([-+0-9.eE]+)V([-+0-9.eE]+)$", name)
+        m === nothing && throw(ArgumentError("Unrecognized Rydberg hamiltonian name: \"$name\""))
+
+        N = parse(Int, m.captures[1])
+        bc = Symbol(m.captures[2])
+        Ω = parse(Float64, m.captures[3])
+        Δ = parse(Float64, m.captures[4])
+        V = parse(Float64, m.captures[5])
+        return RydbergParameters(N, Ω, Δ, V, bc)
+    end
+
+    throw(ArgumentError("Unrecognized hamiltonian name: \"$name\""))
 end
 
 # ============================================================================

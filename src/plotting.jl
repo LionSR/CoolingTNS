@@ -1,39 +1,141 @@
 # Uses shared utilities from plot_utils.jl (included by main module)
 
 """
-    safe_read_data(filename) -> Tuple
+    _maybe_scalar(x)
 
-Read cooling results from an HDF5 file.
-Returns (e0, E_list, GS_overlap_list, Edensity_final) or (nothing, nothing, nothing, nothing) on failure.
+If `x` is a 0-d or length-1 array (a common HDF5 scalar encoding), return its only
+entry. Otherwise return `x` unchanged.
 """
-function safe_read_data(filename)
+_maybe_scalar(x) = (x isa AbstractArray && length(x) == 1) ? only(x) : x
+
+"""
+    safe_read_keys(filename, keys...) -> Tuple
+
+Read selected datasets from an HDF5 results file.
+
+- Missing files and read errors are reported via `@warn`.
+- Missing keys return `nothing` for that entry (callers can decide whether a key is
+  optional).
+"""
+function safe_read_keys(filename::AbstractString, dsets::AbstractString...)
     if !isfile(filename)
         @warn "File not found: $filename"
-        return nothing, nothing, nothing, nothing
+        return ntuple(_ -> nothing, length(dsets))
     end
 
     try
         h5open(filename, "r") do file
-            e0 = read(file, "e₀")
-            E_list = read(file, "E_list")
-            GS_overlap_list = read(file, "GS_overlap_list")
-            Edensity_final = read(file, "Edensity_final")
-            return e0, E_list, GS_overlap_list, Edensity_final
+            available = keys(file)
+            return ntuple(i -> (dsets[i] in available ? read(file, dsets[i]) : nothing), length(dsets))
         end
     catch e
-        msg = if isa(e, KeyError)
-            "Missing key: $(e.key)"
-        elseif isa(e, HDF5.HDF5Error)
+        msg = if isa(e, HDF5.HDF5Error)
             "HDF5 error: $(e.msg)"
         else
             "Error: $e"
         end
         @warn "Failed to read $filename: $msg"
-        return nothing, nothing, nothing, nothing
+        return ntuple(_ -> nothing, length(dsets))
     end
 end
 
-function plot_energy_and_overlap(E_list, GS_overlap_list, e0, N, filename; moving_average=false)
+"""
+    safe_read_data(filename)
+
+Backward-compatible helper returning `(e₀, E_list, GS_overlap_list, Edensity_final)`.
+"""
+safe_read_data(filename::AbstractString) =
+    safe_read_keys(filename, "e₀", "E_list", "GS_overlap_list", "Edensity_final")
+
+_ham_params_with_N(template::HamiltonianParameters, N::Int) =
+    HamiltonianParameters(template.model, N, template.params, template.bc)
+
+# Resolve the actual HDF5 file to read.
+#
+# - Standard runs: `Results/<filename_prefix>.h5`
+# - Optimization runs: `ResultsOpt/<filename_prefix>_<search_name_part>.h5`
+#   If `search_params` is not provided, try to infer by picking the most recently
+#   modified match with the right prefix.
+function _results_h5_path(
+    directory::AbstractString,
+    filename_prefix::AbstractString;
+    is_optimization::Bool=false,
+    search_params=nothing,
+)
+    isdir(directory) || return nothing
+
+    if !is_optimization
+        path = joinpath(directory, filename_prefix * ".h5")
+        return isfile(path) ? path : nothing
+    end
+
+    if search_params !== nothing
+        filename = filename_prefix * "_" * create_search_name_part(search_params)
+        path = joinpath(directory, filename * ".h5")
+        return isfile(path) ? path : nothing
+    end
+
+    candidates = filter(
+        f -> startswith(f, filename_prefix * "_") && endswith(f, ".h5"),
+        readdir(directory),
+    )
+    isempty(candidates) && return nothing
+
+    paths = joinpath.(Ref(directory), candidates)
+    mtimes = map(p -> stat(p).mtime, paths)
+    return paths[argmax(mtimes)]
+end
+
+function _with_pe(sim_params::UnifiedSimulationParameters{S,E}, pe::Real) where {S,E}
+    return UnifiedSimulationParameters(
+        sim_params.sim_method,
+        sim_params.evolution_method;
+        Dmax=sim_params.Dmax,
+        cutoff=sim_params.cutoff,
+        tau=sim_params.tau,
+        pe=Float64(pe),
+        n_trajectories=sim_params.n_trajectories,
+        parallel=sim_params.parallel,
+        trotter_steps=sim_params.trotter_steps,
+        maxiter=sim_params.maxiter,
+        normalize=sim_params.normalize,
+    )
+end
+
+function _read_final_metrics(filename::AbstractString, N::Int)
+    e0, edensity_final, gs_overlap_final, E_list, GS_overlap_list = safe_read_keys(
+        filename,
+        "e₀",
+        "Edensity_final",
+        "GS_overlap_final",
+        "E_list",
+        "GS_overlap_list",
+    )
+    e0 === nothing && return nothing
+
+    e0 = Float64(_maybe_scalar(e0))
+
+    edensity = if edensity_final !== nothing
+        Float64(_maybe_scalar(edensity_final))
+    elseif E_list !== nothing
+        Float64(_maybe_scalar(E_list[end])) / N
+    else
+        nothing
+    end
+
+    overlap = if gs_overlap_final !== nothing
+        Float64(_maybe_scalar(gs_overlap_final))
+    elseif GS_overlap_list !== nothing
+        Float64(_maybe_scalar(GS_overlap_list[end]))
+    else
+        nothing
+    end
+
+    (edensity === nothing || overlap === nothing) && return nothing
+    return e0, edensity, overlap
+end
+
+function plot_energy_and_overlap(E_list, GS_overlap_list, e0, N, filename; moving_average=false, output_dir="Results")
     plt = get_pyplot()
 
     steps = length(E_list) - 1
@@ -61,12 +163,39 @@ function plot_energy_and_overlap(E_list, GS_overlap_list, e0, N, filename; movin
     ax.set_ylabel("Ground state overlap")
     ax.legend()
 
-    isdir("Results") || mkdir("Results")
-    fig.savefig("Results/$(filename).pdf", dpi=300)
+    mkpath(output_dir)
+    fig.savefig(joinpath(output_dir, "$(filename).pdf"), dpi=300)
 end
 
-function plot_vs_N(ham_name::String, coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters,
-                  backend::CoolingBackend, N_values::Vector{Int}; is_optimization=false)
+function plot_vs_N(
+    ham_name::AbstractString,
+    coupling_params::CouplingParameters,
+    sim_params::UnifiedSimulationParameters,
+    backend::CoolingBackend,
+    N_values::Vector{Int};
+    is_optimization::Bool=false,
+    search_params=nothing,
+)
+    return plot_vs_N(
+        parse_hamiltonian_name(ham_name),
+        coupling_params,
+        sim_params,
+        backend,
+        N_values;
+        is_optimization=is_optimization,
+        search_params=search_params,
+    )
+end
+
+function plot_vs_N(
+    ham_template::HamiltonianParameters,
+    coupling_params::CouplingParameters,
+    sim_params::UnifiedSimulationParameters,
+    backend::CoolingBackend,
+    N_values::Vector{Int};
+    is_optimization::Bool=false,
+    search_params=nothing,
+)
     plt = get_pyplot()
 
     energy_densities = Float64[]
@@ -78,32 +207,51 @@ function plot_vs_N(ham_name::String, coupling_params::CouplingParameters, sim_pa
     prefix = is_optimization ? "Optimize" : ""
 
     for N in N_values
-        # Create proper HamiltonianParameters for filename generation
-        # Infer problem type from ham_name
-        if occursin("niIsing", ham_name)
-            # Parse parameters from ham_name if possible, or use defaults
-            ham_params = NiIsingParameters(N, 1.0, -1.05, 0.5)
-        elseif occursin("Ising", ham_name)
-            ham_params = IsingParameters(N, 1.0, 2.0)
-        else
-            ham_params = RydbergParameters(N, 1.0, 0.0, 1.0)
-        end
-        
-        filename = create_filename(ham_params, coupling_params, sim_params, backend)
-        filename = "$(prefix)$(filename)"
-        if is_optimization
-            search_name_part = create_search_name_part(sim_params)
-            filename *= "_$(search_name_part)"
-        end
-        full_filename = "$(directory)/$(filename).h5"
+        ham_params = _ham_params_with_N(ham_template, N)
+        filename_prefix = prefix * create_filename(ham_params, coupling_params, sim_params, backend)
 
-        e0, E_final, GS_overlap_final, Edensity_final = safe_read_data(full_filename)
-        if e0 !== nothing && E_final !== nothing && GS_overlap_final !== nothing && Edensity_final !== nothing
-            push!(energy_densities, Edensity_final)
-            push!(final_overlaps, GS_overlap_final)
-            push!(valid_N_values, N)
-            push!(e0_values, e0)
+        full_filename = _results_h5_path(
+            directory,
+            filename_prefix;
+            is_optimization=is_optimization,
+            search_params=search_params,
+        )
+        full_filename === nothing && continue
+
+        e0, edensity_final, gs_overlap_final, E_list, GS_overlap_list = safe_read_keys(
+            full_filename,
+            "e₀",
+            "Edensity_final",
+            "GS_overlap_final",
+            "E_list",
+            "GS_overlap_list",
+        )
+        e0 === nothing && continue
+
+        e0 = _maybe_scalar(e0)
+
+        edensity = if edensity_final !== nothing
+            Float64(_maybe_scalar(edensity_final))
+        elseif E_list !== nothing
+            Float64(_maybe_scalar(E_list[end])) / N
+        else
+            nothing
         end
+
+        overlap = if gs_overlap_final !== nothing
+            Float64(_maybe_scalar(gs_overlap_final))
+        elseif GS_overlap_list !== nothing
+            Float64(_maybe_scalar(GS_overlap_list[end]))
+        else
+            nothing
+        end
+
+        (edensity === nothing || overlap === nothing) && continue
+
+        push!(energy_densities, edensity)
+        push!(final_overlaps, overlap)
+        push!(valid_N_values, N)
+        push!(e0_values, Float64(e0))
     end
 
     if isempty(valid_N_values)
@@ -113,10 +261,10 @@ function plot_vs_N(ham_name::String, coupling_params::CouplingParameters, sim_pa
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
-    ax1.plot(valid_N_values, energy_densities, marker="o", linestyle="-", label="Energy density")
+    ax1.plot(valid_N_values, energy_densities, marker="o", linestyle="-", label="Final energy density")
+    ax1.plot(valid_N_values, e0_values ./ valid_N_values, linestyle="--", color="black", label=L"$E_0/N$")
     ax1.set_xlabel("System size (N)")
     ax1.set_ylabel("Energy density")
-    ax1.plot(valid_N_values, e0_values ./ valid_N_values, linestyle="--", color="black", label=L"$E_0/N$")
     ax1.legend()
 
     ax2.plot(valid_N_values, final_overlaps, marker="o", linestyle="-", label="Final overlap")
@@ -126,63 +274,73 @@ function plot_vs_N(ham_name::String, coupling_params::CouplingParameters, sim_pa
 
     plt.tight_layout()
 
-    # Use first valid N for filename
-    if occursin("niIsing", ham_name)
-        ham_params = NiIsingParameters(valid_N_values[1], 1.0, -1.05, 0.5)
-    elseif occursin("Ising", ham_name)
-        ham_params = IsingParameters(valid_N_values[1], 1.0, 2.0)
-    else
-        ham_params = RydbergParameters(valid_N_values[1], 1.0, 0.0, 1.0)
-    end
-    backend = haskey(sim_params, "method") && sim_params["method"] == "ED" ? EDBackend() : TNBackend()
-    
-    filename_saveto = create_filename(ham_params, coupling_params, sim_params, backend)
-    filename_saveto = "$(prefix)$(filename_saveto)_energy_density_and_overlap_vs_N.pdf"
+    ham_params_first = _ham_params_with_N(ham_template, valid_N_values[1])
+    filename_saveto = create_filename(ham_params_first, coupling_params, sim_params, backend)
+    filename_saveto = prefix * filename_saveto * "_energy_density_and_overlap_vs_N.pdf"
 
-    isdir("$(directory)/Figs") || mkpath("$(directory)/Figs")
-    fig.savefig("$(directory)/Figs/$(filename_saveto)", dpi=300)
+    mkpath(joinpath(directory, "Figs"))
+    fig.savefig(joinpath(directory, "Figs", filename_saveto), dpi=300)
 end
 
-function plot_cooling_curve_noise(ham_name, N, coupling_params, sim_params, peInt_range; is_optimization=false)
+function plot_cooling_curve_noise(
+    ham_name::AbstractString,
+    N::Int,
+    coupling_params::CouplingParameters,
+    sim_params::UnifiedSimulationParameters,
+    peInt_range;
+    backend=nothing,
+    is_optimization::Bool=false,
+    search_params=nothing,
+)
+    ham_template = parse_hamiltonian_name(ham_name)
+    ham_params = _ham_params_with_N(ham_template, N)
+    return plot_cooling_curve_noise(
+        ham_params,
+        coupling_params,
+        sim_params,
+        peInt_range;
+        backend=backend,
+        is_optimization=is_optimization,
+        search_params=search_params,
+    )
+end
+
+function plot_cooling_curve_noise(
+    ham_params::HamiltonianParameters,
+    coupling_params::CouplingParameters,
+    sim_params::UnifiedSimulationParameters,
+    peInt_range;
+    backend=nothing,
+    is_optimization::Bool=false,
+    search_params=nothing,
+)
+    backend === nothing && throw(ArgumentError("backend must be provided for typed sim_params"))
+
     plt = get_pyplot()
-    
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
     directory = is_optimization ? "ResultsOpt" : "Results"
     prefix = is_optimization ? "Optimize" : ""
 
     for peInt in peInt_range
-        pe = peInt * 1e-3
-        pe = round(pe, digits=4)
-        sim_params["pe"] = pe
-        sim_params["peInt"] = peInt
+        pe = round(peInt * 1e-3; digits=4)
+        sim_pe = _with_pe(sim_params, pe)
 
-        # Create proper HamiltonianParameters
-        if occursin("niIsing", ham_name)
-            ham_params = NiIsingParameters(N, 1.0, -1.05, 0.5)
-        elseif occursin("Ising", ham_name)
-            ham_params = IsingParameters(N, 1.0, 2.0)
-        else
-            ham_params = RydbergParameters(N, 1.0, 0.0, 1.0)
-        end
-        backend = haskey(sim_params, "method") && sim_params["method"] == "ED" ? EDBackend() : TNBackend()
-        
-        filename = create_filename(ham_params, coupling_params, sim_params, backend)
-        filename = "$(prefix)$(filename)"
-        if is_optimization
-            search_name_part = create_search_name_part(sim_params)
-            filename *= "_$(search_name_part)"
-        end
-        full_filename = "$(directory)/$(filename).h5"
+        filename_prefix = prefix * create_filename(ham_params, coupling_params, sim_pe, backend)
+        full_filename = _results_h5_path(
+            directory,
+            filename_prefix;
+            is_optimization=is_optimization,
+            search_params=search_params,
+        )
+        full_filename === nothing && continue
 
-        e0, E_list, GS_overlap_list, _ = safe_read_data(full_filename)
-        if e0 !== nothing && E_list !== nothing && GS_overlap_list !== nothing
-            steps = length(E_list)
-            ax1.plot(1:steps, E_list ./ N, label="pe=$pe")
-            ax2.plot(1:steps, GS_overlap_list, label="pe=$pe")
-        else
-            @warn "No valid data found for pe=$pe. Skipping this pe value."
-        end
+        e0, E_list, GS_overlap_list = safe_read_keys(full_filename, "e₀", "E_list", "GS_overlap_list")
+        (e0 === nothing || E_list === nothing || GS_overlap_list === nothing) && continue
+
+        steps = length(E_list)
+        ax1.plot(1:steps, E_list ./ ham_params.N, label="pe=$(pe)")
+        ax2.plot(1:steps, GS_overlap_list, label="pe=$(pe)")
     end
 
     ax1.set_xlabel("Cooling steps")
@@ -195,64 +353,112 @@ function plot_cooling_curve_noise(ham_name, N, coupling_params, sim_params, peIn
 
     plt.tight_layout()
 
-    # Create HamiltonianParameters for filename
-    if occursin("niIsing", ham_name)
-        ham_params = NiIsingParameters(N, 1.0, -1.05, 0.5)
-    elseif occursin("Ising", ham_name)
-        ham_params = IsingParameters(N, 1.0, 2.0)
-    else
-        ham_params = RydbergParameters(N, 1.0, 0.0, 1.0)
-    end
-    backend = haskey(sim_params, "method") && sim_params["method"] == "ED" ? EDBackend() : TNBackend()
-    
     filename_saveto = create_filename(ham_params, coupling_params, sim_params, backend)
-    filename_saveto = "$(prefix)$(filename_saveto)_cooling_curve_noise.pdf"
+    filename_saveto = prefix * filename_saveto * "_cooling_curve_noise.pdf"
 
-    isdir("$(directory)/Figs") || mkpath("$(directory)/Figs")
-    fig.savefig("$(directory)/Figs/$(filename_saveto)", dpi=300)
+    mkpath(joinpath(directory, "Figs"))
+    fig.savefig(joinpath(directory, "Figs", filename_saveto), dpi=300)
 end
 
-function plot_vs_N_pe_range(ham_name, coupling_params, sim_params, N_values, peInt_range; is_optimization=false)
+function plot_vs_N_pe_range(
+    ham_name::AbstractString,
+    coupling_params::CouplingParameters,
+    sim_params::UnifiedSimulationParameters,
+    N_values,
+    peInt_range;
+    backend=nothing,
+    is_optimization::Bool=false,
+    search_params=nothing,
+)
+    backend === nothing && throw(ArgumentError("backend must be provided for typed sim_params"))
+
+    return plot_vs_N_pe_range(
+        parse_hamiltonian_name(ham_name),
+        coupling_params,
+        sim_params,
+        backend,
+        N_values,
+        peInt_range;
+        is_optimization=is_optimization,
+        search_params=search_params,
+    )
+end
+
+function plot_vs_N_pe_range(
+    ham_template::HamiltonianParameters,
+    coupling_params::CouplingParameters,
+    sim_params::UnifiedSimulationParameters,
+    backend::CoolingBackend,
+    N_values,
+    peInt_range;
+    is_optimization::Bool=false,
+    search_params=nothing,
+)
     plt = get_pyplot()
-    
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
     directory = is_optimization ? "ResultsOpt" : "Results"
     prefix = is_optimization ? "Optimize" : ""
 
     for peInt in peInt_range
-        pe = peInt * 1e-3
-        pe = round(pe, digits=4)
-        sim_params["pe"] = pe
-        sim_params["peInt"] = peInt
+        pe = round(peInt * 1e-3; digits=4)
+        sim_pe = _with_pe(sim_params, pe)
 
         energy_errors = Float64[]
         final_overlaps = Float64[]
         valid_N_values = Int[]
 
         for N in N_values
-            filename = create_filename(ham_name, N, coupling_params, sim_params)
-            filename = "$(prefix)$(filename)"
-            if is_optimization
-                search_name_part = create_search_name_part(sim_params)
-                filename *= "_$(search_name_part)"
-            end
-            full_filename = "$(directory)/$(filename).h5"
+            ham_params = _ham_params_with_N(ham_template, N)
+            filename_prefix = prefix * create_filename(ham_params, coupling_params, sim_pe, backend)
 
-            e0, E_final, GS_overlap_final, Edensity_final = safe_read_data(full_filename)
-            if e0 !== nothing && E_final !== nothing && GS_overlap_final !== nothing && Edensity_final !== nothing
-                push!(energy_errors, abs(Edensity_final - e0 / N))
-                push!(final_overlaps, GS_overlap_final)
-                push!(valid_N_values, N)
+            full_filename = _results_h5_path(
+                directory,
+                filename_prefix;
+                is_optimization=is_optimization,
+                search_params=search_params,
+            )
+            full_filename === nothing && continue
+
+            e0, edensity_final, gs_overlap_final, E_list, GS_overlap_list = safe_read_keys(
+                full_filename,
+                "e₀",
+                "Edensity_final",
+                "GS_overlap_final",
+                "E_list",
+                "GS_overlap_list",
+            )
+            e0 === nothing && continue
+
+            e0 = Float64(_maybe_scalar(e0))
+
+            edensity = if edensity_final !== nothing
+                Float64(_maybe_scalar(edensity_final))
+            elseif E_list !== nothing
+                Float64(_maybe_scalar(E_list[end])) / N
+            else
+                nothing
             end
+
+            overlap = if gs_overlap_final !== nothing
+                Float64(_maybe_scalar(gs_overlap_final))
+            elseif GS_overlap_list !== nothing
+                Float64(_maybe_scalar(GS_overlap_list[end]))
+            else
+                nothing
+            end
+
+            (edensity === nothing || overlap === nothing) && continue
+
+            push!(energy_errors, abs(edensity - e0 / N))
+            push!(final_overlaps, overlap)
+            push!(valid_N_values, N)
         end
 
-        if !isempty(valid_N_values)
-            ax1.plot(valid_N_values, energy_errors, marker="o", linestyle="-", label="pe=$pe")
-            ax2.plot(valid_N_values, final_overlaps, marker="o", linestyle="-", label="pe=$pe")
-        else
-            @warn "No valid data points found for pe=$pe. Skipping this pe value."
-        end
+        isempty(valid_N_values) && continue
+
+        ax1.plot(valid_N_values, energy_errors, marker="o", linestyle="-", label="pe=$(pe)")
+        ax2.plot(valid_N_values, final_overlaps, marker="o", linestyle="-", label="pe=$(pe)")
     end
 
     ax1.set_xlabel("System size (N)")
@@ -265,20 +471,22 @@ function plot_vs_N_pe_range(ham_name, coupling_params, sim_params, N_values, peI
 
     plt.tight_layout()
 
-    filename_saveto = create_filename(ham_name, N_values[1], coupling_params, sim_params)
-    filename_saveto = "$(prefix)$(filename_saveto)_energy_error_and_overlap_vs_N_multiple_pe.pdf"
+    ham_params_first = _ham_params_with_N(ham_template, N_values[1])
+    filename_saveto = create_filename(ham_params_first, coupling_params, sim_params, backend)
+    filename_saveto = prefix * filename_saveto * "_energy_error_and_overlap_vs_N_multiple_pe.pdf"
 
-    isdir("$(directory)/Figs") || mkpath("$(directory)/Figs")
-    fig.savefig("$(directory)/Figs/$(filename_saveto)", dpi=300)
+    mkpath(joinpath(directory, "Figs"))
+    fig.savefig(joinpath(directory, "Figs", filename_saveto), dpi=300)
 end
 
 
 """
     plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true)
 
-Plot the momentum distribution n_k vs k as a function of cooling steps.
-Shows how population in different k modes changes during cooling.
-Marks the resonant frequency delta with a vertical line.
+Plot the momentum distribution n_k vs k at a subset of cooling steps.
+
+If the file contains a scalar `delta`, it is drawn as a horizontal line on a
+secondary y-axis (to indicate the resonant bath frequency).
 """
 function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true)
     plt = get_pyplot()
@@ -314,7 +522,7 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
         ax2.tick_params(axis="y", labelcolor="red")
     end
 
-    ax.set_xlabel(L"Momentum $k$ (units of $2\pi/N$)")
+    ax.set_xlabel(L"Momentum $k$")
     ax.set_ylabel(L"Occupation $n_k$")
     ax.set_title("Momentum Distribution Evolution")
     ax.legend()
@@ -333,7 +541,6 @@ end
     plot_momentum_distribution_heatmap(filename; save_fig=true)
 
 Plot the momentum distribution as a heatmap showing n_k vs (k, step).
-This gives a comprehensive view of how all modes evolve during cooling.
 """
 function plot_momentum_distribution_heatmap(filename; save_fig=true)
     plt = get_pyplot()
@@ -352,12 +559,17 @@ function plot_momentum_distribution_heatmap(filename; save_fig=true)
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    im = ax.imshow(transpose(momentum_dist), aspect="auto", origin="lower",
-                   extent=[1, total_steps, k_values[1], k_values[end]],
-                   cmap="hot", interpolation="nearest")
+    im = ax.imshow(
+        transpose(momentum_dist),
+        aspect="auto",
+        origin="lower",
+        extent=[1, total_steps, k_values[1], k_values[end]],
+        cmap="hot",
+        interpolation="nearest",
+    )
 
     ax.set_xlabel("Cooling Step")
-    ax.set_ylabel(L"Momentum $k$ (units of $2\pi/N$)")
+    ax.set_ylabel(L"Momentum $k$")
     ax.set_title("Momentum Distribution Evolution Heatmap")
 
     cbar = plt.colorbar(im, ax=ax)
@@ -375,4 +587,37 @@ function plot_momentum_distribution_heatmap(filename; save_fig=true)
     end
 
     plt.show()
+end
+
+"""
+    plot_data(filename; moving_average=false, output_dir=nothing)
+
+Convenience wrapper: load `E_list`, `GS_overlap_list`, `e₀`, and `N` from an HDF5
+results file and generate the standard energy/overlap plot.
+
+The plot is saved next to the HDF5 file (same directory) unless `output_dir` is
+provided.
+"""
+function plot_data(filename::AbstractString; moving_average::Bool=false, output_dir=nothing)
+    data = read_h5_data(filename)
+    data === nothing && return nothing
+
+    for key in ("e₀", "E_list", "GS_overlap_list", "N")
+        if !haskey(data, key)
+            @warn "Missing key \"$key\" in file $filename"
+            return nothing
+        end
+    end
+
+    e0 = _maybe_scalar(data["e₀"])
+    E_list = data["E_list"]
+    GS_overlap_list = data["GS_overlap_list"]
+    N = Int(_maybe_scalar(data["N"]))
+
+    out_dir = output_dir === nothing ? dirname(filename) : output_dir
+    base = extract_filename_base(filename)
+
+    plot_energy_and_overlap(E_list, GS_overlap_list, e0, N, base; moving_average=moving_average, output_dir=out_dir)
+
+    return nothing
 end

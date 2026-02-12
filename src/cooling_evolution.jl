@@ -174,6 +174,15 @@ function compile_results(measurements, sim_params)
     return results
 end
 
+"""
+    create_results(measurements, sim_params)
+
+Public alias for `compile_results`. CoolingTNS represents simulation outputs as a
+`Dict{String,Any}` of measurement arrays; this helper copies the dictionary and
+adds lightweight metadata (e.g. `n_trajectories` for Monte Carlo runs).
+"""
+create_results(measurements, sim_params) = compile_results(measurements, sim_params)
+
 # ============================================================================
 # Backend-Specific Implementations
 # ============================================================================
@@ -392,99 +401,3 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     measurements["purity_list"][step] = real(tr(apply(ρ_s, ρ_s)))
 end
 
-# ============================================================================
-# Monte Carlo Trajectory Support
-# ============================================================================
-
-"""
-Run Monte Carlo trajectories for backends that support it.
-"""
-function run_cooling_monte_carlo(problem::CoolingProblem, initial_state::QuantumState, 
-                               coupling_params, sim_params, ham_params)
-    n_trajectories = get(sim_params.extra, :n_trajectories, 1)
-    
-    if n_trajectories == 1
-        # Single trajectory - use standard run_cooling
-        return run_cooling(problem, initial_state, coupling_params, sim_params, ham_params)
-    end
-    
-    # Multiple trajectories
-    steps = coupling_params.steps
-    
-    # Initialize arrays for all trajectories
-    all_measurements = [initialize_measurements(problem, initial_state, steps) for _ in 1:n_trajectories]
-    
-    # Run each trajectory
-    for traj in 1:n_trajectories
-        # Fresh copy of initial state for each trajectory
-        traj_state = QuantumState(initial_state.backend, initial_state.sim_method, 
-                                initial_state.evolution_method, copy(initial_state.state))
-        
-        # Run single trajectory
-        traj_results = run_cooling(problem, traj_state, coupling_params, sim_params, ham_params)
-        
-        # Store results
-        for (key, value) in traj_results
-            all_measurements[traj][key] = value
-        end
-        
-        if traj % 10 == 0
-            println("Completed trajectory $traj/$n_trajectories")
-        end
-    end
-    
-    # Average results across trajectories
-    avg_results = Dict{String, Any}()
-    
-    for key in keys(all_measurements[1])
-        if key in ["E_list", "GS_overlap_list", "purity_list", "bath_mag_list", "nb_list"]
-            # Average these measurements
-            values = [all_measurements[traj][key] for traj in 1:n_trajectories]
-            avg_results[key] = mean(values)
-            avg_results[key * "_std"] = std(values)
-        end
-    end
-    
-    avg_results["n_trajectories"] = n_trajectories
-    
-    return avg_results
-end
-
-# ============================================================================
-# Utility Functions
-# ============================================================================
-
-"""Trace out bath degrees of freedom"""
-function tr_bath(ρ::Matrix, N_sys::Int, N_bath::Int)
-    dim_sys = 2^N_sys
-    dim_bath = 2^N_bath
-    ρ_sys = zeros(ComplexF64, dim_sys, dim_sys)
-    
-    for i in 1:dim_sys, j in 1:dim_sys
-        for k in 1:dim_bath
-            idx_i = (i-1)*dim_bath + k
-            idx_j = (j-1)*dim_bath + k
-            ρ_sys[i,j] += ρ[idx_i, idx_j]
-        end
-    end
-    
-    return ρ_sys
-end
-
-# tr_sys function moved to bath_measurements.jl to avoid duplication
-
-"""Compute bath magnetization from density matrix"""
-function compute_bath_magnetization(ρ_bath::Matrix, N_bath::Int)
-    mag = 0.0
-    dim = 2^N_bath
-    
-    for i in 1:dim
-        # Count number of 1s in binary representation
-        n_ones = count_ones(i-1)
-        mag += real(ρ_bath[i,i]) * (2*n_ones/N_bath - 1)
-    end
-    
-    return mag
-end
-
-# Note: ED backend measurements are handled by the unified function above
