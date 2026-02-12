@@ -280,7 +280,7 @@ struct EDBackend <: CoolingBackend end
 
 ## Known Issues and TODOs
 
-- **ED Backend Physics**: Energy increases during cooling instead of decreasing - requires debugging of Hamiltonian physics implementation
+- **Monte Carlo trajectories**: Cooling is stochastic; energy need not decrease trajectory-by-trajectory (TN and ED). Validate using ensemble averages (see `scripts/diagnostics/physics_investigation_report.jl`).
 - **optCooling.jl**: Still uses old string-based method selection, needs dispatch refactoring  
 - **TN Backend Measurements**: Missing measurement functions for some TN method combinations
 - **Precompilation**: Long precompilation times due to ITensors/Yao dependencies eating tokens during debugging
