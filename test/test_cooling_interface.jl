@@ -160,65 +160,7 @@ using CoolingTNS
         @test results["E_list"][end] <= results["E_list"][1] + 1e-10
     end
 
-    @testset "Cross-Backend Consistency" begin
-        # Compare results between ED and TN for very small system
-        test_N = 2
-        test_steps = 3
-        test_ham_params = CoolingTNS.NiIsingParameters(test_N, 1.0, -1.05, 0.5)
-        
-        short_coupling_params = CoolingTNS.BasicCouplingParameters(
-            coupling_params.coupling,
-            coupling_params.g,
-            test_steps,
-            coupling_params.te,
-            coupling_params.delta
-        )
-        
-        # Set up backends with their appropriate simulation parameters
-        backends_and_params = [
-            (CoolingTNS.EDBackend(), CoolingTNS.UnifiedSimulationParameters(
-                CoolingTNS.DensityMatrix(),
-                CoolingTNS.ContinuousEvolution();
-                pe=0.0
-            )),
-            (CoolingTNS.TNBackend(), CoolingTNS.UnifiedSimulationParameters(
-                CoolingTNS.MonteCarloWavefunction(),
-                CoolingTNS.ContinuousEvolution();
-                Dmax=20, cutoff=1e-6, tau=0.1, pe=0.0, n_trajectories=1
-            ))
-        ]
-        
-        results_dict = Dict()
-        
-        for (backend, sim_params) in backends_and_params
-            problem_setup = CoolingTNS.setup_problem(
-                backend, test_ham_params, short_coupling_params, sim_params
-            )
-            
-            initial_state = CoolingTNS.setup_initial_state(
-                problem_setup, sim_params, "product", 0.0
-            )
-            
-            results = CoolingTNS.run_cooling(
-                problem_setup,
-                initial_state,
-                short_coupling_params,
-                sim_params,
-                test_ham_params
-            )
-            
-            results_dict[typeof(backend)] = results
-        end
-        
-        # Compare ground state energies
-        ed_results = results_dict[CoolingTNS.EDBackend]
-        tn_results = results_dict[CoolingTNS.TNBackend]
-        
-        # Ground state energies should be very close
-        @test abs(ed_results["E_list"][1] - tn_results["E_list"][1]) < 0.1
-        
-        # Both should show cooling (energy decrease)
-        @test ed_results["E_list"][end] < ed_results["E_list"][1]
-        @test tn_results["E_list"][end] < tn_results["E_list"][1]
-    end
+    # Cross-backend cooling comparisons are covered in `test_correctness.jl`.
+    # They are intentionally gated behind `ENV["COOLINGTNS_FULL_TESTS"]` since
+    # Monte Carlo trajectories can be slow and inherently stochastic.
 end

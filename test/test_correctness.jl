@@ -20,7 +20,12 @@ using SparseArrays
 using Statistics
 using Random
 
-# Fix random seed for reproducibility of MC tests
+isdefined(@__MODULE__, :run_cooling_case) || include("test_helpers.jl")
+if !isdefined(@__MODULE__, :RUN_FULL_TESTS)
+    const RUN_FULL_TESTS = full_tests_enabled()
+end
+
+# Fix random seed for reproducibility of MC tests (only used in full tests)
 Random.seed!(42)
 
 # ============================================================================
@@ -30,19 +35,20 @@ function run_cooling_test(; backend_str, sim_method_str, evolution_method_str,
                            ham_params, coupling_params,
                            Dmax=50, cutoff=1e-10, tau=0.1, pe=0.0,
                            n_trajectories=1, init_type="product", theta=0.0)
-    backend = CoolingTNS.get_backend(backend_str)
-    sim_method = CoolingTNS.get_sim_method(sim_method_str)
-    evolution_method = CoolingTNS.get_evolution_method(evolution_method_str)
-
-    sim_params = CoolingTNS.UnifiedSimulationParameters(
-        sim_method, evolution_method;
-        Dmax=Dmax, cutoff=cutoff, tau=tau, pe=pe,
-        n_trajectories=n_trajectories
+    results, problem, _ = run_cooling_case(
+        backend_str=backend_str,
+        sim_method_str=sim_method_str,
+        evolution_method_str=evolution_method_str,
+        ham_params=ham_params,
+        coupling_params=coupling_params,
+        Dmax=Dmax,
+        cutoff=cutoff,
+        tau=tau,
+        pe=pe,
+        n_trajectories=n_trajectories,
+        init_type=init_type,
+        theta=theta,
     )
-
-    problem = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params)
-    state0  = CoolingTNS.setup_initial_state(problem, sim_params, init_type, theta)
-    results = CoolingTNS.run_cooling(problem, state0, coupling_params, sim_params, ham_params)
     return results, problem
 end
 
@@ -135,6 +141,7 @@ end
 # ============================================================================
 # Test 3: ED DensityMatrix vs MonteCarloWavefunction (same evolution method)
 # ============================================================================
+if RUN_FULL_TESTS
 @testset "ED: DensityMatrix vs MCWF (Continuous)" begin
     for (label, ham_params) in [("Ising", ISING_PARAMS), ("niIsing", NI_ISING_PARAMS)]
         @testset "$label model" begin
@@ -193,6 +200,7 @@ end
         end
     end
 end
+end # RUN_FULL_TESTS
 
 # ============================================================================
 # Test 4: ED Continuous vs Trotter evolution consistency
@@ -247,6 +255,7 @@ end
 # Note: Using DM which is deterministic. MC single trajectories are too stochastic.
 # TN DM+Continuous is not supported (TDVP can't handle MPO), so we use DM+Trotter.
 # ============================================================================
+if RUN_FULL_TESTS
 @testset "Cross-Backend: ED vs TN (DM+Continuous/Trotter)" begin
     small_N = 3
     small_ising = CoolingTNS.NiIsingParameters(small_N, 1.0, -1.05, 0.5)
@@ -334,6 +343,7 @@ end
     @test results_ed["E_list"][end] <= results_ed["E_list"][1] + 1e-10
     @test results_tn["E_list"][end] <= results_tn["E_list"][1] + 1e-10
 end
+end # RUN_FULL_TESTS
 
 # ============================================================================
 # Test 7: Physical invariants
@@ -563,6 +573,7 @@ end
 # ============================================================================
 # Test 13: TN MC+Trotter vs TN DM+Trotter (MPS vs MPO, same Trotter gates)
 # ============================================================================
+if RUN_FULL_TESTS
 @testset "TN: MC+Trotter vs DM+Trotter" begin
     small_N = 3
     small_ham = CoolingTNS.IsingParameters(small_N, 1.0, 1.0)
@@ -663,10 +674,4 @@ end
     E_diff = abs(results_mpo["E_list"][end] - mc_E_avg[end])
     @test E_diff < max(4.0 * mc_E_stderr, 0.5)
 end
-
-# ============================================================================
-# Summary
-# ============================================================================
-println("\n" * "="^60)
-println("All correctness tests completed!")
-println("="^60)
+end # RUN_FULL_TESTS
