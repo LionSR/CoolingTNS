@@ -1,4 +1,13 @@
 """
+Plot evolution of momentum distribution n_k during cooling.
+
+Standalone plotting script. Usage:
+    julia --project=. scripts/plotting/plot_nk_evolution.jl <filename.h5>
+"""
+
+include(joinpath(@__DIR__, "PlotUtils.jl"))
+
+"""
     plot_nk_evolution(filename; steps_to_plot=nothing, save_fig=true)
 
 Plot the evolution of momentum distribution n_k during cooling process.
@@ -63,5 +72,3 @@ function plot_nk_evolution(filename; steps_to_plot=nothing, save_fig=true)
 
     return fig
 end
-
-export plot_nk_evolution

@@ -1,4 +1,13 @@
 """
+Plot energy dispersion ε_k vs k for the transverse field Ising model.
+
+Standalone plotting script. Usage:
+    julia --project=. scripts/plotting/plot_energy_dispersion.jl
+"""
+
+include(joinpath(@__DIR__, "PlotUtils.jl"))
+
+"""
     plot_energy_dispersion(N, J, h, bc; delta=nothing, save_fig=true, filename=nothing)
 
 Plot the energy dispersion epsilon_k vs k for the transverse field Ising model.
@@ -35,5 +44,3 @@ function plot_energy_dispersion(N::Int, J::Real, h::Real, bc::Symbol;
 
     return fig
 end
-
-export plot_energy_dispersion

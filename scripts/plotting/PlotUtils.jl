@@ -1,11 +1,17 @@
 """
 Shared plotting utilities for k-space visualization.
-Provides common helper functions to reduce duplication across plotting files.
+Provides common helper functions to reduce duplication across plotting scripts.
+
+Usage: `include("PlotUtils.jl")` from other scripts in this directory.
 """
 
+using CoolingTNS
 using HDF5
 using PythonCall
 using LaTeXStrings
+
+# Re-export dispersion functions from CoolingTNS for convenience
+using CoolingTNS: generate_k_values, compute_energy_dispersion, compute_ground_state_occupation
 
 # Lazy pyplot access - imported once per session
 const _pyplot = Ref{Py}()
@@ -20,43 +26,6 @@ function get_pyplot()
         _pyplot[] = pyimport("matplotlib.pyplot")
     end
     return _pyplot[]
-end
-
-"""
-    generate_k_values(N::Int, bc::Symbol) -> Vector{Float64}
-
-Generate k-values based on boundary conditions.
-- Periodic BC: k = 2pi*n/N for n = 0, 1, ..., N-1
-- Antiperiodic BC: k = pi*(2n+1)/N for n = 0, 1, ..., N-1
-"""
-function generate_k_values(N::Int, bc::Symbol)::Vector{Float64}
-    if bc == :periodic
-        return [2pi * n / N for n in 0:N-1]
-    elseif bc == :antiperiodic
-        return [pi * (2n + 1) / N for n in 0:N-1]
-    else
-        error("Unsupported boundary condition: $bc")
-    end
-end
-
-"""
-    compute_energy_dispersion(k_values, J::Real, h::Real) -> Vector{Float64}
-
-Compute energy dispersion epsilon_k for the transverse field Ising model.
-epsilon_k = -2*sqrt(J^2 + h^2 + 2*J*h*cos(k))
-"""
-function compute_energy_dispersion(k_values, J::Real, h::Real)::Vector{Float64}
-    return [-2 * sqrt(J^2 + h^2 + 2*J*h*cos(k)) for k in k_values]
-end
-
-"""
-    compute_ground_state_occupation(k_values, J::Real, h::Real) -> Vector{Float64}
-
-Compute ground state occupation n_k^(GS) for the transverse field Ising model.
-n_k^(GS) = (1/2)(1 - (J*cos(k) + h)/sqrt(J^2 + h^2 + 2*J*h*cos(k)))
-"""
-function compute_ground_state_occupation(k_values, J::Real, h::Real)::Vector{Float64}
-    return [0.5 * (1 - (J*cos(k) + h)/sqrt(J^2 + h^2 + 2*J*h*cos(k))) for k in k_values]
 end
 
 """
@@ -131,10 +100,53 @@ function setup_kspace_axis(ax, bc::Symbol)
 end
 
 """
-    get_evolution_colors(n_steps::Int)
+    get_evolution_colors(plt, n_steps::Int)
 
 Generate a color array for evolution plots using viridis colormap.
 """
 function get_evolution_colors(plt, n_steps::Int)
     return plt.cm.viridis(range(0, 1, length=n_steps))
 end
+
+"""
+    _maybe_scalar(x)
+
+If `x` is a 0-d or length-1 array (a common HDF5 scalar encoding), return its only
+entry. Otherwise return `x` unchanged.
+"""
+_maybe_scalar(x) = (x isa AbstractArray && length(x) == 1) ? only(x) : x
+
+"""
+    safe_read_keys(filename, keys...) -> Tuple
+
+Read selected datasets from an HDF5 results file.
+"""
+function safe_read_keys(filename::AbstractString, dsets::AbstractString...)
+    if !isfile(filename)
+        @warn "File not found: $filename"
+        return ntuple(_ -> nothing, length(dsets))
+    end
+
+    try
+        h5open(filename, "r") do file
+            available = keys(file)
+            return ntuple(i -> (dsets[i] in available ? read(file, dsets[i]) : nothing), length(dsets))
+        end
+    catch e
+        msg = if isa(e, HDF5.HDF5Error)
+            "HDF5 error: $(e.msg)"
+        else
+            "Error: $e"
+        end
+        @warn "Failed to read $filename: $msg"
+        return ntuple(_ -> nothing, length(dsets))
+    end
+end
+
+"""
+    safe_read_data(filename)
+
+Backward-compatible helper returning `(e₀, E_list, GS_overlap_list, Edensity_final)`.
+"""
+safe_read_data(filename::AbstractString) =
+    safe_read_keys(filename, "e₀", "E_list", "GS_overlap_list", "Edensity_final")

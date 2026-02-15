@@ -1,4 +1,13 @@
 """
+Plot energy dispersion ε_k and ground state occupation n_k^(GS).
+
+Standalone plotting script. Usage:
+    julia --project=. scripts/plotting/plot_dispersion_with_gs.jl
+"""
+
+include(joinpath(@__DIR__, "PlotUtils.jl"))
+
+"""
     plot_dispersion_with_ground_state(N, J, h, bc; delta=nothing, save_fig=true, filename=nothing)
 
 Plot the energy dispersion epsilon_k vs k and ground state occupation n_k^(GS) for the transverse field Ising model.
@@ -45,5 +54,3 @@ function plot_dispersion_with_ground_state(N::Int, J::Real, h::Real, bc::Symbol;
 
     return fig
 end
-
-export plot_dispersion_with_ground_state

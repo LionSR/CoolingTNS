@@ -1,51 +1,17 @@
-# Uses shared utilities from plot_utils.jl (included by main module)
-
 """
-    _maybe_scalar(x)
+General plotting functions for cooling results visualization.
 
-If `x` is a 0-d or length-1 array (a common HDF5 scalar encoding), return its only
-entry. Otherwise return `x` unchanged.
+Standalone plotting script. Usage:
+    julia --project=. scripts/plotting/plotting.jl
+or:
+    include("scripts/plotting/plotting.jl")
 """
-_maybe_scalar(x) = (x isa AbstractArray && length(x) == 1) ? only(x) : x
 
-"""
-    safe_read_keys(filename, keys...) -> Tuple
+include(joinpath(@__DIR__, "PlotUtils.jl"))
 
-Read selected datasets from an HDF5 results file.
-
-- Missing files and read errors are reported via `@warn`.
-- Missing keys return `nothing` for that entry (callers can decide whether a key is
-  optional).
-"""
-function safe_read_keys(filename::AbstractString, dsets::AbstractString...)
-    if !isfile(filename)
-        @warn "File not found: $filename"
-        return ntuple(_ -> nothing, length(dsets))
-    end
-
-    try
-        h5open(filename, "r") do file
-            available = keys(file)
-            return ntuple(i -> (dsets[i] in available ? read(file, dsets[i]) : nothing), length(dsets))
-        end
-    catch e
-        msg = if isa(e, HDF5.HDF5Error)
-            "HDF5 error: $(e.msg)"
-        else
-            "Error: $e"
-        end
-        @warn "Failed to read $filename: $msg"
-        return ntuple(_ -> nothing, length(dsets))
-    end
-end
-
-"""
-    safe_read_data(filename)
-
-Backward-compatible helper returning `(e₀, E_list, GS_overlap_list, Edensity_final)`.
-"""
-safe_read_data(filename::AbstractString) =
-    safe_read_keys(filename, "e₀", "E_list", "GS_overlap_list", "Edensity_final")
+# Import CoolingTNS types and functions needed by this file
+using CoolingTNS: HamiltonianParameters, CouplingParameters, UnifiedSimulationParameters,
+    CoolingBackend, parse_hamiltonian_name, create_filename, mean_last_window
 
 _ham_params_with_N(template::HamiltonianParameters, N::Int) =
     HamiltonianParameters(template.model, N, template.params, template.bc)

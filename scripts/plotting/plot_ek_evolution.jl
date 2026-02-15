@@ -1,4 +1,13 @@
 """
+Plot evolution of energy e_k = ε_k * n_k during cooling.
+
+Standalone plotting script. Usage:
+    julia --project=. scripts/plotting/plot_ek_evolution.jl <filename.h5>
+"""
+
+include(joinpath(@__DIR__, "PlotUtils.jl"))
+
+"""
     plot_ek_evolution(filename; steps_to_plot=nothing, save_fig=true)
 
 Plot the evolution of energy e_k = epsilon_k * n_k during cooling process.
@@ -66,5 +75,3 @@ function plot_ek_evolution(filename; steps_to_plot=nothing, save_fig=true)
 
     return fig
 end
-
-export plot_ek_evolution
