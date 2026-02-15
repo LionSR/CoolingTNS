@@ -240,4 +240,42 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
             measurements["momentum_dist"][step, :] .= n_k
         end
     end
+
+    # Mode energy measurements ⟨h_k⟩ (requires measure_modes=true in run_cooling)
+    if haskey(measurements, "mode_hk") && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
+        # Get the system state for measurement
+        sys_state = if isa(state, EDStateVector)
+            state
+        else
+            # Density matrix: get system-only state
+            if ρ_total.n_qubits == 2*N_sys
+                trace_out_bath_ed(ρ_total, N_sys)
+            else
+                ρ_total
+            end
+        end
+
+        # Use the stored ground-state gF for consistent sector choice.
+        # For pure states, measure_all_mode_energies auto-detects gF from parity.
+        # For density matrices (mixed states), parity may not be ±1, so we use
+        # the gF determined from the ground state's parity sector.
+        gF_kwarg = if haskey(measurements, "mode_gF")
+            measurements["mode_gF"]
+        else
+            nothing
+        end
+
+        k_indices, hk_values, εk_values = measure_all_mode_energies(sys_state, ham_params; gF=gF_kwarg)
+        n_modes = length(k_indices)
+
+        # Allocate arrays on first call (now we know the number of modes)
+        if measurements["mode_hk"] === nothing
+            n_steps_total = size(measurements["E_list"], 1)
+            measurements["mode_hk"] = fill(NaN, n_steps_total, n_modes)
+            measurements["mode_k_indices"] = k_indices
+            measurements["mode_ek_values"] = εk_values
+        end
+
+        measurements["mode_hk"][step, :] .= hk_values
+    end
 end

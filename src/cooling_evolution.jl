@@ -26,7 +26,7 @@ to specialized implementations based on backend and method types.
 """
 function run_cooling(problem::CoolingProblem{B}, state::QuantumState{B,S,E}, 
                     coupling_params, sim_params, 
-                    ham_params) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
+                    ham_params; measure_modes::Bool=false) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
     
     # Common setup
     steps = coupling_params.steps
@@ -34,7 +34,7 @@ function run_cooling(problem::CoolingProblem{B}, state::QuantumState{B,S,E},
     pe = sim_params.pe
     
     # Initialize measurement arrays
-    measurements = initialize_measurements(problem, state, steps)
+    measurements = initialize_measurements(problem, state, steps; measure_modes=measure_modes, ham_params=ham_params)
     
     # Initial measurements
     perform_measurements!(measurements, 1, problem, state, ham_params)
@@ -84,7 +84,8 @@ end
 # ============================================================================
 
 """Initialize measurement arrays based on backend and method"""
-function initialize_measurements(problem::CoolingProblem, state::QuantumState, steps::Int)
+function initialize_measurements(problem::CoolingProblem, state::QuantumState, steps::Int;
+                                 measure_modes::Bool=false, ham_params=nothing)
     # Basic measurements available for all backends
     measurements = Dict{String, Any}(
         "E_list" => zeros(Float64, steps + 1),
@@ -93,6 +94,11 @@ function initialize_measurements(problem::CoolingProblem, state::QuantumState, s
     
     # Add backend-specific measurements
     add_backend_measurements!(measurements, problem, state, steps)
+    
+    # Add mode energy measurements if requested (ED + Ising + PBC/APBC only)
+    if measure_modes
+        add_mode_measurements!(measurements, problem, state, steps, ham_params)
+    end
     
     return measurements
 end
@@ -137,6 +143,27 @@ function add_kspace_measurements!(measurements, problem::CoolingProblem{EDBacken
         end
     end
 end
+
+# Helper for mode energy measurements ⟨h_k⟩ (ED only, Ising PBC/APBC)
+function add_mode_measurements!(measurements, problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend}, steps, ham_params)
+    hp = ham_params !== nothing ? ham_params : (haskey(problem.extra, :ham_params) ? problem.extra.ham_params : nothing)
+    if hp !== nothing && hp.bc in [:periodic, :antiperiodic] && isa(hp.model, IsingModel)
+        # Determine gF from the ground state's parity sector.
+        # This ensures consistent mode measurement even for mixed states.
+        px = measure_state_parity(problem.ϕ₀, hp.N)
+        parity = round(Int, px)
+        gF = fermionic_bc(hp.bc, parity)
+        measurements["mode_gF"] = gF
+
+        # Preallocate arrays (will be filled on first measurement call)
+        measurements["mode_hk"] = nothing  # allocated in perform_measurements_ed
+        measurements["mode_k_indices"] = nothing
+        measurements["mode_ek_values"] = nothing
+    end
+end
+
+# Fallback: mode measurements not supported for non-ED backends
+add_mode_measurements!(measurements, problem, state, steps, ham_params) = nothing
 
 """Perform measurements on current state"""
 function perform_measurements!(measurements, step::Int, problem::CoolingProblem, state::QuantumState, ham_params, bath_info=nothing)
