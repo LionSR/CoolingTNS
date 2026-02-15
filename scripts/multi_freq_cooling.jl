@@ -17,15 +17,17 @@ Run single-Δ vs multi-Δ cooling for the interacting niIsing model and print a
 summary comparing energies and (optionally) steady-state averages.
 
 Notes:
+- Defaults run a fast `EDBackend()` demo (N=4, steps=50). For TN benchmarks, pass
+  `backend=TNBackend()` and increase `N`/`steps` (expect longer runtimes).
 - For TN runs, the recommended method is `MonteCarloWavefunction + ContinuousEvolution`
   (MPS + TDVP). This is the default for `TNBackend()`.
 - Multi-frequency cooling may require longer runs (hundreds of steps) to see a
   clear separation from single-frequency protocols.
 """
 function run_multi_frequency_comparison(; 
-    backend::CoolingBackend=TNBackend(),
-    N::Int=20,
-    steps::Int=200,
+    backend::CoolingBackend=EDBackend(),
+    N::Int=4,
+    steps::Int=50,
     coupling::String="XX",
     g::Float64=0.3,
     te::Float64=2.0,
@@ -45,7 +47,7 @@ function run_multi_frequency_comparison(;
     init_type::String="product",
     theta::Float64=0.0,
     # Analysis
-    window_size::Int=50,
+    window_size::Int=10,
 )
     ham_params = NiIsingParameters(N, 1.0, -1.05, 0.5)
 
