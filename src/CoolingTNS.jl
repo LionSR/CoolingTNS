@@ -27,6 +27,7 @@ include("noise.jl")
 include("ed_backend.jl")
 include("ed_backend_complex_jw.jl")  # Complex JW (notes convention) — single source of truth
 include("mode_analysis.jl")          # Parameter mapping, dispersion, k-grid
+include("multi_frequency.jl")       # Multi-frequency (multi-Δ) cooling helpers
 
 include("bath_measurements.jl")    # Dispatched bath measurement functions
 include("state_manipulation.jl")   # Dispatched state manipulation functions
@@ -44,14 +45,14 @@ include("cooling_evolution.jl")     # Cooling evolution
 include("setup.jl")                 # setup_problem implementations
 
 
-export setup_problem, run_cooling, setup_initial_state
+export setup_problem, run_cooling, run_cooling_multi_freq, setup_initial_state
 export CoolingProblem, QuantumState
 export CoolingBackend, EDBackend, TNBackend
 export SimulationMethod, DensityMatrix, MonteCarloWavefunction
 export EvolutionMethod, ContinuousEvolution, TrotterEvolution
 # Export new parameter types and functions
 export CouplingParameters, SimulationParameters, CoolingResults
-export BasicCouplingParameters, OptimizationCouplingParameters
+export BasicCouplingParameters, MultiFrequencyCouplingParameters, OptimizationCouplingParameters
 export UnifiedSimulationParameters
 export HamiltonianParameters, IsingParameters, NiIsingParameters, RydbergParameters
 export HamiltonianModel, IsingModel, NiIsingModel, RydbergModel
@@ -68,6 +69,10 @@ export theta_from_Jh, Jh_from_theta, energy_scale
 export mode_energy, mode_energy_Jh, w_k_coefficient, r_k_coefficient
 export bogoliubov_angle, coeff_k, vacuum_energy, vacuum_energy_Jh
 export allowed_k_indices, fermionic_bc, parity_operator_code
+
+# Multi-frequency cooling helpers
+export uniform_delta_grid, compute_excitation_gaps, spectral_delta_values
+
 # Complex JW (notes convention)
 export jordan_wigner_transform_complex, pauli_y_complex
 export measure_momentum_distribution_ed_clean

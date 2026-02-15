@@ -86,6 +86,61 @@ function create_search_name_part(search_params)
     return "Search$(search_params["search_method"])trials$(search_params["num_trials"])"
 end
 
+function create_filename(
+    ham_params::HamiltonianParameters,
+    coupling_params::MultiFrequencyCouplingParameters,
+    sim_params::UnifiedSimulationParameters,
+    backend::CoolingBackend,
+)
+    # Ham group: HamIsingJ1.0h1.0 (no underscores within group)
+    ham_name = hamiltonian_name(ham_params)
+    ham_group = "Ham$(ham_name)"
+
+    # Coupling group: include only summary info about the Δ-grid (to keep names short)
+    R = length(coupling_params.delta_values)
+    δmin = minimum(coupling_params.delta_values)
+    δmax = maximum(coupling_params.delta_values)
+    dmin_str = @sprintf("%.3f", δmin)
+    dmax_str = @sprintf("%.3f", δmax)
+
+    schedule_str = if coupling_params.schedule == :round_robin
+        "rr"
+    elseif coupling_params.schedule == :random
+        "rand"
+    else
+        # Should not happen (validated in constructor), but keep filename stable.
+        replace(string(coupling_params.schedule), "_" => "")
+    end
+
+    coupling_group =
+        "Coupling$(coupling_params.coupling)g$(coupling_params.g)te$(coupling_params.te)steps$(coupling_params.steps)" *
+        "multiR$(R)dmin$(dmin_str)dmax$(dmax_str)sched$(schedule_str)"
+
+    if coupling_params.randomize_times
+        coupling_group *= "randt"
+    end
+
+    # Sim group: SimTNDmax100 or SimED (no underscores within group)
+    backend_str = backend isa TNBackend ? "TN" : "ED"
+    sim_method_str = sim_params.sim_method isa DensityMatrix ? "DM" : "MC"
+    sim_group = "Sim$(backend_str)$(sim_method_str)"
+
+    if backend isa TNBackend && sim_params.Dmax != 100
+        sim_group *= "Dmax$(sim_params.Dmax)"
+    end
+
+    if sim_params.evolution_method isa TrotterEvolution
+        sim_group *= "tau$(sim_params.tau)"
+    end
+
+    if sim_params.pe > 0
+        pe_int = Int(round(sim_params.pe * 1000))
+        sim_group *= "pe$(pe_int)"
+    end
+
+    return "Cooling_$(ham_group)_$(coupling_group)_$(sim_group)"
+end
+
 function create_filename(ham_params::HamiltonianParameters, coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters, backend::CoolingBackend)
     # Ham group: HamIsingJ1.0h1.0 (no underscores within group)
     ham_name = hamiltonian_name(ham_params)

@@ -11,6 +11,72 @@ function setup_problem(backend::CoolingBackend, ham_params::HamiltonianParameter
     error("setup_problem not implemented for ham_model=$(typeof(ham_params.model)) and backend=$(typeof(backend))")
 end
 
+# ---------------------------------------------------------------------------
+# Multi-frequency (multi-Δ) cooling setup
+# ---------------------------------------------------------------------------
+
+function setup_problem(
+    backend::EDBackend,
+    ham_params::HamiltonianParameters,
+    coupling_params::MultiFrequencyCouplingParameters,
+    _sim_params,
+)
+    H_sys, Δ_ed, e₀, ϕ₀ = setup_system(ham_params, backend)
+
+    # For multi-frequency protocols, Δ changes every step, so we do not prebuild H_sys_bath.
+    return CoolingProblem(
+        backend,
+        H_sys,
+        nothing,
+        ϕ₀,
+        e₀,
+        (
+            coupling_params=coupling_params,
+            ham_params=ham_params,
+            coupling=coupling_params.coupling,
+            g=coupling_params.g,
+            gap=Δ_ed,
+        ),
+    )
+end
+
+function setup_problem(
+    backend::TNBackend,
+    ham_params::HamiltonianParameters,
+    coupling_params::MultiFrequencyCouplingParameters,
+    sim_params::UnifiedSimulationParameters,
+)
+    if !(sim_params.sim_method isa MonteCarloWavefunction && sim_params.evolution_method isa ContinuousEvolution)
+        error(
+            "Multi-frequency cooling for TN is currently implemented only for " *
+            "MonteCarloWavefunction + ContinuousEvolution (MPS + TDVP). " *
+            "Got sim_method=$(typeof(sim_params.sim_method)), evolution_method=$(typeof(sim_params.evolution_method)).",
+        )
+    end
+
+    N = ham_params.N
+    sites = siteinds("S=1/2", 2 * N)
+    sites_sys = sites[1:2:2 * N - 1]
+
+    H_sys, Δ_dmrg, e₀, ϕ₀ = setup_system(ham_params, backend, sites_sys)
+
+    return CoolingProblem(
+        backend,
+        H_sys,
+        nothing,
+        ϕ₀,
+        e₀,
+        (
+            coupling_params=coupling_params,
+            coupling=coupling_params.coupling,
+            g=coupling_params.g,
+            sites=sites,
+            gap=Δ_dmrg,
+            ham_params=ham_params,
+        ),
+    )
+end
+
 # ED Backend - Direct implementation with substance
 function setup_problem(backend::EDBackend, ham_params::HamiltonianParameters, coupling_params, sim_params)
     # Use unified setup_system dispatch for both Hamiltonian and ground state

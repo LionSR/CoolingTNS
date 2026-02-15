@@ -80,6 +80,168 @@ function run_cooling(problem::CoolingProblem{B}, state::QuantumState{B,S,E},
 end
 
 # ============================================================================
+# Multi-frequency Cooling (multi-Δ)
+# ============================================================================
+
+"""
+    run_cooling_multi_freq(problem, state, mf_params::MultiFrequencyCouplingParameters, sim_params, ham_params; measure_modes=false)
+
+Run a multi-frequency cooling protocol, cycling the bath detuning Δ through
+`mf_params.delta_values` according to `mf_params.schedule`. Optionally randomizes
+the evolution time each step (`randomize_times=true`).
+
+The returned results dictionary includes:
+
+- `delta_list[step]`: Δ used for the evolution that produced measurement `step`
+  (with `delta_list[1]=NaN` for the initial measurement).
+- `te_list[step]`: evolution time used at that step (similarly `NaN` at step 1).
+- `delta_values`: the set of Δ values used in the protocol.
+"""
+function run_cooling_multi_freq(
+    problem::CoolingProblem{B},
+    state::QuantumState{B,S,E},
+    mf_params::MultiFrequencyCouplingParameters,
+    sim_params,
+    ham_params;
+    measure_modes::Bool=false,
+) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
+
+    steps = mf_params.steps
+    pe = sim_params.pe
+
+    measurements = initialize_measurements(problem, state, steps; measure_modes=measure_modes, ham_params=ham_params)
+    measurements["delta_list"] = fill(NaN, steps + 1)
+    measurements["te_list"] = fill(NaN, steps + 1)
+    measurements["delta_values"] = copy(mf_params.delta_values)
+    measurements["schedule"] = string(mf_params.schedule)
+    measurements["randomize_times"] = mf_params.randomize_times
+
+    # Initial measurements
+    perform_measurements!(measurements, 1, problem, state, ham_params)
+    print_cooling_status(1, measurements, ham_params, state)
+
+    R = length(mf_params.delta_values)
+
+    for step in 2:steps+1
+        # Pick frequency
+        r = _pick_delta_index(step, R, mf_params.schedule)
+        delta_r = mf_params.delta_values[r]
+
+        # Pick evolution time
+        te_step = mf_params.randomize_times ? (rand() * 2 * mf_params.te) : mf_params.te
+
+        measurements["delta_list"][step] = delta_r
+        measurements["te_list"][step] = te_step
+
+        # Build H_SB(Δ_r) for this step
+        coupling_step = BasicCouplingParameters(mf_params.coupling, mf_params.g, steps, te_step, delta_r)
+        H_step = construct_step_hamiltonian(problem, ham_params, coupling_step)
+
+        # Prepare system+bath state
+        combined_state = prepare_combined_state(problem, state)
+
+        # Evolve
+        evolved_state = if te_step <= 0
+            combined_state
+        else
+            evolve_cooling_step_with_H(problem, combined_state, H_step, te_step, sim_params, ham_params)
+        end
+
+        # Apply noise if requested
+        if pe > 0
+            evolved_state = apply_noise(evolved_state, problem, pe)
+        end
+
+        # Process bath and update system state
+        state_and_bath_info = process_bath_and_update(problem, evolved_state, state, sim_params)
+        if isa(state_and_bath_info, Tuple)
+            state, bath_info = state_and_bath_info
+        else
+            state = state_and_bath_info
+            bath_info = nothing
+        end
+
+        # Perform measurements
+        perform_measurements!(measurements, step, problem, state, ham_params, bath_info)
+
+        # Print progress
+        if step % 10 == 0 || step == steps + 1
+            print_cooling_status(step, measurements, ham_params, state)
+        end
+    end
+
+    println("Cooling completed")
+    return compile_results(measurements, sim_params)
+end
+
+# Dispatch hook: allow run_cooling(..., mf_params::MultiFrequencyCouplingParameters, ...) to work.
+function run_cooling(
+    problem::CoolingProblem{B},
+    state::QuantumState{B,S,E},
+    coupling_params::MultiFrequencyCouplingParameters,
+    sim_params,
+    ham_params;
+    measure_modes::Bool=false,
+) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
+    return run_cooling_multi_freq(problem, state, coupling_params, sim_params, ham_params; measure_modes=measure_modes)
+end
+
+# Internal helper: pick which Δ index to use at this step.
+function _pick_delta_index(step::Int, R::Int, schedule::Symbol)
+    schedule == :round_robin && return mod1(step - 1, R)
+    schedule == :random && return rand(1:R)
+    throw(ArgumentError("Unknown multi-frequency schedule=$schedule (expected :round_robin or :random)"))
+end
+
+# Construct the step Hamiltonian H_SB(Δ_r) for the backend.
+construct_step_hamiltonian(::CoolingProblem, ::HamiltonianParameters, ::BasicCouplingParameters) =
+    error("construct_step_hamiltonian not implemented for this backend")
+
+function construct_step_hamiltonian(
+    problem::CoolingProblem{TNBackend},
+    ham_params::HamiltonianParameters,
+    coupling_step::BasicCouplingParameters,
+)
+    return construct_system_bath_hamiltonian(ham_params, problem.backend, problem.extra.sites, coupling_step)
+end
+
+function construct_step_hamiltonian(
+    problem::CoolingProblem{EDBackend},
+    ham_params::HamiltonianParameters,
+    coupling_step::BasicCouplingParameters,
+)
+    return construct_system_bath_hamiltonian(ham_params, problem.backend, 2 * ham_params.N, coupling_step)
+end
+
+# Evolve with an explicitly provided system+bath Hamiltonian for this step.
+evolve_cooling_step_with_H(::CoolingProblem, _, _, _, _, _) =
+    error("evolve_cooling_step_with_H not implemented for this backend/method combination")
+
+function evolve_cooling_step_with_H(
+    problem::CoolingProblem{TNBackend},
+    ψ_sb::MPS,
+    H_step::MPO,
+    te_step::Float64,
+    sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, ContinuousEvolution},
+    ham_params,
+)
+    sites = problem.extra.sites
+    return evolve_state(ham_params, sim_params, problem.backend, H_step, ψ_sb, te_step, sites)
+end
+
+function evolve_cooling_step_with_H(
+    problem::CoolingProblem{EDBackend},
+    state_total::Union{EDStateVector, EDDensityMatrix},
+    H_step::AbstractMatrix,
+    te_step::Float64,
+    sim_params::UnifiedSimulationParameters,
+    _ham_params,
+)
+    tau = sim_params.evolution_method isa TrotterEvolution ? sim_params.tau : nothing
+    return evolve_cooling_step_ed(H_step, state_total, te_step, tau)
+end
+
+# ============================================================================
 # Helper Functions - Generic Interface
 # ============================================================================
 

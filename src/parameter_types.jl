@@ -177,6 +177,52 @@ struct BasicCouplingParameters <: CouplingParameters
 end
 
 """
+    MultiFrequencyCouplingParameters
+
+Coupling parameters for multi-frequency cooling, where the bath detuning Δ is
+cycled through a list of values during the cooling loop.
+
+`te` is interpreted as the *mean* evolution time per step. If
+`randomize_times=true`, each step uses an independently drawn time
+`t_m ~ Uniform(0, 2te)` (see docs/multi_frequency_cooling_plan.md).
+
+The standard single-frequency simulation uses `BasicCouplingParameters`.
+"""
+struct MultiFrequencyCouplingParameters <: CouplingParameters
+    coupling::String              # e.g. "XX"
+    g::Float64                    # Coupling strength
+    steps::Int                    # Total cooling steps
+    te::Float64                   # Mean evolution time per step
+    delta_values::Vector{Float64} # Bath detunings to cycle through
+    randomize_times::Bool         # Randomize evolution times per step?
+    schedule::Symbol              # :round_robin or :random
+end
+
+function MultiFrequencyCouplingParameters(
+    coupling::String,
+    g::Real,
+    steps::Integer,
+    te::Real,
+    delta_values::AbstractVector{<:Real};
+    randomize_times::Bool=false,
+    schedule::Symbol=:round_robin,
+)
+    schedule in (:round_robin, :random) ||
+        throw(ArgumentError("schedule must be :round_robin or :random, got $schedule"))
+    deltas = Float64.(collect(delta_values))
+    isempty(deltas) && throw(ArgumentError("delta_values must be nonempty"))
+    return MultiFrequencyCouplingParameters(
+        coupling,
+        Float64(g),
+        Int(steps),
+        Float64(te),
+        deltas,
+        randomize_times,
+        schedule,
+    )
+end
+
+"""
     OptimizationCouplingParameters
 
 Extended coupling parameters for optimization tasks.
