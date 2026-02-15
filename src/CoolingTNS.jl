@@ -16,19 +16,17 @@ include("utils_mps.jl")
 include("coupling_utils.jl")
 include("utils_mpo.jl")
 
-# Plotting utilities and visualization
-include("plot_utils.jl")
-include("plotting.jl")
-include("plot_energy_dispersion.jl")
-include("plot_dispersion_with_gs.jl")
-include("plot_nk_evolution.jl")
-include("plot_ek_evolution.jl")
+# Analytical dispersion relations (pure math, no plotting deps)
+include("dispersion.jl")
+
 include("policy.jl")
 include("argparse.jl")
 include("noise.jl")
 
 # Include ED backend
 include("ed_backend.jl")
+include("ed_backend_complex_jw.jl")  # Complex JW (notes convention) — single source of truth
+include("mode_analysis.jl")          # Parameter mapping, dispersion, k-grid
 
 include("bath_measurements.jl")    # Dispatched bath measurement functions
 include("state_manipulation.jl")   # Dispatched state manipulation functions
@@ -46,15 +44,11 @@ include("cooling_evolution.jl")     # Cooling evolution
 include("setup.jl")                 # setup_problem implementations
 
 
-
-
-
 export setup_problem, run_cooling, setup_initial_state
 export CoolingProblem, QuantumState
 export CoolingBackend, EDBackend, TNBackend
 export SimulationMethod, DensityMatrix, MonteCarloWavefunction
 export EvolutionMethod, ContinuousEvolution, TrotterEvolution
-export plot_data
 # Export new parameter types and functions
 export CouplingParameters, SimulationParameters, CoolingResults
 export BasicCouplingParameters, OptimizationCouplingParameters
@@ -66,5 +60,18 @@ export create_coupling_params, create_sim_params, create_results
 export to_dict
 export setup_common_parameters, create_filename, save_results
 export get_backend, get_sim_method, get_evolution_method, mean_last_window
+# Dispersion relations (pure math, legacy — see mode_analysis.jl for canonical versions)
+export generate_k_values, compute_energy_dispersion, compute_ground_state_occupation
+
+# Mode analysis (canonical parameter bridge and dispersion)
+export theta_from_Jh, Jh_from_theta, energy_scale
+export mode_energy, mode_energy_Jh, w_k_coefficient, r_k_coefficient
+export bogoliubov_angle, coeff_k, vacuum_energy, vacuum_energy_Jh
+export allowed_k_indices, fermionic_bc, parity_operator_code
+# Complex JW (notes convention)
+export jordan_wigner_transform_complex, pauli_y_complex
+export measure_momentum_distribution_ed_clean
+# Mode energy observables (Phase 2+3)
+export measure_hk, measure_all_mode_energies, measure_state_parity
 
 end

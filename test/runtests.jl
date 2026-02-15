@@ -20,6 +20,11 @@ end
         include("test_correctness.jl")
     end
 
+    @testset "Mode Analysis" begin
+        include("test_mode_analysis.jl")
+        include("test_measure_hk.jl")
+    end
+
     if RUN_FULL_TESTS
         @testset "Slow / Full" begin
             include("test_tn_dm_trotter_debug.jl")

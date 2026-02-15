@@ -545,9 +545,20 @@ const JW_CACHE = Dict{Tuple{Int, Int}, Tuple{SparseMatrixCSC{Float64, Int}, Spar
 """
     jordan_wigner_transform(i::Int, n_qubits::Int) -> Tuple{SparseMatrixCSC, SparseMatrixCSC}
 
-Returns the Jordan-Wigner transformed creation and annihilation operators for site i.
-a_i = (-1)^(sum_{j<i} n_j) * (X_i - iY_i)/2
-a†_i = (-1)^(sum_{j<i} n_j) * (X_i + iY_i)/2
+Returns the Jordan-Wigner transformed creation and annihilation operators for site i,
+using the real-valued (Y_real = -iY) representation.
+
+!!! warning "Deprecated convention"
+    This function uses the convention `a = S·σ⁺`, `a† = S·σ⁻`, which gives
+    `a†a = (I - σ_z)/2` (occupied = spin down). This is **particle-hole conjugated**
+    relative to the notes (MapToSpin.tex) convention where `a†a = (I + σ_z)/2`.
+    
+    For new code, prefer [`jordan_wigner_transform_complex`](@ref) from
+    `ed_backend_complex_jw.jl`, which matches the notes' convention and gives
+    correct `n_k` values without a `1 - n_k` correction.
+
+a_i = S_i · (X_i - Y_real_i)/2 = S_i · σ⁺   (annihilation, destroys spin-down)
+a†_i = S_i · (X_i + Y_real_i)/2 = S_i · σ⁻  (creation, creates spin-down)
 """
 function jordan_wigner_transform(i::Int, n_qubits::Int)
     # Check cache first
