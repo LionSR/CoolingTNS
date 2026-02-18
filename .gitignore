@@ -36,3 +36,6 @@ Results*
 .CondaPkg/
 
 2503.24330/
+
+# Plotting outputs
+scripts/plotting/Figs/
