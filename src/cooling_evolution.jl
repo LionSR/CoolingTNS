@@ -133,18 +133,17 @@ function run_cooling_multi_freq(
         measurements["delta_list"][step] = delta_r
         measurements["te_list"][step] = te_step
 
-        # Build H_SB(Δ_r) for this step
+        # Per-step coupling parameters (encodes Δ_r and possibly step-specific time)
         coupling_step = BasicCouplingParameters(mf_params.coupling, mf_params.g, steps, te_step, delta_r)
-        H_step = construct_step_hamiltonian(problem, ham_params, coupling_step)
 
         # Prepare system+bath state
         combined_state = prepare_combined_state(problem, state)
 
-        # Evolve
+        # Evolve with the step-dependent coupling parameters
         evolved_state = if te_step <= 0
             combined_state
         else
-            evolve_cooling_step_with_H(problem, combined_state, H_step, te_step, sim_params, ham_params)
+            evolve_cooling_step_dynamic(problem, combined_state, coupling_step, te_step, sim_params, ham_params)
         end
 
         # Apply noise if requested
@@ -193,50 +192,60 @@ function _pick_delta_index(step::Int, R::Int, schedule::Symbol)
     throw(ArgumentError("Unknown multi-frequency schedule=$schedule (expected :round_robin or :random)"))
 end
 
-# Construct the step Hamiltonian H_SB(Δ_r) for the backend.
-construct_step_hamiltonian(::CoolingProblem, ::HamiltonianParameters, ::BasicCouplingParameters) =
-    error("construct_step_hamiltonian not implemented for this backend")
+# Evolve with step-dependent coupling parameters (e.g. changing bath detuning Δ).
+evolve_cooling_step_dynamic(::CoolingProblem, _, ::BasicCouplingParameters, _, _, _) =
+    error("evolve_cooling_step_dynamic not implemented for this backend/method combination")
 
-function construct_step_hamiltonian(
-    problem::CoolingProblem{TNBackend},
-    ham_params::HamiltonianParameters,
-    coupling_step::BasicCouplingParameters,
-)
-    return construct_system_bath_hamiltonian(ham_params, problem.backend, problem.extra.sites, coupling_step)
-end
-
-function construct_step_hamiltonian(
-    problem::CoolingProblem{EDBackend},
-    ham_params::HamiltonianParameters,
-    coupling_step::BasicCouplingParameters,
-)
-    return construct_system_bath_hamiltonian(ham_params, problem.backend, 2 * ham_params.N, coupling_step)
-end
-
-# Evolve with an explicitly provided system+bath Hamiltonian for this step.
-evolve_cooling_step_with_H(::CoolingProblem, _, _, _, _, _) =
-    error("evolve_cooling_step_with_H not implemented for this backend/method combination")
-
-function evolve_cooling_step_with_H(
+function evolve_cooling_step_dynamic(
     problem::CoolingProblem{TNBackend},
     ψ_sb::MPS,
-    H_step::MPO,
+    coupling_step::BasicCouplingParameters,
     te_step::Float64,
     sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, ContinuousEvolution},
     ham_params,
 )
     sites = problem.extra.sites
+    H_step = construct_system_bath_hamiltonian(ham_params, problem.backend, sites, coupling_step)
     return evolve_state(ham_params, sim_params, problem.backend, H_step, ψ_sb, te_step, sites)
 end
 
-function evolve_cooling_step_with_H(
+function evolve_cooling_step_dynamic(
+    problem::CoolingProblem{TNBackend},
+    ρ_sb::MPO,
+    coupling_step::BasicCouplingParameters,
+    te_step::Float64,
+    sim_params::UnifiedSimulationParameters{DensityMatrix, TrotterEvolution},
+    ham_params,
+)
+    sites = problem.extra.sites
+
+    δ = coupling_step.delta
+    δ === nothing && throw(ArgumentError("Multi-frequency Trotter evolution requires coupling_step.delta"))
+    δ = Float64(δ)
+
+    cache = get(problem.extra, :gates_cache, nothing)
+    gates = if cache isa AbstractDict
+        get!(cache, δ) do
+            build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_step, sim_params)
+        end
+    else
+        build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_step, sim_params)
+    end
+
+    ρ_evolved = evolve_state(ham_params, sim_params, problem.backend, gates, ρ_sb, te_step, sites)
+    ρ_evolved /= tr(ρ_evolved)
+    return ρ_evolved
+end
+
+function evolve_cooling_step_dynamic(
     problem::CoolingProblem{EDBackend},
     state_total::Union{EDStateVector, EDDensityMatrix},
-    H_step::AbstractMatrix,
+    coupling_step::BasicCouplingParameters,
     te_step::Float64,
     sim_params::UnifiedSimulationParameters,
-    _ham_params,
+    ham_params,
 )
+    H_step = construct_system_bath_hamiltonian(ham_params, problem.backend, 2 * ham_params.N, coupling_step)
     tau = sim_params.evolution_method isa TrotterEvolution ? sim_params.tau : nothing
     return evolve_cooling_step_ed(H_step, state_total, te_step, tau)
 end

@@ -1,5 +1,6 @@
 using Test
 using CoolingTNS
+using Random
 
 @testset "Multi-frequency Cooling" begin
     backend = CoolingTNS.EDBackend()
@@ -49,4 +50,49 @@ using CoolingTNS
 
     # Cooling should reduce the system energy on average
     @test results["E_list"][end] <= results["E_list"][1] + 1e-10
+
+    @testset "TN DM+Trotter supports multi-frequency" begin
+        Random.seed!(1)
+
+        backend_tn = CoolingTNS.TNBackend()
+        N_tn = 4
+        ham_params_tn = CoolingTNS.NiIsingParameters(N_tn, 1.0, -1.05, 0.5)
+
+        sim_params_tn = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.DensityMatrix(),
+            CoolingTNS.TrotterEvolution();
+            Dmax=10,
+            cutoff=1e-6,
+            tau=0.2,
+            pe=0.0,
+        )
+
+        # Compute resonant gap via standard single-frequency setup
+        coupling_basic_tn = CoolingTNS.BasicCouplingParameters("XX", 0.1, 1, 0.5, nothing)
+        problem_basic_tn = CoolingTNS.setup_problem(backend_tn, ham_params_tn, coupling_basic_tn, sim_params_tn)
+        gap_tn = problem_basic_tn.extra.coupling_params.delta
+        @test gap_tn !== nothing
+        @test gap_tn > 0
+
+        mf_params_tn = CoolingTNS.MultiFrequencyCouplingParameters(
+            "XX",
+            0.1,
+            2,
+            0.5,
+            [gap_tn];
+            randomize_times=true,
+            schedule=:round_robin,
+        )
+
+        problem_mf_tn = CoolingTNS.setup_problem(backend_tn, ham_params_tn, mf_params_tn, sim_params_tn)
+        state_tn = CoolingTNS.setup_initial_state(problem_mf_tn, sim_params_tn, "product", 0.0)
+
+        results_tn = CoolingTNS.run_cooling(problem_mf_tn, state_tn, mf_params_tn, sim_params_tn, ham_params_tn)
+
+        @test haskey(results_tn, "E_list")
+        @test haskey(results_tn, "delta_list")
+        @test haskey(results_tn, "te_list")
+        @test length(results_tn["E_list"]) == mf_params_tn.steps + 1
+        @test all(isfinite, results_tn["E_list"])
+    end
 end
