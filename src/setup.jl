@@ -84,6 +84,9 @@ function setup_problem(
                 sites=sites,
                 gap=Δ_dmrg,
                 ham_params=ham_params,
+                # Cache step Hamiltonians H_SB(Δ) for multi-frequency MCWF+TDVP runs.
+                # Keyed by the bath detuning Δ (Float64).
+                H_cache=Dict{Float64, Any}(),
             )
         end
 

@@ -205,7 +205,21 @@ function evolve_cooling_step_dynamic(
     ham_params,
 )
     sites = problem.extra.sites
-    H_step = construct_system_bath_hamiltonian(ham_params, problem.backend, sites, coupling_step)
+
+    δ = coupling_step.delta
+    δ === nothing && throw(ArgumentError("Multi-frequency TDVP evolution requires coupling_step.delta"))
+    δ = Float64(δ)
+
+    # Cache H_step(Δ) since the Hamiltonian does not depend on the randomized time.
+    cache = get(problem.extra, :H_cache, nothing)
+    H_step = if cache isa AbstractDict
+        get!(cache, δ) do
+            construct_system_bath_hamiltonian(ham_params, problem.backend, sites, coupling_step)
+        end
+    else
+        construct_system_bath_hamiltonian(ham_params, problem.backend, sites, coupling_step)
+    end
+
     return evolve_state(ham_params, sim_params, problem.backend, H_step, ψ_sb, te_step, sites)
 end
 
