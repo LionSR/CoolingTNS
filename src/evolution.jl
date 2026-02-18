@@ -31,11 +31,15 @@ end
 function evolve_state(::HamiltonianParameters, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, ContinuousEvolution},
                      ::TNBackend, H_total, ψ, t::Float64, ::Vector{<:Index}; kwargs...)
     Dmax, cutoff, tau = sim_params.Dmax, sim_params.cutoff, sim_params.tau
-    @debug "evolve_state MC+Continuous: Dmax=$Dmax, tau=$tau, t=$t, nsite=2"
+
+    # Pick an integer number of TDVP steps so arbitrary `t` works even when `t/tau`
+    # is not an integer (e.g. randomized evolution times in multi-frequency cooling).
+    nsteps = max(1, Int(ceil(t / tau)))
+    @debug "evolve_state MC+Continuous: Dmax=$Dmax, tau=$tau, t=$t, nsteps=$nsteps, nsite=2"
 
     # Use nsite=2 to allow bond dimension growth from product states
     ψ_evolved = tdvp(H_total, -im * t, ψ;
-                     time_step=-im * tau, nsite=2, reverse_step=true, normalize=true,
+                     nsteps=nsteps, nsite=2, reverse_step=true, normalize=true,
                      maxdim=Dmax, cutoff=cutoff, outputlevel=0)
     normalize!(ψ_evolved)
     orthogonalize!(ψ_evolved, 2)
