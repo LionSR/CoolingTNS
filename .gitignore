@@ -39,3 +39,6 @@ Results*
 
 # Plotting outputs
 scripts/plotting/Figs/
+
+# Cached figure data (HDF5, etc.)
+scripts/plotting/Data/
