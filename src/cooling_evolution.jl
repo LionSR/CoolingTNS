@@ -470,7 +470,9 @@ function process_bath_and_update(problem::CoolingProblem{TNBackend}, ψ_evolved:
     sites = problem.extra.sites
     N_sys = length(sites) ÷ 2
 
-    v_b, ψ_s = sample_bath(ψ_evolved)
+    # `ψ_evolved` is discarded after bath sampling, so we can use the mutating
+    # version to avoid an extra MPS copy.
+    v_b, ψ_s = sample_bath!(ψ_evolved)
 
     if length(ψ_s) != N_sys
         @warn "After sampling bath, MPS has unexpected length" expected=N_sys actual=length(ψ_s)

@@ -151,8 +151,10 @@ function sample_bath!(m::MPS)
 end
 
 function sample_bath!(rng::AbstractRNG, m::MPS)
-    orthogonalize!(m, 2)
-    return sample_bath(rng, m)
+    # Mutating/consuming version: avoid an extra full MPS copy.
+    # This is safe in the cooling loop where the evolved system+bath MPS is
+    # discarded after sampling.
+    return _sample_bath_impl(rng, m; copy_input=false)
 end
 
 function sample_bath(m::MPS)
@@ -160,6 +162,11 @@ function sample_bath(m::MPS)
 end
 
 function sample_bath(rng::AbstractRNG, m::MPS)
+    # Non-mutating version (kept for general utility): work on a copy.
+    return _sample_bath_impl(rng, m; copy_input=true)
+end
+
+function _sample_bath_impl(rng::AbstractRNG, m::MPS; copy_input::Bool)
     # Layout: [sys₁, bath₁, sys₂, bath₂, ..., sysₙ, bathₙ]
     # Bath sites are at even indices: 2, 4, 6, ..., 2N
     # System sites are at odd indices: 1, 3, 5, ..., 2N-1
@@ -171,7 +178,7 @@ function sample_bath(rng::AbstractRNG, m::MPS)
     end
 
     result = zeros(Int, N)
-    m_working = copy(m)
+    m_working = copy_input ? copy(m) : m
 
     # Orthogonalize once to rightmost bath site (2N).
     # After this: sites 1..2N-1 are left-canonical, site 2N is the orth center.

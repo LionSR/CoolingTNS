@@ -56,7 +56,11 @@ function evolve_state(ham_params::HamiltonianParameters, sim_params::UnifiedSimu
 
     Dmax, cutoff, tau = sim_params.Dmax, sim_params.cutoff, sim_params.tau
     steps = max(1, Int(floor(t / tau)))
-    ψ_evolved = copy(ψ)
+
+    # `apply(gates, ψ; ...)` returns a new MPS (it does not mutate `ψ`), and in the
+    # cooling loop the input `ψ` is freshly constructed and not reused. Avoid an
+    # extra full copy here to reduce allocations.
+    ψ_evolved = ψ
 
     # All Hamiltonian terms (system + bath + coupling) are in the interleaved gates,
     # matching the MPO DM+Trotter decomposition for consistency.
