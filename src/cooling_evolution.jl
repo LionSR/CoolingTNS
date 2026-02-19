@@ -225,6 +225,32 @@ end
 
 function evolve_cooling_step_dynamic(
     problem::CoolingProblem{TNBackend},
+    ψ_sb::MPS,
+    coupling_step::BasicCouplingParameters,
+    te_step::Float64,
+    sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, TrotterEvolution},
+    ham_params,
+)
+    sites = problem.extra.sites
+
+    δ = coupling_step.delta
+    δ === nothing && throw(ArgumentError("Multi-frequency Trotter evolution requires coupling_step.delta"))
+    δ = Float64(δ)
+
+    cache = get(problem.extra, :gates_cache, nothing)
+    gates = if cache isa AbstractDict
+        get!(cache, δ) do
+            build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_step, sim_params)
+        end
+    else
+        build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_step, sim_params)
+    end
+
+    return evolve_state(ham_params, sim_params, problem.backend, gates, ψ_sb, te_step, sites; gates=gates)
+end
+
+function evolve_cooling_step_dynamic(
+    problem::CoolingProblem{TNBackend},
     ρ_sb::MPO,
     coupling_step::BasicCouplingParameters,
     te_step::Float64,

@@ -51,13 +51,15 @@ function setup_problem(
 )
     supported =
         (sim_params.sim_method isa MonteCarloWavefunction && sim_params.evolution_method isa ContinuousEvolution) ||
+        (sim_params.sim_method isa MonteCarloWavefunction && sim_params.evolution_method isa TrotterEvolution) ||
         (sim_params.sim_method isa DensityMatrix && sim_params.evolution_method isa TrotterEvolution)
 
     if !supported
         error(
             "Multi-frequency cooling for TN is currently implemented for either " *
-            "(1) MonteCarloWavefunction + ContinuousEvolution (MPS + TDVP) or " *
-            "(2) DensityMatrix + TrotterEvolution (MPO + Trotter). " *
+            "(1) MonteCarloWavefunction + ContinuousEvolution (MPS + TDVP), " *
+            "(2) MonteCarloWavefunction + TrotterEvolution (MPS + Trotter), or " *
+            "(3) DensityMatrix + TrotterEvolution (MPO + Trotter). " *
             "Got sim_method=$(typeof(sim_params.sim_method)), evolution_method=$(typeof(sim_params.evolution_method)).",
         )
     end
@@ -69,7 +71,7 @@ function setup_problem(
     H_sys, Δ_dmrg, e₀, ϕ₀ = setup_system(ham_params, backend, sites_sys)
 
     extra =
-        if sim_params.sim_method isa DensityMatrix && sim_params.evolution_method isa TrotterEvolution
+        if sim_params.evolution_method isa TrotterEvolution
             (
                 coupling_params=coupling_params,
                 coupling=coupling_params.coupling,
