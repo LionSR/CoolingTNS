@@ -60,7 +60,7 @@ export DensityMatrixResults, MonteCarloResults, TensorNetworkResults
 export create_coupling_params, create_sim_params, create_results
 export to_dict
 export setup_common_parameters, create_filename, save_results
-export get_backend, get_sim_method, get_evolution_method, mean_last_window
+export get_backend, get_sim_method, get_evolution_method, mean_last_window, relative_energy
 # Dispersion relations (pure math, legacy — see mode_analysis.jl for canonical versions)
 export generate_k_values, compute_energy_dispersion, compute_ground_state_occupation
 

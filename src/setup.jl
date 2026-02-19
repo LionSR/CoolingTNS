@@ -36,6 +36,9 @@ function setup_problem(
             coupling=coupling_params.coupling,
             g=coupling_params.g,
             gap=Δ_ed,
+            # Cache step Hamiltonians H_SB(Δ) for multi-frequency / randomized-time ED runs.
+            # Keyed by the bath detuning Δ (Float64).
+            H_cache=Dict{Float64, Any}(),
         ),
     )
 end

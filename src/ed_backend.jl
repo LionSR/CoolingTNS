@@ -45,7 +45,14 @@ if !@isdefined(EDDensityMatrix)
         function EDDensityMatrix(data::Matrix{ComplexF64}, n_qubits::Int)
             @assert size(data, 1) == size(data, 2) == 2^n_qubits "Matrix dimension must be 2^n_qubits"
             @assert ishermitian(data) "Density matrix must be Hermitian"
-            @assert abs(tr(data) - 1.0) < 1e-10 "Density matrix must have trace 1 (got $(tr(data)))"
+            # Due to floating-point roundoff (especially after many steps), the
+            # trace can drift slightly from 1. We renormalize if the drift is
+            # small, and error out only if it is clearly inconsistent.
+            trρ = tr(data)
+            if abs(trρ - 1.0) > 1e-6
+                error("Density matrix must have trace 1 (got $trρ)")
+            end
+            data = data / trρ
             new(data, n_qubits)
         end
     end
@@ -332,29 +339,55 @@ end
 # Time Evolution Functions
 # ============================================================================
 
-# Cache for time evolution operators exp(-iHt)
+# Cache for time evolution eigendecompositions of H (keyed by `hash(H)`).
+#
+# This enables efficient randomized-time protocols, where caching full evolution
+# operators `U(t)` for every distinct `t` would otherwise lead to unbounded
+# memory growth.
+const EVOLUTION_EIG_CACHE = Dict{UInt64, Tuple{Vector{Float64}, Matrix{Float64}}}()
+
+# Cache for selected time evolution operators exp(-iHt) (keyed by (hash(H), t)).
+# For randomized-time protocols `t` is typically unique at each step, so we cap
+# the cache to keep memory bounded.
+const MAX_EVOLUTION_OP_CACHE_SIZE = 64
 const EVOLUTION_OP_CACHE = Dict{Tuple{UInt64, Float64}, Matrix{ComplexF64}}()
+
+function _get_eigendecomp(H::AbstractMatrix)
+    H_hash = hash(H)
+    if haskey(EVOLUTION_EIG_CACHE, H_hash)
+        return EVOLUTION_EIG_CACHE[H_hash]
+    end
+
+    F = eigen(Symmetric(Matrix(H)))
+    vals = Vector{Float64}(F.values)
+    vecs = Matrix{Float64}(F.vectors)
+    EVOLUTION_EIG_CACHE[H_hash] = (vals, vecs)
+    return EVOLUTION_EIG_CACHE[H_hash]
+end
 
 """
     get_evolution_operator(H::AbstractMatrix, t::Float64) -> Matrix{ComplexF64}
-    
-Get the cached evolution operator U = exp(-iHt) for Hamiltonian H and time t.
+
+Get an evolution operator U = exp(-iHt). For fixed-time protocols this caches
+U by `(hash(H), t)`. For randomized-time protocols, caching is capped to avoid
+unbounded memory growth.
 """
 function get_evolution_operator(H::AbstractMatrix, t::Float64)
-    # Use hash of H and t as cache key
     H_hash = hash(H)
     cache_key = (H_hash, t)
-    
+
     if haskey(EVOLUTION_OP_CACHE, cache_key)
         return EVOLUTION_OP_CACHE[cache_key]
     end
-    
-    # Compute exp(-iHt) via eigendecomposition
-    F = eigen(Symmetric(Matrix(H)))
-    phases = exp.(-im * t * F.values)
-    U = F.vectors * Diagonal(phases) * F.vectors'
-    
-    EVOLUTION_OP_CACHE[cache_key] = U
+
+    vals, vecs = _get_eigendecomp(H)
+    phases = exp.(-im * t * vals)
+    U = vecs * Diagonal(phases) * vecs'
+
+    if length(EVOLUTION_OP_CACHE) < MAX_EVOLUTION_OP_CACHE_SIZE
+        EVOLUTION_OP_CACHE[cache_key] = U
+    end
+
     return U
 end
 
@@ -362,11 +395,15 @@ end
     evolve_ed(H::AbstractMatrix, ψ::EDStateVector, t::Float64) -> EDStateVector
 
 Time evolve a state vector under Hamiltonian H for time t.
+
+Implementation uses the cached eigendecomposition of H to avoid constructing and
+storing dense evolution matrices U(t) for each step.
 """
 function evolve_ed(H::AbstractMatrix, ψ::EDStateVector, t::Float64)
-    # Use cached evolution operator
-    U = get_evolution_operator(H, t)
-    evolved_data = U * ψ.data
+    vals, vecs = _get_eigendecomp(H)
+    coeff = vecs' * ψ.data
+    coeff .*= exp.(-im * t * vals)
+    evolved_data = vecs * coeff
     return EDStateVector(evolved_data, ψ.n_qubits)
 end
 

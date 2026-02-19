@@ -67,6 +67,24 @@ function mean_last_window(list, window_size)
     return mean(list[max(1, end-window_size+1):end])
 end
 
+"""
+    relative_energy(E, E_GS) -> Float64
+
+Relative energy figure of merit used in the paper:
+
+    e = |(E - E_GS)/E_GS|.
+
+Here `E_GS` is the (non-degenerate) ground state energy of the system Hamiltonian.
+The inputs can be either total energies or energy densities, as long as `E` and
+`E_GS` use the same normalization.
+
+Returns `NaN` if `E_GS == 0`.
+"""
+function relative_energy(E, E_GS)
+    iszero(E_GS) && return NaN
+    return abs((E - E_GS) / E_GS)
+end
+
 function save_results(filename, result, e₀, ham_name, parsed_args; is_optimization=false)
     directory = is_optimization ? "ResultsOpt" : "Results"
     h5open(joinpath(directory, "$(filename).h5"), "w") do file

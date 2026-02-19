@@ -259,7 +259,20 @@ function evolve_cooling_step_dynamic(
     sim_params::UnifiedSimulationParameters,
     ham_params,
 )
-    H_step = construct_system_bath_hamiltonian(ham_params, problem.backend, 2 * ham_params.N, coupling_step)
+    δ = coupling_step.delta
+    δ === nothing && throw(ArgumentError("Multi-frequency ED evolution requires coupling_step.delta"))
+    δ = Float64(δ)
+
+    # Cache H_step(Δ) since the Hamiltonian does not depend on the randomized time.
+    cache = get(problem.extra, :H_cache, nothing)
+    H_step = if cache isa AbstractDict
+        get!(cache, δ) do
+            construct_system_bath_hamiltonian(ham_params, problem.backend, 2 * ham_params.N, coupling_step)
+        end
+    else
+        construct_system_bath_hamiltonian(ham_params, problem.backend, 2 * ham_params.N, coupling_step)
+    end
+
     tau = sim_params.evolution_method isa TrotterEvolution ? sim_params.tau : nothing
     return evolve_cooling_step_ed(H_step, state_total, te_step, tau)
 end
