@@ -42,3 +42,6 @@ scripts/plotting/Figs/
 
 # Cached figure data (HDF5, etc.)
 scripts/plotting/Data/
+
+# Slides build artifacts
+slides/build/
