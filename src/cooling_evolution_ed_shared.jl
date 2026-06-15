@@ -11,25 +11,15 @@ Shared functions for ED backend cooling evolution to follow DRY principles.
 """
     get_bath_ground_state_ed(N_bath::Int, coupling::String) -> EDStateVector
 
-Create bath ground state for ED backend based on coupling type.
-- XX, XY, XZ coupling → bath H = (Δ/2)Z → ground state |↓↓...↓⟩ (all 1s config)
-- ZZ, YZ coupling → bath H = (Δ/2)X → ground state |−−...−⟩
+Create the ED bath ground state from the shared bath Hamiltonian convention.
 """
 function get_bath_ground_state_ed(N_bath::Int, coupling::String)
-    if coupling in ["ZZ", "YZ"]
-        # X-basis ground state: |−⟩^⊗N where |−⟩ = (|0⟩ - |1⟩)/√2
-        # Build as product of single-qubit |−⟩ states
-        minus = ComplexF64[1/sqrt(2), -1/sqrt(2)]
-        data = minus
-        for _ in 2:N_bath
-            data = kron(data, minus)
-        end
-        return EDStateVector(data, N_bath)
-    else
-        # Z-basis ground state: |↓↓...↓⟩ = |11...1⟩ (all ones config)
-        config = (1 << N_bath) - 1  # All bits set to 1
-        return product_state_ed(N_bath, config)
+    _, one_site = bath_ground_state_amplitudes(coupling)
+    data = copy(one_site)
+    for _ in 2:N_bath
+        data = kron(data, one_site)
     end
+    return EDStateVector(data, N_bath)
 end
 
 """

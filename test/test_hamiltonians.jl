@@ -33,6 +33,23 @@ using LinearAlgebra
             @test norm(commutator) > 1e-12
         end
     end
+
+    @testset "Bath Ground State Convention" begin
+        xz_label, xz_amps = CoolingTNS.bath_ground_state_amplitudes("XZ")
+        tn_xz_label, tn_xz_amps = CoolingTNS.get_bath_ground_state("XZ")
+        @test xz_label == "X-"
+        @test tn_xz_label == xz_label
+        @test tn_xz_amps ≈ xz_amps
+
+        xy_label, xy_amps = CoolingTNS.bath_ground_state_amplitudes("XY")
+        @test xy_label == "Dn"
+        @test xy_amps ≈ ComplexF64[0, 1]
+
+        ψ_bath_xz = CoolingTNS.get_bath_ground_state_ed(1, "XZ")
+        ψ_bath_xy = CoolingTNS.get_bath_ground_state_ed(1, "XY")
+        @test CoolingTNS.expect_ed(CoolingTNS.pauli_x(1, 1), ψ_bath_xz) ≈ -1.0 atol=1e-12
+        @test CoolingTNS.expect_ed(CoolingTNS.pauli_z(1, 1), ψ_bath_xy) ≈ -1.0 atol=1e-12
+    end
     
     @testset "System Hamiltonians - Tensor Network Backend" begin
         backend = CoolingTNS.TNBackend()

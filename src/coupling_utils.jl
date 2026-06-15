@@ -46,3 +46,22 @@ function get_bath_operator(coupling::String)
     _, bath_coupling_op = parse_coupling(coupling)
     return bath_coupling_op == "Z" ? "X" : "Z"
 end
+
+"""
+    bath_ground_state_amplitudes(coupling::String) -> (String, Vector{ComplexF64})
+
+Return the one-qubit bath ground state selected by `get_bath_operator`.
+
+For positive detuning, the bath ground state is the eigenvalue `-1` state of the
+bath Hamiltonian Pauli operator. Thus a `Z` bath field gives `|Dn⟩`, while an
+`X` bath field gives `|X-⟩ = (|Up⟩ - |Dn⟩)/√2`.
+"""
+function bath_ground_state_amplitudes(coupling::String)
+    bath_op = get_bath_operator(coupling)
+    if bath_op == "X"
+        return "X-", ComplexF64[1 / sqrt(2), -1 / sqrt(2)]
+    elseif bath_op == "Z"
+        return "Dn", ComplexF64[0, 1]
+    end
+    error("Unsupported bath Hamiltonian operator: $bath_op")
+end
