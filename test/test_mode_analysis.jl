@@ -399,6 +399,19 @@ end
         end
     end
 
+    @testset "Diagnostic scripts use canonical JW convention" begin
+        include(joinpath(@__DIR__, "..", "scripts", "diagnostics", "verify_sigma_z_sign.jl"))
+        include(joinpath(@__DIR__, "..", "scripts", "diagnostics", "verify_nk_correct_basis.jl"))
+
+        result = verify_sign(N=4, theta=0.4, verbose=false)
+        wrapper_result = verify_nk(N=4, theta=0.4, verbose=false)
+
+        @test result.sigma_z_error < 1e-12
+        @test result.max_canonical_error < 1e-10
+        @test result.obsolete_error > 1e-3
+        @test wrapper_result.canonical_error ≈ result.canonical_error atol=1e-12
+    end
+
     @testset "JW-built fermionic H matches H_notes (N=$N)" for N in [4, 6]
         θ = 0.4  # arbitrary angle
 
