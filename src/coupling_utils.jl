@@ -31,3 +31,19 @@ function parse_coupling(coupling::String)
 
     return string(op1), string(op2)
 end
+
+"""
+    coupling_operator_terms(coupling::String) -> Tuple
+
+Expand a two-character coupling label into the local Hamiltonian terms used by
+all backends.
+
+Identical labels represent a single product operator, for example `"XX"` gives
+``X_S X_B``. Mixed labels represent the symmetric Hermitian convention, for
+example `"XY"` gives ``X_S Y_B + Y_S X_B``.
+"""
+function coupling_operator_terms(coupling::String)
+    op1, op2 = parse_coupling(coupling)
+    op1 == op2 && return ((op1, op2),)
+    return ((op1, op2), (op2, op1))
+end

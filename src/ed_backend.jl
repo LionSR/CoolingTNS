@@ -344,7 +344,7 @@ end
 # This enables efficient randomized-time protocols, where caching full evolution
 # operators `U(t)` for every distinct `t` would otherwise lead to unbounded
 # memory growth.
-const EVOLUTION_EIG_CACHE = Dict{UInt64, Tuple{Vector{Float64}, Matrix{Float64}}}()
+const EVOLUTION_EIG_CACHE = Dict{UInt64, Tuple{Vector{Float64}, Matrix{ComplexF64}}}()
 
 # Cache for selected time evolution operators exp(-iHt) (keyed by (hash(H), t)).
 # For randomized-time protocols `t` is typically unique at each step, so we cap
@@ -358,9 +358,9 @@ function _get_eigendecomp(H::AbstractMatrix)
         return EVOLUTION_EIG_CACHE[H_hash]
     end
 
-    F = eigen(Symmetric(Matrix(H)))
+    F = eigen(Hermitian(Matrix(H)))
     vals = Vector{Float64}(F.values)
-    vecs = Matrix{Float64}(F.vectors)
+    vecs = Matrix{ComplexF64}(F.vectors)
     EVOLUTION_EIG_CACHE[H_hash] = (vals, vecs)
     return EVOLUTION_EIG_CACHE[H_hash]
 end

@@ -19,7 +19,6 @@ function build_trotter_circuit_bath_coupling(ham_params::HamiltonianParameters, 
                                             sites_sys::Vector{<:Index}, sites_bath::Vector{<:Index},
                                             coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters)
     g, delta, coupling, tau = coupling_params.g, coupling_params.delta, coupling_params.coupling, sim_params.tau
-    op1, op2 = parse_coupling(coupling)
 
     bath_op = get_bath_operator(coupling)
 
@@ -27,7 +26,7 @@ function build_trotter_circuit_bath_coupling(ham_params::HamiltonianParameters, 
     for ind in eachindex(sites_sys)
         s1, b1 = sites_sys[ind], sites_bath[ind]
         hb = delta / 2 * op(bath_op, b1)
-        hsb = g * op(op1, s1) * op(op2, b1)
+        hsb = _tn_coupling_operator(s1, b1, coupling, g)
         push!(gates, exp(-1.0im * tau / 2 * hb))
         push!(gates, exp(-1.0im * tau / 2 * hsb))
     end
@@ -61,6 +60,13 @@ function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters, ::
     error("build_trotter_circuit_interleaved not implemented for model $(typeof(ham_params.model))")
 end
 
+function _tn_coupling_operator(sys_site::Index, bath_site::Index, coupling::String, g::Real)
+    return sum(
+        g * op(sys_op, sys_site) * op(bath_op, bath_site)
+        for (sys_op, bath_op) in coupling_operator_terms(coupling)
+    )
+end
+
 function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{IsingModel},
                                            ::TNBackend, sites::Vector{<:Index},
                                            coupling_params::CouplingParameters,
@@ -68,7 +74,6 @@ function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{Isi
     N = ham_params.N
     J, h = ham_params.params.J, ham_params.params.h
     g, delta, coupling, tau = coupling_params.g, coupling_params.delta, coupling_params.coupling, sim_params.tau
-    op1, op2 = parse_coupling(coupling)
     bath_op = get_bath_operator(coupling)
 
     forward_gates = ITensor[]
@@ -80,7 +85,7 @@ function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{Isi
         bi = sites[2i]
         h_local = h * op("X", si) * op("I", bi) +
                   delta / 2 * op("I", si) * op(bath_op, bi) +
-                  g * op(op1, si) * op(op2, bi)
+                  _tn_coupling_operator(si, bi, coupling, g)
         push!(forward_gates, exp(-1.0im * tau / 2 * h_local))
     end
 
@@ -106,7 +111,6 @@ function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{NiI
     N = ham_params.N
     J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
     g, delta, coupling, tau = coupling_params.g, coupling_params.delta, coupling_params.coupling, sim_params.tau
-    op1, op2 = parse_coupling(coupling)
     bath_op = get_bath_operator(coupling)
 
     forward_gates = ITensor[]
@@ -119,7 +123,7 @@ function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{NiI
         h_local = hx * op("X", si) * op("I", bi) +
                   hz * op("Z", si) * op("I", bi) +
                   delta / 2 * op("I", si) * op(bath_op, bi) +
-                  g * op(op1, si) * op(op2, bi)
+                  _tn_coupling_operator(si, bi, coupling, g)
         push!(forward_gates, exp(-1.0im * tau / 2 * h_local))
     end
 
