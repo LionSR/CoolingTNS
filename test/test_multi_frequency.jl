@@ -51,6 +51,23 @@ using Random
     # Cooling should reduce the system energy on average
     @test results["E_list"][end] <= results["E_list"][1] + 1e-10
 
+    @testset "Spectral detunings respect finite ED spectra" begin
+        spectral_values = CoolingTNS.spectral_delta_values(
+            ham_params, backend; R=5
+        )
+
+        @test length(spectral_values) == 5
+        @test issorted(spectral_values)
+        @test all(>(0), spectral_values)
+
+        @test_throws ArgumentError CoolingTNS.compute_excitation_gaps(
+            ham_params, backend; num_excitations=2^N
+        )
+        @test_throws ArgumentError CoolingTNS.spectral_delta_values(
+            ham_params, backend; R=2^N
+        )
+    end
+
     @testset "TN DM+Trotter supports multi-frequency" begin
         Random.seed!(1)
 

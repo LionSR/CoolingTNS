@@ -48,6 +48,13 @@ function compute_excitation_gaps(
     num_excitations < 1 && throw(ArgumentError("num_excitations must be ≥ 1"))
 
     H_sys = construct_system_hamiltonian(ham_params, backend, ham_params.N)
+    max_excitations = size(H_sys, 1) - 1
+    if num_excitations > max_excitations
+        throw(ArgumentError(
+            "Requested $num_excitations excitation gaps, but the ED Hilbert space " *
+            "contains only $max_excitations excited levels."
+        ))
+    end
 
     # Request the (num_excitations+1) lowest eigenvalues.
     vals, _, _ = eigsolve(H_sys, num_excitations + 1, :SR; krylovdim=min(krylovdim, size(H_sys, 1)))
@@ -102,6 +109,9 @@ function compute_excitation_gaps(
     return gaps
 end
 
+max_available_excitations(::HamiltonianParameters, ::CoolingBackend) = typemax(Int)
+max_available_excitations(ham_params::HamiltonianParameters, ::EDBackend) = 2^ham_params.N - 1
+
 
 """
     spectral_delta_values(ham_params, backend; R=5, num_excitations=2R) -> Vector{Float64}
@@ -120,7 +130,15 @@ function spectral_delta_values(
 )
     R < 1 && throw(ArgumentError("R must be ≥ 1, got $R"))
 
-    gaps = compute_excitation_gaps(ham_params, backend; num_excitations=num_excitations, kwargs...)
+    available_excitations = max_available_excitations(ham_params, backend)
+    requested_excitations = min(num_excitations, available_excitations)
+    if requested_excitations < R
+        throw(ArgumentError(
+            "Need at least R=$R excitation gaps, but only $available_excitations are available."
+        ))
+    end
+
+    gaps = compute_excitation_gaps(ham_params, backend; num_excitations=requested_excitations, kwargs...)
     gaps = sort(gaps)
     length(gaps) >= R || throw(ArgumentError("Need at least R=$R excitation gaps, got $(length(gaps))"))
 
