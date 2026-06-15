@@ -368,7 +368,7 @@ function add_kspace_measurements!(measurements, problem::CoolingProblem{EDBacken
     end
 end
 
-# Helper for mode energy measurements ⟨h_k⟩ (ED only, Ising PBC/APBC)
+# Helper for mode energy measurements ⟨h_k⟩ (Ising PBC/APBC)
 function add_mode_measurements!(measurements, problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend}, steps, ham_params)
     hp = ham_params !== nothing ? ham_params : (haskey(problem.extra, :ham_params) ? problem.extra.ham_params : nothing)
     if hp !== nothing && hp.bc in [:periodic, :antiperiodic] && isa(hp.model, IsingModel)
@@ -383,6 +383,22 @@ function add_mode_measurements!(measurements, problem::CoolingProblem{EDBackend}
         measurements[RESULT_MODE_HK] = nothing  # allocated in perform_measurements_ed
         measurements[RESULT_MODE_K_INDICES] = nothing
         measurements[RESULT_MODE_ENERGIES] = nothing
+    end
+end
+
+function add_mode_measurements!(measurements, problem::CoolingProblem{TNBackend},
+                                state::QuantumState{TNBackend,MonteCarloWavefunction,E},
+                                steps, ham_params) where E<:EvolutionMethod
+    hp = ham_params !== nothing ? ham_params : (haskey(problem.extra, :ham_params) ? problem.extra.ham_params : nothing)
+    if hp !== nothing && hp.bc in [:periodic, :antiperiodic] && isa(hp.model, IsingModel)
+        px = measure_state_parity(problem.ϕ₀, hp.N)
+        parity = round(Int, px)
+        gF = fermionic_bc(hp.bc, parity)
+        measurements["mode_gF"] = gF
+
+        measurements["mode_hk"] = nothing
+        measurements["mode_k_indices"] = nothing
+        measurements["mode_ek_values"] = nothing
     end
 end
 
@@ -507,6 +523,21 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
 
     if haskey(measurements, RESULT_BATH_SAMPLE_MAGNETIZATION) && bath_info !== nothing
         measurements[RESULT_BATH_SAMPLE_MAGNETIZATION][step] = compute_bath_magnetization(problem.backend, state, bath_info, ham_params.N)
+    end
+
+    if haskey(measurements, "mode_hk") && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
+        gF_kwarg = haskey(measurements, "mode_gF") ? measurements["mode_gF"] : nothing
+        k_indices, hk_values, εk_values = measure_all_mode_energies(ψ_s, ham_params; gF=gF_kwarg)
+        n_modes = length(k_indices)
+
+        if measurements["mode_hk"] === nothing
+            n_steps_total = size(measurements["E_list"], 1)
+            measurements["mode_hk"] = fill(NaN, n_steps_total, n_modes)
+            measurements["mode_k_indices"] = k_indices
+            measurements["mode_ek_values"] = εk_values
+        end
+
+        measurements["mode_hk"][step, :] .= hk_values
     end
 end
 
