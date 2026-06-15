@@ -7,6 +7,44 @@ Trotter circuit construction using multiple dispatch on HamiltonianModel and bac
 using ITensors
 
 # ============================================================================
+# Trotter Time Slicing
+# ============================================================================
+
+"""
+    trotter_time_slices(t::Float64, tau::Float64) -> (nsteps, dt)
+
+Choose a Trotter time grid whose total duration is exactly `t`.
+
+The rule matches the ED Trotter path: use `ceil(t / tau)` slices, but set the
+actual slice time to `dt = t / nsteps`. Thus `tau` is an upper bound on the
+slice size, not a value to which the physical evolution time is rounded.
+"""
+function trotter_time_slices(t::Float64, tau::Float64)
+    t < 0 && throw(ArgumentError("Trotter evolution time must be nonnegative; got t=$t."))
+    tau <= 0 && throw(ArgumentError("Trotter step tau must be positive; got tau=$tau."))
+    t == 0 && return 0, 0.0
+
+    nsteps = max(1, Int(ceil(t / tau - 1e-12)))
+    return nsteps, t / nsteps
+end
+
+function with_trotter_tau(sim_params::UnifiedSimulationParameters{S,E}, tau::Float64) where {S<:SimulationMethod,E<:EvolutionMethod}
+    return UnifiedSimulationParameters(
+        sim_params.sim_method,
+        sim_params.evolution_method;
+        Dmax=sim_params.Dmax,
+        cutoff=sim_params.cutoff,
+        tau=tau,
+        pe=sim_params.pe,
+        n_trajectories=sim_params.n_trajectories,
+        parallel=sim_params.parallel,
+        trotter_steps=sim_params.trotter_steps,
+        maxiter=sim_params.maxiter,
+        normalize=sim_params.normalize,
+    )
+end
+
+# ============================================================================
 # Bath-Only Trotter Circuit (model-agnostic)
 # ============================================================================
 

@@ -23,6 +23,7 @@ end
     @testset "Correctness" begin
         include("test_correctness.jl")
         include("test_tdvp_convention.jl")
+        include("test_trotter_time.jl")
     end
 
     @testset "Mode Analysis" begin

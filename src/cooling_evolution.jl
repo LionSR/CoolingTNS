@@ -245,8 +245,12 @@ function evolve_cooling_step_dynamic(
     else
         build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_step, sim_params)
     end
+    step_gates = dt -> build_trotter_circuit_interleaved(
+        ham_params, problem.backend, sites, coupling_step, with_trotter_tau(sim_params, dt)
+    )
 
-    return evolve_state(ham_params, sim_params, problem.backend, gates, ψ_sb, te_step, sites; gates=gates)
+    return evolve_state(ham_params, sim_params, problem.backend, gates, ψ_sb, te_step, sites;
+                        gates=gates, step_gates=step_gates)
 end
 
 function evolve_cooling_step_dynamic(
@@ -271,8 +275,12 @@ function evolve_cooling_step_dynamic(
     else
         build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_step, sim_params)
     end
+    step_gates = dt -> build_trotter_circuit_interleaved(
+        ham_params, problem.backend, sites, coupling_step, with_trotter_tau(sim_params, dt)
+    )
 
-    ρ_evolved = evolve_state(ham_params, sim_params, problem.backend, gates, ρ_sb, te_step, sites)
+    ρ_evolved = evolve_state(ham_params, sim_params, problem.backend, gates, ρ_sb, te_step, sites;
+                             step_gates=step_gates)
     ρ_evolved /= tr(ρ_evolved)
     return ρ_evolved
 end
@@ -607,8 +615,13 @@ function evolve_cooling_step(problem::CoolingProblem{TNBackend}, ψ_sb::MPS, te:
         coupling_params = problem.extra.coupling_params
         interleaved_gates = build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_params, sim_params)
     end
+    coupling_params = problem.extra.coupling_params
+    step_gates = dt -> build_trotter_circuit_interleaved(
+        ham_params, problem.backend, sites, coupling_params, with_trotter_tau(sim_params, dt)
+    )
 
-    return evolve_state(ham_params, sim_params, problem.backend, problem.H_sys_bath, ψ_sb, te, sites; gates=interleaved_gates)
+    return evolve_state(ham_params, sim_params, problem.backend, problem.H_sys_bath, ψ_sb, te, sites;
+                        gates=interleaved_gates, step_gates=step_gates)
 end
 
 # --- Tensor Network + Density Matrix (unified for both evolution methods) ---
@@ -640,9 +653,14 @@ function evolve_cooling_step(problem::CoolingProblem{TNBackend}, ρ_sb::MPO, te:
         coupling_params = problem.extra.coupling_params
         interleaved_gates = build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_params, sim_params)
     end
+    coupling_params = problem.extra.coupling_params
+    step_gates = dt -> build_trotter_circuit_interleaved(
+        ham_params, problem.backend, sites, coupling_params, with_trotter_tau(sim_params, dt)
+    )
 
     # Delegate to evolve_state (shared Trotter evolution logic)
-    ρ_evolved = evolve_state(ham_params, sim_params, problem.backend, interleaved_gates, ρ_sb, te, sites)
+    ρ_evolved = evolve_state(ham_params, sim_params, problem.backend, interleaved_gates, ρ_sb, te, sites;
+                             step_gates=step_gates)
     ρ_evolved /= tr(ρ_evolved)
 
     return ρ_evolved

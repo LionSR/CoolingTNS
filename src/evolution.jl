@@ -84,11 +84,13 @@ end
 # ============================================================================
 
 function evolve_state(ham_params::HamiltonianParameters, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, TrotterEvolution},
-                     ::TNBackend, ::Any, ψ, t::Float64, ::Vector{<:Index}; gates=nothing, kwargs...)
+                     ::TNBackend, ::Any, ψ, t::Float64, ::Vector{<:Index}; gates=nothing, step_gates=nothing, kwargs...)
     gates === nothing && error("Trotter evolution requires pre-computed gates")
 
     Dmax, cutoff, tau = sim_params.Dmax, sim_params.cutoff, sim_params.tau
-    steps = max(1, Int(floor(t / tau)))
+    steps, dt = trotter_time_slices(t, tau)
+    steps == 0 && return ψ
+    active_gates = _trotter_gates_for_step(gates, step_gates, dt, tau)
 
     # `apply(gates, ψ; ...)` returns a new MPS (it does not mutate `ψ`), and in the
     # cooling loop the input `ψ` is freshly constructed and not reused. Avoid an
@@ -98,7 +100,7 @@ function evolve_state(ham_params::HamiltonianParameters, sim_params::UnifiedSimu
     # All Hamiltonian terms (system + bath + coupling) are in the interleaved gates,
     # matching the MPO DM+Trotter decomposition for consistency.
     for _ in 1:steps
-        ψ_evolved = apply(gates, ψ_evolved; cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
+        ψ_evolved = apply(active_gates, ψ_evolved; cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
         normalize!(ψ_evolved)
     end
 
@@ -110,14 +112,26 @@ end
 # ============================================================================
 
 function evolve_state(::HamiltonianParameters, sim_params::UnifiedSimulationParameters{DensityMatrix, TrotterEvolution},
-                     ::TNBackend, gates, ρ, t::Float64, ::Vector{<:Index}; kwargs...)
+                     ::TNBackend, gates, ρ, t::Float64, ::Vector{<:Index}; step_gates=nothing, kwargs...)
     Dmax = max(sim_params.Dmax, 4 * sim_params.Dmax)
     cutoff = sim_params.cutoff / 10
-    steps = max(1, Int(floor(t / sim_params.tau)))
+    steps, dt = trotter_time_slices(t, sim_params.tau)
+    steps == 0 && return ρ
+    active_gates = _trotter_gates_for_step(gates, step_gates, dt, sim_params.tau)
 
     for _ in 1:steps
-        ρ = apply(gates, ρ; apply_dag=true, cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
+        ρ = apply(active_gates, ρ; apply_dag=true, cutoff=cutoff, maxdim=Dmax, move_sites_back=true)
     end
 
     return ρ
+end
+
+function _trotter_gates_for_step(gates, step_gates, dt::Float64, tau::Float64)
+    if isapprox(dt, tau; rtol=0.0, atol=1e-12)
+        return gates
+    end
+    step_gates === nothing && throw(ArgumentError(
+        "Requested Trotter time requires adjusted gate step dt=$dt, but no step_gates builder was provided."
+    ))
+    return step_gates(dt)
 end
