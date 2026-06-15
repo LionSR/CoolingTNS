@@ -14,6 +14,25 @@ using LinearAlgebra
         @test_throws ArgumentError CoolingTNS.parse_coupling("XXX")
         @test_throws ArgumentError CoolingTNS.parse_coupling("XA")
     end
+
+    @testset "Bath Operator Convention" begin
+        local_paulis = Dict(
+            "X" => ComplexF64[0 1; 1 0],
+            "Y" => ComplexF64[0 -im; im 0],
+            "Z" => ComplexF64[1 0; 0 -1],
+        )
+
+        for sys_op in ["X", "Y", "Z"], bath_coupling_op in ["X", "Y", "Z"]
+            coupling = sys_op * bath_coupling_op
+            bath_op = CoolingTNS.get_bath_operator(coupling)
+            expected_bath_op = bath_coupling_op == "Z" ? "X" : "Z"
+
+            @test bath_op == expected_bath_op
+            commutator = local_paulis[bath_op] * local_paulis[bath_coupling_op] -
+                         local_paulis[bath_coupling_op] * local_paulis[bath_op]
+            @test norm(commutator) > 1e-12
+        end
+    end
     
     @testset "System Hamiltonians - Tensor Network Backend" begin
         backend = CoolingTNS.TNBackend()
@@ -108,6 +127,22 @@ using LinearAlgebra
                 @test H isa MPO
                 @test length(H) == 2N
             end
+        end
+
+        @testset "XZ bath field uses X" begin
+            ham_params = CoolingTNS.IsingParameters(1, 0.0, 0.0)
+            xz_coupling_params = CoolingTNS.BasicCouplingParameters(
+                "XZ", 0.0, 1, 1.0, 2.0
+            )
+            H = Matrix(CoolingTNS.construct_system_bath_hamiltonian(
+                ham_params, CoolingTNS.EDBackend(), 2, xz_coupling_params
+            ))
+
+            expected = Matrix((xz_coupling_params.delta / 2) * CoolingTNS.pauli_x(2, 2))
+            commuting_field = Matrix((xz_coupling_params.delta / 2) * CoolingTNS.pauli_z(2, 2))
+
+            @test H ≈ expected atol=1e-12
+            @test norm(H - commuting_field) > 1e-6
         end
     end
     

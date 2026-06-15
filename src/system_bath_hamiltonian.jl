@@ -29,23 +29,6 @@ end
 
 # Note: OpSum uses immutable operations (+=), so bath/coupling terms are inlined in each constructor
 
-"""
-    get_bath_operator(coupling::String) -> String
-
-Return the bath Hamiltonian operator that doesn't commute with the coupling.
-- XX, XY, XZ coupling → bath feels Z
-- ZZ, YZ coupling → bath feels X
-- YY coupling → bath feels Z
-"""
-function get_bath_operator(coupling::String)
-    # Bath operator must NOT commute with coupling for energy transfer
-    if coupling in ["ZZ", "YZ"]
-        return "X"  # Z coupling → bath feels X
-    else
-        return "Z"  # X or Y coupling → bath feels Z
-    end
-end
-
 function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{IsingModel},
                                          ::TNBackend, sites::Vector{<:Index}, coupling_params::CouplingParameters)
     J, h = ham_params.params.J, ham_params.params.h
@@ -112,10 +95,10 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     # Δ > 0 so bath ground state is eigenvalue -1 (|↓⟩ for Z, |−⟩ for X)
     Δ = coupling_params.delta !== nothing ? coupling_params.delta : compute_gap_ed(H_sys)
     
-    # Bath qubits are at positions: 2, 4, 6, ..., 2N
-    # Bath operator depends on coupling type (must not commute with coupling)
+    # Bath qubits are at positions: 2, 4, 6, ..., 2N.
+    # The bath field is chosen from the bath-side coupling operator.
     coupling_type = coupling_params.coupling
-    bath_op_func = (coupling_type in ["ZZ", "YZ"]) ? pauli_x : pauli_z
+    bath_op_func = bath_operator_function_ed(get_bath_operator(coupling_type))
 
     for i in 1:N
         bath_idx = 2*i
@@ -136,6 +119,11 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     return H_sb
 end
 
+function bath_operator_function_ed(op_label::String)
+    op_label == "X" && return pauli_x
+    op_label == "Z" && return pauli_z
+    error("Unsupported ED bath Hamiltonian operator: $op_label")
+end
 
 
 """

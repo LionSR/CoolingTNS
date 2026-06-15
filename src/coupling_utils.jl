@@ -31,3 +31,18 @@ function parse_coupling(coupling::String)
 
     return string(op1), string(op2)
 end
+
+"""
+    get_bath_operator(coupling::String) -> String
+
+Choose the bath Hamiltonian Pauli operator for a system-bath coupling label.
+
+The bath field must not commute with the Pauli operator acting on the bath leg
+of the coupling. With the convention `"AB" = A_S B_B`, this helper inspects
+only `B`. We choose `Z` for bath-side `X` or `Y` couplings and `X` for
+bath-side `Z` couplings.
+"""
+function get_bath_operator(coupling::String)
+    _, bath_coupling_op = parse_coupling(coupling)
+    return bath_coupling_op == "Z" ? "X" : "Z"
+end
