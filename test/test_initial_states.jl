@@ -38,17 +38,17 @@ using LinearAlgebra
             end
             
             @testset "Theta States" begin
-                # All down state (theta = -0.5π)
-                state_down = CoolingTNS.setup_initial_state(problem, sim_params, "theta", -0.5)
+                # Computational |0...0> state (theta = -0.5)
+                state_zero = CoolingTNS.setup_initial_state(problem, sim_params, "theta", -0.5)
                 
-                # All up state (theta = 0.5π)
-                state_up = CoolingTNS.setup_initial_state(problem, sim_params, "theta", 0.5)
+                # Computational |1...1> state (theta = 0.5)
+                state_one = CoolingTNS.setup_initial_state(problem, sim_params, "theta", 0.5)
                 
                 # X+ state (theta = 0)
                 state_plus = CoolingTNS.setup_initial_state(problem, sim_params, "theta", 0.0)
                 
-                @test state_down.state isa MPS
-                @test state_up.state isa MPS
+                @test state_zero.state isa MPS
+                @test state_one.state isa MPS
                 @test state_plus.state isa MPS
             end
         end
@@ -85,6 +85,50 @@ using LinearAlgebra
                 end
             end
         end
+    end
+
+    @testset "Theta Product Convention" begin
+        test_N = 3
+        θ_values = [-0.5, 0.0, 0.25, 0.5]
+        sites = siteinds("S=1/2", test_N)
+
+        for θ in θ_values
+            amp0, amp1 = CoolingTNS._theta_site_amplitudes(θ)
+            expected_z = amp0^2 - amp1^2
+            expected_x = 2 * amp0 * amp1
+
+            ψ_ed = CoolingTNS.create_theta_state_ed(test_N, "theta", θ)
+            ψ_tn = CoolingTNS._theta_product_mps(sites, θ)
+
+            @test abs(inner(ψ_tn, ψ_tn) - 1.0) < 1e-12
+            @test maxlinkdim(ψ_tn) == 1
+
+            @test CoolingTNS.expect_ed(CoolingTNS.pauli_z(1, test_N), ψ_ed) ≈ expected_z atol=1e-12
+            @test CoolingTNS.expect_ed(CoolingTNS.pauli_x(1, test_N), ψ_ed) ≈ expected_x atol=1e-12
+            @test expect(ψ_tn, "Z")[1] ≈ expected_z atol=1e-12
+            @test expect(ψ_tn, "X")[1] ≈ expected_x atol=1e-12
+        end
+    end
+
+    @testset "Theta Initial Energy Matches ED and TN" begin
+        test_N = 4
+        θ = 0.25
+        ham_params = CoolingTNS.IsingParameters(test_N, 1.0, 0.7)
+
+        ψ_ed = CoolingTNS.create_theta_state_ed(test_N, "theta", θ)
+        H_ed = CoolingTNS.construct_system_hamiltonian(
+            ham_params, CoolingTNS.EDBackend(), test_N
+        )
+        E_ed = CoolingTNS.expect_ed(H_ed, ψ_ed)
+
+        sites = siteinds("S=1/2", test_N)
+        ψ_tn = CoolingTNS._theta_product_mps(sites, θ)
+        H_tn = CoolingTNS.construct_system_hamiltonian(
+            ham_params, CoolingTNS.TNBackend(), sites
+        )
+        E_tn = real(inner(ψ_tn', H_tn, ψ_tn))
+
+        @test E_tn ≈ E_ed atol=1e-10
     end
 
         
