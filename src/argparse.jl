@@ -11,7 +11,7 @@ function parse_commandline(args=ARGS)
         default = 50
         arg_type = Int
         "--problem"
-        help = "type of problem to solve (valid choices: Ising, niIsing)"
+        help = "type of problem to solve (valid choices: Ising, niIsing, Rydberg)"
         default = "niIsing"
         "--N"
         help = "number of spins in the system"
@@ -33,6 +33,18 @@ function parse_commandline(args=ARGS)
         help = "z-component of the magnetic field"
         arg_type = Float64
         default = 0.5
+        "--Omega"
+        help = "Rydberg Rabi frequency Ω"
+        arg_type = Float64
+        default = 1.0
+        "--Delta"
+        help = "Rydberg detuning Δ"
+        arg_type = Float64
+        default = 0.0
+        "--V"
+        help = "Rydberg van der Waals interaction scale"
+        arg_type = Float64
+        default = 1.0
         "--steps"
         help = "number of cooling steps"
         arg_type = Int
