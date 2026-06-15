@@ -7,10 +7,10 @@ The formulas follow `Notes/NotesED/MapToSpin.tex`: the code Hamiltonian is
 rotated to the notes basis by `R_y(-π/2)`, and the Jordan-Wigner strings are
 then evaluated as Pauli strings on the original MPS.
 
-This implementation prioritizes convention-correctness and ED validation. It
-evaluates O(N^2) split-string correlators as Pauli-string MPO expectations; this
-is adequate for diagnostics and small-size validation, and can later be replaced
-by a cached left/right environment contraction for production-scale scans.
+This implementation evaluates O(N^2) split-string correlators by direct MPS
+network contraction. It is convention-correct and avoids building an MPO for
+each correlator; a later production implementation can still cache left/right
+environments across correlators for large scans.
 """
 
 using ITensors
@@ -77,20 +77,15 @@ function _expect_pauli_string(ψ::MPS, coeff::ComplexF64, ops::Vector{Symbol})
         "Pauli string length $(length(ops)) does not match MPS length $(length(sites))"
     ))
 
-    nontrivial = findall(!=(:I), ops)
-    if isempty(nontrivial)
-        return coeff * inner(ψ, ψ)
+    contraction = ITensor(1.0)
+    for i in eachindex(ops)
+        A = ψ[i]
+        s = sites[i]
+        O = ops[i] == :I ? op("I", s) : op(_PAULI_LABELS_TN[ops[i]], s)
+        contraction *= dag(prime(A)) * O * A
     end
 
-    term = Any[coeff]
-    for i in nontrivial
-        push!(term, _PAULI_LABELS_TN[ops[i]], i)
-    end
-
-    os = OpSum()
-    os += tuple(term...)
-    O = MPO(os, sites)
-    return inner(ψ', O, ψ)
+    return coeff * scalar(contraction)
 end
 
 function _split_string_correlator(ψ::MPS, n::Int, m::Int, α::Symbol, β::Symbol)
