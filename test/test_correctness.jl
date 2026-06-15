@@ -510,6 +510,25 @@ end
     @test abs(tr(ρ_sys_recovered.data) - 1.0) < 1e-10
     @test norm(ρ_sys_recovered.data - ρ_sys.data) < 1e-10
 
+    ψ_sys_layout = CoolingTNS.product_state_ed(N, 1)
+    ψ_bath_layout = CoolingTNS.product_state_ed(N, 2)
+    ρ_layout = CoolingTNS.state_to_density_ed(
+        CoolingTNS.interleave_system_bath_ed(ψ_sys_layout, ψ_bath_layout)
+    )
+    state_layout = CoolingTNS.QuantumState(
+        CoolingTNS.EDBackend(),
+        CoolingTNS.DensityMatrix(),
+        CoolingTNS.ContinuousEvolution(),
+        ρ_layout,
+    )
+    ρ_bath_expected = CoolingTNS.trace_out_system_ed(ρ_layout, N).data
+    ρ_bath_extracted = CoolingTNS.extract_bath_state(
+        CoolingTNS.EDBackend(), state_layout, ρ_layout.data, N, N
+    )
+
+    @test ρ_bath_extracted ≈ ρ_bath_expected atol=1e-12
+    @test real(diag(ρ_bath_extracted)[3]) ≈ 1.0 atol=1e-12
+
     println("  Partial trace recovers system state: ✓")
     println("  Trace of recovered ρ_sys = $(tr(ρ_sys_recovered.data))")
 end
