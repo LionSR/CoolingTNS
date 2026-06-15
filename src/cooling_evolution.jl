@@ -541,6 +541,10 @@ function apply_noise(ρ::EDDensityMatrix, ::CoolingProblem{EDBackend}, pe::Float
     return EDDensityMatrix(ρ_noisy_data, ρ.n_qubits)
 end
 
+function apply_noise(ψ::EDStateVector, ::CoolingProblem{EDBackend}, pe::Float64)
+    return apply_depolarizing_ed(ψ, pe, collect(1:ψ.n_qubits))
+end
+
 # --- Exact Diagonalization + Monte Carlo (shared for Continuous/Trotter) ---
 
 function prepare_combined_state(problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend,MonteCarloWavefunction,E}) where E<:EvolutionMethod
@@ -653,4 +657,3 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     measurements["GS_overlap_list"][step] = real(inner(ρ_s, projector_mpo(ϕ₀)))
     measurements["purity_list"][step] = real(tr(apply(ρ_s, ρ_s)))
 end
-

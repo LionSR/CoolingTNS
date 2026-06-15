@@ -1,5 +1,6 @@
 using Test
 using CoolingTNS
+using Random
 
 @testset "Cooling Interface Tests" begin
     # Test parameters
@@ -158,6 +159,40 @@ using CoolingTNS
         
         # Energy should decrease (cooling)
         @test results["E_list"][end] <= results["E_list"][1] + 1e-10
+    end
+
+    @testset "ED Monte Carlo Noise Dispatch" begin
+        Random.seed!(1234)
+
+        backend = CoolingTNS.EDBackend()
+        test_N = 2
+        test_ham_params = CoolingTNS.IsingParameters(test_N, 1.0, -2.0)
+        noisy_coupling_params = CoolingTNS.BasicCouplingParameters("XX", 0.05, 1, 0.2, nothing)
+        sim_params = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.MonteCarloWavefunction(),
+            CoolingTNS.ContinuousEvolution();
+            pe=0.2,
+            n_trajectories=1,
+        )
+
+        problem_setup = CoolingTNS.setup_problem(
+            backend, test_ham_params, noisy_coupling_params, sim_params
+        )
+        initial_state = CoolingTNS.setup_initial_state(
+            problem_setup, sim_params, "product", 0.0
+        )
+
+        results = CoolingTNS.run_cooling(
+            problem_setup,
+            initial_state,
+            problem_setup.extra.coupling_params,
+            sim_params,
+            test_ham_params,
+        )
+
+        @test length(results["E_list"]) == noisy_coupling_params.steps + 1
+        @test all(isfinite, results["E_list"])
+        @test all(isfinite, results["GS_overlap_list"])
     end
 
     # Cross-backend cooling comparisons are covered in `test_correctness.jl`.
