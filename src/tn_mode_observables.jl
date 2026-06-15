@@ -96,6 +96,23 @@ function _split_string_correlator(ψ::MPS, n::Int, m::Int, α::Symbol, β::Symbo
     return _expect_pauli_string(ψ, ComplexF64(coeff), ops)
 end
 
+function _split_string_correlators(ψ::MPS)
+    N = length(ψ)
+    Cxx = Matrix{ComplexF64}(undef, N, N)
+    Cyy = Matrix{ComplexF64}(undef, N, N)
+    Cyx = Matrix{ComplexF64}(undef, N, N)
+    Cxy = Matrix{ComplexF64}(undef, N, N)
+
+    for n in 1:N, m in 1:N
+        Cxx[n, m] = _split_string_correlator(ψ, n, m, :X, :X)
+        Cyy[n, m] = _split_string_correlator(ψ, n, m, :Y, :Y)
+        Cyx[n, m] = _split_string_correlator(ψ, n, m, :Y, :X)
+        Cxy[n, m] = _split_string_correlator(ψ, n, m, :X, :Y)
+    end
+
+    return (Cxx=Cxx, Cyy=Cyy, Cyx=Cyx, Cxy=Cxy)
+end
+
 """
     measure_state_parity(ψ::MPS, N::Int) -> Float64
 
@@ -119,13 +136,8 @@ allowed momentum index it is the individual-mode observable
 ``2\\hat a_k^†\\hat a_k - 1``. The energy decomposition then sums over the full
 fermionic grid with the prefactor already used by `measure_all_mode_energies`.
 """
-function measure_hk(ψ::MPS, k, ham_params::HamiltonianParameters{IsingModel})
+function _measure_hk_from_correlators(correlators, k, ham_params::HamiltonianParameters{IsingModel})
     N = ham_params.N
-    length(ψ) == N || throw(ArgumentError("MPS length $(length(ψ)) does not match N=$N"))
-    ham_params.bc in (:periodic, :antiperiodic) || throw(ArgumentError(
-        "TN mode observables require spin :periodic or :antiperiodic boundary conditions; got $(ham_params.bc)"
-    ))
-
     J, h = ham_params.params.J, ham_params.params.h
     θ = theta_from_Jh(J, h)
     φk = 2π * Float64(k) / N
@@ -141,10 +153,10 @@ function measure_hk(ψ::MPS, k, ham_params::HamiltonianParameters{IsingModel})
 
     for n in 1:N, m in 1:N
         θnm = (n - m) * φk
-        Cxx = _split_string_correlator(ψ, n, m, :X, :X)
-        Cyy = _split_string_correlator(ψ, n, m, :Y, :Y)
-        Cyx = _split_string_correlator(ψ, n, m, :Y, :X)
-        Cxy = _split_string_correlator(ψ, n, m, :X, :Y)
+        Cxx = correlators.Cxx[n, m]
+        Cyy = correlators.Cyy[n, m]
+        Cyx = correlators.Cyx[n, m]
+        Cxy = correlators.Cxy[n, m]
 
         adag_a = (Cxx + Cyy + im * (Cyx - Cxy)) / 4
         pairdiff = im * (Cxy + Cyx) / 2
@@ -164,6 +176,17 @@ function measure_hk(ψ::MPS, k, ham_params::HamiltonianParameters{IsingModel})
         @warn "measure_hk(MPS): significant imaginary part $(imag(hk)) for k=$k"
     end
     return real(hk)
+end
+
+function measure_hk(ψ::MPS, k, ham_params::HamiltonianParameters{IsingModel})
+    N = ham_params.N
+    length(ψ) == N || throw(ArgumentError("MPS length $(length(ψ)) does not match N=$N"))
+    ham_params.bc in (:periodic, :antiperiodic) || throw(ArgumentError(
+        "TN mode observables require spin :periodic or :antiperiodic boundary conditions; got $(ham_params.bc)"
+    ))
+
+    correlators = _split_string_correlators(ψ)
+    return _measure_hk_from_correlators(correlators, k, ham_params)
 end
 
 """
@@ -189,8 +212,9 @@ function measure_all_mode_energies(ψ::MPS, ham_params::HamiltonianParameters{Is
         gF = fermionic_bc(ham_params.bc, parity)
     end
 
+    correlators = _split_string_correlators(ψ)
     ks = allowed_k_indices(N, gF)
-    hk_values = [measure_hk(ψ, k, ham_params) for k in ks]
+    hk_values = [_measure_hk_from_correlators(correlators, k, ham_params) for k in ks]
     εk_values = [Λ * mode_energy(Float64(k), θ, N) for k in ks]
     return ks, hk_values, εk_values
 end
