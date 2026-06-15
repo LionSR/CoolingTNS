@@ -18,6 +18,17 @@ function construct_system_hamiltonian(ham_params::HamiltonianParameters, backend
     error("construct_system_hamiltonian not implemented for model $(typeof(ham_params.model)) and backend $(typeof(backend))")
 end
 
+"""
+    rydberg_rabi_x_coefficient(Ω)
+
+Return the coefficient multiplying `σˣ` in the Rydberg Hamiltonian. The input
+`Ω` is the Rabi frequency, so the Hamiltonian term is `(Ω/2) σˣ`.
+
+For the tensor-network backend, `S+ + S- = σˣ`, hence the same coefficient is
+used for the two ladder-operator terms.
+"""
+rydberg_rabi_x_coefficient(Ω) = Ω / 2
+
 # ============================================================================
 # Tensor Network (ITensors) Implementations
 # ============================================================================
@@ -53,12 +64,13 @@ end
 
 function construct_system_hamiltonian(ham_params::HamiltonianParameters{RydbergModel}, ::TNBackend, sites::Vector{<:Index})
     Ω, Δ, V = ham_params.params.Ω, ham_params.params.Δ, ham_params.params.V
+    Ωx = rydberg_rabi_x_coefficient(Ω)
     N = ham_params.N
 
     terms = OpSum()
     for i in 1:N
-        terms += Ω/2, "S+", i
-        terms += Ω/2, "S-", i
+        terms += Ωx, "S+", i
+        terms += Ωx, "S-", i
         terms += -Δ, "ProjUp", i
     end
     for i in 1:N-1, j in i+1:N
@@ -110,13 +122,14 @@ end
 
 function construct_system_hamiltonian(ham_params::HamiltonianParameters{RydbergModel}, ::EDBackend, ::Int)
     Ω, Δ, V = ham_params.params.Ω, ham_params.params.Δ, ham_params.params.V
+    Ωx = rydberg_rabi_x_coefficient(Ω)
     N = ham_params.N
 
     H_sys = spzeros(Float64, 2^N, 2^N)
 
-    # Single-site terms: Rabi coupling (Ω*X) and detuning (-Δ/2*Z)
+    # Single-site terms, up to the constant in -Δ n = -Δ(I+Z)/2.
     for i in 1:N
-        H_sys += Ω * pauli_x(i, N) - (Δ/2) * pauli_z(i, N)
+        H_sys += Ωx * pauli_x(i, N) - (Δ/2) * pauli_z(i, N)
     end
 
     # Van der Waals interaction: V/r^6 * n_i * n_j where n = (I + Z)/2

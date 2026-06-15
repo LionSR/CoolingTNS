@@ -4,6 +4,11 @@ using ITensors
 using ITensorMPS
 using LinearAlgebra
 
+function rydberg_tn_minus_ed_constant(N, Δ, V)
+    interaction_shift = sum(V / (j - i)^6 / 4 for i in 1:N-1 for j in i+1:N)
+    return -N * Δ / 2 + interaction_shift
+end
+
 @testset "Hamiltonian Construction Tests" begin
     N = 4
     
@@ -58,6 +63,37 @@ using LinearAlgebra
             expected_E_down = (N-1) * J - N * hz
             @test abs(E_down - expected_E_down) < 1e-10
         end
+    end
+
+    @testset "Rydberg Rabi Convention" begin
+        Ω = 1.3
+        H_one = CoolingTNS.construct_system_hamiltonian(
+            CoolingTNS.RydbergParameters(1, Ω, 0.0, 0.0),
+            CoolingTNS.EDBackend(),
+            1,
+        )
+        @test sort(real(eigvals(Matrix(H_one)))) ≈ [-Ω / 2, Ω / 2]
+
+        N_rydberg = 3
+        Δ = 0.7
+        V = 0.2
+        ham_params = CoolingTNS.RydbergParameters(N_rydberg, Ω, Δ, V)
+        H_ed = CoolingTNS.construct_system_hamiltonian(
+            ham_params, CoolingTNS.EDBackend(), N_rydberg
+        )
+
+        ψ_ed = CoolingTNS.create_theta_state_ed(N_rydberg, "theta", 0.0)
+        E_ed = real(dot(ψ_ed.data, H_ed * ψ_ed.data))
+
+        sites = siteinds("S=1/2", N_rydberg)
+        H_tn = CoolingTNS.construct_system_hamiltonian(
+            ham_params, CoolingTNS.TNBackend(), sites
+        )
+        ψ_tn = MPS(sites, "X+")
+        E_tn = real(inner(ψ_tn', H_tn, ψ_tn))
+
+        constant_shift = rydberg_tn_minus_ed_constant(N_rydberg, Δ, V)
+        @test E_tn ≈ E_ed + constant_shift atol=1e-10
     end
     
     
