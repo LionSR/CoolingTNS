@@ -102,4 +102,48 @@ using ITensorMPS
             CoolingTNS.TNBackend(), tn_mc_state, bath_sample, N
         ) ≈ -1.0
     end
+
+    @testset "TN density-matrix bath trace is measured" begin
+        N = 2
+        sites_sb = siteinds("S=1/2", 2N)
+        sites_sys = sites_sb[1:2:2N-1]
+        sites_bath = sites_sb[2:2:2N]
+
+        ρ_sys = MPO(sites_sys, "Id") / 2.0^N
+        ρ_sb = CoolingTNS.appendzeros_MPO(ρ_sys, sites_sb, "XX")
+        ρ_bath = CoolingTNS.partial_trace_system(ρ_sb, sites_sb, sites_bath)
+        ρ_bath /= tr(ρ_bath)
+
+        tn_dm_state = CoolingTNS.QuantumState(
+            CoolingTNS.TNBackend(),
+            CoolingTNS.DensityMatrix(),
+            CoolingTNS.TrotterEvolution(),
+            nothing,
+        )
+
+        @test CoolingTNS.compute_bath_magnetization(
+            CoolingTNS.TNBackend(), tn_dm_state, ρ_bath, sites_bath
+        ) ≈ -1.0
+    end
+
+    @testset "TN density-matrix cooling populates bath_mag_list" begin
+        N = 2
+        backend = CoolingTNS.TNBackend()
+        ham_params = CoolingTNS.IsingParameters(N, 1.0, -2.0)
+        coupling_params = CoolingTNS.BasicCouplingParameters("XX", 0.0, 1, 0.2, 1.0)
+        sim_params = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.DensityMatrix(),
+            CoolingTNS.TrotterEvolution();
+            Dmax=20,
+            cutoff=1e-10,
+            tau=0.1,
+        )
+
+        problem = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params)
+        state0 = CoolingTNS.setup_initial_state(problem, sim_params, "identity", 0.0)
+        results = CoolingTNS.run_cooling(problem, state0, coupling_params, sim_params, ham_params)
+
+        @test haskey(results, CoolingTNS.RESULT_BATH_MAGNETIZATION)
+        @test results[CoolingTNS.RESULT_BATH_MAGNETIZATION][2] ≈ -1.0 atol=1e-10
+    end
 end

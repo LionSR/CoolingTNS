@@ -655,18 +655,23 @@ function process_bath_and_update(problem::CoolingProblem{TNBackend}, ρ_evolved:
     sites = problem.extra.sites
     N = length(sites) ÷ 2
     sites_sys = sites[1:2:2N-1]
+    sites_bath = sites[2:2:2N]
+
+    ρ_b = partial_trace_system(ρ_evolved, sites, sites_bath)
+    ρ_b /= tr(ρ_b)
+    bath_mag = compute_bath_magnetization(problem.backend, state, ρ_b, sites_bath)
 
     ρ_s = partial_trace_bath(ρ_evolved, sites, sites_sys)
     ρ_s = 0.5 * (ρ_s + dag(swapprime(ρ_s, 0, 1)))  # Enforce Hermiticity
     ρ_s /= tr(ρ_s)
 
-    return QuantumState(state.backend, state.sim_method, state.evolution_method, ρ_s), nothing
+    return QuantumState(state.backend, state.sim_method, state.evolution_method, ρ_s), bath_mag
 end
 
 # Unified TN+DM measurements for both Continuous and Trotter evolution
 function perform_backend_measurements!(measurements, step::Int, problem::CoolingProblem{TNBackend},
                                      state::QuantumState{TNBackend,DensityMatrix,E},
-                                     _ham_params, _bath_info=nothing) where E<:EvolutionMethod
+                                     _ham_params, bath_info=nothing) where E<:EvolutionMethod
     ρ_s = state.state
     H_sys = problem.H_sys
     ϕ₀ = problem.ϕ₀
@@ -674,4 +679,7 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     measurements[RESULT_ENERGY][step] = real(inner(ρ_s, H_sys))
     measurements[RESULT_GROUND_STATE_OVERLAP][step] = real(inner(ρ_s, projector_mpo(ϕ₀)))
     measurements[RESULT_PURITY][step] = real(tr(apply(ρ_s, ρ_s)))
+    if haskey(measurements, RESULT_BATH_MAGNETIZATION) && bath_info !== nothing
+        measurements[RESULT_BATH_MAGNETIZATION][step] = bath_info
+    end
 end
