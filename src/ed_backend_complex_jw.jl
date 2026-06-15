@@ -122,6 +122,7 @@ function _measure_momentum_distribution_ed_clean(state, ham_params; gF=nothing)
         notes_state = EDStateVector(ψ_notes, N)
     else
         ρ_notes = _rotate_dm_to_notes(state)
+        ρ_notes = (ρ_notes + ρ_notes') / 2
         notes_state = EDDensityMatrix(ρ_notes, N)
     end
 

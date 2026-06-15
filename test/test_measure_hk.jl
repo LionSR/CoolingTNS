@@ -387,6 +387,28 @@ end
         end
     end
 
+    @testset "Cooling measurements use parity-aware n_k grid" begin
+        N = 4; J = 1.0; h = 0.5
+        ham_params = IsingParameters(N, J, h, :periodic)
+        coupling_params = BasicCouplingParameters("XX", 0.0, 0, 0.0, nothing)
+        sim_params = UnifiedSimulationParameters(DensityMatrix(), ContinuousEvolution())
+
+        problem = setup_problem(EDBackend(), ham_params, coupling_params, sim_params)
+        ρ0 = state_to_density_ed(problem.ϕ₀)
+        state0 = QuantumState(EDBackend(), DensityMatrix(), ContinuousEvolution(), ρ0)
+
+        results = redirect_stdout(devnull) do
+            run_cooling(problem, state0, coupling_params, sim_params, ham_params)
+        end
+
+        k_expected, nk_expected = measure_momentum_distribution_ed_clean(ρ0, ham_params)
+
+        @test results["momentum_gF"] == fermionic_bc(:periodic, 1)
+        @test results["momentum_gF_source"] == "state"
+        @test results["k_values"] ≈ k_expected atol=1e-12
+        @test results["momentum_dist"][1, :] ≈ nk_expected atol=1e-10
+    end
+
     @testset "h_k range and symmetry (N=$N)" for N in [4, 6]
         J, h = 1.0, 0.5
         ham_params = IsingParameters(N, J, h, :periodic)

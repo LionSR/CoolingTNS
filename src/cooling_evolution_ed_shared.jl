@@ -152,6 +152,33 @@ function process_bath_ed_monte_carlo(state::EDStateVector, N_bath::Int)
     return ψ_sys, bath_outcomes
 end
 
+function _momentum_measurement_gF!(measurements, state::Union{EDStateVector, EDDensityMatrix},
+                                   ϕ₀::EDStateVector, ham_params)
+    if haskey(measurements, "momentum_gF")
+        return measurements["momentum_gF"]
+    end
+
+    N = ham_params.N
+    px = measure_state_parity(state, N)
+    parity = round(Int, px)
+
+    if abs(px - parity) <= 0.1 && abs(parity) == 1
+        gF = fermionic_bc(ham_params.bc, parity)
+        measurements["momentum_gF_source"] = "state"
+    else
+        # A mixed-parity state has no unique fermionic boundary condition.
+        # Use the ground-state sector as a fixed reference grid for diagnostics,
+        # following the convention used for mode-resolved h_k measurements.
+        px0 = measure_state_parity(ϕ₀, N)
+        parity0 = round(Int, px0)
+        gF = fermionic_bc(ham_params.bc, parity0)
+        measurements["momentum_gF_source"] = "ground_state"
+    end
+
+    measurements["momentum_gF"] = gF
+    return gF
+end
+
 """
     perform_measurements_ed!(measurements, step::Int, problem::CoolingProblem{EDBackend},
                             state::Union{EDStateVector, EDDensityMatrix}, is_monte_carlo::Bool,
@@ -217,9 +244,10 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
     
     # K-space measurements for ED with periodic/antiperiodic BC (only for Ising model)
     if haskey(measurements, "momentum_dist") && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
+        gF = _momentum_measurement_gF!(measurements, state, ϕ₀, ham_params)
         if isa(state, EDStateVector)
             # For pure states
-            k_values, n_k = measure_momentum_distribution_ed(state, ham_params)
+            k_values, n_k = measure_momentum_distribution_ed_clean(state, ham_params; gF=gF)
             if step == 1
                 measurements["k_values"][:] = k_values
             end
@@ -233,7 +261,7 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
             end
             
             # Measure momentum distribution from density matrix
-            k_values, n_k = measure_momentum_distribution_ed(ρ_sys, ham_params)
+            k_values, n_k = measure_momentum_distribution_ed_clean(ρ_sys, ham_params; gF=gF)
             if step == 1
                 measurements["k_values"][:] = k_values
             end
