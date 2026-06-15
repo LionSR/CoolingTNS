@@ -21,20 +21,32 @@ function compute_bath_magnetization(backend::CoolingBackend, state::QuantumState
     error("compute_bath_magnetization not implemented for backend=$(typeof(backend)), sim_method=$(typeof(state.sim_method))")
 end
 
+function _pauli_z_from_tn_sample(sample::Int)
+    sample == 1 && return 1.0
+    sample == 2 && return -1.0
+    throw(ArgumentError("TN bath samples are ITensor site indices 1 or 2, got $sample"))
+end
+
+function _pauli_z_from_ed_bit(bit::Int)
+    bit == 0 && return 1.0
+    bit == 1 && return -1.0
+    throw(ArgumentError("ED bath measurement bits must be 0 or 1, got $bit"))
+end
+
 # --- Tensor Network + Monte Carlo ---
 # For MPS Monte Carlo, bath magnetization comes from the sampled bath configuration
 function compute_bath_magnetization(::TNBackend, ::QuantumState{TNBackend,MonteCarloWavefunction,E}, 
                                   bath_sample::Vector{Int}, N_bath::Int) where E
-    # bath_sample contains 0s and 1s
-    return 2 * sum(bath_sample) / N_bath - 1.0
+    # `sample_bath` returns ITensor site indices: 1 = Up (Z=+1), 2 = Dn (Z=-1).
+    return sum(_pauli_z_from_tn_sample.(bath_sample)) / N_bath
 end
 
 # --- ED + Monte Carlo ---  
 # For ED Monte Carlo, bath magnetization comes from collapsed measurement
 function compute_bath_magnetization(::EDBackend, ::QuantumState{EDBackend,MonteCarloWavefunction,E},
                                   bath_result::Vector{Int}, N_bath::Int) where E
-    # bath_result contains measurement outcomes (0 or 1)
-    return sum(2 .* bath_result .- 1) / N_bath
+    # `measure_ed!` returns computational bits: 0 = Up (Z=+1), 1 = Dn (Z=-1).
+    return sum(_pauli_z_from_ed_bit.(bath_result)) / N_bath
 end
 
 # --- ED + Density Matrix ---
@@ -47,7 +59,7 @@ function compute_bath_magnetization(::EDBackend, ::QuantumState{EDBackend,Densit
     for i in 1:dim
         # Count number of 1s in binary representation
         n_ones = count_ones(i-1)
-        mag += real(ρ_bath[i,i]) * (2*n_ones/N_bath - 1)
+        mag += real(ρ_bath[i,i]) * (1 - 2*n_ones/N_bath)
     end
     
     return mag
@@ -62,10 +74,9 @@ function compute_bath_magnetization(::TNBackend, ::QuantumState{TNBackend,Densit
     total_mag = 0.0
     
     for i in 1:N_bath
-        # Create Sz operator for site i
-        sz_op = MPO(sites_bath, [i => "Sz"])
+        z_op = MPO(sites_bath, [i => "Z"])
         # Compute expectation value
-        mag_i = real(inner(ρ_bath, sz_op))
+        mag_i = real(inner(ρ_bath, z_op))
         total_mag += mag_i
     end
     
