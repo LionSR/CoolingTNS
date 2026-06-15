@@ -482,6 +482,18 @@ end
     nonzero_count = count(x -> abs(x) > 1e-10, ψ_combined.data)
     @test nonzero_count == 1
 
+    ψ_appended = CoolingTNS.append_bath(CoolingTNS.EDBackend(), ψ_sys, N)
+    ψ_expected = CoolingTNS.prepare_combined_state_ed(ψ_sys, N, "XX")
+    @test norm(ψ_appended.data - ψ_expected.data) < 1e-12
+
+    ρ_sys = CoolingTNS.state_to_density_ed(ψ_sys)
+    ρ_appended = CoolingTNS.append_bath(CoolingTNS.EDBackend(), ρ_sys, N)
+    ρ_expected = CoolingTNS.prepare_combined_state_ed(ρ_sys, N, "XX")
+    @test norm(ρ_appended.data - ρ_expected.data) < 1e-12
+
+    ρ_matrix_appended = CoolingTNS.append_bath(CoolingTNS.EDBackend(), ρ_sys.data, N)
+    @test norm(ρ_matrix_appended - ρ_expected.data) < 1e-12
+
     println("  Interleaved state has $(length(ψ_combined.data)) components, $nonzero_count nonzero")
 end
 
