@@ -20,16 +20,20 @@ using LinearAlgebra
 Append fresh bath qubits to system state using dispatch.
 """
 # TN Backend
-append_bath(::TNBackend, ψ_s::MPS, sites::Vector{<:Index}) = appendzeros_MPS(ψ_s, sites)
-append_bath(::TNBackend, ρ_s::MPO, sites::Vector{<:Index}) = appendzeros_MPO(ρ_s, sites)
+append_bath(::TNBackend, ψ_s::MPS, sites::Vector{<:Index}, coupling::String="XX") =
+    appendzeros_MPS(ψ_s, sites, coupling)
+append_bath(::TNBackend, ρ_s::MPO, sites::Vector{<:Index}, coupling::String="XX") =
+    appendzeros_MPO(ρ_s, sites, coupling)
 
 # ED Backend
-append_bath(::EDBackend, ψ_s::EDStateVector, N_bath::Int) = kron_states_ed(ψ_s, zero_state_ed(N_bath))
-append_bath(::EDBackend, ρ_s::EDDensityMatrix, N_bath::Int) = kron_density_ed(ρ_s, state_to_density_ed(zero_state_ed(N_bath)))
+append_bath(::EDBackend, ψ_s::EDStateVector, N_bath::Int, coupling::String="XX") =
+    prepare_combined_state_ed(ψ_s, N_bath, coupling)
+append_bath(::EDBackend, ρ_s::EDDensityMatrix, N_bath::Int, coupling::String="XX") =
+    prepare_combined_state_ed(ρ_s, N_bath, coupling)
 
-function append_bath(::EDBackend, ρ_s::Matrix, N_bath::Int)
+function append_bath(::EDBackend, ρ_s::Matrix, N_bath::Int, coupling::String="XX")
     N_sys = Int(log2(size(ρ_s, 1)))
-    return append_bath(EDBackend(), EDDensityMatrix(ρ_s, N_sys), N_bath).data
+    return append_bath(EDBackend(), EDDensityMatrix(Matrix{ComplexF64}(ρ_s), N_sys), N_bath, coupling).data
 end
 
 # ============================================================================
