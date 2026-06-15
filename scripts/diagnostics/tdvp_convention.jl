@@ -1,123 +1,113 @@
-"""
-    test_tdvp_convention.jl
+#!/usr/bin/env julia
+# Verify the TDVP time convention used by TN Monte Carlo continuous evolution.
 
-Determine the ITensorMPS TDVP time convention:
-- Convention A: tdvp(H, t, ψ) computes exp(tH)ψ — need t = -im*te for Schrödinger
-- Convention B: tdvp(H, t, ψ) computes exp(-iHt)ψ — need t = te (real) for Schrödinger
-
-If convention B, then t = -im*te gives exp(-iH(-im*te)) = exp(-H*te) = imaginary time!
-"""
-
+using CoolingTNS
 using ITensors
 using ITensorMPS
 using LinearAlgebra
 using Printf
 
-println("="^60)
-println("TDVP Convention Test")
-println("="^60)
-
-# Create a simple 2-site Hamiltonian: H = σ_x ⊗ I + I ⊗ σ_x
-N = 2
-sites = siteinds("S=1/2", N)
-
-# Use OpSum for the Hamiltonian
-os = OpSum()
-os += 1.0, "X", 1
-os += 1.0, "X", 2
-H_mpo = MPO(os, sites)
-
-# Create initial state |↑↑⟩
-ψ0 = MPS(sites, "Up")
-
-# Exact Hamiltonian matrix
-H_mat = [0 1 1 0; 1 0 0 1; 1 0 0 1; 0 1 1 0]  # σ_x ⊗ I + I ⊗ σ_x
-
-# Initial state |↑↑⟩ = |00⟩ = [1,0,0,0]
-ψ0_vec = [1.0+0im, 0, 0, 0]
-
-te = 0.5
-tau = 0.01
-
-# Exact real-time evolution: exp(-iHt)|ψ⟩
-ψ_exact_realtime = exp(-im * te * H_mat) * ψ0_vec
-
-# Exact imaginary-time evolution: exp(-Ht)|ψ⟩ (unnormalized)
-ψ_exact_imagtime = exp(-te * H_mat) * ψ0_vec
-ψ_exact_imagtime_norm = ψ_exact_imagtime / norm(ψ_exact_imagtime)
-
-println("\nExact evolution of |↑↑⟩ under H = X₁ + X₂:")
-println(@sprintf("  Real time (t=%.1f):  [%.6f, %.6f, %.6f, %.6f]", te, abs.(ψ_exact_realtime)...))
-println(@sprintf("  Imag time (t=%.1f):  [%.6f, %.6f, %.6f, %.6f]", te, abs.(ψ_exact_imagtime_norm)...))
-
-# Energy of exact states
-E_exact_real = real(ψ_exact_realtime' * H_mat * ψ_exact_realtime / (ψ_exact_realtime' * ψ_exact_realtime))
-E_exact_imag = real(ψ_exact_imagtime_norm' * H_mat * ψ_exact_imagtime_norm)
-println(@sprintf("\n  Energy (real time):  %.6f", E_exact_real))
-println(@sprintf("  Energy (imag time):  %.6f", E_exact_imag))
-println("  Note: imaginary time should lower energy more than real time")
-
-# Helper: MPS to vector
-function mps_to_vector(ψ::MPS, sites)
+function _tdvp_test_vector(psi::MPS, sites)
     N = length(sites)
     dim = 2^N
     vec = zeros(ComplexF64, dim)
-    for idx in 0:dim-1
-        config = [((idx >> (k-1)) & 1) == 0 ? "Up" : "Dn" for k in 1:N]
-        ψ_prod = MPS(sites, config)
-        vec[idx+1] = inner(ψ_prod, ψ)
+    for idx in 0:(dim - 1)
+        config = [((idx >> (site - 1)) & 1) == 0 ? "Up" : "Dn" for site in 1:N]
+        basis_state = MPS(sites, config)
+        vec[idx + 1] = inner(basis_state, psi)
     end
     return vec
 end
 
-# === Test A: TDVP with t = -im*te (current code convention) ===
-println("\n--- Test A: tdvp(H, -im*t, ψ) [current code] ---")
-ψ_A = tdvp(H_mpo, -im * te, ψ0;
-           time_step=-im * tau, nsite=2, reverse_step=false, normalize=false,
-           maxdim=100, cutoff=1e-14, outputlevel=0)
+function tdvp_convention_check(; te::Float64=0.5, tau::Float64=0.5,
+                               verbose::Bool=true)
+    N = 2
+    sites = siteinds("S=1/2", N)
 
-ψ_A_vec = mps_to_vector(ψ_A, sites)
-ψ_A_vec /= norm(ψ_A_vec)
-E_A = real(inner(ψ_A', H_mpo, ψ_A) / inner(ψ_A, ψ_A))
+    terms = OpSum()
+    terms += 1.0, "X", 1
+    terms += 1.0, "X", 2
+    H_mpo = MPO(terms, sites)
 
-println(@sprintf("  |ψ_A| = [%.6f, %.6f, %.6f, %.6f]", abs.(ψ_A_vec)...))
-println(@sprintf("  Energy = %.6f", E_A))
+    psi0 = MPS(sites, "Up")
+    psi0_vec = ComplexF64[1, 0, 0, 0]
+    H_mat = ComplexF64[
+        0 1 1 0
+        1 0 0 1
+        1 0 0 1
+        0 1 1 0
+    ]
 
-overlap_real_A = abs(dot(ψ_exact_realtime / norm(ψ_exact_realtime), ψ_A_vec))
-overlap_imag_A = abs(dot(ψ_exact_imagtime_norm, ψ_A_vec))
-println(@sprintf("  Overlap with real-time: %.6f", overlap_real_A))
-println(@sprintf("  Overlap with imag-time: %.6f", overlap_imag_A))
+    exact_real = exp(-im * te * H_mat) * psi0_vec
+    exact_real ./= norm(exact_real)
 
-# === Test B: TDVP with t = te (real, Schrödinger convention) ===
-println("\n--- Test B: tdvp(H, t, ψ) [real time parameter] ---")
-ψ_B = tdvp(H_mpo, te, ψ0;
-           time_step=tau, nsite=2, reverse_step=false, normalize=false,
-           maxdim=100, cutoff=1e-14, outputlevel=0)
+    sim_params = CoolingTNS.UnifiedSimulationParameters(
+        CoolingTNS.MonteCarloWavefunction(),
+        CoolingTNS.ContinuousEvolution();
+        Dmax=100,
+        cutoff=1e-14,
+        tau=tau,
+    )
+    ham_params = CoolingTNS.IsingParameters(N, 0.0, 0.0)
 
-ψ_B_vec = mps_to_vector(ψ_B, sites)
-ψ_B_vec /= norm(ψ_B_vec)
-E_B = real(inner(ψ_B', H_mpo, ψ_B) / inner(ψ_B, ψ_B))
+    evolved = CoolingTNS.evolve_state(
+        ham_params, sim_params, CoolingTNS.TNBackend(), H_mpo, psi0, te, sites
+    )
+    evolved_vec = _tdvp_test_vector(evolved, sites)
+    evolved_vec ./= norm(evolved_vec)
 
-println(@sprintf("  |ψ_B| = [%.6f, %.6f, %.6f, %.6f]", abs.(ψ_B_vec)...))
-println(@sprintf("  Energy = %.6f", E_B))
+    # Negative control: a real TDVP time parameter is not the Schrodinger
+    # evolution used by the package wrapper.
+    nsteps = max(1, Int(ceil(te / tau)))
+    nonunitary = tdvp(H_mpo, te, psi0;
+                      nsteps=nsteps, nsite=2, reverse_step=true,
+                      normalize=true, maxdim=100, cutoff=1e-14, outputlevel=0)
+    nonunitary_vec = _tdvp_test_vector(nonunitary, sites)
+    nonunitary_vec ./= norm(nonunitary_vec)
 
-overlap_real_B = abs(dot(ψ_exact_realtime / norm(ψ_exact_realtime), ψ_B_vec))
-overlap_imag_B = abs(dot(ψ_exact_imagtime_norm, ψ_B_vec))
-println(@sprintf("  Overlap with real-time: %.6f", overlap_real_B))
-println(@sprintf("  Overlap with imag-time: %.6f", overlap_imag_B))
+    energy_exact = real(exact_real' * H_mat * exact_real)
+    energy_evolved = real(evolved_vec' * H_mat * evolved_vec)
+    overlap_real = abs(dot(exact_real, evolved_vec))
+    overlap_nonunitary = abs(dot(exact_real, nonunitary_vec))
+    norm_error = abs(norm(_tdvp_test_vector(evolved, sites)) - 1.0)
 
-# === Summary ===
-println("\n" * "="^60)
-println("SUMMARY:")
-if overlap_real_A > 0.999
-    println("  Convention A confirmed: tdvp(H, -im*t, ψ) = exp(-iHt)ψ [REAL TIME]")
-    println("  Current code is CORRECT")
-elseif overlap_imag_A > 0.999
-    println("  Convention B detected: tdvp(H, -im*t, ψ) = exp(-Ht)ψ [IMAGINARY TIME]")
-    println("  Current code is WRONG — doing imaginary time evolution!")
-    println("  FIX: Use tdvp(H, t, ψ) with real t for Schrödinger evolution")
-else
-    println("  Neither convention matches perfectly")
-    println("  overlap_real_A = $overlap_real_A, overlap_imag_A = $overlap_imag_A")
+    result = (
+        te=te,
+        tau=tau,
+        overlap_real=overlap_real,
+        overlap_nonunitary=overlap_nonunitary,
+        energy_exact=energy_exact,
+        energy_evolved=energy_evolved,
+        norm_error=norm_error,
+    )
+
+    if verbose
+        println("="^60)
+        println("TDVP REAL-TIME CONVENTION CHECK")
+        println("="^60)
+        println("Hamiltonian: H = X_1 + X_2")
+        println(@sprintf("time te = %.6f, tau = %.6f", result.te, result.tau))
+        println(@sprintf("overlap with exact exp(-i H t): %.12f", result.overlap_real))
+        println(@sprintf("overlap for real tdvp time control: %.12f", result.overlap_nonunitary))
+        println(@sprintf("exact energy:   %.12e", result.energy_exact))
+        println(@sprintf("evolved energy: %.12e", result.energy_evolved))
+        println(@sprintf("norm error:     %.12e", result.norm_error))
+    end
+
+    if result.overlap_real < 1 - 1e-8
+        error("TN continuous evolution does not match real-time Schrodinger evolution.")
+    end
+    if abs(result.energy_evolved - result.energy_exact) > 1e-8
+        error("TN continuous evolution does not conserve the exact two-spin energy.")
+    end
+    if result.overlap_nonunitary > 0.95
+        error("The real-time TDVP negative control is not well separated.")
+    end
+
+    verbose && println("TDVP wrapper uses the correct real-time convention.")
+    return result
 end
-println("="^60)
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    tdvp_convention_check()
+end
