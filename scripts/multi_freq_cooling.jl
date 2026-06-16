@@ -103,8 +103,8 @@ function run_multi_frequency_comparison(;
     # Report
     # ------------------------------------------------------------------
 
-    E_single = results_single["E_list"]
-    E_multi = results_mf["E_list"]
+    E_single = results_single[RESULT_ENERGY]
+    E_multi = results_mf[RESULT_ENERGY]
 
     E0 = problem_single.e₀
 

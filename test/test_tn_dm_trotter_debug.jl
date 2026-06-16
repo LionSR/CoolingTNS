@@ -188,16 +188,16 @@ end
         coupling_params, sim_params_tn, ham_params
     )
 
-    println("  ED energy evolution: $(results_ed["E_list"])")
-    println("  TN energy evolution: $(results_tn["E_list"])")
+    println("  ED energy evolution: $(results_ed[RESULT_ENERGY])")
+    println("  TN energy evolution: $(results_tn[RESULT_ENERGY])")
 
-    @test abs(results_ed["E_list"][1] - results_tn["E_list"][1]) < 1e-4
+    @test abs(results_ed[RESULT_ENERGY][1] - results_tn[RESULT_ENERGY][1]) < 1e-4
 
     # Both should show cooling
-    @test results_ed["E_list"][end] < results_ed["E_list"][1] + 1e-8
-    @test results_tn["E_list"][end] < results_tn["E_list"][1] + 1e-8
+    @test results_ed[RESULT_ENERGY][end] < results_ed[RESULT_ENERGY][1] + 1e-8
+    @test results_tn[RESULT_ENERGY][end] < results_tn[RESULT_ENERGY][1] + 1e-8
 
-    E_diff = abs(results_ed["E_list"][end] - results_tn["E_list"][end])
+    E_diff = abs(results_ed[RESULT_ENERGY][end] - results_tn[RESULT_ENERGY][end])
     println("  |E_final_ED - E_final_TN| = $E_diff")
     @test E_diff < 1.0
 end
@@ -224,15 +224,15 @@ end
 
     println("  Step | ED E/N      | TN E/N      | diff")
     println("  -----|-------------|-------------|------")
-    for step in 1:length(results_ed["E_list"])
-        E_ed = results_ed["E_list"][step] / N
-        E_tn = results_tn["E_list"][step] / N
+    for step in 1:length(results_ed[RESULT_ENERGY])
+        E_ed = results_ed[RESULT_ENERGY][step] / N
+        E_tn = results_tn[RESULT_ENERGY][step] / N
         diff = abs(E_ed - E_tn)
         println("    $step  | $(round(E_ed, digits=6)) | $(round(E_tn, digits=6)) | $(round(diff, digits=6))")
     end
 
-    ed_cooling = results_ed["E_list"][1] - results_ed["E_list"][end]
-    tn_cooling = results_tn["E_list"][1] - results_tn["E_list"][end]
+    ed_cooling = results_ed[RESULT_ENERGY][1] - results_ed[RESULT_ENERGY][end]
+    tn_cooling = results_tn[RESULT_ENERGY][1] - results_tn[RESULT_ENERGY][end]
     println("  ED total cooling: $ed_cooling")
     println("  TN total cooling: $tn_cooling")
 

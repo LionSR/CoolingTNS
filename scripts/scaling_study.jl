@@ -155,7 +155,7 @@ function run_scaling_study()
                         cooling_problem, initial_state,
                         coupling_params, sim_params, ham_params
                     )
-                    E_trajectories[:, traj] = results["E_list"]
+                    E_trajectories[:, traj] = results[RESULT_ENERGY]
 
                     if n_traj >= 10 && traj % max(1, n_traj ÷ 5) == 0
                         @printf("    Trajectory %d/%d done\n", traj, n_traj)
@@ -231,9 +231,9 @@ function save_N_results(N, E_mean, e0, coupling_params, sim_params, n_traj)
     h5open(filename, "w") do file
         write(file, "N", N)
         write(file, "e0", e0)
-        write(file, "E_list", E_mean)
+        write(file, RESULT_ENERGY, E_mean)
         write(file, "E_density", E_mean / N)
-        write(file, "n_trajectories", n_traj)
+        write(file, RESULT_N_TRAJECTORIES, n_traj)
         write(file, "g", coupling_params.g)
         write(file, "te", coupling_params.te)
         write(file, "tau", sim_params.tau)
