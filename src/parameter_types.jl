@@ -398,9 +398,9 @@ end
 # Utility Functions
 # ============================================================================
 
-# All to_dict functions now handled by generic reflection-based implementation above
-
-# Removed specific results functions - use generic to_dict from above
+# Result structs have explicit serializers because they are part of the public
+# cooling-output interface. The dictionary keys for shared observables should
+# agree with `run_cooling`, not with incidental struct field names.
 
 # ============================================================================
 # Generic Reflection-Based Conversion Functions  
@@ -429,6 +429,41 @@ function to_dict(obj::T) where T
             result[dict_key] = value
         end
     end
+    return result
+end
+
+function to_dict(results::DensityMatrixResults)
+    return Dict{String,Any}(
+        RESULT_ENERGY => results.E_list,
+        RESULT_GROUND_STATE_OVERLAP => results.GS_overlap_list,
+        RESULT_PURITY => results.purity_list,
+    )
+end
+
+function to_dict(results::MonteCarloResults)
+    return Dict{String,Any}(
+        RESULT_ENERGY => results.E_list,
+        RESULT_GROUND_STATE_OVERLAP => results.GS_overlap_list,
+        RESULT_PURITY => results.purity_list,
+        RESULT_N_TRAJECTORIES => results.n_trajectories,
+        "E_trajectories" => results.E_trajectories,
+        "GS_trajectories" => results.GS_trajectories,
+        "E_std" => results.E_std,
+        "GS_std" => results.GS_std,
+    )
+end
+
+function to_dict(results::TensorNetworkResults)
+    result = Dict{String,Any}(
+        RESULT_ENERGY => results.energy_list,
+        RESULT_GROUND_STATE_OVERLAP => results.gs_overlap_list,
+        RESULT_PURITY => results.purity_list,
+        RESULT_BATH_MAGNETIZATION => results.bath_magnetization_list,
+        "bond_dims" => results.bond_dims,
+        "truncation_errors" => results.truncation_errors,
+        "renyi_entropy" => results.renyi_entropy,
+    )
+    results.final_state !== nothing && (result["final_state"] = results.final_state)
     return result
 end
 
