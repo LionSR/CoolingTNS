@@ -18,8 +18,8 @@ function plot_dispersion_with_ground_state(N::Int, J::Real, h::Real, bc::Symbol;
 
     k_values = generate_k_values(N, bc)
     k_sorted = sort(k_values)
-    e_k = compute_energy_dispersion(k_sorted, J, h)
-    n_k_gs = compute_ground_state_occupation(k_sorted, J, h)
+    e_k = compute_energy_dispersion(k_sorted, J, h; N=N)
+    n_k_gs = compute_ground_state_occupation(k_sorted, J, h; N=N)
 
     fig, ax1 = plt.subplots(figsize=(10, 6))
     ax2 = ax1.twinx()
