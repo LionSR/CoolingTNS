@@ -1,42 +1,64 @@
 """
-Analytical dispersion relations and k-space utilities for the transverse field Ising model.
+Compatibility dispersion and k-space utilities for the transverse-field Ising model.
 
-These are pure-math functions with no plotting or I/O dependencies.
+These exported helpers are used by plotting scripts. They follow the canonical
+fermionic momentum and Bogoliubov conventions in `mode_analysis.jl`.
 """
 
 """
-    generate_k_values(N::Int, bc::Symbol) -> Vector{Float64}
+    generate_k_values(N::Int, gF) -> Vector{Float64}
 
-Generate k-values based on boundary conditions.
-- Periodic BC: k = 2π n/N for n = 0, 1, ..., N-1
-- Antiperiodic BC: k = π(2n+1)/N for n = 0, 1, ..., N-1
+Generate momenta ``2πk/N`` on the canonical fermionic grid.
+
+The boundary condition is fermionic: `gF=+1` or `:periodic` gives integer
+momenta, while `gF=-1` or `:antiperiodic` gives half-integer momenta. This is
+the same convention as `allowed_k_indices`.
 """
-function generate_k_values(N::Int, bc::Symbol)::Vector{Float64}
-    if bc == :periodic
-        return [2pi * n / N for n in 0:N-1]
-    elseif bc == :antiperiodic
-        return [pi * (2n + 1) / N for n in 0:N-1]
-    else
-        error("Unsupported boundary condition: $bc")
-    end
+function generate_k_values(N::Int, gF)::Vector{Float64}
+    return [2pi * Float64(k) / N for k in allowed_k_indices(N, gF)]
 end
 
 """
     compute_energy_dispersion(k_values, J::Real, h::Real) -> Vector{Float64}
 
-Compute energy dispersion ε_k for the transverse field Ising model.
-ε_k = -2√(J² + h² + 2Jh cos(k))
+Compute the positive quasiparticle dispersion ``ε_k`` in code units.
+
+This is the notes/code dispersion
+``2√(J²+h²) √(1 - sin(2θ) cos(k))``, with ``θ = atan(h,J)``. The input must be
+a complete fermionic momentum grid, such as the output of `generate_k_values`.
 """
 function compute_energy_dispersion(k_values, J::Real, h::Real)::Vector{Float64}
-    return [-2 * sqrt(J^2 + h^2 + 2*J*h*cos(k)) for k in k_values]
+    N = length(k_values)
+    return [mode_energy_Jh(_momentum_to_k_index(k, N), J, h, N) for k in k_values]
 end
 
 """
     compute_ground_state_occupation(k_values, J::Real, h::Real) -> Vector{Float64}
 
-Compute ground state occupation n_k^(GS) for the transverse field Ising model.
-n_k^(GS) = (1/2)(1 - (J cos(k) + h)/√(J² + h² + 2Jh cos(k)))
+Compute ``⟨ã†_k ã_k⟩`` in the Bogoliubov ground state on the supplied grid.
+
+For generic modes this is ``sin²(φ_k)``, where ``φ_k`` is the canonical
+Bogoliubov angle. For integer-grid special modes, the occupation is determined
+by the sign of the diagonal coefficient ``w_k``; at exact degeneracy the helper
+returns `0.5`, since either occupation is a ground state.
 """
 function compute_ground_state_occupation(k_values, J::Real, h::Real)::Vector{Float64}
-    return [0.5 * (1 - (J*cos(k) + h)/sqrt(J^2 + h^2 + 2*J*h*cos(k))) for k in k_values]
+    N = length(k_values)
+    θ = theta_from_Jh(J, h)
+    return [_ground_state_occupation(_momentum_to_k_index(k, N), θ, N) for k in k_values]
+end
+
+function _momentum_to_k_index(k::Real, N::Int)
+    return Float64(k) * N / (2pi)
+end
+
+function _ground_state_occupation(k, θ, N)
+    if abs(sin(2pi * Float64(k) / N)) < 1e-12
+        wk = w_k_coefficient(Float64(k), θ, N)
+        abs(wk) < 1e-12 && return 0.5
+        return wk < 0 ? 1.0 : 0.0
+    end
+
+    φ = bogoliubov_angle(Float64(k), θ, N)
+    return sin(φ)^2
 end
