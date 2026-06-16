@@ -1,0 +1,54 @@
+% Local preamble for the GaussianPaper draft.
+%
+% This file intentionally contains only build support: packages, notation
+% macros, and a draft placeholder for untracked figure PDFs. It should not carry
+% mathematical content.
+
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{braket}
+\usepackage{bm}
+\usepackage{bbm}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{overpic}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{placeins}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,calc,decorations.pathmorphing}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\usepackage[capitalise,nameinlink]{cleveref}
+
+\newcommand*\dd{\mathop{}\!\mathrm{d}}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\Tr}{Tr}
+\newcommand{\Id}{\mathbbm{1}}
+\providecommand{\agt}{\gtrsim}
+\providecommand{\alt}{\lesssim}
+
+% Keep draft builds reproducible even when publication figure PDFs are absent.
+\makeatletter
+\let\CoolingTNS@includegraphics\includegraphics
+\newcommand{\CoolingTNS@missingfigure}[1]{%
+  \begingroup
+  \setlength{\fboxsep}{6pt}%
+  \fbox{%
+    \begin{minipage}[c][0.22\textheight][c]{0.82\linewidth}
+      \centering
+      Missing tracked figure\\[0.5ex]
+      \texttt{\detokenize{#1}}
+    \end{minipage}%
+  }%
+  \endgroup
+}
+\renewcommand{\includegraphics}[2][]{%
+  \IfFileExists{#2}{%
+    \CoolingTNS@includegraphics[#1]{#2}%
+  }{%
+    \CoolingTNS@missingfigure{#2}%
+  }%
+}
+\makeatother
