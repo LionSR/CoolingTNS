@@ -12,8 +12,8 @@ include(joinpath(@__DIR__, "PlotUtils.jl"))
 # Import CoolingTNS types and functions needed by this file
 using CoolingTNS: HamiltonianParameters, CouplingParameters, UnifiedSimulationParameters,
     CoolingBackend, parse_hamiltonian_name, create_filename, mean_last_window,
-    RESULT_ENERGY, RESULT_GROUND_STATE_OVERLAP, RESULT_MOMENTUM_DISTRIBUTION,
-    RESULT_K_VALUES
+    create_search_name_part, RESULT_ENERGY, RESULT_GROUND_STATE_OVERLAP,
+    RESULT_MOMENTUM_DISTRIBUTION, RESULT_K_VALUES
 
 _ham_params_with_N(template::HamiltonianParameters, N::Int) =
     HamiltonianParameters(template.model, N, template.params, template.bc)

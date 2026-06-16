@@ -64,6 +64,7 @@ export create_coupling_params, create_sim_params, create_results
 export to_dict
 export setup_common_parameters, create_filename, save_results
 export get_backend, get_sim_method, get_evolution_method, mean_last_window, relative_energy
+export create_sim_params_from_args, normalize_optimization_args!
 # Result dictionary keys
 export RESULT_ENERGY, RESULT_GROUND_STATE_OVERLAP, RESULT_PURITY
 export RESULT_BATH_MAGNETIZATION, RESULT_BATH_SAMPLE_MAGNETIZATION

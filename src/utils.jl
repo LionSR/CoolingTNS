@@ -62,6 +62,53 @@ function create_sim_params(backend::CoolingBackend;
     return UnifiedSimulationParameters(sim_method, evolution_method; kwargs...)
 end
 
+"""
+    create_sim_params_from_args(parsed_args)
+
+Construct `UnifiedSimulationParameters` from command-line arguments parsed by
+[`parse_commandline`](@ref). This is the single translation from CLI strings and
+integer noise units to the typed simulation-parameter object.
+"""
+function create_sim_params_from_args(parsed_args)
+    backend = get_backend(parsed_args["backend"])
+    return create_sim_params(
+        backend;
+        sim_method=get_sim_method(parsed_args["sim_method"]),
+        evolution_method=get_evolution_method(parsed_args["evolution_method"]),
+        Dmax=parsed_args["Dmax"],
+        cutoff=parsed_args["cutoff"],
+        tau=parsed_args["tau"],
+        pe=parsed_args["peInt"] * 1e-3,
+        n_trajectories=parsed_args["n_trajectories"],
+    )
+end
+
+"""
+    normalize_optimization_args!(parsed_args)
+
+Normalize optimization command-line arguments in place.
+
+The current parser uses the explicit fields `backend`, `sim_method`, and
+`evolution_method`. Older optimization scripts may instead pass a `method`
+field. In that legacy convention, `MPS` denotes TN Monte Carlo wavefunction
+evolution and `MPO` denotes TN density-matrix Trotter evolution.
+"""
+function normalize_optimization_args!(parsed_args)
+    parsed_args["backend"] = get(parsed_args, "backend", "TN")
+
+    if haskey(parsed_args, "method")
+        if parsed_args["method"] == "MPS"
+            parsed_args["sim_method"] = "monte_carlo"
+            parsed_args["evolution_method"] = "continuous"
+        elseif parsed_args["method"] == "MPO"
+            parsed_args["sim_method"] = "density_matrix"
+            parsed_args["evolution_method"] = "trotter"
+        end
+    end
+
+    return parsed_args
+end
+
 
 function mean_last_window(list, window_size)
     return mean(list[max(1, end-window_size+1):end])

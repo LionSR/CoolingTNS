@@ -17,18 +17,6 @@ function load_cooling_plotting_utilities!()
     return nothing
 end
 
-# Helper function to create simulation parameters from new argument structure
-function create_sim_params_new(parsed_args)
-    backend = CoolingTNS.get_backend(parsed_args["backend"])
-    sim_method = CoolingTNS.get_sim_method(parsed_args["sim_method"])
-    evolution_method = CoolingTNS.get_evolution_method(parsed_args["evolution_method"])
-
-    return CoolingTNS.create_sim_params(backend; sim_method=sim_method, evolution_method=evolution_method,
-                                       Dmax=parsed_args["Dmax"], cutoff=parsed_args["cutoff"],
-                                       tau=parsed_args["tau"], pe=parsed_args["peInt"]*1e-3,
-                                       n_trajectories=parsed_args["n_trajectories"])
-end
-
 function run_cooling(parsed_args)
     println(parsed_args)
 
@@ -37,7 +25,7 @@ function run_cooling(parsed_args)
     
     # Get backend and create simulation parameters
     backend = CoolingTNS.get_backend(parsed_args["backend"])
-    sim_params = create_sim_params_new(parsed_args)
+    sim_params = CoolingTNS.create_sim_params_from_args(parsed_args)
     
     # Setup problem using unified interface
     cooling_problem = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params)
