@@ -29,6 +29,22 @@ used for the two ladder-operator terms.
 """
 rydberg_rabi_x_coefficient(Ω) = Ω / 2
 
+"""
+    rydberg_number_identity_shift(N, Δ, V)
+
+Return the coefficient of the identity operator in the Rydberg Hamiltonian after
+expanding the number operators as `n = (I + σᶻ)/2`.
+
+The tensor-network construction uses `ProjUp` number operators directly. The ED
+construction uses Pauli `σᶻ` operators, so this scalar is added once in ED to
+make the absolute Hamiltonian, and hence its energy expectation values, agree
+with the tensor-network convention.
+"""
+function rydberg_number_identity_shift(N::Int, Δ, V)
+    interaction_shift = sum((V / (j - i)^6 / 4 for i in 1:N-1 for j in i+1:N); init=0.0)
+    return -N * Δ / 2 + interaction_shift
+end
+
 # ============================================================================
 # Tensor Network (ITensors) Implementations
 # ============================================================================
@@ -127,16 +143,21 @@ function construct_system_hamiltonian(ham_params::HamiltonianParameters{RydbergM
 
     H_sys = spzeros(Float64, 2^N, 2^N)
 
-    # Single-site terms, up to the constant in -Δ n = -Δ(I+Z)/2.
+    # Single-site terms: -Δ n with n = (I + Z)/2.
     for i in 1:N
         H_sys += Ωx * pauli_x(i, N) - (Δ/2) * pauli_z(i, N)
     end
 
     # Van der Waals interaction: V/r^6 * n_i * n_j where n = (I + Z)/2
-    # Expands to V/4r^6 * (Z_i*Z_j + Z_i + Z_j + const), keeping non-constant terms
+    # Expands to V/4r^6 * (Z_i*Z_j + Z_i + Z_j + I).
     for i in 1:N-1, j in i+1:N
         V_ij = V / (j - i)^6
         H_sys += (V_ij/4) * (pauli_zz(i, j, N) + pauli_z(i, N) + pauli_z(j, N))
+    end
+
+    identity_shift = rydberg_number_identity_shift(N, Δ, V)
+    if identity_shift != 0
+        H_sys += spdiagm(0 => fill(identity_shift, 2^N))
     end
 
     return H_sys

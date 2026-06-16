@@ -4,11 +4,6 @@ using ITensors
 using ITensorMPS
 using LinearAlgebra
 
-function rydberg_tn_minus_ed_constant(N, Δ, V)
-    interaction_shift = sum((V / (j - i)^6 / 4 for i in 1:N-1 for j in i+1:N); init=0.0)
-    return -N * Δ / 2 + interaction_shift
-end
-
 function product_mps_from_bits(sites, state::Int)
     labels = [((state >> (i - 1)) & 1) == 0 ? "Up" : "Dn" for i in 1:length(sites)]
     return MPS(sites, labels)
@@ -78,6 +73,13 @@ end
 
     @testset "Rydberg Rabi Convention" begin
         Ω = 1.3
+        Δ = 0.7
+        V = 0.2
+
+        @test CoolingTNS.rydberg_rabi_x_coefficient(Ω) == Ω / 2
+        @test CoolingTNS.rydberg_number_identity_shift(1, Δ, V) ≈ -Δ / 2
+        @test CoolingTNS.rydberg_number_identity_shift(2, Δ, V) ≈ -Δ + V / 4
+
         H_one = CoolingTNS.construct_system_hamiltonian(
             CoolingTNS.RydbergParameters(1, Ω, 0.0, 0.0),
             CoolingTNS.EDBackend(),
@@ -86,8 +88,6 @@ end
         @test sort(real(eigvals(Matrix(H_one)))) ≈ [-Ω / 2, Ω / 2]
 
         N_rydberg = 3
-        Δ = 0.7
-        V = 0.2
         ham_params = CoolingTNS.RydbergParameters(N_rydberg, Ω, Δ, V)
         H_ed = CoolingTNS.construct_system_hamiltonian(
             ham_params, CoolingTNS.EDBackend(), N_rydberg
@@ -103,10 +103,9 @@ end
         ψ_tn = MPS(sites, "X+")
         E_tn = real(inner(ψ_tn', H_tn, ψ_tn))
 
-        constant_shift = rydberg_tn_minus_ed_constant(N_rydberg, Δ, V)
-        @test E_tn ≈ E_ed + constant_shift atol=1e-10
+        @test E_tn ≈ E_ed atol=1e-10
 
-        @testset "ED and TN matrices agree up to the Rydberg constant shift" begin
+        @testset "ED and TN matrices agree exactly" begin
             for N_matrix in [1, 2, 3]
                 ham_matrix = CoolingTNS.RydbergParameters(N_matrix, Ω, Δ, V)
                 H_ed_matrix = Matrix(CoolingTNS.construct_system_hamiltonian(
@@ -121,10 +120,7 @@ end
                     sites_matrix,
                 )
 
-                dim = size(H_ed_matrix, 1)
-                constant = rydberg_tn_minus_ed_constant(N_matrix, Δ, V)
-                shifted_identity = constant * Matrix{ComplexF64}(I, dim, dim)
-                @test H_tn_matrix ≈ H_ed_matrix + shifted_identity atol=1e-12
+                @test H_tn_matrix ≈ H_ed_matrix atol=1e-12
             end
         end
     end
