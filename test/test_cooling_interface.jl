@@ -34,8 +34,33 @@ using CoolingTNS
     @testset "Result Key Constants" begin
         @test CoolingTNS.RESULT_ENERGY == "E_list"
         @test CoolingTNS.RESULT_GROUND_STATE_OVERLAP == "GS_overlap_list"
+        @test CoolingTNS.RESULT_PURITY == "purity_list"
+        @test CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION == "momentum_dist"
+        @test CoolingTNS.RESULT_K_VALUES == "k_values"
         @test CoolingTNS.RESULT_MODE_HK == "mode_hk"
         @test CoolingTNS.RESULT_DELTA_LIST == "delta_list"
+        @test CoolingTNS.RESULT_TE_LIST == "te_list"
+
+        public_result_keys = [
+            CoolingTNS.RESULT_ENERGY,
+            CoolingTNS.RESULT_GROUND_STATE_OVERLAP,
+            CoolingTNS.RESULT_PURITY,
+            CoolingTNS.RESULT_BATH_MAGNETIZATION,
+            CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION,
+            CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION,
+            CoolingTNS.RESULT_K_VALUES,
+            CoolingTNS.RESULT_MODE_GF,
+            CoolingTNS.RESULT_MODE_HK,
+            CoolingTNS.RESULT_MODE_K_INDICES,
+            CoolingTNS.RESULT_MODE_ENERGIES,
+            CoolingTNS.RESULT_DELTA_LIST,
+            CoolingTNS.RESULT_TE_LIST,
+            CoolingTNS.RESULT_DELTA_VALUES,
+            CoolingTNS.RESULT_SCHEDULE,
+            CoolingTNS.RESULT_RANDOMIZE_TIMES,
+            CoolingTNS.RESULT_N_TRAJECTORIES,
+        ]
+        @test length(unique(public_result_keys)) == length(public_result_keys)
     end
 
     @testset "Problem Setup for Different Backends" begin

@@ -36,20 +36,20 @@ using Random
 
     results = CoolingTNS.run_cooling(problem_mf, initial_state, mf_params, sim_params, ham_params)
 
-    @test haskey(results, "E_list")
-    @test haskey(results, "GS_overlap_list")
-    @test haskey(results, "delta_list")
-    @test haskey(results, "te_list")
+    @test haskey(results, CoolingTNS.RESULT_ENERGY)
+    @test haskey(results, CoolingTNS.RESULT_GROUND_STATE_OVERLAP)
+    @test haskey(results, CoolingTNS.RESULT_DELTA_LIST)
+    @test haskey(results, CoolingTNS.RESULT_TE_LIST)
 
-    @test length(results["E_list"]) == mf_params.steps + 1
-    @test length(results["delta_list"]) == mf_params.steps + 1
+    @test length(results[CoolingTNS.RESULT_ENERGY]) == mf_params.steps + 1
+    @test length(results[CoolingTNS.RESULT_DELTA_LIST]) == mf_params.steps + 1
 
-    @test isnan(results["delta_list"][1])
-    @test all(isfinite, results["delta_list"][2:end])
-    @test all(isfinite, results["te_list"][2:end])
+    @test isnan(results[CoolingTNS.RESULT_DELTA_LIST][1])
+    @test all(isfinite, results[CoolingTNS.RESULT_DELTA_LIST][2:end])
+    @test all(isfinite, results[CoolingTNS.RESULT_TE_LIST][2:end])
 
     # Cooling should reduce the system energy on average
-    @test results["E_list"][end] <= results["E_list"][1] + 1e-10
+    @test results[CoolingTNS.RESULT_ENERGY][end] <= results[CoolingTNS.RESULT_ENERGY][1] + 1e-10
 
     @testset "TN DM+Trotter supports multi-frequency" begin
         Random.seed!(1)
@@ -89,10 +89,10 @@ using Random
 
         results_tn = CoolingTNS.run_cooling(problem_mf_tn, state_tn, mf_params_tn, sim_params_tn, ham_params_tn)
 
-        @test haskey(results_tn, "E_list")
-        @test haskey(results_tn, "delta_list")
-        @test haskey(results_tn, "te_list")
-        @test length(results_tn["E_list"]) == mf_params_tn.steps + 1
-        @test all(isfinite, results_tn["E_list"])
+        @test haskey(results_tn, CoolingTNS.RESULT_ENERGY)
+        @test haskey(results_tn, CoolingTNS.RESULT_DELTA_LIST)
+        @test haskey(results_tn, CoolingTNS.RESULT_TE_LIST)
+        @test length(results_tn[CoolingTNS.RESULT_ENERGY]) == mf_params_tn.steps + 1
+        @test all(isfinite, results_tn[CoolingTNS.RESULT_ENERGY])
     end
 end
