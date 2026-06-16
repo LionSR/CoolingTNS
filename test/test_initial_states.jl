@@ -79,7 +79,7 @@ using LinearAlgebra
             
             @testset "Theta States MPO" begin
                 # Test different theta values
-                for theta in [-0.5, 0.0, 0.5]
+                for theta in [-0.5, 0.0, 0.25, 0.5]
                     state = CoolingTNS.setup_initial_state(problem, sim_params, "theta", theta)
                     @test state.state isa MPO
                 end
@@ -107,6 +107,18 @@ using LinearAlgebra
             @test CoolingTNS.expect_ed(CoolingTNS.pauli_x(1, test_N), ψ_ed) ≈ expected_x atol=1e-12
             @test expect(ψ_tn, "Z")[1] ≈ expected_z atol=1e-12
             @test expect(ψ_tn, "X")[1] ≈ expected_x atol=1e-12
+
+            ρ_ed = CoolingTNS.state_to_density_ed(ψ_ed)
+            ρ_tn = outer(ψ_tn', ψ_tn)
+            z_terms = OpSum()
+            x_terms = OpSum()
+            z_terms += 1.0, "Z", 1
+            x_terms += 1.0, "X", 1
+            Z_tn = MPO(z_terms, sites)
+            X_tn = MPO(x_terms, sites)
+
+            @test real(inner(ρ_tn, Z_tn)) ≈ CoolingTNS.expect_ed(CoolingTNS.pauli_z(1, test_N), ρ_ed) atol=1e-12
+            @test real(inner(ρ_tn, X_tn)) ≈ CoolingTNS.expect_ed(CoolingTNS.pauli_x(1, test_N), ρ_ed) atol=1e-12
         end
     end
 
