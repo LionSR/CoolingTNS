@@ -439,6 +439,17 @@ end
         @test CoolingTNS._momentum_measurement_gF!(measurements, odd_state, ϕ₀, ham_params) == gF
         @test measurements["momentum_gF_source"] == "ground_state"
 
+        ambiguous_ϕ₀ = CoolingTNS.product_state_ed(N, 0)
+        @test abs(measure_state_parity(ambiguous_ϕ₀, N)) < 1e-10
+        ambiguous_measurements = Dict{String, Any}()
+        @test CoolingTNS._momentum_measurement_gF!(
+            ambiguous_measurements,
+            ρ_mix,
+            ambiguous_ϕ₀,
+            ham_params,
+        ) == fermionic_bc(:periodic, 1)
+        @test ambiguous_measurements["momentum_gF_source"] == "ground_state"
+
         precomputed = Dict{String, Any}("momentum_gF" => fermionic_bc(:periodic, -1))
         @test CoolingTNS._momentum_measurement_gF!(precomputed, ρ_mix, ϕ₀, ham_params) ==
               fermionic_bc(:periodic, -1)

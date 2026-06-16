@@ -8,6 +8,27 @@ Shared functions for ED backend cooling evolution to follow DRY principles.
 # Shared ED Backend Functions
 # ============================================================================
 
+function _supports_ising_fourier_observables(ham_params)
+    return ham_params !== nothing &&
+           iseven(ham_params.N) &&
+           ham_params.bc in [:periodic, :antiperiodic] &&
+           isa(ham_params.model, IsingModel)
+end
+
+function _reference_parity_sector(px::Real; atol=0.1, default::Int=1)
+    @assert default == 1 || default == -1 "default must be +1 or -1"
+    abs(px - 1) <= atol && return 1
+    abs(px + 1) <= atol && return -1
+    return default
+end
+
+function _reference_fermionic_bc(spin_bc::Symbol, px::Real; atol=0.1, default_parity::Int=1)
+    return fermionic_bc(
+        spin_bc,
+        _reference_parity_sector(px; atol=atol, default=default_parity),
+    )
+end
+
 """
     get_bath_ground_state_ed(N_bath::Int, coupling::String) -> EDStateVector
 
@@ -181,8 +202,7 @@ function _momentum_measurement_gF!(measurements, state::Union{EDStateVector, EDD
         # Use the ground-state sector as a fixed reference grid for diagnostics,
         # following the convention used for mode-resolved h_k measurements.
         px0 = measure_state_parity(ϕ₀, N)
-        parity0 = round(Int, px0)
-        gF = fermionic_bc(ham_params.bc, parity0)
+        gF = _reference_fermionic_bc(ham_params.bc, px0)
         measurements["momentum_gF_source"] = "ground_state"
     end
 
@@ -269,7 +289,7 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
     end
     
     # K-space measurements for ED with periodic/antiperiodic BC (only for Ising model)
-    if haskey(measurements, "momentum_dist") && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
+    if haskey(measurements, "momentum_dist") && _supports_ising_fourier_observables(ham_params)
         gF = _momentum_measurement_gF!(measurements, sys_state, ϕ₀, ham_params)
         k_values, n_k = measure_momentum_distribution_ed_clean(sys_state, ham_params; gF=gF)
         if step == 1
@@ -279,7 +299,7 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
     end
 
     # Mode energy measurements ⟨h_k⟩ (requires measure_modes=true in run_cooling)
-    if haskey(measurements, "mode_hk") && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
+    if haskey(measurements, "mode_hk") && _supports_ising_fourier_observables(ham_params)
         # Use the stored ground-state gF for consistent sector choice.
         # For pure states, measure_all_mode_energies auto-detects gF from parity.
         # For density matrices (mixed states), parity may not be ±1, so we use
