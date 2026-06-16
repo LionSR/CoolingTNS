@@ -190,7 +190,7 @@ using Random
             backend, ham_params, coupling_params, sim_params
         )
         
-        init_types = ["product", "identity", "theta"]
+        init_types = ["product", "theta"]
         theta_values = [0.0, -0.5, 0.5]
         
         for init_type in init_types
@@ -208,6 +208,10 @@ using Random
                 @test !isnothing(initial_state.state)
             end
         end
+
+        @test_throws ArgumentError CoolingTNS.setup_initial_state(
+            problem_setup, sim_params, "identity", 0.0
+        )
     end
 
     @testset "Full Cooling Simulation" begin

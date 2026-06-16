@@ -30,11 +30,10 @@ using LinearAlgebra
                 @test maxlinkdim(state.state) == 1  # Product state has bond dimension 1
             end
             
-            @testset "Identity State" begin
-                state = CoolingTNS.setup_initial_state(problem, sim_params, "identity", 0.0)
-                @test state isa CoolingTNS.QuantumState
-                @test state.state isa MPS
-                @test length(state.state) == N
+            @testset "Identity State Rejected" begin
+                @test_throws ArgumentError CoolingTNS.setup_initial_state(
+                    problem, sim_params, "identity", 0.0
+                )
             end
             
             @testset "Theta States" begin
@@ -50,6 +49,31 @@ using LinearAlgebra
                 @test state_zero.state isa MPS
                 @test state_one.state isa MPS
                 @test state_plus.state isa MPS
+            end
+        end
+
+        @testset "ED Backend - Monte Carlo" begin
+            backend = CoolingTNS.EDBackend()
+            sim_params = CoolingTNS.UnifiedSimulationParameters(
+                CoolingTNS.MonteCarloWavefunction(),
+                CoolingTNS.ContinuousEvolution()
+            )
+
+            problem = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params)
+
+            @testset "Pure States" begin
+                state = CoolingTNS.setup_initial_state(problem, sim_params, "product", 0.0)
+                @test state isa CoolingTNS.QuantumState
+                @test state.state isa CoolingTNS.EDStateVector
+            end
+
+            @testset "Identity State Rejected" begin
+                @test_throws ArgumentError CoolingTNS.setup_initial_state(
+                    problem, sim_params, "identity", 0.0
+                )
+                @test_throws ArgumentError CoolingTNS.create_theta_state_ed(
+                    N, "identity", 0.0
+                )
             end
         end
         
@@ -83,6 +107,24 @@ using LinearAlgebra
                     state = CoolingTNS.setup_initial_state(problem, sim_params, "theta", theta)
                     @test state.state isa MPO
                 end
+            end
+        end
+
+        @testset "ED Backend - Density Matrix" begin
+            backend = CoolingTNS.EDBackend()
+            sim_params = CoolingTNS.UnifiedSimulationParameters(
+                CoolingTNS.DensityMatrix(),
+                CoolingTNS.ContinuousEvolution()
+            )
+
+            problem = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params)
+
+            @testset "Identity State Density Matrix" begin
+                state = CoolingTNS.setup_initial_state(problem, sim_params, "identity", 0.0)
+                @test state isa CoolingTNS.QuantumState
+                @test state.state isa CoolingTNS.EDDensityMatrix
+                @test tr(state.state.data) ≈ 1.0 + 0.0im atol=1e-12
+                @test state.state.data ≈ Matrix{ComplexF64}(I, 2^N, 2^N) / 2^N atol=1e-12
             end
         end
     end
@@ -185,10 +227,10 @@ using LinearAlgebra
             ψ = state.state
             @test abs(inner(ψ, ψ) - 1.0) < 1e-10
             
-            # Identity state (for MPS) should be normalized
-            state_id = CoolingTNS.setup_initial_state(problem, sim_params, "identity", 0.0)
-            ψ_id = state_id.state
-            @test abs(inner(ψ_id, ψ_id) - 1.0) < 1e-10
+            # The maximally mixed state is a density matrix, not one MCWF state.
+            @test_throws ArgumentError CoolingTNS.setup_initial_state(
+                problem, sim_params, "identity", 0.0
+            )
         end
     end
     

@@ -32,6 +32,16 @@ end
 # ED Backend Helper: Create theta-parameterized state vector
 # ============================================================================
 
+function _reject_identity_for_mcwf(init_type::String)
+    if init_type == "identity"
+        throw(ArgumentError(
+            "init_type=\"identity\" denotes the maximally mixed density matrix " *
+            "and is not a single MonteCarloWavefunction state. Use DensityMatrix() " *
+            "or choose a pure initial state such as \"product\" or \"theta\"."
+        ))
+    end
+end
+
 """
     initial_product_angle(theta_code::Real)
 
@@ -100,9 +110,10 @@ parameter. For `init_type == "theta"`, the code convention is
 """
 function create_theta_state_ed(N::Int, init_type::String, theta::Float64)::EDStateVector
     if init_type == "identity"
-        # Equal superposition state (uniform distribution)
-        data = ComplexF64.(ones(2^N) / sqrt(2^N))
-        return EDStateVector(data, N)
+        throw(ArgumentError(
+            "create_theta_state_ed constructs pure state vectors; " *
+            "init_type=\"identity\" is a density matrix initial state."
+        ))
     end
 
     if init_type != "theta"
@@ -132,13 +143,12 @@ end
 # Monte Carlo + TN
 function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, E},
                            init_type::String, theta::Float64) where E<:EvolutionMethod
+    _reject_identity_for_mcwf(init_type)
+
     ϕ₀ = problem.ϕ₀
     sites_sys = siteinds(ϕ₀)
 
-    if init_type == "identity"
-        ψ_s = randomMPS(sites_sys, linkdims=1)
-        normalize!(ψ_s)
-    elseif init_type == "theta"
+    if init_type == "theta"
         ψ_s = _theta_product_mps(sites_sys, theta)
     else
         ψ_s = MPS(sites_sys, "Up")
@@ -149,6 +159,8 @@ end
 # Monte Carlo + ED
 function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, E},
                            init_type::String, theta::Float64) where E<:EvolutionMethod
+    _reject_identity_for_mcwf(init_type)
+
     N = problem.extra.ham_params.N
     state = create_theta_state_ed(N, init_type, theta)
     return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, state)

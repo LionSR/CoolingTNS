@@ -98,7 +98,7 @@ function parse_commandline(args=ARGS)
         arg_type = String
         default = "XX"
         "--init_state"
-        help = "initial state type: 'product' (default), 'identity' (maximally mixed), 'theta' (use --theta value)"
+        help = "initial state type: 'product' (default), 'identity' (maximally mixed; density matrix only), 'theta' (use --theta value)"
         arg_type = String
         default = "product"
         "--theta"
