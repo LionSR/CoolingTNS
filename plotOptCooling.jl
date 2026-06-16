@@ -1,5 +1,7 @@
 using CoolingTNS
 
+include(joinpath(@__DIR__, "scripts", "plotting", "plotting.jl"))
+
 parsed_args = CoolingTNS.parse_commandline()
 
 # Common parameters (typed)
@@ -31,7 +33,7 @@ search_params = Dict(
 N_values = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
 # Plot energy density and final overlap vs system size
-CoolingTNS.plot_vs_N(
+plot_vs_N(
     ham_params,
     coupling_params,
     sim_params,
@@ -43,7 +45,7 @@ CoolingTNS.plot_vs_N(
 
 # # Uncomment to scan multiple noise levels (peInt)
 # pe_values = 0:10
-# CoolingTNS.plot_vs_N_pe_range(
+# plot_vs_N_pe_range(
 #     ham_params,
 #     coupling_params,
 #     sim_params,
