@@ -5,8 +5,19 @@ using ITensorMPS
 using LinearAlgebra
 
 function rydberg_tn_minus_ed_constant(N, Δ, V)
-    interaction_shift = sum(V / (j - i)^6 / 4 for i in 1:N-1 for j in i+1:N)
+    interaction_shift = sum((V / (j - i)^6 / 4 for i in 1:N-1 for j in i+1:N); init=0.0)
     return -N * Δ / 2 + interaction_shift
+end
+
+function product_mps_from_bits(sites, state::Int)
+    labels = [((state >> (i - 1)) & 1) == 0 ? "Up" : "Dn" for i in 1:length(sites)]
+    return MPS(sites, labels)
+end
+
+function mpo_matrix_in_computational_basis(H::MPO, sites)
+    dim = 2^length(sites)
+    basis = [product_mps_from_bits(sites, state) for state in 0:(dim - 1)]
+    return [inner(basis[i]', H, basis[j]) for i in 1:dim, j in 1:dim]
 end
 
 @testset "Hamiltonian Construction Tests" begin
@@ -94,6 +105,28 @@ end
 
         constant_shift = rydberg_tn_minus_ed_constant(N_rydberg, Δ, V)
         @test E_tn ≈ E_ed + constant_shift atol=1e-10
+
+        @testset "ED and TN matrices agree up to the Rydberg constant shift" begin
+            for N_matrix in [1, 2, 3]
+                ham_matrix = CoolingTNS.RydbergParameters(N_matrix, Ω, Δ, V)
+                H_ed_matrix = Matrix(CoolingTNS.construct_system_hamiltonian(
+                    ham_matrix, CoolingTNS.EDBackend(), N_matrix
+                ))
+
+                sites_matrix = siteinds("S=1/2", N_matrix)
+                H_tn_matrix = mpo_matrix_in_computational_basis(
+                    CoolingTNS.construct_system_hamiltonian(
+                        ham_matrix, CoolingTNS.TNBackend(), sites_matrix
+                    ),
+                    sites_matrix,
+                )
+
+                dim = size(H_ed_matrix, 1)
+                constant = rydberg_tn_minus_ed_constant(N_matrix, Δ, V)
+                shifted_identity = constant * Matrix{ComplexF64}(I, dim, dim)
+                @test H_tn_matrix ≈ H_ed_matrix + shifted_identity atol=1e-12
+            end
+        end
     end
     
     
