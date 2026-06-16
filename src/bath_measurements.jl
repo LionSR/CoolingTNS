@@ -112,17 +112,10 @@ end
 
 """Trace out system degrees of freedom to get bath density matrix"""
 function tr_sys(ρ::Matrix, N_sys::Int, N_bath::Int)
-    dim_sys = 2^N_sys
-    dim_bath = 2^N_bath
-    ρ_bath = zeros(ComplexF64, dim_bath, dim_bath)
-    
-    for i in 1:dim_bath, j in 1:dim_bath
-        for k in 1:dim_sys
-            idx_i = (k-1)*dim_bath + i
-            idx_j = (k-1)*dim_bath + j
-            ρ_bath[i,j] += ρ[idx_i, idx_j]
-        end
-    end
-    
-    return ρ_bath
+    N_sys == N_bath || throw(ArgumentError(
+        "ED bath extraction expects the interleaved one-bath-per-system layout; " *
+        "got N_sys=$N_sys and N_bath=$N_bath."
+    ))
+    ρ_total = EDDensityMatrix(Matrix{ComplexF64}(ρ), N_sys + N_bath)
+    return trace_out_system_ed(ρ_total, N_sys).data
 end
