@@ -28,16 +28,31 @@ end
 # Monte Carlo + Continuous Evolution + Tensor Networks
 # ============================================================================
 
+"""
+    _tdvp_real_time(t)
+
+Convert a physical Schrödinger evolution time ``t`` into the ITensorMPS TDVP
+parameter. ITensorMPS evolves as ``exp(τ H)``, so real-time evolution
+``exp(-i H t)`` requires ``τ = -i t``.
+"""
 function _tdvp_real_time(t::Float64)
     t < 0 && throw(ArgumentError("TDVP real-time evolution time must be nonnegative; got t=$t."))
     return -1.0im * t
 end
 
+"""
+    _tdvp_step_count(t, tau)
+
+Choose the number of TDVP substeps for physical time ``t`` and target substep
+size ``tau``. TDVP receives the full physical time separately; unlike a Trotter
+loop, these substeps only partition that time interval, so `ceil(t/tau)` avoids
+oversized substeps when ``t`` is not an integer multiple of ``tau``.
+"""
 function _tdvp_step_count(t::Float64, tau::Float64)
     t < 0 && throw(ArgumentError("TDVP evolution time must be nonnegative; got t=$t."))
     tau <= 0 && throw(ArgumentError("TDVP step tau must be positive; got tau=$tau."))
     t == 0 && return 0
-    return max(1, Int(ceil(t / tau)))
+    return Int(ceil(t / tau))
 end
 
 function evolve_state(::HamiltonianParameters, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, ContinuousEvolution},
@@ -47,7 +62,12 @@ function evolve_state(::HamiltonianParameters, sim_params::UnifiedSimulationPara
     # Pick an integer number of TDVP steps so arbitrary `t` works even when `t/tau`
     # is not an integer (e.g. randomized evolution times in multi-frequency cooling).
     nsteps = _tdvp_step_count(t, tau)
-    nsteps == 0 && return ψ
+    if nsteps == 0
+        ψ_evolved = copy(ψ)
+        normalize!(ψ_evolved)
+        orthogonalize!(ψ_evolved, min(2, length(ψ_evolved)))
+        return ψ_evolved
+    end
     @debug "evolve_state MC+Continuous: Dmax=$Dmax, tau=$tau, t=$t, nsteps=$nsteps, nsite=2"
 
     # Use nsite=2 to allow bond dimension growth from product states
