@@ -58,6 +58,12 @@ using CoolingTNS
         @test parsed_ham_params.params.V == 2.5
         @test ham_name == "RydbergN3bcperiodicOmega1.2Delta-0.4V2.5"
 
+        roundtrip_ham_params = CoolingTNS.parse_hamiltonian_name(ham_name)
+        @test roundtrip_ham_params.model isa CoolingTNS.RydbergModel
+        @test roundtrip_ham_params.N == parsed_ham_params.N
+        @test roundtrip_ham_params.bc == parsed_ham_params.bc
+        @test roundtrip_ham_params.params == parsed_ham_params.params
+
         @test parsed_coupling.coupling == "ZZ"
         @test parsed_coupling.g == 0.05
         @test parsed_coupling.steps == 7
