@@ -160,6 +160,19 @@ using CoolingTNS
         @test results["E_list"][end] <= results["E_list"][1] + 1e-10
     end
 
+    @testset "ED k-space smoke example stays on current interface" begin
+        example_path = normpath(joinpath(@__DIR__, "..", "examples", "test_ed_kspace.jl"))
+        example_text = read(example_path, String)
+
+        @test occursin("IsingParameters(N, J, h, bc)", example_text)
+        @test !occursin("NiIsingParameters", example_text)
+        @test !occursin("%3d", example_text)
+        @test !occursin("plot_momentum_distribution", example_text)
+
+        include(example_path)
+        @test isdefined(@__MODULE__, :test_ed_kspace)
+    end
+
     # Cross-backend cooling comparisons are covered in `test_correctness.jl`.
     # They are intentionally gated behind `ENV["COOLINGTNS_FULL_TESTS"]` since
     # Monte Carlo trajectories can be slow and inherently stochastic.
