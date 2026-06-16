@@ -1,95 +1,130 @@
 #!/usr/bin/env julia
-# Verify the σ_z sign convention in MapToSpin.tex vs code
-using CoolingTNS, LinearAlgebra
+# Verify that the MapToSpin Jordan-Wigner sign convention agrees with the ED
+# mode diagnostics.
 
-function verify_sign()
-    N = 6; θ = 0.4; J = cos(θ)/2; h = sin(θ)/2
-    σx = [0.0 1; 1 0]; σz = [1.0 0; 0 -1]; I2 = [1.0 0; 0 1]
-    kron_chain(ops) = reduce(kron, ops)
+using CoolingTNS
+using LinearAlgebra
 
-    d = 2^N; H = zeros(d, d)
-    for i in 1:N
-        ops = [I2 for _ in 1:N]; j = i%N+1; ops[i] = σz; ops[j] = σz
-        H .+= J * kron_chain(ops)
-    end
-    for i in 1:N
-        ops = [I2 for _ in 1:N]; ops[i] = σx; H .+= h * kron_chain(ops)
-    end
-
-    Px = kron_chain([σx for _ in 1:N])
-    evals = eigvals(Symmetric(H)); evecs = eigvecs(Symmetric(H))
-
-    # Find GS in even parity sector (Px=+1 → gF=-1 APBC)
-    idx = 0; emin = Inf
-    for i in 1:d
-        v = evecs[:, i]
-        px = real(v ⋅ (Px * v))
-        if px > 0.5 && evals[i] < emin
-            emin = evals[i]; idx = i
-        end
-    end
-
-    ψ_gs = CoolingTNS.EDStateVector(ComplexF64.(evecs[:, idx]), N)
-    ham_params = CoolingTNS.IsingParameters(N, J, h, :periodic)
-    k_vals, nk_measured = CoolingTNS.measure_momentum_distribution_ed_clean(ψ_gs, ham_params)
-
-    ks = CoolingTNS.allowed_k_indices(N, -1)
-
-    println("="^70)
-    println("σ_z SIGN CONVENTION VERIFICATION")
-    println("="^70)
-    println("N=$N, θ=$θ, J=$J, h=$h")
-    println("Even-sector (Px=+1, gF=-1 APBC) GS energy: $emin")
-    println()
-
-    println("ALGEBRAIC CHECK:")
-    println("  Notes JW: a = -S·σ⁻, a† = -S·σ⁺")
-    println("  → a†a = σ⁺σ⁻ = (I+σ_z)/2")
-    println("  → aa† = σ⁻σ⁺ = (I-σ_z)/2")
-    println("  → aa† - a†a = -σ_z ≠ σ_z")
-    println("  → 1 - 2a†a = 1 - (I+σ_z) = -σ_z ≠ σ_z")
-    println()
-    println("  CORRECT: σ_z = a†a - aa† = 2a†a - 1")
-    println("  NOTES:   σ_z = aa† - a†a = 1 - 2a†a = -σ_z  [WRONG]")
-    println()
-
-    println("MODE OCCUPATION TEST (the decisive test):")
-    println("  Code uses: w_k = +sinθ - cosθ cos(φk)")
-    println("  Notes use: w_k = -sinθ - cosθ cos(φk)")
-    println()
-
-    println("k        n_k(ED)    n_k(code)  n_k(notes)  err_code     err_notes")
-    println("-"^75)
-    total_err_code = 0.0
-    total_err_notes = 0.0
-    for (i, k) in enumerate(ks)
-        kf = Float64(k)
-        φ_code = CoolingTNS.bogoliubov_angle(kf, θ, N)
-        nk_code = sin(φ_code)^2
-
-        φk = 2π * kf / N
-        w_n = -sin(θ) - cos(θ) * cos(φk)
-        r_n = -cos(θ) * sin(φk)
-        φ_notes = abs(r_n) < 1e-14 ? 0.0 : atan(r_n, w_n) / 2
-        nk_notes = sin(φ_notes)^2
-
-        ec = abs(nk_measured[i] - nk_code)
-        en = abs(nk_measured[i] - nk_notes)
-        total_err_code += ec
-        total_err_notes += en
-        println("$(rpad(k,8)) $(rpad(round(nk_measured[i],digits=6),10)) $(rpad(round(nk_code,digits=6),10)) $(rpad(round(nk_notes,digits=6),10))  $(rpad(round(ec,sigdigits=3),12)) $(round(en,sigdigits=3))")
-    end
-    println("-"^75)
-    println("TOTAL    $(rpad("",10)) $(rpad("",10)) $(rpad("",10))  $(rpad(round(total_err_code,sigdigits=3),12)) $(round(total_err_notes,sigdigits=3))")
-
-    println()
-    if total_err_code < total_err_notes
-        println("★★★ CODE formula is correct (w_k = +sinθ - cosθ cos(φk))")
-        println("    MapToSpin.tex line 40 has WRONG sign: σ_z ≠ aa† - a†a")
-    else
-        println("★★★ NOTES formula is correct (w_k = -sinθ - cosθ cos(φk))")
-        println("    Code has wrong sign!")
-    end
+function _obsolete_opposite_z_occupation(k::Real, theta::Real, N::Int)
+    phi_k = 2pi * Float64(k) / N
+    w_old = -sin(theta) - cos(theta) * cos(phi_k)
+    r_old = -cos(theta) * sin(phi_k)
+    phi_old = abs(r_old) < 1e-14 ? 0.0 : atan(r_old, w_old) / 2
+    return sin(phi_old)^2
 end
 
-verify_sign()
+function _local_jw_sign_errors()
+    a, a_dag = CoolingTNS.jordan_wigner_transform_complex(1, 1)
+    I2 = Matrix{ComplexF64}(I, 2, 2)
+    Z = Matrix(CoolingTNS.pauli_z(1, 1))
+
+    sigma_z_error = norm(Matrix(2 * a_dag * a) - I2 - Z)
+    obsolete_sigma_z_error = norm(Matrix(a * a_dag - a_dag * a) - Z)
+    return sigma_z_error, obsolete_sigma_z_error
+end
+
+function verify_sign(; N::Int=6, theta::Float64=0.4, verbose::Bool=true)
+    J, h = CoolingTNS.Jh_from_theta(theta)
+    theta_code = CoolingTNS.theta_from_Jh(J, h)
+    ham_params = CoolingTNS.IsingParameters(N, J, h, :periodic)
+
+    H_sys = CoolingTNS.construct_system_hamiltonian(ham_params, CoolingTNS.EDBackend(), N)
+    E0, psi0, _ = CoolingTNS.ground_state_ed(H_sys)
+
+    parity_value = CoolingTNS.measure_state_parity(psi0, N)
+    parity = round(Int, parity_value)
+    if abs(parity_value - parity) > 1e-8
+        error("Ground-state parity is not close to +/-1: parity = $parity_value")
+    end
+
+    gF = CoolingTNS.fermionic_bc(ham_params.bc, parity)
+    ks = CoolingTNS.allowed_k_indices(N, gF)
+    _, nk_measured = CoolingTNS.measure_momentum_distribution_ed_clean(psi0, ham_params; gF=gF)
+
+    nk_canonical = [sin(CoolingTNS.bogoliubov_angle(Float64(k), theta_code, N))^2 for k in ks]
+    nk_obsolete = [_obsolete_opposite_z_occupation(k, theta_code, N) for k in ks]
+
+    canonical_errors = abs.(nk_measured .- nk_canonical)
+    obsolete_errors = abs.(nk_measured .- nk_obsolete)
+
+    sigma_z_error, obsolete_sigma_z_error = _local_jw_sign_errors()
+
+    result = (
+        N=N,
+        theta=theta_code,
+        J=J,
+        h=h,
+        energy=E0,
+        parity=parity_value,
+        gF=gF,
+        k_indices=ks,
+        measured=nk_measured,
+        canonical=nk_canonical,
+        obsolete=nk_obsolete,
+        canonical_error=sum(canonical_errors),
+        obsolete_error=sum(obsolete_errors),
+        max_canonical_error=maximum(canonical_errors),
+        sigma_z_error=sigma_z_error,
+        obsolete_sigma_z_error=obsolete_sigma_z_error,
+    )
+
+    if verbose
+        println("="^70)
+        println("JW SIGN CONVENTION VERIFICATION")
+        println("="^70)
+        println("N=$(result.N), theta=$(result.theta), J=$(result.J), h=$(result.h)")
+        println("Ground-state energy: $(result.energy)")
+        println("Parity: $(result.parity), fermionic boundary gF=$(result.gF)")
+        println()
+
+        println("ALGEBRAIC CHECK")
+        println("  MapToSpin convention: a = -S sigma^-, a^dag = -S sigma^+")
+        println("  Canonical identity: sigma_z = 2 a^dag a - I")
+        println("  local operator error: $(result.sigma_z_error)")
+        println("  obsolete identity aa^dag - a^dag a error: $(result.obsolete_sigma_z_error)")
+        println()
+
+        println("MODE OCCUPATION CHECK")
+        println("  canonical source: CoolingTNS.bogoliubov_angle")
+        println("  negative control: obsolete opposite-sigma_z sign")
+        println()
+        println("k        n_k(ED)    n_k(canonical)  n_k(obsolete)  err_canonical  err_obsolete")
+        println("-"^88)
+        for (i, k) in enumerate(ks)
+            println("$(rpad(k,8)) " *
+                    "$(rpad(round(nk_measured[i], digits=6),10)) " *
+                    "$(rpad(round(nk_canonical[i], digits=6),15)) " *
+                    "$(rpad(round(nk_obsolete[i], digits=6),14)) " *
+                    "$(rpad(round(canonical_errors[i], sigdigits=3),15)) " *
+                    "$(round(obsolete_errors[i], sigdigits=3))")
+        end
+        println("-"^88)
+        println("TOTAL    " *
+                rpad("", 10) * " " *
+                rpad("", 15) * " " *
+                rpad("", 14) * " " *
+                rpad(round(result.canonical_error, sigdigits=4), 15) * " " *
+                "$(round(result.obsolete_error, sigdigits=4))")
+        println()
+    end
+
+    if result.sigma_z_error > 1e-12 || result.max_canonical_error > 1e-10
+        error("Canonical Jordan-Wigner convention does not match ED.")
+    end
+
+    # The occupation-number negative control is meaningful only away from
+    # sin(theta)=0, where flipping the sigma_z sign changes the BdG block.
+    separation_factor = 100.0
+    negative_control_is_distinct = abs(sin(theta_code)) > 1e-12
+    if negative_control_is_distinct &&
+            result.obsolete_error <= separation_factor * max(result.canonical_error, eps(Float64))
+        error("Obsolete sign convention is not clearly separated from the canonical one.")
+    end
+
+    verbose && println("Canonical convention matches ED and the local JW algebra.")
+    return result
+end
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    verify_sign()
+end
