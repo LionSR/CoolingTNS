@@ -56,6 +56,7 @@ include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
             "J" => 1.5,
             "h" => 0.7,
             "bc" => "periodic",
+            RESULT_MODE_GF => [1],
         ),
     )
     @test canonical_kspace.momentum_dist == step_by_mode
@@ -65,6 +66,28 @@ include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
     @test canonical_kspace.J == 1.5
     @test canonical_kspace.h == 0.7
     @test canonical_kspace.bc == :periodic
+    @test canonical_kspace.mode_gF == 1
+
+    example_kspace = kspace_evolution_plot_data(
+        Dict{String, Any}(
+            RESULT_MOMENTUM_DISTRIBUTION => step_by_mode,
+            RESULT_K_VALUES => k_values,
+            "ham_params_bc" => "antiperiodic",
+            RESULT_MODE_GF => [-1],
+        ),
+    )
+    @test example_kspace.bc == :antiperiodic
+    @test example_kspace.mode_gF == -1
+
+    unknown_bc_kspace = kspace_evolution_plot_data(
+        Dict{String, Any}(
+            RESULT_MOMENTUM_DISTRIBUTION => step_by_mode,
+            RESULT_K_VALUES => k_values,
+            RESULT_MODE_GF => [1],
+        ),
+    )
+    @test unknown_bc_kspace.bc == :open
+    @test unknown_bc_kspace.mode_gF === nothing
 
     legacy_mode_by_step = permutedims(step_by_mode)
     legacy_kspace = kspace_evolution_plot_data(
@@ -75,6 +98,7 @@ include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
     )
     @test legacy_kspace.momentum_dist == step_by_mode
     @test legacy_kspace.total_steps == 2
+    @test legacy_kspace.mode_gF === nothing
 
     square_step_by_mode = [0.1 0.2; 0.3 0.4]
     square_kspace = kspace_evolution_plot_data(
@@ -92,6 +116,101 @@ include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
             RESULT_K_VALUES => [0.0, pi, 2pi],
         ),
     )
+
+    detuning_calls = Any[]
+    dummy_ax = (
+        axhline=(; y, color, linestyle, linewidth, label, alpha) -> begin
+            push!(
+                detuning_calls,
+                (y=y, color=color, linestyle=linestyle, linewidth=linewidth, label=label, alpha=alpha),
+            )
+            return :line
+        end,
+    )
+    @test mark_bath_detuning_energy!(dummy_ax, -2.5) == :line
+    @test only(detuning_calls).y == 2.5
+    @test only(detuning_calls).label == "signed |delta|"
+    @test mark_bath_detuning_energy!(dummy_ax, 2.5; reference_energies=[-4.0, -2.0]) == :line
+    @test detuning_calls[end].y == -2.5
+    @test mark_bath_detuning_energy!(dummy_ax, nothing) === nothing
+    @test mark_bath_detuning_energy!(dummy_ax, 0.0) === nothing
+    @test length(detuning_calls) == 2
+
+    mode_energies = [0.5, 1.5, 1.5, 3.0]
+    @test nearest_bath_resonance_indices(mode_energies, 1.5) == [2, 3]
+    @test nearest_bath_resonance_indices(mode_energies, -1.45) == [2, 3]
+    @test nearest_bath_resonance_indices(-mode_energies, 1.45) == [2, 3]
+    @test nearest_bath_resonance_indices(mode_energies, nothing) == Int[]
+    @test nearest_bath_resonance_indices(Float64[], 1.0) == Int[]
+
+    plot_k_values = [0.0, pi / 3, 2pi / 3, pi]
+    stored_energy_data = Dict{String, Any}(
+        RESULT_MODE_ENERGIES => mode_energies,
+        RESULT_MODE_K_INDICES => [0, 1, 2, 3],
+        "N" => 6,
+        "J" => 10.0,
+        "h" => 20.0,
+    )
+    stored_resonance_data = momentum_plot_resonance_data(stored_energy_data, plot_k_values)
+    @test stored_resonance_data.energies == mode_energies
+    @test stored_resonance_data.momenta ≈ plot_k_values
+
+    J, h = 1.0, 0.5
+    N_fallback = 6
+    fallback_data = Dict{String, Any}("J" => [J], "h" => h, "N" => N_fallback)
+    fallback_resonance_data = momentum_plot_resonance_data(fallback_data, plot_k_values)
+    @test fallback_resonance_data.momenta == plot_k_values
+    @test fallback_resonance_data.energies ≈
+          [mode_energy_Jh(k * N_fallback / 2π, J, h, N_fallback) for k in plot_k_values]
+
+    bad_energy_data = Dict{String, Any}(RESULT_MODE_ENERGIES => mode_energies[1:3])
+    @test_logs (:warn, r"Skipping stored mode energies without stored mode k-indices") begin
+        @test momentum_plot_resonance_data(bad_energy_data, plot_k_values) === nothing
+    end
+
+    resonance_calls = Any[]
+    dummy_momentum_ax = (
+        axvline=(; x, color, linestyle, linewidth, alpha, label) -> begin
+            push!(
+                resonance_calls,
+                (x=x, color=color, linestyle=linestyle, linewidth=linewidth, alpha=alpha, label=label),
+            )
+            return :vline
+        end,
+    )
+    handles = mark_bath_resonance_momentum!(
+        dummy_momentum_ax,
+        plot_k_values,
+        mode_energies,
+        1.5;
+        momentum_scale=pi,
+    )
+    @test handles == [:vline, :vline]
+    @test [call.x for call in resonance_calls] == [1 / 3, 2 / 3]
+    @test resonance_calls[1].label == "nearest epsilon_k ~= |delta|"
+    @test resonance_calls[2].label == "_nolegend_"
+
+    resonance_from_data_calls = Any[]
+    dummy_data_ax = (
+        axvline=(; x, color, linestyle, linewidth, alpha, label) -> begin
+            push!(resonance_from_data_calls, x)
+            return :data_vline
+        end,
+    )
+    data_handles = mark_bath_resonance_from_data!(
+        dummy_data_ax,
+        Dict{String, Any}(
+            "delta" => 1.5,
+            RESULT_MODE_ENERGIES => mode_energies,
+            RESULT_MODE_K_INDICES => [0, 1, 2, 3],
+            "N" => 6,
+        ),
+        plot_k_values;
+        momentum_scale=pi,
+    )
+    @test data_handles == [:data_vline, :data_vline]
+    @test resonance_from_data_calls == [1 / 3, 2 / 3]
+    @test mark_bath_resonance_from_data!(dummy_data_ax, Dict{String, Any}(), plot_k_values) === nothing
 
     @test_throws ErrorException _mode_occupation_from_plot_data(Dict{String, Any}())
 end

@@ -31,11 +31,12 @@ function plot_ek_evolution(filename; steps_to_plot=nothing, save_fig=true)
     J = plot_data.J
     h = plot_data.h
     bc = plot_data.bc
+    mode_gF = plot_data.mode_gF
     total_steps = plot_data.total_steps
 
     step_indices = select_evolution_steps(total_steps; steps_to_plot=steps_to_plot)
-    epsilon_k = compute_energy_dispersion(k_values, J, h)
-    n_k_gs = compute_ground_state_occupation(k_values, J, h)
+    epsilon_k = compute_energy_dispersion(k_values, J, h; N=N)
+    n_k_gs = compute_ground_state_occupation(k_values, J, h; N=N, spin_bc=bc, gF=mode_gF)
     e_k_gs = epsilon_k .* n_k_gs
 
     fig, ax = plt.subplots(figsize=(10, 6))
