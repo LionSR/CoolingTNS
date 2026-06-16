@@ -473,4 +473,27 @@ end
         end
     end
 
+    @testset "Mode occupations are exposed with h_k results" begin
+        @test mode_occupation_from_hk(-1.0) == 0.0
+        @test mode_occupation_from_hk(1.0) == 1.0
+        @test mode_occupation_from_hk([-1.0, 0.0, 1.0]) == [0.0, 0.5, 1.0]
+
+        N = 4
+        ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
+        coupling_params = BasicCouplingParameters("XX", 0.0, 0, 0.0, 0.5)
+        sim_params = UnifiedSimulationParameters(DensityMatrix(), ContinuousEvolution())
+
+        problem = setup_problem(EDBackend(), ham_params, coupling_params, sim_params)
+        state0 = setup_initial_state(problem, sim_params, "theta", 0.0)
+
+        results = redirect_stdout(devnull) do
+            run_cooling(problem, state0, coupling_params, sim_params, ham_params; measure_modes=true)
+        end
+
+        @test haskey(results, "mode_hk")
+        @test haskey(results, "mode_nk")
+        @test results["mode_nk"] ≈ mode_occupation_from_hk(results["mode_hk"]) atol=1e-12
+        @test all(0 .<= results["mode_nk"] .<= 1)
+    end
+
 end

@@ -80,5 +80,7 @@ using ITensorMPS
         @test results["mode_k_indices"] == ks_expected
         @test results["mode_ek_values"] ≈ ε_expected atol=1e-12
         @test results["mode_hk"][1, :] ≈ hk_expected atol=1e-10
+        @test results["mode_nk"][1, :] ≈ mode_occupation_from_hk(hk_expected) atol=1e-10
+        @test results["mode_nk"] ≈ mode_occupation_from_hk(results["mode_hk"]) atol=1e-12
     end
 end

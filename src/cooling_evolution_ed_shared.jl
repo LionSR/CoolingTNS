@@ -272,10 +272,12 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
         if measurements[RESULT_MODE_HK] === nothing
             n_steps_total = size(measurements[RESULT_ENERGY], 1)
             measurements[RESULT_MODE_HK] = fill(NaN, n_steps_total, n_modes)
+            measurements[RESULT_MODE_NK] = fill(NaN, n_steps_total, n_modes)
             measurements[RESULT_MODE_K_INDICES] = k_indices
             measurements[RESULT_MODE_ENERGIES] = εk_values
         end
 
         measurements[RESULT_MODE_HK][step, :] .= hk_values
+        measurements[RESULT_MODE_NK][step, :] .= mode_occupation_from_hk(hk_values)
     end
 end
