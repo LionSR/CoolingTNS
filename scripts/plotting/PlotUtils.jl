@@ -15,8 +15,10 @@ using CoolingTNS:
     generate_k_values,
     compute_energy_dispersion,
     compute_ground_state_occupation,
+    mode_energy_Jh,
     RESULT_MOMENTUM_DISTRIBUTION,
     RESULT_K_VALUES,
+    RESULT_MODE_K_INDICES,
     RESULT_MODE_ENERGIES
 
 # Lazy pyplot access - imported once per session
@@ -201,32 +203,58 @@ function nearest_bath_resonance_indices(mode_energies, delta; atol=1e-12)
     return findall(d -> isapprox(d, dmin; atol=atol, rtol=sqrt(eps(Float64))), distances)
 end
 
-"""
-    momentum_plot_mode_energies(data, k_values)
+function _scalar_int_from_data(data::AbstractDict, key::AbstractString, default=nothing)
+    haskey(data, key) || return default
+    value = _maybe_scalar(data[key])
+    value isa Number || return default
+    return Int(value)
+end
 
-Return the mode energies associated with a momentum plot.
+function _mode_momenta_from_indices(mode_k_indices, N::Int)
+    return [2π * Float64(k) / N for k in vec(mode_k_indices)]
+end
 
-Stored `RESULT_MODE_ENERGIES` are preferred, since they are the energies saved
-with the simulation. If they are absent, the helper falls back to the canonical
-Ising dispersion when scalar `J` and `h` metadata are available. If neither
-source is available, it returns `nothing` rather than inventing a resonance
-coordinate.
+function _mode_energies_from_momenta(k_values, J::Real, h::Real, N::Int)
+    return [mode_energy_Jh(Float64(k) * N / 2π, J, h, N) for k in vec(k_values)]
+end
+
 """
-function momentum_plot_mode_energies(data::AbstractDict, k_values)
+    momentum_plot_resonance_data(data, k_values)
+
+Return `(momenta, energies)` for bath-resonance markers on a momentum plot.
+
+Stored mode energies are used only together with their stored mode grid. If
+mode data are absent, the helper falls back to the positive Ising quasiparticle
+energies computed from scalar `J,h,N` metadata on the plotted momentum grid.
+"""
+function momentum_plot_resonance_data(data::AbstractDict, k_values)
+    N = _scalar_int_from_data(data, "N", length(k_values))
+
     if haskey(data, RESULT_MODE_ENERGIES)
         mode_energies = vec(Float64.(data[RESULT_MODE_ENERGIES]))
-        if length(mode_energies) == length(k_values)
-            return mode_energies
+        if haskey(data, RESULT_MODE_K_INDICES)
+            mode_k_indices = vec(data[RESULT_MODE_K_INDICES])
+            if length(mode_energies) == length(mode_k_indices)
+                return (
+                    momenta=_mode_momenta_from_indices(mode_k_indices, N),
+                    energies=mode_energies,
+                )
+            end
+            @warn "Skipping stored mode energies whose length does not match stored mode k-indices" *
+                  " (got $(length(mode_energies)) energies and $(length(mode_k_indices)) k-indices)." *
+                  " Falling back to J,h if available."
+        else
+            @warn "Skipping stored mode energies without stored mode k-indices. Falling back to J,h if available."
         end
-        @warn "Skipping stored mode energies whose length does not match k_values" *
-              " (got $(length(mode_energies)), expected $(length(k_values)))." *
-              " Falling back to J,h if available."
     end
 
     J = _scalar_float_from_data(data, "J")
     h = _scalar_float_from_data(data, "h")
     if J !== nothing && h !== nothing
-        return compute_energy_dispersion(k_values, J, h)
+        return (
+            momenta=Float64.(vec(k_values)),
+            energies=_mode_energies_from_momenta(k_values, J, h, N),
+        )
     end
 
     return nothing
@@ -276,16 +304,16 @@ function mark_bath_resonance_from_data!(ax, data::AbstractDict, k_values; moment
         return nothing
     end
 
-    mode_energies = momentum_plot_mode_energies(data, k_values)
-    if mode_energies === nothing
+    resonance_data = momentum_plot_resonance_data(data, k_values)
+    if resonance_data === nothing
         @warn "Cannot mark bath resonance in momentum plot without mode energies or Ising parameters J,h."
         return nothing
     end
 
     return mark_bath_resonance_momentum!(
         ax,
-        k_values,
-        mode_energies,
+        resonance_data.momenta,
+        resonance_data.energies,
         data["delta"];
         momentum_scale=momentum_scale,
     )

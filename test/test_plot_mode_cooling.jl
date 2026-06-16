@@ -122,19 +122,26 @@ include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
     plot_k_values = [0.0, pi / 3, 2pi / 3, pi]
     stored_energy_data = Dict{String, Any}(
         RESULT_MODE_ENERGIES => mode_energies,
+        RESULT_MODE_K_INDICES => [0, 1, 2, 3],
+        "N" => 6,
         "J" => 10.0,
         "h" => 20.0,
     )
-    @test momentum_plot_mode_energies(stored_energy_data, plot_k_values) == mode_energies
+    stored_resonance_data = momentum_plot_resonance_data(stored_energy_data, plot_k_values)
+    @test stored_resonance_data.energies == mode_energies
+    @test stored_resonance_data.momenta ≈ plot_k_values
 
     J, h = 1.0, 0.5
-    fallback_data = Dict{String, Any}("J" => [J], "h" => h)
-    @test momentum_plot_mode_energies(fallback_data, plot_k_values) ≈
-          compute_energy_dispersion(plot_k_values, J, h)
+    N_fallback = 6
+    fallback_data = Dict{String, Any}("J" => [J], "h" => h, "N" => N_fallback)
+    fallback_resonance_data = momentum_plot_resonance_data(fallback_data, plot_k_values)
+    @test fallback_resonance_data.momenta == plot_k_values
+    @test fallback_resonance_data.energies ≈
+          [mode_energy_Jh(k * N_fallback / 2π, J, h, N_fallback) for k in plot_k_values]
 
     bad_energy_data = Dict{String, Any}(RESULT_MODE_ENERGIES => mode_energies[1:3])
-    @test_logs (:warn, r"Skipping stored mode energies") begin
-        @test momentum_plot_mode_energies(bad_energy_data, plot_k_values) === nothing
+    @test_logs (:warn, r"Skipping stored mode energies without stored mode k-indices") begin
+        @test momentum_plot_resonance_data(bad_energy_data, plot_k_values) === nothing
     end
 
     resonance_calls = Any[]
@@ -171,6 +178,8 @@ include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
         Dict{String, Any}(
             "delta" => 1.5,
             RESULT_MODE_ENERGIES => mode_energies,
+            RESULT_MODE_K_INDICES => [0, 1, 2, 3],
+            "N" => 6,
         ),
         plot_k_values;
         momentum_scale=pi,
