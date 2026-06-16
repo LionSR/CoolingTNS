@@ -540,6 +540,13 @@ end
 
             @test occupations ≈ expected_occupations atol=1e-15
         end
+
+        critical_k_values = generate_k_values(N, :periodic)
+        critical_occupations = compute_ground_state_occupation(critical_k_values, 1.0, 1.0)
+        k0_index = findfirst(k -> abs(k) < 1e-12, critical_k_values)
+
+        @test k0_index !== nothing
+        @test critical_occupations[k0_index] ≈ 0.5 atol=1e-15
     end
 
     @testset "Antiperiodic BC spectrum (N=$N)" for N in [4, 6]
