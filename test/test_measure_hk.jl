@@ -490,10 +490,10 @@ end
             run_cooling(problem, state0, coupling_params, sim_params, ham_params; measure_modes=true)
         end
 
-        @test haskey(results, "mode_hk")
-        @test haskey(results, "mode_nk")
-        @test results["mode_nk"] ≈ mode_occupation_from_hk(results["mode_hk"]) atol=1e-12
-        @test all(0 .<= results["mode_nk"] .<= 1)
+        @test haskey(results, RESULT_MODE_HK)
+        @test haskey(results, RESULT_MODE_NK)
+        @test results[RESULT_MODE_NK] ≈ mode_occupation_from_hk(results[RESULT_MODE_HK]) atol=1e-12
+        @test all(0 .<= results[RESULT_MODE_NK] .<= 1)
     end
 
 end

@@ -75,12 +75,12 @@ using ITensorMPS
         end
 
         ks_expected, hk_expected, ε_expected =
-            measure_all_mode_energies(state0.state, ham_params; gF=results["mode_gF"])
+            measure_all_mode_energies(state0.state, ham_params; gF=results[RESULT_MODE_GF])
 
-        @test results["mode_k_indices"] == ks_expected
-        @test results["mode_ek_values"] ≈ ε_expected atol=1e-12
-        @test results["mode_hk"][1, :] ≈ hk_expected atol=1e-10
-        @test results["mode_nk"][1, :] ≈ mode_occupation_from_hk(hk_expected) atol=1e-10
-        @test results["mode_nk"] ≈ mode_occupation_from_hk(results["mode_hk"]) atol=1e-12
+        @test results[RESULT_MODE_K_INDICES] == ks_expected
+        @test results[RESULT_MODE_ENERGIES] ≈ ε_expected atol=1e-12
+        @test results[RESULT_MODE_HK][1, :] ≈ hk_expected atol=1e-10
+        @test results[RESULT_MODE_NK][1, :] ≈ mode_occupation_from_hk(hk_expected) atol=1e-10
+        @test results[RESULT_MODE_NK] ≈ mode_occupation_from_hk(results[RESULT_MODE_HK]) atol=1e-12
     end
 end

@@ -20,25 +20,30 @@ if !@isdefined(get_pyplot)
     include(joinpath(@__DIR__, "PlotUtils.jl"))
 end
 
-using CoolingTNS: mode_occupation_from_hk
+using CoolingTNS:
+    RESULT_MODE_HK,
+    RESULT_MODE_NK,
+    RESULT_MODE_K_INDICES,
+    RESULT_MODE_ENERGIES,
+    mode_occupation_from_hk
 
 """
     _mode_occupation_from_plot_data(data)
 
 Return the physical quasiparticle occupation matrix for mode-cooling plots.
 
-New result files store `mode_nk` directly. Older files stored only `mode_hk`,
+New result files store `RESULT_MODE_NK` directly. Older files stored only `RESULT_MODE_HK`,
 with `h_k = 2n_k - 1`; those files are converted through
 `CoolingTNS.mode_occupation_from_hk`, which is the single source of truth for
 this convention.
 """
 function _mode_occupation_from_plot_data(data::AbstractDict)
-    if haskey(data, "mode_nk")
-        return Float64.(data["mode_nk"])
-    elseif haskey(data, "mode_hk")
-        return Float64.(mode_occupation_from_hk(data["mode_hk"]))
+    if haskey(data, RESULT_MODE_NK)
+        return Float64.(data[RESULT_MODE_NK])
+    elseif haskey(data, RESULT_MODE_HK)
+        return Float64.(mode_occupation_from_hk(data[RESULT_MODE_HK]))
     end
-    error("Expected HDF5 dataset \"mode_nk\" or legacy dataset \"mode_hk\"")
+    error("Expected HDF5 dataset \"$RESULT_MODE_NK\" or legacy dataset \"$RESULT_MODE_HK\"")
 end
 
 function _occupation_ylim(mode_nk)
@@ -168,16 +173,18 @@ end
     plot_mode_cooling_from_h5(filepath::String; savepath=nothing)
 
 Load mode cooling data from an HDF5 file and plot.
-Expected datasets: "mode_nk" or legacy "mode_hk", "mode_k_indices",
-"mode_ek_values", optionally "delta".
+Expected datasets are named by `CoolingTNS.RESULT_MODE_NK` or legacy
+`CoolingTNS.RESULT_MODE_HK`, together with `CoolingTNS.RESULT_MODE_K_INDICES`
+and `CoolingTNS.RESULT_MODE_ENERGIES`; the optional detuning dataset is
+`"delta"`.
 """
 function plot_mode_cooling_from_h5(filepath::String; savepath=nothing)
     data = read_h5_data(filepath)
     data === nothing && error("Could not read $filepath")
 
     mode_nk = _mode_occupation_from_plot_data(data)
-    k_indices = data["mode_k_indices"]
-    εk_values = data["mode_ek_values"]
+    k_indices = data[RESULT_MODE_K_INDICES]
+    εk_values = data[RESULT_MODE_ENERGIES]
     delta = get(data, "delta", nothing)
 
     return plot_mode_occupation_from_data(mode_nk, k_indices, εk_values;
