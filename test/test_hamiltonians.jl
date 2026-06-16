@@ -277,6 +277,16 @@ end
             @test H isa MPO
             @test length(H) == 2N
         end
+
+        @testset "TN Backend - Rydberg System-Bath" begin
+            backend = CoolingTNS.TNBackend()
+            Ω, Δ, V = 1.0, 0.3, 0.2
+            ham_params = CoolingTNS.RydbergParameters(N, Ω, Δ, V)
+            H = CoolingTNS.construct_system_bath_hamiltonian(ham_params, backend, sites, coupling_params)
+
+            @test H isa MPO
+            @test length(H) == 2N
+        end
         
         
         @testset "Different Coupling Types" begin
@@ -382,6 +392,39 @@ end
             ψ_ed = CoolingTNS.evolve_ed(H_ed, CoolingTNS.product_state_ed(2, 0), sim_params.tau)
 
             @test norm(tn_vec - ψ_ed.data) < 1e-10
+        end
+
+        @testset "System terms agree in isolated and interleaved TN MPOs" begin
+            backend = CoolingTNS.TNBackend()
+            test_N = 3
+            product_labels = ["Up", "Dn", "Up"]
+            zero_coupling = CoolingTNS.BasicCouplingParameters("XX", 0.0, 1, 0.0, 0.0)
+            cases = [
+                CoolingTNS.IsingParameters(test_N, 1.1, -0.7),
+                CoolingTNS.NiIsingParameters(test_N, 1.1, -0.7, 0.2),
+                CoolingTNS.RydbergParameters(test_N, 0.9, 0.4, 0.3),
+            ]
+
+            for ham_params in cases
+                sites_sys = siteinds("S=1/2", test_N)
+                sites_sb = siteinds("S=1/2", 2 * test_N)
+
+                H_sys = CoolingTNS.construct_system_hamiltonian(ham_params, backend, sites_sys)
+                H_sb = CoolingTNS.construct_system_bath_hamiltonian(
+                    ham_params, backend, sites_sb, zero_coupling
+                )
+
+                ψ_sys = MPS(sites_sys, product_labels)
+                interleaved_labels = [
+                    isodd(site) ? product_labels[(site + 1) ÷ 2] : "Up"
+                    for site in 1:(2 * test_N)
+                ]
+                ψ_sb = MPS(sites_sb, interleaved_labels)
+
+                E_sys = real(inner(ψ_sys', H_sys, ψ_sys))
+                E_sb = real(inner(ψ_sb', H_sb, ψ_sb))
+                @test E_sb ≈ E_sys atol=1e-10
+            end
         end
     end
     

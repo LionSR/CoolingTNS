@@ -303,6 +303,26 @@ using Random
         @test all(isfinite, results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP])
     end
 
+    @testset "Rydberg TN continuous setup" begin
+        backend = CoolingTNS.TNBackend()
+        test_ham_params = CoolingTNS.RydbergParameters(2, 1.0, 0.3, 0.2)
+        test_coupling_params = CoolingTNS.BasicCouplingParameters("XX", 0.1, 1, 0.2, 0.5)
+        sim_params = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.MonteCarloWavefunction(),
+            CoolingTNS.ContinuousEvolution();
+            Dmax=8, cutoff=1e-8, tau=0.1, pe=0.0, n_trajectories=1
+        )
+
+        problem_setup = CoolingTNS.setup_problem(
+            backend, test_ham_params, test_coupling_params, sim_params
+        )
+
+        @test problem_setup isa CoolingTNS.CoolingProblem
+        @test !isnothing(problem_setup.H_sys_bath)
+        @test haskey(problem_setup.extra, :sites)
+        @test length(problem_setup.extra.sites) == 2 * test_ham_params.N
+    end
+
     # Cross-backend cooling comparisons are covered in `test_correctness.jl`.
     # They are intentionally gated behind `ENV["COOLINGTNS_FULL_TESTS"]` since
     # Monte Carlo trajectories can be slow and inherently stochastic.
