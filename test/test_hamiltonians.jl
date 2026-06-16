@@ -160,6 +160,16 @@ using LinearAlgebra
 
             @test H ≈ expected atol=1e-12
             @test norm(H - commuting_field) > 1e-6
+
+            sites_xz = siteinds("S=1/2", 2)
+            H_tn = CoolingTNS.construct_system_bath_hamiltonian(
+                ham_params, CoolingTNS.TNBackend(), sites_xz, xz_coupling_params
+            )
+            ψ_up_up = MPS(sites_xz, ["Up", "Up"])
+            ψ_up_dn = MPS(sites_xz, ["Up", "Dn"])
+
+            @test inner(ψ_up_up', H_tn, ψ_up_dn) ≈ xz_coupling_params.delta / 2 atol=1e-12
+            @test inner(ψ_up_up', H_tn, ψ_up_up) ≈ 0.0 atol=1e-12
         end
     end
     
