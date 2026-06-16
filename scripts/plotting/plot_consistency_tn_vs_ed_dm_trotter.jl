@@ -61,7 +61,7 @@ res_ed = redirect_stdout(devnull) do
         run_cooling(prob_ed, state0_ed, cp, sim_ed, ham_params)
     end
 end
-E_ed = Float64.(res_ed["E_list"])
+E_ed = Float64.(res_ed[CoolingTNS.RESULT_ENERGY])
 E0 = Float64(prob_ed.e₀)
 
 # ----------------------------------------------------------------------------
@@ -84,7 +84,7 @@ res_tn = redirect_stdout(devnull) do
         run_cooling(prob_tn, state0_tn, cp, sim_tn, ham_params)
     end
 end
-E_tn = Float64.(res_tn["E_list"])
+E_tn = Float64.(res_tn[CoolingTNS.RESULT_ENERGY])
 
 ΔE = abs.(E_ed .- E_tn)
 

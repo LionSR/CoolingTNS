@@ -105,7 +105,7 @@ function _run_once(; t_mean::Float64, randomize_times::Bool)
     st = setup_initial_state(prob, sim_params, init_type, theta)
     res = _silence(() -> run_cooling(prob, st, cp, sim_params, ham_params))
 
-    E_ss = _mean_last(res["E_list"], window)
+    E_ss = _mean_last(res[CoolingTNS.RESULT_ENERGY], window)
     return relative_energy(Float64(E_ss), E0)
 end
 

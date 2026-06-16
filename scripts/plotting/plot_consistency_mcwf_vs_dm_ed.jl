@@ -60,7 +60,7 @@ res_dm = redirect_stdout(devnull) do
     end
 end
 
-E_dm = Float64.(res_dm["E_list"])
+E_dm = Float64.(res_dm[CoolingTNS.RESULT_ENERGY])
 E0 = Float64(prob_dm.e₀)
 
 # ----------------------------------------------------------------------------
@@ -81,7 +81,7 @@ for (j, seed) in enumerate(seed_list)
         end
     end
 
-    E_mc_mat[:, j] .= Float64.(res_mc["E_list"])
+    E_mc_mat[:, j] .= Float64.(res_mc[CoolingTNS.RESULT_ENERGY])
 end
 
 E_mc_mean = vec(mean(E_mc_mat; dims=2))

@@ -81,7 +81,7 @@ E0_over_N = prob_single.e₀ / N
 
 st_single = setup_initial_state(prob_single, sim_params, init_type, theta)
 res_single = run_cooling(prob_single, st_single, prob_single.extra.coupling_params, sim_params, ham_params)
-E_single = res_single["E_list"] ./ N
+E_single = res_single[CoolingTNS.RESULT_ENERGY] ./ N
 
 
 # -----------------------------------------------------------------------------
@@ -114,7 +114,7 @@ prob_multi = CoolingProblem(backend, prob_single.H_sys, nothing, prob_single.ϕ�
 
 st_multi = setup_initial_state(prob_multi, sim_params, init_type, theta)
 res_multi = run_cooling(prob_multi, st_multi, cp_multi, sim_params, ham_params)
-E_multi = res_multi["E_list"] ./ N
+E_multi = res_multi[CoolingTNS.RESULT_ENERGY] ./ N
 
 @printf("  single-Δ final E/N = %.6f\n", E_single[end])
 @printf("  multi-Δ  final E/N = %.6f   (R=%d, Δ∈[%.3f, %.3f])\n", E_multi[end], R, minimum(Δ_values), maximum(Δ_values))

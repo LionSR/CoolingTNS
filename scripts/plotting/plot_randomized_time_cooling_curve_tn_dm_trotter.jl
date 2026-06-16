@@ -112,7 +112,7 @@ for t̄ in t_values
         run_cooling(prob, st, cp, sim_params, ham_params)
     end
 
-    eend = _mean_last(res["E_list"], window_size) / N
+    eend = _mean_last(res[CoolingTNS.RESULT_ENERGY], window_size) / N
     push!(E_fixed_end, eend)
     @printf("scan t=%.3f  fixed mean-last(E/N)=%.6f\n", t̄, eend)
 end
@@ -133,7 +133,7 @@ st_fixed = setup_initial_state(prob_fixed, sim_params, init_type, theta)
 res_fixed = _silence() do
     run_cooling(prob_fixed, st_fixed, cp_fixed, sim_params, ham_params)
 end
-E_fixed = res_fixed["E_list"] ./ N
+E_fixed = res_fixed[CoolingTNS.RESULT_ENERGY] ./ N
 
 
 # -----------------------------------------------------------------------------
@@ -161,7 +161,7 @@ for (j, seed) in enumerate(seed_list)
         run_cooling(prob_rand, st_rand, cp_rand, sim_params, ham_params)
     end
 
-    E_rand[:, j] .= res_rand["E_list"] ./ N
+    E_rand[:, j] .= res_rand[CoolingTNS.RESULT_ENERGY] ./ N
 end
 
 E_rand_mean = vec(mean(E_rand; dims=2))

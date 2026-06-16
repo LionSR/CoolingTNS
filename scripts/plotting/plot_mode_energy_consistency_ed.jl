@@ -61,9 +61,9 @@ res = redirect_stdout(devnull) do
     end
 end
 
-E_direct = Float64.(res["E_list"])
-mode_hk = Float64.(res["mode_hk"])
-k_indices = res["mode_k_indices"]
+E_direct = Float64.(res[CoolingTNS.RESULT_ENERGY])
+mode_hk = Float64.(res[CoolingTNS.RESULT_MODE_HK])
+k_indices = res[CoolingTNS.RESULT_MODE_K_INDICES]
 
 # Mode reconstruction uses the same coefficients as in scripts/diagnostics/mode_cooling_diagnostic.jl
 θ = theta_from_Jh(J, h)

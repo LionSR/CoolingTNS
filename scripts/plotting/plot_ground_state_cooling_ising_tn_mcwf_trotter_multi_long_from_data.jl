@@ -23,7 +23,7 @@ infile = joinpath(
 data = read_h5_data(infile)
 data === nothing && error("Missing data file: $infile")
 
-E_list = Float64.(data["E_list"])
+E_list = Float64.(data[CoolingTNS.RESULT_ENERGY])
 rel_list = Float64.(data["rel_list"])
 E0 = Float64(_maybe_scalar(data["E0"]))
 N = Int(_maybe_scalar(data["N"]))
