@@ -72,6 +72,28 @@ number ``n_k``. This accepts either a scalar or an array.
 """
 mode_occupation_from_hk(hk) = (hk .+ 1) ./ 2
 
+const _ISING_FOURIER_SPIN_BCS = (:periodic, :antiperiodic)
+
+"""
+    supports_ising_fourier_observables(ham_params) -> Bool
+
+Return whether the package's Fourier-grid Ising observables are defined for
+`ham_params`.
+
+The current ``k``-space momentum and Bogoliubov-mode measurements use the
+translation-invariant transverse-field Ising construction in
+`Notes/NotesED/MapToSpin.tex`. They are therefore available for Ising
+Hamiltonians with even `N` and spin boundary condition `:periodic` or
+`:antiperiodic`. Open chains require open-boundary BdG modes, and
+nonintegrable Ising or Rydberg Hamiltonians do not use this free-fermion
+Fourier basis.
+"""
+supports_ising_fourier_observables(::Nothing) = false
+supports_ising_fourier_observables(::HamiltonianParameters) = false
+function supports_ising_fourier_observables(ham_params::HamiltonianParameters{IsingModel})
+    return iseven(ham_params.N) && ham_params.bc in _ISING_FOURIER_SPIN_BCS
+end
+
 """
     bath_detuning_energy(delta)
 

@@ -396,7 +396,7 @@ end
 function add_kspace_measurements!(measurements, problem::CoolingProblem{EDBackend}, steps)
     if haskey(problem.extra, :ham_params)
         ham_params = problem.extra.ham_params
-        if _supports_ising_fourier_observables(ham_params)
+        if supports_ising_fourier_observables(ham_params)
             N = ham_params.N
             measurements[RESULT_MOMENTUM_DISTRIBUTION] = zeros(Float64, steps + 1, N)
             measurements[RESULT_K_VALUES] = zeros(Float64, N)
@@ -404,37 +404,58 @@ function add_kspace_measurements!(measurements, problem::CoolingProblem{EDBacken
     end
 end
 
-function _mode_measurement_ham_params(problem::CoolingProblem, ham_params)
-    return ham_params !== nothing ? ham_params : (haskey(problem.extra, :ham_params) ? problem.extra.ham_params : nothing)
+function _measurement_ham_params(problem::CoolingProblem, ham_params)
+    ham_params !== nothing && return ham_params
+    return haskey(problem.extra, :ham_params) ? problem.extra.ham_params : nothing
 end
 
-function _add_ising_mode_measurements!(measurements, problem::CoolingProblem, ham_params)
-    hp = _mode_measurement_ham_params(problem, ham_params)
-    _supports_ising_fourier_observables(hp) || return nothing
+function _add_ising_mode_measurement_slots!(measurements, problem::CoolingProblem, ham_params)
+    supports_ising_fourier_observables(ham_params) || return false
 
-    # Determine gF from the ground state's parity sector.
-    # This ensures consistent mode measurement even for mixed states.
-    px = measure_state_parity(problem.ϕ₀, hp.N)
-    measurements[RESULT_MODE_GF] = _reference_fermionic_bc(hp.bc, px)
+    # The ground-state parity fixes the fermionic boundary condition used for
+    # density matrices, where the instantaneous parity expectation need not be
+    # close to one parity sector.
+    px = measure_state_parity(problem.ϕ₀, ham_params.N)
+    measurements[RESULT_MODE_GF] = _reference_fermionic_bc(ham_params.bc, px)
 
-    # Preallocate arrays after the first measurement call, when the mode count is known.
     measurements[RESULT_MODE_HK] = nothing
     measurements[RESULT_MODE_NK] = nothing
     measurements[RESULT_MODE_K_INDICES] = nothing
     measurements[RESULT_MODE_ENERGIES] = nothing
-    return nothing
+    return true
+end
+
+function _record_ising_mode_measurements!(measurements, step::Int, state, ham_params)
+    haskey(measurements, RESULT_MODE_HK) || return false
+    supports_ising_fourier_observables(ham_params) || return false
+
+    gF_kwarg = haskey(measurements, RESULT_MODE_GF) ? measurements[RESULT_MODE_GF] : nothing
+    k_indices, hk_values, εk_values = measure_all_mode_energies(state, ham_params; gF=gF_kwarg)
+    n_modes = length(k_indices)
+
+    if measurements[RESULT_MODE_HK] === nothing
+        n_steps_total = size(measurements[RESULT_ENERGY], 1)
+        measurements[RESULT_MODE_HK] = fill(NaN, n_steps_total, n_modes)
+        measurements[RESULT_MODE_NK] = fill(NaN, n_steps_total, n_modes)
+        measurements[RESULT_MODE_K_INDICES] = k_indices
+        measurements[RESULT_MODE_ENERGIES] = εk_values
+    end
+
+    measurements[RESULT_MODE_HK][step, :] .= hk_values
+    measurements[RESULT_MODE_NK][step, :] .= mode_occupation_from_hk(hk_values)
+    return true
 end
 
 # Helper for mode energy measurements ⟨h_k⟩ (Ising PBC/APBC)
 function add_mode_measurements!(measurements, problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend}, steps, ham_params)
-    _add_ising_mode_measurements!(measurements, problem, ham_params)
+    _add_ising_mode_measurement_slots!(measurements, problem, _measurement_ham_params(problem, ham_params))
 end
 
 function add_mode_measurements!(measurements, problem::CoolingProblem{TNBackend},
                                 state::QuantumState{TNBackend,MonteCarloWavefunction,E},
                                 steps, ham_params) where E<:EvolutionMethod
-    hp = _mode_measurement_ham_params(problem, ham_params)
-    if _supports_ising_fourier_observables(hp)
+    hp = _measurement_ham_params(problem, ham_params)
+    if supports_ising_fourier_observables(hp)
         @warn "TN cooling Fourier-mode measurements are disabled until TN Ising Hamiltonians honor periodic/APBC boundary conditions" issue=124
     end
     return nothing

@@ -8,13 +8,6 @@ Shared functions for ED backend cooling evolution to follow DRY principles.
 # Shared ED Backend Functions
 # ============================================================================
 
-function _supports_ising_fourier_observables(ham_params)
-    return ham_params !== nothing &&
-           iseven(ham_params.N) &&
-           ham_params.bc in [:periodic, :antiperiodic] &&
-           isa(ham_params.model, IsingModel)
-end
-
 function _reference_parity_sector(px::Real; atol=0.1, default::Int=1)
     @assert default == 1 || default == -1 "default must be +1 or -1"
     abs(px - 1) <= atol && return 1
@@ -265,7 +258,7 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
     end
     
     # K-space measurements for ED with periodic/antiperiodic even Ising chains.
-    if haskey(measurements, RESULT_MOMENTUM_DISTRIBUTION) && _supports_ising_fourier_observables(ham_params)
+    if haskey(measurements, RESULT_MOMENTUM_DISTRIBUTION) && supports_ising_fourier_observables(ham_params)
         gF = _momentum_measurement_gF!(measurements, sys_state, ϕ₀, ham_params)
         k_values, n_k = measure_momentum_distribution_ed_clean(sys_state, ham_params; gF=gF)
         if step == 1
@@ -275,30 +268,7 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
     end
 
     # Mode energy measurements ⟨h_k⟩ (requires measure_modes=true in run_cooling)
-    if haskey(measurements, RESULT_MODE_HK) && _supports_ising_fourier_observables(ham_params)
-        # Use the stored ground-state gF for consistent sector choice.
-        # For pure states, measure_all_mode_energies auto-detects gF from parity.
-        # For density matrices (mixed states), parity may not be ±1, so we use
-        # the gF determined from the ground state's parity sector.
-        gF_kwarg = if haskey(measurements, RESULT_MODE_GF)
-            measurements[RESULT_MODE_GF]
-        else
-            nothing
-        end
-
-        k_indices, hk_values, εk_values = measure_all_mode_energies(sys_state, ham_params; gF=gF_kwarg)
-        n_modes = length(k_indices)
-
-        # Allocate arrays on first call (now we know the number of modes)
-        if measurements[RESULT_MODE_HK] === nothing
-            n_steps_total = size(measurements[RESULT_ENERGY], 1)
-            measurements[RESULT_MODE_HK] = fill(NaN, n_steps_total, n_modes)
-            measurements[RESULT_MODE_NK] = fill(NaN, n_steps_total, n_modes)
-            measurements[RESULT_MODE_K_INDICES] = k_indices
-            measurements[RESULT_MODE_ENERGIES] = εk_values
-        end
-
-        measurements[RESULT_MODE_HK][step, :] .= hk_values
-        measurements[RESULT_MODE_NK][step, :] .= mode_occupation_from_hk(hk_values)
+    if haskey(measurements, RESULT_MODE_HK) && supports_ising_fourier_observables(ham_params)
+        _record_ising_mode_measurements!(measurements, step, sys_state, ham_params)
     end
 end

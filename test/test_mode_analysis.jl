@@ -201,6 +201,16 @@ end
         @test occursin("allowed_k_indices(N, gF)", source)
     end
 
+    @testset "Fourier observable support predicate" begin
+        @test supports_ising_fourier_observables(IsingParameters(4, 1.0, 0.5, :periodic))
+        @test supports_ising_fourier_observables(IsingParameters(4, 1.0, 0.5, :antiperiodic))
+        @test !supports_ising_fourier_observables(IsingParameters(3, 1.0, 0.5, :periodic))
+        @test !supports_ising_fourier_observables(IsingParameters(4, 1.0, 0.5, :open))
+        @test !supports_ising_fourier_observables(NiIsingParameters(4, 1.0, -1.05, 0.5, :periodic))
+        @test !supports_ising_fourier_observables(RydbergParameters(4, 1.0, 0.0, 1.0, :periodic))
+        @test !supports_ising_fourier_observables(nothing)
+    end
+
     @testset "H_notes from JW equals ED Hamiltonian (N=$N)" for N in [4, 6]
         J, h = 1.0, 0.5
         θ = theta_from_Jh(J, h)

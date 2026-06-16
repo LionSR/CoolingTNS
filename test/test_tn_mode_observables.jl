@@ -119,6 +119,22 @@ using ITensorMPS
         @test_throws ArgumentError measure_all_mode_energies(ψ_tn, ham_params; gF=1)
     end
 
+    @testset "MPS mode observables identify odd system sizes" begin
+        N = 3
+        ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
+        sites = siteinds("S=1/2", N)
+        ψ_tn = MPS(sites, "X+")
+
+        err = try
+            measure_hk(ψ_tn, 1//2, ham_params)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        @test occursin("even N", err.msg)
+    end
+
     @testset "MPO mode observables reject open spin boundaries" begin
         N = 4
         ham_params = IsingParameters(N, 1.0, 0.5, :open)
