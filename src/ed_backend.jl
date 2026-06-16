@@ -344,7 +344,7 @@ end
 # This enables efficient randomized-time protocols, where caching full evolution
 # operators `U(t)` for every distinct `t` would otherwise lead to unbounded
 # memory growth.
-const EVOLUTION_EIG_CACHE = Dict{UInt64, Tuple{Vector{Float64}, Matrix{Float64}}}()
+const EVOLUTION_EIG_CACHE = Dict{UInt64, Tuple{Vector{Float64}, Matrix{ComplexF64}}}()
 
 # Cache for selected time evolution operators exp(-iHt) (keyed by (hash(H), t)).
 # For randomized-time protocols `t` is typically unique at each step, so we cap
@@ -358,9 +358,10 @@ function _get_eigendecomp(H::AbstractMatrix)
         return EVOLUTION_EIG_CACHE[H_hash]
     end
 
-    F = eigen(Symmetric(Matrix(H)))
+    @assert ishermitian(H) "H must be Hermitian for eigendecomposition"
+    F = eigen(Hermitian(Matrix(H)))
     vals = Vector{Float64}(F.values)
-    vecs = Matrix{Float64}(F.vectors)
+    vecs = Matrix{ComplexF64}(F.vectors)
     EVOLUTION_EIG_CACHE[H_hash] = (vals, vecs)
     return EVOLUTION_EIG_CACHE[H_hash]
 end
@@ -663,105 +664,6 @@ function momentum_state_overlap_ed(ψ::EDStateVector, k::Float64, bc::Symbol)
     overlap = dot(k_state, ψ.data)
     
     return abs2(overlap)
-end
-
-# Cache for correlation operators a†_m a_n
-const CORRELATION_OP_CACHE = Dict{Tuple{Int, Int, Int}, SparseMatrixCSC}()
-
-"""
-    get_correlation_operator(m::Int, n::Int, N::Int) -> SparseMatrixCSC
-    
-Get the cached operator a†_m a_n for sites m and n in a system of N qubits.
-"""
-function get_correlation_operator(m::Int, n::Int, N::Int)
-    cache_key = (m, n, N)
-    if haskey(CORRELATION_OP_CACHE, cache_key)
-        return CORRELATION_OP_CACHE[cache_key]
-    end
-    
-    # Get Jordan-Wigner operators
-    a_n, _ = jordan_wigner_transform(n, N)
-    _, a_m_dag = jordan_wigner_transform(m, N)
-    
-    # a†_m a_n operator
-    op = a_m_dag * a_n
-    
-    CORRELATION_OP_CACHE[cache_key] = op
-    return op
-end
-
-"""
-    get_allowed_k_values(N::Int, bc::Symbol) -> Vector{Int}
-
-Get allowed k indices based on boundary conditions.
-"""
-function get_allowed_k_values(N::Int, bc::Symbol)
-    bc == :periodic && return collect(-div(N,2)+1:div(N,2))
-    bc == :antiperiodic && return collect(-div(N-1,2):div(N-1,2))
-    error("Momentum distribution only defined for periodic/antiperiodic BC")
-end
-
-"""
-    compute_real_space_correlations(state::EDStateVector, N::Int) -> Matrix{Float64}
-
-Compute real-space fermionic correlations ⟨a†_m a_n⟩ for a pure state.
-"""
-function compute_real_space_correlations(state::EDStateVector, N::Int)
-    correlations = zeros(Float64, N, N)
-    for m in 1:N, n in 1:N
-        a_n, _ = jordan_wigner_transform(n, N)
-        _, a_m_dag = jordan_wigner_transform(m, N)
-        correlations[m, n] = real(dot(state.data, a_m_dag * a_n * state.data))
-    end
-    return correlations
-end
-
-"""
-    compute_real_space_correlations(state::EDDensityMatrix, N::Int) -> Matrix{ComplexF64}
-
-Compute real-space fermionic correlations Tr(ρ a†_m a_n) for a density matrix.
-"""
-function compute_real_space_correlations(state::EDDensityMatrix, N::Int)
-    correlations = zeros(ComplexF64, N, N)
-    for m in 1:N, n in 1:N
-        a_n, _ = jordan_wigner_transform(n, N)
-        _, a_m_dag = jordan_wigner_transform(m, N)
-        correlations[m, n] = tr(state.data * a_m_dag * a_n)
-    end
-    return correlations
-end
-
-"""
-    fourier_transform_correlations(correlations::AbstractMatrix, k_values::Vector{Int}, N::Int) -> Vector{Float64}
-
-Fourier transform real-space correlations to momentum distribution.
-"""
-function fourier_transform_correlations(correlations::AbstractMatrix, k_values::Vector{Int}, N::Int)
-    n_k = zeros(Float64, length(k_values))
-    for (ki, k) in enumerate(k_values)
-        nk = 0.0 + 0.0im
-        for m in 1:N, n in 1:N
-            phase = exp(2π * im * k * (m - n) / N)
-            nk += phase * correlations[m, n] / N
-        end
-        n_k[ki] = real(nk)
-    end
-    return n_k
-end
-
-"""
-    measure_momentum_distribution_ed(state::Union{EDStateVector, EDDensityMatrix}, ham_params::HamiltonianParameters)
-
-Measure momentum distribution n_k = ⟨a†_k a_k⟩ for all allowed k values.
-Returns (k_values, n_k) where k_values are in units of 2π/N.
-"""
-function measure_momentum_distribution_ed(state::Union{EDStateVector, EDDensityMatrix}, ham_params::HamiltonianParameters)
-    N = ham_params.N
-    k_indices = get_allowed_k_values(N, ham_params.bc)
-    correlations = compute_real_space_correlations(state, N)
-    n_k = fourier_transform_correlations(correlations, k_indices, N)
-    k_momentum = [2π * k / N for k in k_indices]
-    return k_momentum, n_k
 end
 
 """
