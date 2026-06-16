@@ -152,9 +152,20 @@ function process_bath_ed_monte_carlo(state::EDStateVector, N_bath::Int)
     return ψ_sys, bath_outcomes
 end
 
+"""
+    _momentum_measurement_gF!(measurements, state, ϕ₀, ham_params) -> Int
+
+Return and cache the fermionic boundary sector used for ED momentum
+diagnostics. If the current system state has definite ``P_x`` parity, the
+momentum grid is fixed from that state on the first call. If the state has no
+unique parity sector, the grid falls back to the ground-state sector, matching
+the mode-diagnostic reference convention. Later calls reuse the cached grid so
+all cooling steps share the same momentum axis.
+"""
 function _momentum_measurement_gF!(measurements, state::Union{EDStateVector, EDDensityMatrix},
                                    ϕ₀::EDStateVector, ham_params)
     if haskey(measurements, "momentum_gF")
+        get!(measurements, "momentum_gF_source", "precomputed")
         return measurements["momentum_gF"]
     end
 
@@ -179,6 +190,13 @@ function _momentum_measurement_gF!(measurements, state::Union{EDStateVector, EDD
     return gF
 end
 
+"""
+    _system_state_for_measurement(state, N_sys)
+
+Return the ED system state used for system observables. System-only states are
+returned unchanged; an interleaved system-bath density matrix is reduced by
+tracing out the bath.
+"""
 _system_state_for_measurement(state::EDStateVector, ::Int) = state
 
 function _system_state_for_measurement(ρ::EDDensityMatrix, N_sys::Int)

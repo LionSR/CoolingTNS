@@ -420,6 +420,31 @@ end
         @test results_sb["momentum_dist"][1, :] ≈ nk_expected atol=1e-10
     end
 
+    @testset "Momentum grid helper fallback and cache source" begin
+        N = 4; J = 1.0; h = 0.5
+        ham_params = IsingParameters(N, J, h, :periodic)
+        H = _build_H(N, J, h, :periodic)
+
+        _, ψ_even = _find_gs_in_sector(H, N, 1)
+        _, ψ_odd = _find_gs_in_sector(H, N, -1)
+        ϕ₀ = EDStateVector(ψ_even, N)
+        odd_state = EDStateVector(ψ_odd, N)
+        ρ_mix = EDDensityMatrix(0.5 * ψ_even * ψ_even' + 0.5 * ψ_odd * ψ_odd', N)
+
+        measurements = Dict{String, Any}()
+        gF = CoolingTNS._momentum_measurement_gF!(measurements, ρ_mix, ϕ₀, ham_params)
+        @test gF == fermionic_bc(:periodic, 1)
+        @test measurements["momentum_gF_source"] == "ground_state"
+
+        @test CoolingTNS._momentum_measurement_gF!(measurements, odd_state, ϕ₀, ham_params) == gF
+        @test measurements["momentum_gF_source"] == "ground_state"
+
+        precomputed = Dict{String, Any}("momentum_gF" => fermionic_bc(:periodic, -1))
+        @test CoolingTNS._momentum_measurement_gF!(precomputed, ρ_mix, ϕ₀, ham_params) ==
+              fermionic_bc(:periodic, -1)
+        @test precomputed["momentum_gF_source"] == "precomputed"
+    end
+
     @testset "h_k range and symmetry (N=$N)" for N in [4, 6]
         J, h = 1.0, 0.5
         ham_params = IsingParameters(N, J, h, :periodic)
