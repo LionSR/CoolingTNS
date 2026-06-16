@@ -1,6 +1,7 @@
 using Test
 using CoolingTNS
 using Random
+using HDF5
 
 @testset "Cooling Interface Tests" begin
     # Test parameters
@@ -54,6 +55,34 @@ using Random
         @test CoolingTNS.RESULT_MODE_HK in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_MODE_NK in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_DELTA_LIST in CoolingTNS.RESULT_KEYS
+    end
+
+    @testset "Result save skips duplicate parsed-argument keys" begin
+        mktempdir() do dir
+            cd(dir) do
+                result = Dict{String,Any}(
+                    CoolingTNS.RESULT_ENERGY => [1.0, 0.5],
+                    CoolingTNS.RESULT_N_TRAJECTORIES => 3,
+                )
+                parsed_args = Dict{String,Any}(
+                    "n_trajectories" => 7,
+                    "steps" => 1,
+                )
+
+                CoolingTNS.save_results(
+                    "duplicate_metadata",
+                    result,
+                    -1.0,
+                    "TestHamiltonian",
+                    parsed_args,
+                )
+
+                h5open(joinpath("Results", "duplicate_metadata.h5"), "r") do file
+                    @test read(file[CoolingTNS.RESULT_N_TRAJECTORIES]) == 3
+                    @test read(file["steps"]) == 1
+                end
+            end
+        end
     end
 
     @testset "Command-line Rydberg Parameters" begin

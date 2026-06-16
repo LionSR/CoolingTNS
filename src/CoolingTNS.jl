@@ -5,6 +5,7 @@ using ITensors
 using ITensorMPS
 using Printf
 using SparseArrays
+using HDF5
 
 # For convenience, here we should just include all the files that are still being used
 
