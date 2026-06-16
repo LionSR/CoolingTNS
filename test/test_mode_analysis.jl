@@ -538,6 +538,21 @@ end
         @test_throws ArgumentError ising_energy_from_mode_hk(ks, reshape(hk_vac, :, 1), ham_params)
     end
 
+    @testset "ED k-space demo states canonical dispersion convention" begin
+        repo_root = normpath(joinpath(@__DIR__, ".."))
+        demo_text = read(joinpath(repo_root, "examples", "ed_kspace_demo.jl"), String)
+
+        @test occursin(
+            "ε_k = 2 sqrt(J^2 + h^2) sqrt(1 - sin(2θ) cos(2πk/N))",
+            demo_text,
+        )
+        @test occursin("θ = atan(h, J)", demo_text)
+        @test occursin("ε_k ≈ |δ|", demo_text)
+        @test !occursin("ε_k = √(1 + sin(2θ)cos(2πk/N))", demo_text)
+        @test !occursin("delta/π", demo_text)
+        @test !occursin("δ/π", demo_text)
+    end
+
     @testset "Antiperiodic BC spectrum (N=$N)" for N in [4, 6]
         J, h = 1.0, 0.5
         θ = theta_from_Jh(J, h)
