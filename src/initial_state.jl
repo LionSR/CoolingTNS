@@ -49,13 +49,14 @@ function _theta_product_mps(sites_sys::Vector{<:Index}, theta::Float64)
 
         for I in inds(ψ[i])
             if I != sites_sys[i]
-                T *= ITensor(1.0, I)
+                T *= ITensor(ComplexF64(1.0), I)
             end
         end
 
         ψ[i] = T
     end
 
+    orthogonalize!(ψ, 1)
     return ψ
 end
 
