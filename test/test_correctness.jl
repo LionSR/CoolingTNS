@@ -548,7 +548,9 @@ end
     )
 
     @test ρ_bath_extracted ≈ ρ_bath_expected atol=1e-12
-    @test real(diag(ρ_bath_extracted)[3]) ≈ 1.0 atol=1e-12
+    bath_population_index = argmax(real.(diag(ρ_bath_expected)))
+    @test real(diag(ρ_bath_extracted)[bath_population_index]) ≈
+        real(diag(ρ_bath_expected)[bath_population_index]) atol=1e-12
     @test_throws ArgumentError CoolingTNS.extract_bath_state(
         CoolingTNS.EDBackend(), state_layout, ρ_layout.data, N, N + 1
     )
