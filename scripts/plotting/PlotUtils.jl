@@ -149,4 +149,4 @@ end
 Backward-compatible helper returning `(e₀, E_list, GS_overlap_list, Edensity_final)`.
 """
 safe_read_data(filename::AbstractString) =
-    safe_read_keys(filename, "e₀", "E_list", "GS_overlap_list", "Edensity_final")
+    safe_read_keys(filename, "e₀", RESULT_ENERGY, RESULT_GROUND_STATE_OVERLAP, "Edensity_final")

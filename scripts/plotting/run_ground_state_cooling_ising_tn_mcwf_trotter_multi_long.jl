@@ -87,7 +87,7 @@ prob_multi = CoolingProblem(backend, prob_ref.H_sys, nothing, prob_ref.ϕ₀, pr
 st_multi = setup_initial_state(prob_multi, sim_params, init_type, theta)
 res_multi = run_cooling(prob_multi, st_multi, cp_multi, sim_params, ham_params)
 
-E_list = Float64.(res_multi["E_list"])
+E_list = Float64.(res_multi[RESULT_ENERGY])
 rel_list = relative_energy.(E_list, Ref(E0))
 
 E_ss = mean_last_window(E_list, window)
@@ -111,7 +111,7 @@ outfile = joinpath(
 
 h5open(outfile, "w") do f
     # primary curves
-    write(f, "E_list", E_list)
+    write(f, RESULT_ENERGY, E_list)
     write(f, "rel_list", rel_list)
 
     # metadata
@@ -127,15 +127,15 @@ h5open(outfile, "w") do f
     write(f, "tau", sim_params.tau)
     write(f, "R", R)
     write(f, "Δ_gap", Float64(Δ_gap))
-    write(f, "Δ_values", Float64.(Δ_values))
+    write(f, RESULT_DELTA_VALUES, Float64.(Δ_values))
     write(f, "schedule", String(schedule))
     write(f, "randomize_times", randomize_times)
 
-    if haskey(res_multi, "delta_list")
-        write(f, "delta_list", Float64.(res_multi["delta_list"]))
+    if haskey(res_multi, RESULT_DELTA_LIST)
+        write(f, RESULT_DELTA_LIST, Float64.(res_multi[RESULT_DELTA_LIST]))
     end
-    if haskey(res_multi, "te_list")
-        write(f, "te_list", Float64.(res_multi["te_list"]))
+    if haskey(res_multi, RESULT_TE_LIST)
+        write(f, RESULT_TE_LIST, Float64.(res_multi[RESULT_TE_LIST]))
     end
 end
 
