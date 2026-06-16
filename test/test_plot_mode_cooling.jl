@@ -110,5 +110,71 @@ include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
     @test mark_bath_detuning_energy!(dummy_ax, 0.0) === nothing
     @test length(detuning_calls) == 1
 
+    mode_energies = [0.5, 1.5, 1.5, 3.0]
+    @test nearest_bath_resonance_indices(mode_energies, 1.5) == [2, 3]
+    @test nearest_bath_resonance_indices(mode_energies, -1.45) == [2, 3]
+    @test nearest_bath_resonance_indices(mode_energies, nothing) == Int[]
+    @test nearest_bath_resonance_indices(Float64[], 1.0) == Int[]
+
+    plot_k_values = [0.0, pi / 3, 2pi / 3, pi]
+    stored_energy_data = Dict{String, Any}(
+        RESULT_MODE_ENERGIES => mode_energies,
+        "J" => 10.0,
+        "h" => 20.0,
+    )
+    @test momentum_plot_mode_energies(stored_energy_data, plot_k_values) == mode_energies
+
+    J, h = 1.0, 0.5
+    fallback_data = Dict{String, Any}("J" => [J], "h" => h)
+    @test momentum_plot_mode_energies(fallback_data, plot_k_values) ≈
+          compute_energy_dispersion(plot_k_values, J, h)
+
+    bad_energy_data = Dict{String, Any}(RESULT_MODE_ENERGIES => mode_energies[1:3])
+    @test_logs (:warn, r"Skipping stored mode energies") begin
+        @test momentum_plot_mode_energies(bad_energy_data, plot_k_values) === nothing
+    end
+
+    resonance_calls = Any[]
+    dummy_momentum_ax = (
+        axvline=(; x, color, linestyle, linewidth, alpha, label) -> begin
+            push!(
+                resonance_calls,
+                (x=x, color=color, linestyle=linestyle, linewidth=linewidth, alpha=alpha, label=label),
+            )
+            return :vline
+        end,
+    )
+    handles = mark_bath_resonance_momentum!(
+        dummy_momentum_ax,
+        plot_k_values,
+        mode_energies,
+        1.5;
+        momentum_scale=pi,
+    )
+    @test handles == [:vline, :vline]
+    @test [call.x for call in resonance_calls] == [1 / 3, 2 / 3]
+    @test resonance_calls[1].label == "nearest epsilon_k ~= |delta|"
+    @test resonance_calls[2].label == "_nolegend_"
+
+    resonance_from_data_calls = Any[]
+    dummy_data_ax = (
+        axvline=(; x, color, linestyle, linewidth, alpha, label) -> begin
+            push!(resonance_from_data_calls, x)
+            return :data_vline
+        end,
+    )
+    data_handles = mark_bath_resonance_from_data!(
+        dummy_data_ax,
+        Dict{String, Any}(
+            "delta" => 1.5,
+            RESULT_MODE_ENERGIES => mode_energies,
+        ),
+        plot_k_values;
+        momentum_scale=pi,
+    )
+    @test data_handles == [:data_vline, :data_vline]
+    @test resonance_from_data_calls == [1 / 3, 2 / 3]
+    @test mark_bath_resonance_from_data!(dummy_data_ax, Dict{String, Any}(), plot_k_values) === nothing
+
     @test_throws ErrorException _mode_occupation_from_plot_data(Dict{String, Any}())
 end

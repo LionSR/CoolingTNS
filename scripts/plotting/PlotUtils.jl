@@ -16,7 +16,8 @@ using CoolingTNS:
     compute_energy_dispersion,
     compute_ground_state_occupation,
     RESULT_MOMENTUM_DISTRIBUTION,
-    RESULT_K_VALUES
+    RESULT_K_VALUES,
+    RESULT_MODE_ENERGIES
 
 # Lazy pyplot access - imported once per session
 const _pyplot = Ref{Py}()
@@ -135,12 +136,13 @@ function mark_bath_detuning_energy!(
     label="|delta|",
     alpha=0.7,
 )
-    if delta === nothing || delta == 0
+    delta_energy = _bath_detuning_energy(delta)
+    if delta_energy === nothing
         return nothing
     end
 
     return ax.axhline(
-        y=abs(Float64(delta)),
+        y=delta_energy,
         color=color,
         linestyle=linestyle,
         linewidth=linewidth,
@@ -156,6 +158,128 @@ If `x` is a 0-d or length-1 array (a common HDF5 scalar encoding), return its on
 entry. Otherwise return `x` unchanged.
 """
 _maybe_scalar(x) = (x isa AbstractArray && length(x) == 1) ? only(x) : x
+
+function _bath_detuning_energy(delta)
+    value = _maybe_scalar(delta)
+    if value === nothing || value == 0
+        return nothing
+    end
+    value isa Number || return nothing
+    return abs(Float64(value))
+end
+
+function _scalar_float_from_data(data::AbstractDict, key::AbstractString)
+    haskey(data, key) || return nothing
+    value = _maybe_scalar(data[key])
+    value isa Number || return nothing
+    return Float64(value)
+end
+
+"""
+    nearest_bath_resonance_indices(mode_energies, delta; atol=1e-12)
+
+Return every mode index whose quasiparticle energy is closest to the bath
+detuning energy `|delta|`.
+"""
+function nearest_bath_resonance_indices(mode_energies, delta; atol=1e-12)
+    delta_energy = _bath_detuning_energy(delta)
+    delta_energy === nothing && return Int[]
+    isempty(mode_energies) && return Int[]
+
+    distances = abs.(Float64.(mode_energies) .- delta_energy)
+    dmin = minimum(distances)
+    return findall(d -> isapprox(d, dmin; atol=atol, rtol=sqrt(eps(Float64))), distances)
+end
+
+"""
+    momentum_plot_mode_energies(data, k_values)
+
+Return the mode energies associated with a momentum plot.
+
+Stored `RESULT_MODE_ENERGIES` are preferred, since they are the energies saved
+with the simulation. If they are absent, the helper falls back to the canonical
+Ising dispersion when scalar `J` and `h` metadata are available. If neither
+source is available, it returns `nothing` rather than inventing a resonance
+coordinate.
+"""
+function momentum_plot_mode_energies(data::AbstractDict, k_values)
+    if haskey(data, RESULT_MODE_ENERGIES)
+        mode_energies = vec(Float64.(data[RESULT_MODE_ENERGIES]))
+        if length(mode_energies) == length(k_values)
+            return mode_energies
+        end
+        @warn "Skipping stored mode energies whose length does not match k_values" *
+              " (got $(length(mode_energies)), expected $(length(k_values)))." *
+              " Falling back to J,h if available."
+    end
+
+    J = _scalar_float_from_data(data, "J")
+    h = _scalar_float_from_data(data, "h")
+    if J !== nothing && h !== nothing
+        return compute_energy_dispersion(k_values, J, h)
+    end
+
+    return nothing
+end
+
+"""
+    mark_bath_resonance_momentum!(ax, k_values, mode_energies, delta; kwargs...)
+
+Mark resonant momenta on a momentum-axis plot. The marker positions are computed
+from the resonance condition `epsilon_k ~= |delta|`; the bath detuning itself is
+not treated as a momentum coordinate.
+"""
+function mark_bath_resonance_momentum!(
+    ax,
+    k_values,
+    mode_energies,
+    delta;
+    momentum_scale=pi,
+    color="red",
+    linestyle=":",
+    linewidth=2,
+    alpha=0.7,
+    label="nearest epsilon_k ~= |delta|",
+)
+    indices = nearest_bath_resonance_indices(mode_energies, delta)
+    isempty(indices) && return nothing
+
+    handles = Any[]
+    for (j, idx) in enumerate(indices)
+        push!(
+            handles,
+            ax.axvline(
+                x=k_values[idx] / momentum_scale,
+                color=color,
+                linestyle=linestyle,
+                linewidth=linewidth,
+                alpha=alpha,
+                label=(j == 1 ? label : "_nolegend_"),
+            ),
+        )
+    end
+    return handles
+end
+
+function mark_bath_resonance_from_data!(ax, data::AbstractDict, k_values; momentum_scale=1)
+    if !haskey(data, "delta") || _bath_detuning_energy(data["delta"]) === nothing
+        return nothing
+    end
+
+    mode_energies = momentum_plot_mode_energies(data, k_values)
+    if mode_energies === nothing
+        @warn "Cannot mark bath resonance in momentum plot without mode energies or Ising parameters J,h."
+        return nothing
+    end
+
+    return mark_bath_resonance_momentum!(
+        ax,
+        k_values,
+        mode_energies,
+        data["delta"];
+        momentum_scale=momentum_scale,
+    )
+end
 
 """
     _normalize_momentum_distribution_by_step(momentum_dist, k_values)
