@@ -8,6 +8,11 @@ Shared functions for ED backend cooling evolution to follow DRY principles.
 # Shared ED Backend Functions
 # ============================================================================
 
+function _ground_state_reference_gF(problem::CoolingProblem, ham_params)
+    px = measure_state_parity(problem.ϕ₀, ham_params.N)
+    return reference_fermionic_bc(ham_params.bc, px; label="ground-state reference")
+end
+
 """
     get_bath_ground_state_ed(N_bath::Int, coupling::String) -> EDStateVector
 
@@ -217,9 +222,21 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
     
     # K-space measurements for ED with periodic/antiperiodic BC (only for Ising model)
     if haskey(measurements, RESULT_MOMENTUM_DISTRIBUTION) && supports_ising_fourier_observables(ham_params)
+        # Store a time series on one fixed fermionic grid.  The reference grid is
+        # the ground-state parity sector, matching the mode-measurement convention.
+        gF = if haskey(measurements, RESULT_MODE_GF)
+            measurements[RESULT_MODE_GF]
+        else
+            reference_fermionic_bc(
+                ham_params.bc,
+                measure_state_parity(ϕ₀, ham_params.N);
+                label="ground-state reference",
+            )
+        end
+
         if isa(state, EDStateVector)
             # For pure states
-            k_values, n_k = measure_momentum_distribution_ed(state, ham_params)
+            k_values, n_k = measure_momentum_distribution_ed(state, ham_params; gF=gF)
             if step == 1
                 measurements[RESULT_K_VALUES][:] = k_values
             end
@@ -233,7 +250,7 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
             end
             
             # Measure momentum distribution from density matrix
-            k_values, n_k = measure_momentum_distribution_ed(ρ_sys, ham_params)
+            k_values, n_k = measure_momentum_distribution_ed(ρ_sys, ham_params; gF=gF)
             if step == 1
                 measurements[RESULT_K_VALUES][:] = k_values
             end

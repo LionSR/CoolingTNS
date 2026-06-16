@@ -18,8 +18,8 @@ function plot_dispersion_with_ground_state(N::Int, J::Real, h::Real, bc::Symbol;
 
     k_values = generate_k_values(N, bc)
     k_sorted = sort(k_values)
-    e_k = compute_energy_dispersion(k_sorted, J, h)
-    n_k_gs = compute_ground_state_occupation(k_sorted, J, h)
+    e_k = compute_energy_dispersion(k_sorted, J, h; N=N)
+    n_k_gs = compute_ground_state_occupation(k_sorted, J, h; N=N)
 
     fig, ax1 = plt.subplots(figsize=(10, 6))
     ax2 = ax1.twinx()
@@ -34,9 +34,7 @@ function plot_dispersion_with_ground_state(N::Int, J::Real, h::Real, bc::Symbol;
     ax2.tick_params(axis="y", labelcolor="g")
     ax2.set_ylim(-0.1, 1.1)
 
-    if delta !== nothing && delta != 0
-        ax1.axvline(x=delta/pi, color="red", linestyle="--", linewidth=2, label="delta/pi", alpha=0.7)
-    end
+    mark_bath_detuning_energy!(ax1, delta; reference_energies=e_k, linewidth=2)
 
     ax1.set_title("Energy Dispersion and Ground State Occupation\n(N=$N, J=$J, h=$h, BC=$bc)", fontsize=16)
     ax1.grid(true, alpha=0.3)

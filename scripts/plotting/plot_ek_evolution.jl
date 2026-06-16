@@ -19,29 +19,24 @@ function plot_ek_evolution(filename; steps_to_plot=nothing, save_fig=true)
     data = read_h5_data(filename)
     data === nothing && return
 
-    if !haskey(data, "momentum_dist") || !haskey(data, "k_values")
+    if !haskey(data, RESULT_MOMENTUM_DISTRIBUTION) || !haskey(data, RESULT_K_VALUES)
         @warn "No k-space data found in file $filename"
         return
     end
 
-    momentum_dist = data["momentum_dist"]
-    k_values = data["k_values"]
-    N = data["N"]
-    J = get(data, "J", 1.0)
-    h = get(data, "h", 1.0)
-    bc = Symbol(get(data, "bc", "open"))
-
-    # Handle both possible orientations of momentum_dist
-    if size(momentum_dist, 1) == length(k_values)
-        total_steps = size(momentum_dist, 2)
-    else
-        momentum_dist = transpose(momentum_dist)
-        total_steps = size(momentum_dist, 2)
-    end
+    plot_data = kspace_evolution_plot_data(data)
+    momentum_dist = plot_data.momentum_dist
+    k_values = plot_data.k_values
+    N = plot_data.N
+    J = plot_data.J
+    h = plot_data.h
+    bc = plot_data.bc
+    mode_gF = plot_data.mode_gF
+    total_steps = plot_data.total_steps
 
     step_indices = select_evolution_steps(total_steps; steps_to_plot=steps_to_plot)
-    epsilon_k = compute_energy_dispersion(k_values, J, h)
-    n_k_gs = compute_ground_state_occupation(k_values, J, h)
+    epsilon_k = compute_energy_dispersion(k_values, J, h; N=N)
+    n_k_gs = compute_ground_state_occupation(k_values, J, h; N=N, spin_bc=bc, gF=mode_gF)
     e_k_gs = epsilon_k .* n_k_gs
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -49,7 +44,7 @@ function plot_ek_evolution(filename; steps_to_plot=nothing, save_fig=true)
 
     for (idx, step_idx) in enumerate(step_indices)
         if step_idx <= total_steps
-            e_k = epsilon_k .* momentum_dist[:, step_idx]
+            e_k = epsilon_k .* momentum_dist[step_idx, :]
             label = step_idx == 1 ? "Initial" : "Step $(step_idx-1)"
             ax.plot(k_values/pi, e_k, "o-",
                    color=colors[idx], linewidth=2, markersize=6, label=label)

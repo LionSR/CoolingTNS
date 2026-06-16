@@ -10,8 +10,17 @@ using HDF5
 using PythonCall
 using LaTeXStrings
 
-# Re-export dispersion functions from CoolingTNS for convenience
-using CoolingTNS: generate_k_values, compute_energy_dispersion, compute_ground_state_occupation
+# Import shared dispersion functions and result-key constants from CoolingTNS.
+using CoolingTNS:
+    generate_k_values,
+    compute_energy_dispersion,
+    compute_ground_state_occupation,
+    mode_energy_Jh,
+    RESULT_MOMENTUM_DISTRIBUTION,
+    RESULT_K_VALUES,
+    RESULT_MODE_GF,
+    RESULT_MODE_K_INDICES,
+    RESULT_MODE_ENERGIES
 
 # Lazy pyplot access - imported once per session
 const _pyplot = Ref{Py}()
@@ -113,12 +122,278 @@ function get_evolution_colors(plt, n_steps::Int)
 end
 
 """
+    mark_bath_detuning_energy!(ax, delta; reference_energies=nothing, kwargs...)
+
+Mark a bath detuning on an energy axis.
+
+In a dispersion plot, `delta` is an energy/frequency, not a momentum.  The
+resonant modes are therefore the intersections of `epsilon_k` with the
+horizontal line at the detuning energy. When `reference_energies` are supplied,
+the marker uses the sign convention of the plotted dispersion.
+"""
+function mark_bath_detuning_energy!(
+    ax,
+    delta;
+    reference_energies=nothing,
+    color="red",
+    linestyle="--",
+    linewidth=2,
+    label="signed |delta|",
+    alpha=0.7,
+)
+    delta_energy = _bath_detuning_energy(delta; reference_energies=reference_energies)
+    if delta_energy === nothing
+        return nothing
+    end
+
+    return ax.axhline(
+        y=delta_energy,
+        color=color,
+        linestyle=linestyle,
+        linewidth=linewidth,
+        label=label,
+        alpha=alpha,
+    )
+end
+
+"""
     _maybe_scalar(x)
 
 If `x` is a 0-d or length-1 array (a common HDF5 scalar encoding), return its only
 entry. Otherwise return `x` unchanged.
 """
 _maybe_scalar(x) = (x isa AbstractArray && length(x) == 1) ? only(x) : x
+
+function _bath_detuning_energy(delta; reference_energies=nothing)
+    value = _maybe_scalar(delta)
+    if value === nothing || value == 0
+        return nothing
+    end
+    value isa Number || return nothing
+    magnitude = abs(Float64(value))
+    reference_energies === nothing && return magnitude
+
+    energies = filter(isfinite, Float64.(vec(reference_energies)))
+    isempty(energies) && return magnitude
+
+    distance_to_positive = minimum(abs.(energies .- magnitude))
+    distance_to_negative = minimum(abs.(energies .+ magnitude))
+    return distance_to_negative < distance_to_positive ? -magnitude : magnitude
+end
+
+function _scalar_float_from_data(data::AbstractDict, key::AbstractString)
+    haskey(data, key) || return nothing
+    value = _maybe_scalar(data[key])
+    value isa Number || return nothing
+    return Float64(value)
+end
+
+"""
+    nearest_bath_resonance_indices(mode_energies, delta; atol=1e-12)
+
+Return every mode index whose quasiparticle energy is closest to the bath
+detuning energy in the sign convention of `mode_energies`.
+"""
+function nearest_bath_resonance_indices(mode_energies, delta; atol=1e-12)
+    isempty(mode_energies) && return Int[]
+    delta_energy = _bath_detuning_energy(delta; reference_energies=mode_energies)
+    delta_energy === nothing && return Int[]
+
+    distances = abs.(Float64.(mode_energies) .- delta_energy)
+    dmin = minimum(distances)
+    return findall(d -> isapprox(d, dmin; atol=atol, rtol=sqrt(eps(Float64))), distances)
+end
+
+function _scalar_int_from_data(data::AbstractDict, key::AbstractString, default=nothing)
+    haskey(data, key) || return default
+    value = _maybe_scalar(data[key])
+    value isa Number || return default
+    return Int(value)
+end
+
+function _mode_momenta_from_indices(mode_k_indices, N::Int)
+    return [2π * Float64(k) / N for k in vec(mode_k_indices)]
+end
+
+function _mode_energies_from_momenta(k_values, J::Real, h::Real, N::Int)
+    return [mode_energy_Jh(Float64(k) * N / 2π, J, h, N) for k in vec(k_values)]
+end
+
+"""
+    momentum_plot_resonance_data(data, k_values)
+
+Return `(momenta, energies)` for bath-resonance markers on a momentum plot.
+
+Stored mode energies are used only together with their stored mode grid. If
+mode data are absent, the helper falls back to the positive Ising quasiparticle
+energies computed from scalar `J,h,N` metadata on the plotted momentum grid.
+"""
+function momentum_plot_resonance_data(data::AbstractDict, k_values)
+    N = _scalar_int_from_data(data, "N", length(k_values))
+
+    if haskey(data, RESULT_MODE_ENERGIES)
+        mode_energies = vec(Float64.(data[RESULT_MODE_ENERGIES]))
+        if haskey(data, RESULT_MODE_K_INDICES)
+            mode_k_indices = vec(data[RESULT_MODE_K_INDICES])
+            if length(mode_energies) == length(mode_k_indices)
+                return (
+                    momenta=_mode_momenta_from_indices(mode_k_indices, N),
+                    energies=mode_energies,
+                )
+            end
+            @warn "Skipping stored mode energies whose length does not match stored mode k-indices" *
+                  " (got $(length(mode_energies)) energies and $(length(mode_k_indices)) k-indices)." *
+                  " Falling back to J,h if available."
+        else
+            @warn "Skipping stored mode energies without stored mode k-indices. Falling back to J,h if available."
+        end
+    end
+
+    J = _scalar_float_from_data(data, "J")
+    h = _scalar_float_from_data(data, "h")
+    if J !== nothing && h !== nothing
+        return (
+            momenta=Float64.(vec(k_values)),
+            energies=_mode_energies_from_momenta(k_values, J, h, N),
+        )
+    end
+
+    return nothing
+end
+
+"""
+    mark_bath_resonance_momentum!(ax, k_values, mode_energies, delta; kwargs...)
+
+Mark resonant momenta on a momentum-axis plot. The marker positions are computed
+from the resonance condition `epsilon_k ~= |delta|`; the bath detuning itself is
+not treated as a momentum coordinate.
+"""
+function mark_bath_resonance_momentum!(
+    ax,
+    k_values,
+    mode_energies,
+    delta;
+    momentum_scale=pi,
+    color="red",
+    linestyle=":",
+    linewidth=2,
+    alpha=0.7,
+    label="nearest epsilon_k ~= |delta|",
+)
+    indices = nearest_bath_resonance_indices(mode_energies, delta)
+    isempty(indices) && return nothing
+
+    handles = Any[]
+    for (j, idx) in enumerate(indices)
+        push!(
+            handles,
+            ax.axvline(
+                x=k_values[idx] / momentum_scale,
+                color=color,
+                linestyle=linestyle,
+                linewidth=linewidth,
+                alpha=alpha,
+                label=(j == 1 ? label : "_nolegend_"),
+            ),
+        )
+    end
+    return handles
+end
+
+function mark_bath_resonance_from_data!(ax, data::AbstractDict, k_values; momentum_scale=1)
+    if !haskey(data, "delta") || _bath_detuning_energy(data["delta"]) === nothing
+        return nothing
+    end
+
+    resonance_data = momentum_plot_resonance_data(data, k_values)
+    if resonance_data === nothing
+        @warn "Cannot mark bath resonance in momentum plot without mode energies or Ising parameters J,h."
+        return nothing
+    end
+
+    return mark_bath_resonance_momentum!(
+        ax,
+        resonance_data.momenta,
+        resonance_data.energies,
+        data["delta"];
+        momentum_scale=momentum_scale,
+    )
+end
+
+"""
+    _normalize_momentum_distribution_by_step(momentum_dist, k_values)
+
+Return the momentum distribution in the canonical plotting orientation
+`(cooling step, momentum mode)`.
+
+Current result files write `RESULT_MOMENTUM_DISTRIBUTION` with one row per
+cooling step and one column per momentum mode.  Some older plotting scripts also
+accepted the transpose; that legacy orientation is still accepted here.  If both
+axes have length `length(k_values)`, the canonical result-file orientation is
+preferred.
+"""
+function _normalize_momentum_distribution_by_step(momentum_dist, k_values)
+    matrix = Float64.(momentum_dist)
+    ndims(matrix) == 2 || throw(ArgumentError("Expected a matrix for $RESULT_MOMENTUM_DISTRIBUTION"))
+
+    n_modes = length(k_values)
+    if size(matrix, 2) == n_modes
+        return matrix
+    elseif size(matrix, 1) == n_modes
+        return permutedims(matrix)
+    end
+
+    throw(
+        DimensionMismatch(
+            "$RESULT_MOMENTUM_DISTRIBUTION has size $(size(matrix)), " *
+            "but $RESULT_K_VALUES has length $n_modes",
+        ),
+    )
+end
+
+"""
+    kspace_evolution_plot_data(data)
+
+Extract k-space evolution data from an HDF5 data dictionary using the canonical
+result-key constants.  The returned `momentum_dist` has shape `(steps, modes)`.
+"""
+function kspace_evolution_plot_data(data::AbstractDict)
+    if !haskey(data, RESULT_MOMENTUM_DISTRIBUTION) || !haskey(data, RESULT_K_VALUES)
+        error("Expected HDF5 datasets \"$RESULT_MOMENTUM_DISTRIBUTION\" and \"$RESULT_K_VALUES\"")
+    end
+
+    k_values = vec(Float64.(data[RESULT_K_VALUES]))
+    momentum_dist = _normalize_momentum_distribution_by_step(
+        data[RESULT_MOMENTUM_DISTRIBUTION],
+        k_values,
+    )
+
+    bc = _spin_bc_from_kspace_data(data)
+    mode_gF = _scalar_int_from_data(data, RESULT_MODE_GF, nothing)
+    if !(bc in (:periodic, :antiperiodic))
+        mode_gF = nothing
+    end
+
+    return (
+        momentum_dist=momentum_dist,
+        k_values=k_values,
+        total_steps=size(momentum_dist, 1),
+        N=Int(_maybe_scalar(get(data, "N", length(k_values)))),
+        J=Float64(_maybe_scalar(get(data, "J", 1.0))),
+        h=Float64(_maybe_scalar(get(data, "h", 1.0))),
+        bc=bc,
+        mode_gF=mode_gF,
+    )
+end
+
+function _spin_bc_from_kspace_data(data::AbstractDict)
+    if haskey(data, "bc")
+        return Symbol(string(_maybe_scalar(data["bc"])))
+    elseif haskey(data, "ham_params_bc")
+        return Symbol(string(_maybe_scalar(data["ham_params_bc"])))
+    end
+    return :open
+end
 
 """
     safe_read_keys(filename, keys...) -> Tuple

@@ -455,8 +455,9 @@ end
 
 Plot the momentum distribution n_k vs k at a subset of cooling steps.
 
-If the file contains a scalar `delta`, it is drawn as a horizontal line on a
-secondary y-axis (to indicate the resonant bath frequency).
+If the file contains a scalar `delta`, resonant momenta are marked only when
+the corresponding mode energies are known, either from stored mode energies or
+from the Ising parameters `J,h`.
 """
 function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true, show_fig=false)
     plt = get_pyplot()
@@ -469,9 +470,10 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
         return
     end
 
-    momentum_dist = data[RESULT_MOMENTUM_DISTRIBUTION]
-    k_values = data[RESULT_K_VALUES]
-    total_steps = size(momentum_dist, 1)
+    plot_data = kspace_evolution_plot_data(data)
+    momentum_dist = plot_data.momentum_dist
+    k_values = plot_data.k_values
+    total_steps = plot_data.total_steps
     step_indices = select_evolution_steps(total_steps; steps_to_plot=steps_to_plot)
 
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -485,12 +487,7 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
         end
     end
 
-    if haskey(data, "delta") && data["delta"] !== nothing
-        ax2 = ax.twinx()
-        ax2.axhline(y=data["delta"], color="red", linestyle="--", alpha=0.7, label="Bath freq delta")
-        ax2.set_ylabel("Energy", color="red")
-        ax2.tick_params(axis="y", labelcolor="red")
-    end
+    mark_bath_resonance_from_data!(ax, data, k_values; momentum_scale=1)
 
     ax.set_xlabel(L"Momentum $k$")
     ax.set_ylabel(L"Occupation $n_k$")
@@ -524,9 +521,10 @@ function plot_momentum_distribution_heatmap(filename; save_fig=true, show_fig=fa
         return
     end
 
-    momentum_dist = data[RESULT_MOMENTUM_DISTRIBUTION]
-    k_values = data[RESULT_K_VALUES]
-    total_steps = size(momentum_dist, 1)
+    plot_data = kspace_evolution_plot_data(data)
+    momentum_dist = plot_data.momentum_dist
+    k_values = plot_data.k_values
+    total_steps = plot_data.total_steps
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
