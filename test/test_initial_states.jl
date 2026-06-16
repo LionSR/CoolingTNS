@@ -87,13 +87,31 @@ using LinearAlgebra
         end
     end
 
+    @testset "Theta Angle Conversion" begin
+        anchors = [
+            (-0.5, 0.0),
+            (0.0, pi / 4),
+            (0.5, pi / 2),
+        ]
+
+        for (theta_code, alpha) in anchors
+            @test CoolingTNS.initial_product_angle(theta_code) ≈ alpha atol=1e-15
+            @test CoolingTNS.theta_code_from_initial_product_angle(alpha) ≈ theta_code atol=1e-15
+        end
+
+        for alpha in [0.0, pi / 6, pi / 4, pi / 3, pi / 2]
+            theta_code = CoolingTNS.theta_code_from_initial_product_angle(alpha)
+            @test CoolingTNS.initial_product_angle(theta_code) ≈ alpha atol=1e-15
+        end
+    end
+
     @testset "Theta Product Convention" begin
         test_N = 3
         θ_values = [-0.5, 0.0, 0.25, 0.5]
         sites = siteinds("S=1/2", test_N)
 
         for θ in θ_values
-            amp0, amp1 = CoolingTNS._theta_site_amplitudes(θ)
+            amp0, amp1 = CoolingTNS.theta_site_amplitudes(θ)
             expected_z = amp0^2 - amp1^2
             expected_x = 2 * amp0 * amp1
 

@@ -16,6 +16,10 @@ using LinearAlgebra
     setup_initial_state(problem::CoolingProblem, sim_params::UnifiedSimulationParameters, init_type::String, theta::Float64)
 
 Direct dispatch implementation for initial state setup.
+
+For `init_type == "theta"`, `theta` is the dimensionless code parameter
+`theta_code`. The corresponding physical product-state angle is
+`initial_product_angle(theta_code)`.
 """
 
 # Generic fallback
@@ -29,24 +33,44 @@ end
 # ============================================================================
 
 """
-    _theta_site_amplitudes(theta::Float64) -> Tuple{Float64, Float64}
+    initial_product_angle(theta_code::Real)
 
-Return the one-site amplitudes for the real product state
-`cos(α)|0⟩ + sin(α)|1⟩`, with `α = (theta + 1/2)π/2`.
+Return the physical per-site product-state angle `alpha` in
+`cos(alpha)|0> + sin(alpha)|1>` for the code-level theta parameter.
+
+The code convention is `theta_code = -1/2, 0, 1/2` for
+`|0>`, `|+>`, and `|1>`, respectively.
 """
-function _theta_site_amplitudes(theta::Float64)
-    α = (theta + 0.5) * π / 2
-    return cos(α), sin(α)
+initial_product_angle(theta_code::Real) = (theta_code + 0.5) * π / 2
+
+"""
+    theta_code_from_initial_product_angle(alpha::Real)
+
+Return the dimensionless code-level theta parameter used by
+`setup_initial_state(..., "theta", theta_code)` for a physical product-state
+per-site angle `alpha`.
+"""
+theta_code_from_initial_product_angle(alpha::Real) = 2 * alpha / π - 0.5
+
+"""
+    theta_site_amplitudes(theta_code::Real)
+
+Return the single-site amplitudes `(amp0, amp1)` for the theta initial-state
+convention.
+"""
+function theta_site_amplitudes(theta_code::Real)
+    alpha = initial_product_angle(theta_code)
+    return cos(alpha), sin(alpha)
 end
 
 """
-    _theta_product_mps(sites_sys, theta::Float64) -> MPS
+    _theta_product_mps(sites_sys, theta_code::Real) -> MPS
 
 Create the tensor-network product state whose one-site amplitudes are given by
-`_theta_site_amplitudes(theta)`.
+`theta_site_amplitudes(theta_code)`.
 """
-function _theta_product_mps(sites_sys::Vector{<:Index}, theta::Float64)
-    amp0, amp1 = _theta_site_amplitudes(theta)
+function _theta_product_mps(sites_sys::Vector{<:Index}, theta_code::Real)
+    amp0, amp1 = theta_site_amplitudes(theta_code)
     ψ = MPS(ComplexF64, sites_sys, "Up")
 
     for i in eachindex(sites_sys)
@@ -70,9 +94,9 @@ end
 """
     create_theta_state_ed(N::Int, init_type::String, theta::Float64) -> EDStateVector
 
-Create an ED state vector based on `init_type` and the theta product-state
-parameter. For `init_type == "theta"`, the convention is
-`theta = -0.5, 0, 0.5` giving `|0⟩`, `|+⟩`, and `|1⟩` on each site.
+Create an ED state vector based on `init_type` and the code-level theta
+parameter. For `init_type == "theta"`, the code convention is
+`theta = -0.5, 0, 0.5` giving `|0>`, `|+>`, and `|1>` on each site.
 """
 function create_theta_state_ed(N::Int, init_type::String, theta::Float64)::EDStateVector
     if init_type == "identity"
@@ -88,7 +112,7 @@ function create_theta_state_ed(N::Int, init_type::String, theta::Float64)::EDSta
 
     # Code convention: theta=-0.5,0,0.5 gives |0>, |+>, |1>, respectively.
     data = ones(ComplexF64, 2^N)
-    amp0, amp1 = _theta_site_amplitudes(theta)
+    amp0, amp1 = theta_site_amplitudes(theta)
 
     for idx in 0:(2^N - 1)
         amplitude = 1.0
