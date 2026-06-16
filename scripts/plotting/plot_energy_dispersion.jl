@@ -20,7 +20,7 @@ function plot_energy_dispersion(N::Int, J::Real, h::Real, bc::Symbol;
 
     k_values = generate_k_values(N, bc)
     k_sorted = sort(k_values)
-    e_k = compute_energy_dispersion(k_sorted, J, h)
+    e_k = compute_energy_dispersion(k_sorted, J, h; N=N)
 
     fig, ax = plt.subplots(figsize=(8, 6))
 

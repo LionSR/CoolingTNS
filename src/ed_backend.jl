@@ -691,17 +691,6 @@ function get_correlation_operator(m::Int, n::Int, N::Int)
 end
 
 """
-    get_allowed_k_values(N::Int, bc::Symbol) -> Vector{Int}
-
-Get allowed k indices based on boundary conditions.
-"""
-function get_allowed_k_values(N::Int, bc::Symbol)
-    bc == :periodic && return collect(-div(N,2)+1:div(N,2))
-    bc == :antiperiodic && return collect(-div(N-1,2):div(N-1,2))
-    error("Momentum distribution only defined for periodic/antiperiodic BC")
-end
-
-"""
     compute_real_space_correlations(state::EDStateVector, N::Int) -> Matrix{Float64}
 
 Compute real-space fermionic correlations ⟨a†_m a_n⟩ for a pure state.
@@ -732,11 +721,11 @@ function compute_real_space_correlations(state::EDDensityMatrix, N::Int)
 end
 
 """
-    fourier_transform_correlations(correlations::AbstractMatrix, k_values::Vector{Int}, N::Int) -> Vector{Float64}
+    fourier_transform_correlations(correlations::AbstractMatrix, k_values, N::Int) -> Vector{Float64}
 
 Fourier transform real-space correlations to momentum distribution.
 """
-function fourier_transform_correlations(correlations::AbstractMatrix, k_values::Vector{Int}, N::Int)
+function fourier_transform_correlations(correlations::AbstractMatrix, k_values::AbstractVector, N::Int)
     n_k = zeros(Float64, length(k_values))
     for (ki, k) in enumerate(k_values)
         nk = 0.0 + 0.0im
@@ -755,13 +744,15 @@ end
 Measure momentum distribution n_k = ⟨a†_k a_k⟩ for all allowed k values.
 Returns (k_values, n_k) where k_values are in units of 2π/N.
 """
-function measure_momentum_distribution_ed(state::Union{EDStateVector, EDDensityMatrix}, ham_params::HamiltonianParameters)
-    N = ham_params.N
-    k_indices = get_allowed_k_values(N, ham_params.bc)
-    correlations = compute_real_space_correlations(state, N)
-    n_k = fourier_transform_correlations(correlations, k_indices, N)
-    k_momentum = [2π * k / N for k in k_indices]
-    return k_momentum, n_k
+function measure_momentum_distribution_ed(
+    state::Union{EDStateVector, EDDensityMatrix},
+    ham_params::HamiltonianParameters;
+    gF=nothing,
+)
+    supports_ising_fourier_observables(ham_params) || throw(ArgumentError(
+        "Momentum distribution is only defined for even-length Ising chains with periodic or antiperiodic spin boundary conditions."
+    ))
+    return measure_momentum_distribution_ed_clean(state, ham_params; gF=gF)
 end
 
 """

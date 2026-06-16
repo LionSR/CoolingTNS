@@ -361,9 +361,10 @@ function add_kspace_measurements!(measurements, problem::CoolingProblem{EDBacken
     if haskey(problem.extra, :ham_params)
         ham_params = problem.extra.ham_params
         if supports_ising_fourier_observables(ham_params)
-            N = ham_params.N
-            measurements[RESULT_MOMENTUM_DISTRIBUTION] = zeros(Float64, steps + 1, N)
-            measurements[RESULT_K_VALUES] = zeros(Float64, N)
+            n_modes = ham_params.N
+            measurements[RESULT_MOMENTUM_DISTRIBUTION] = zeros(Float64, steps + 1, n_modes)
+            measurements[RESULT_K_VALUES] = zeros(Float64, n_modes)
+            measurements[RESULT_MODE_GF] = _ground_state_reference_gF(problem, ham_params)
         end
     end
 end
@@ -379,10 +380,7 @@ function _add_ising_mode_measurement_slots!(measurements, problem::CoolingProble
     # The ground-state parity fixes the fermionic boundary condition used for
     # density matrices, where the instantaneous parity expectation need not be
     # close to one parity sector.
-    px = measure_state_parity(problem.ϕ₀, ham_params.N)
-    parity = round(Int, px)
-    gF = fermionic_bc(ham_params.bc, parity)
-    measurements[RESULT_MODE_GF] = gF
+    measurements[RESULT_MODE_GF] = _ground_state_reference_gF(problem, ham_params)
 
     measurements[RESULT_MODE_HK] = nothing
     measurements[RESULT_MODE_NK] = nothing

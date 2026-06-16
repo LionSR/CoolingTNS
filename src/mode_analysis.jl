@@ -60,6 +60,8 @@ For **spin PBC** (``g_I = +1``) with the code's parity ``P_x``:
 For **spin APBC** (``g_I = -1``): the assignment is swapped.
 """
 
+using LinearAlgebra
+
 # ============================================================================
 # Parameter Mapping
 # ============================================================================
@@ -82,15 +84,16 @@ Return whether the package's Fourier-grid Ising observables are defined for
 
 The current ``k``-space momentum and Bogoliubov-mode measurements use the
 translation-invariant transverse-field Ising construction in
-`Notes/NotesED/MapToSpin.tex`. They are therefore available for Ising
-Hamiltonians with spin boundary condition `:periodic` or `:antiperiodic`.
-Open chains require open-boundary BdG modes, and nonintegrable Ising or
-Rydberg Hamiltonians do not use this free-fermion Fourier basis.
+`Notes/NotesED/MapToSpin.tex`. They are therefore available for even-length
+Ising Hamiltonians with spin boundary condition `:periodic` or `:antiperiodic`.
+Open chains require open-boundary BdG modes, odd chains are not covered by the
+current paired-mode Fourier implementation, and nonintegrable Ising or Rydberg
+Hamiltonians do not use this free-fermion Fourier basis.
 """
 supports_ising_fourier_observables(::Nothing) = false
 supports_ising_fourier_observables(::HamiltonianParameters) = false
 function supports_ising_fourier_observables(ham_params::HamiltonianParameters{IsingModel})
-    return ham_params.bc in _ISING_FOURIER_SPIN_BCS
+    return iseven(ham_params.N) && ham_params.bc in _ISING_FOURIER_SPIN_BCS
 end
 
 """
@@ -161,6 +164,71 @@ Quasiparticle energy for mode ``k`` in code units (eigenvalue gap of ``H_code``)
 function mode_energy_Jh(k, J, h, N)
     θ = theta_from_Jh(J, h)
     return energy_scale(J, h) * mode_energy(k, θ, N)
+end
+
+# ============================================================================
+# Open-boundary BdG functions (θ-parametrization, unit scale)
+# ============================================================================
+
+"""
+    open_bdg_matrices(N, θ) -> (A, B)
+
+Return the open-boundary BdG matrices for the notes' canonical JW convention.
+
+For the open chain,
+```
+H = (cosθ/2) Σ_{n=1}^{N-1} (a_n - a†_n)(a_{n+1} + a†_{n+1})
+    - (sinθ/2) Σ_{n=1}^N (a_n a†_n - a†_n a_n),
+```
+and the Nambu matrix is ``[[A, B], [-B, -A]]`` with
+``A_nn = sinθ``, ``A_{n,n+1}=A_{n+1,n}= -cosθ/2``, and
+``B_{n,n+1}= -cosθ/2 = -B_{n+1,n}``.
+"""
+function open_bdg_matrices(N::Int, θ)
+    N >= 1 || throw(ArgumentError("N must be positive, got $N"))
+    A = zeros(Float64, N, N)
+    B = zeros(Float64, N, N)
+    s = sin(θ)
+    c = cos(θ)
+
+    for n in 1:N
+        A[n, n] = s
+    end
+    for n in 1:N-1
+        A[n, n+1] = -c / 2
+        A[n+1, n] = -c / 2
+        B[n, n+1] = -c / 2
+        B[n+1, n] = c / 2
+    end
+
+    return A, B
+end
+
+"""
+    open_mode_energies(N, θ) -> Vector{Float64}
+
+Return the positive open-boundary quasiparticle energies in notes units, sorted
+in increasing order.
+
+The energies are the square roots of the eigenvalues of
+``(A - B)(A + B)`` for the matrices returned by [`open_bdg_matrices`](@ref).
+"""
+function open_mode_energies(N::Int, θ)
+    A, B = open_bdg_matrices(N, θ)
+    M = (A - B) * (A + B)
+    M = (M + transpose(M)) / 2
+    λ = eigvals(Symmetric(M))
+    return sort(sqrt.(max.(real.(λ), 0.0)))
+end
+
+"""
+    open_mode_energies_Jh(N, J, h) -> Vector{Float64}
+
+Return the positive open-boundary quasiparticle energies in code units.
+"""
+function open_mode_energies_Jh(N::Int, J, h)
+    θ = theta_from_Jh(J, h)
+    return energy_scale(J, h) * open_mode_energies(N, θ)
 end
 
 """
@@ -391,6 +459,39 @@ function fermionic_bc(spin_bc::Symbol, parity::Int)
     @assert parity == 1 || parity == -1 "parity must be +1 or -1"
     gI = spin_bc == :periodic ? 1 : (spin_bc == :antiperiodic ? -1 : error("Unknown BC: $spin_bc"))
     return -gI * parity
+end
+
+"""
+    reference_parity_sector(px; atol=0.1, default=1, label="state") -> Int
+
+Choose a parity sector from a measured expectation value ``px = <P_x>``.
+
+If ``px`` is close to ``+1`` or ``-1``, the corresponding sector is returned.
+If the state is not close to a parity eigenstate, the sign of ``px`` selects the
+sector with larger weight. When the expectation is also close to zero, the
+`default` sector is used. This gives cooling measurements a deterministic
+reference grid in degenerate ground spaces where an eigensolver may return a
+valid ground-state vector that is not itself a parity eigenstate.
+"""
+function reference_parity_sector(px::Real; atol=0.1, default::Int=1, label="state")
+    @assert default == 1 || default == -1 "default must be +1 or -1"
+
+    if abs(px - 1) <= atol
+        return 1
+    elseif abs(px + 1) <= atol
+        return -1
+    end
+
+    parity = abs(px) > atol ? (px > 0 ? 1 : -1) : default
+    @warn "$label parity ⟨Px⟩ = $px is not close to ±1; using parity sector $parity"
+    return parity
+end
+
+function reference_fermionic_bc(spin_bc::Symbol, px::Real; atol=0.1, default_parity::Int=1, label="state")
+    return fermionic_bc(
+        spin_bc,
+        reference_parity_sector(px; atol=atol, default=default_parity, label=label),
+    )
 end
 
 # ============================================================================
