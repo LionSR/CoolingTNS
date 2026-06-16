@@ -31,6 +31,39 @@ using CoolingTNS
         @test CoolingTNS.default_evolution_method(CoolingTNS.TNBackend()) isa CoolingTNS.ContinuousEvolution
     end
 
+    @testset "Common parameter boundary conditions" begin
+        base_args = Dict{String,Any}(
+            "N" => 4,
+            "problem" => "Ising",
+            "J" => 1.0,
+            "h" => 0.5,
+            "coupling" => "XX",
+            "g" => 0.1,
+            "steps" => 2,
+            "te" => 1.0,
+        )
+
+        for (backend, bc) in [("TN", "periodic"), ("ED", "antiperiodic")]
+            args = copy(base_args)
+            args["backend"] = backend
+            args["bc"] = bc
+
+            parsed_problem, parsed_ham, ham_name, parsed_coupling =
+                CoolingTNS.setup_common_parameters(args)
+
+            @test parsed_problem == "Ising"
+            @test parsed_ham.bc == Symbol(bc)
+            @test occursin("bc$(bc)", ham_name)
+            @test parsed_coupling.coupling == "XX"
+        end
+
+        default_args = copy(base_args)
+        default_args["backend"] = "TN"
+        _, default_ham, default_name, _ = CoolingTNS.setup_common_parameters(default_args)
+        @test default_ham.bc == :open
+        @test occursin("bcopen", default_name)
+    end
+
     @testset "Problem Setup for Different Backends" begin
         # Create simulation parameters for each backend/method combination
         sim_params_ed = CoolingTNS.UnifiedSimulationParameters(
