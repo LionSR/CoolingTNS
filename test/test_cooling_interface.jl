@@ -328,7 +328,11 @@ using HDF5
         @test haskey(results_apbc, CoolingTNS.RESULT_K_VALUES)
         @test length(results_apbc[CoolingTNS.RESULT_K_VALUES]) ==
               size(results_apbc[CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION], 2)
-        @test length(results_apbc[CoolingTNS.RESULT_K_VALUES]) == 3
+        @test length(results_apbc[CoolingTNS.RESULT_K_VALUES]) ==
+              length(CoolingTNS.allowed_k_indices(ham_params_apbc.N, :antiperiodic))
+        @test results_apbc[CoolingTNS.RESULT_K_VALUES] ≈
+              [2π * Float64(k) / ham_params_apbc.N for k in
+               CoolingTNS.allowed_k_indices(ham_params_apbc.N, :antiperiodic)]
     end
 
     # Cross-backend cooling comparisons are covered in `test_correctness.jl`.

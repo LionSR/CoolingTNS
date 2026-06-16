@@ -691,15 +691,15 @@ function get_correlation_operator(m::Int, n::Int, N::Int)
 end
 
 """
-    get_allowed_k_values(N::Int, bc::Symbol) -> Vector{Int}
+    get_allowed_k_values(N::Int, bc::Symbol)
 
-Get allowed k indices based on boundary conditions.
+Get allowed momentum indices based on boundary conditions.
+
+This compatibility wrapper delegates to the canonical `allowed_k_indices`
+definition used by the mode observables.  In particular, antiperiodic boundary
+conditions use the full half-integer grid with `N` modes.
 """
-function get_allowed_k_values(N::Int, bc::Symbol)
-    bc == :periodic && return collect(-div(N,2)+1:div(N,2))
-    bc == :antiperiodic && return collect(-div(N-1,2):div(N-1,2))
-    error("Momentum distribution only defined for periodic/antiperiodic BC")
-end
+get_allowed_k_values(N::Int, bc::Symbol) = allowed_k_indices(N, bc)
 
 """
     compute_real_space_correlations(state::EDStateVector, N::Int) -> Matrix{Float64}
@@ -732,11 +732,11 @@ function compute_real_space_correlations(state::EDDensityMatrix, N::Int)
 end
 
 """
-    fourier_transform_correlations(correlations::AbstractMatrix, k_values::Vector{Int}, N::Int) -> Vector{Float64}
+    fourier_transform_correlations(correlations::AbstractMatrix, k_values, N::Int) -> Vector{Float64}
 
 Fourier transform real-space correlations to momentum distribution.
 """
-function fourier_transform_correlations(correlations::AbstractMatrix, k_values::Vector{Int}, N::Int)
+function fourier_transform_correlations(correlations::AbstractMatrix, k_values::AbstractVector, N::Int)
     n_k = zeros(Float64, length(k_values))
     for (ki, k) in enumerate(k_values)
         nk = 0.0 + 0.0im
