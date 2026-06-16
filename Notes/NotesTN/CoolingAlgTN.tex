@@ -228,14 +228,21 @@ spin chain.  A periodic or antiperiodic spin boundary term would couple
 $s_N$ to $s_1$ across the ends of the interleaved MPS/MPO chain, and is not
 part of this nearest-neighbor gate decomposition.
 
-Writing $\tau$ for the Trotter step, one step is a symmetric second-order sweep:
-first apply the two-site gates $\exp(-i\tau h_i^{\mathrm{loc}}/2)$, then the
-three-site gates $\exp(-i\tau h_i^{ZZ}/2)$, and finally apply the same gates in
-reverse order.  Thus the physical evolution time is divided into short
-Trotter intervals, and after each gate application we truncate singular values
-and shrink the MPO bond dimension.  The parameter $\tau$ controls the
-Trotterization error, with smaller values of $\tau$ giving a more accurate
-approximation at increased computational cost.
+Writing $\tau$ for the maximum Trotter slice, a cooling cycle with requested
+evolution time $t_e$ is divided into
+\[
+    m = \left\lceil \frac{t_e}{\tau} \right\rceil,
+    \qquad \delta t = \frac{t_e}{m} \leq \tau
+\]
+equal slices.  Thus the implemented Trotter evolution has total physical time
+exactly $t_e$; it is not rounded to an integer multiple of $\tau$.  One
+$\delta t$ slice is a symmetric second-order sweep: first apply the two-site
+gates $\exp(-i\delta t\, h_i^{\mathrm{loc}}/2)$, then the three-site gates
+$\exp(-i\delta t\, h_i^{ZZ}/2)$, and finally apply the same gates in reverse
+order.  After each gate application we truncate singular values and shrink the
+MPO bond dimension.  The parameter $\tau$ controls the Trotterization error as
+an upper bound on the slice length, with smaller values of $\tau$ giving a more
+accurate approximation at increased computational cost.
 
 
 After the time evolution (\ref{eq:rhot}), we perform the partial trace of the bath degrees of freedom. This can be done efficiently for matrix product operators (see Fig.~\ref{fig:MPO}(c)). Essentially, the order-four tensor of the site to be traced out is reduced to a matrix after applying the trace operation and can be merged with neighboring tensors through a contraction.
