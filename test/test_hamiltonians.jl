@@ -113,6 +113,37 @@ end
         @test CoolingTNS.expect_ed(CoolingTNS.pauli_y_complex(1, 1), ψ_bath_xz) ≈ -1.0 atol=1e-12
         @test CoolingTNS.expect_ed(CoolingTNS.pauli_z(1, 1), ψ_bath_xy) ≈ -1.0 atol=1e-12
     end
+
+    @testset "Hamiltonian parameter constructors" begin
+        @test CoolingTNS.IsingParameters(N, 1.0, 0.5).bc == :open
+        @test CoolingTNS.NiIsingParameters(N, 1.0, -1.05, 0.5).bc == :open
+        @test CoolingTNS.RydbergParameters(N, 1.2, -0.3, 2.0).bc == :open
+
+        ising_kw = CoolingTNS.IsingParameters(N, 1.0, 0.5; bc=:periodic)
+        ising_pos = CoolingTNS.IsingParameters(N, 1.0, 0.5, :periodic)
+        @test ising_kw.model isa CoolingTNS.IsingModel
+        @test ising_kw.N == ising_pos.N == N
+        @test ising_kw.params == ising_pos.params == (J=1.0, h=0.5)
+        @test ising_kw.bc == ising_pos.bc == :periodic
+
+        ni_kw = CoolingTNS.NiIsingParameters(N, 1.0, -1.05, 0.5; bc=:antiperiodic)
+        ni_pos = CoolingTNS.NiIsingParameters(N, 1.0, -1.05, 0.5, :antiperiodic)
+        @test ni_kw.model isa CoolingTNS.NiIsingModel
+        @test ni_kw.N == ni_pos.N == N
+        @test ni_kw.params == ni_pos.params == (J=1.0, hx=-1.05, hz=0.5)
+        @test ni_kw.bc == ni_pos.bc == :antiperiodic
+
+        ryd_kw = CoolingTNS.RydbergParameters(N, 1.2, -0.3, 2.0; bc=:periodic)
+        ryd_pos = CoolingTNS.RydbergParameters(N, 1.2, -0.3, 2.0, :periodic)
+        @test ryd_kw.model isa CoolingTNS.RydbergModel
+        @test ryd_kw.N == ryd_pos.N == N
+        @test ryd_kw.params == ryd_pos.params == (Ω=1.2, Δ=-0.3, V=2.0)
+        @test ryd_kw.bc == ryd_pos.bc == :periodic
+
+        @test_throws ArgumentError CoolingTNS.IsingParameters(N, 1.0, 0.5; bc=:periodc)
+        @test_throws ArgumentError CoolingTNS.NiIsingParameters(N, 1.0, -1.05, 0.5, :periodc)
+        @test_throws ArgumentError CoolingTNS.RydbergParameters(N, 1.2, -0.3, 2.0; bc=:periodc)
+    end
     
     @testset "System Hamiltonians - Tensor Network Backend" begin
         backend = CoolingTNS.TNBackend()
