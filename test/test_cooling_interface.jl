@@ -182,6 +182,13 @@ using Random
             problem_setup, sim_params, "product", 0.0
         )
 
+        combined_state = CoolingTNS.prepare_combined_state(problem_setup, initial_state)
+        noisy_combined = CoolingTNS.apply_noise(combined_state, problem_setup, 1.0)
+
+        @test noisy_combined isa CoolingTNS.EDStateVector
+        @test noisy_combined.n_qubits == 2 * test_N
+        @test sum(abs2, noisy_combined.data) ≈ 1.0 atol=1e-12
+
         results = CoolingTNS.run_cooling(
             problem_setup,
             initial_state,
