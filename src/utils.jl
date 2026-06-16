@@ -132,6 +132,16 @@ function relative_energy(E, E_GS)
     return abs((E - E_GS) / E_GS)
 end
 
+const HDF5_PARSED_ARGS_GROUP = "parsed_args"
+
+function _write_hdf5_dataset_unless_present(parent, key::AbstractString, value)
+    if key in keys(parent)
+        return false
+    end
+    write(parent, key, value)
+    return true
+end
+
 function save_results(filename, result, e₀, ham_name, parsed_args; is_optimization=false)
     directory = is_optimization ? "ResultsOpt" : "Results"
     mkpath(directory)
@@ -141,8 +151,12 @@ function save_results(filename, result, e₀, ham_name, parsed_args; is_optimiza
             write(file, string(key), value)
         end
         write(file, "ham_name", ham_name)
+
+        parsed_args_group = create_group(file, HDF5_PARSED_ARGS_GROUP)
         for (key, value) in parsed_args
-            write(file, string(key), value)
+            arg_key = string(key)
+            write(parsed_args_group, arg_key, value)
+            _write_hdf5_dataset_unless_present(file, arg_key, value)
         end
     end
     println("Data saved to $(filename) with Hamiltonian information and argparse variables")

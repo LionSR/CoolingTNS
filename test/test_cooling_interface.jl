@@ -1,5 +1,6 @@
 using Test
 using CoolingTNS
+using HDF5
 
 @testset "Cooling Interface Tests" begin
     # Test parameters
@@ -73,6 +74,43 @@ using CoolingTNS
         @test explicit["backend"] == "ED"
         @test explicit["sim_method"] == "density_matrix"
         @test explicit["evolution_method"] == "continuous"
+    end
+
+    @testset "HDF5 Result Metadata Namespace" begin
+        mktempdir() do dir
+            cd(dir) do
+                result = Dict{String, Any}(
+                    "E_list" => [1.0, 0.5],
+                    "search_method" => "result-owned",
+                )
+                parsed_args = Dict{String, Any}(
+                    "N" => 2,
+                    "search_method" => "Random",
+                    "num_trials" => 4,
+                )
+
+                CoolingTNS.save_results(
+                    "collision_test",
+                    result,
+                    -1.0,
+                    "IsingN2bcopenJ1.0h1.0",
+                    parsed_args;
+                    is_optimization=true,
+                )
+
+                h5open(joinpath("ResultsOpt", "collision_test.h5"), "r") do file
+                    @test read(file, "E_list") == [1.0, 0.5]
+                    @test read(file, "search_method") == "result-owned"
+                    @test read(file, "N") == 2
+                    @test haskey(file, CoolingTNS.HDF5_PARSED_ARGS_GROUP)
+
+                    parsed = file[CoolingTNS.HDF5_PARSED_ARGS_GROUP]
+                    @test read(parsed, "search_method") == "Random"
+                    @test read(parsed, "num_trials") == 4
+                    @test read(parsed, "N") == 2
+                end
+            end
+        end
     end
 
     @testset "Result Key Constants" begin

@@ -62,7 +62,7 @@ export HamiltonianModel, IsingModel, NiIsingModel, RydbergModel
 export DensityMatrixResults, MonteCarloResults, TensorNetworkResults
 export create_coupling_params, create_sim_params, create_results
 export to_dict
-export setup_common_parameters, create_filename, save_results
+export setup_common_parameters, create_filename, save_results, HDF5_PARSED_ARGS_GROUP
 export get_backend, get_sim_method, get_evolution_method, mean_last_window, relative_energy
 export create_sim_params_from_args, normalize_optimization_args!
 # Result dictionary keys
