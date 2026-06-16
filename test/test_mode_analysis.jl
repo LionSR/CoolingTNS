@@ -198,10 +198,21 @@ end
     @testset "Fourier observable support predicate" begin
         @test supports_ising_fourier_observables(IsingParameters(4, 1.0, 0.5, :periodic))
         @test supports_ising_fourier_observables(IsingParameters(4, 1.0, 0.5, :antiperiodic))
+        @test !supports_ising_fourier_observables(IsingParameters(3, 1.0, 0.5, :periodic))
         @test !supports_ising_fourier_observables(IsingParameters(4, 1.0, 0.5, :open))
         @test !supports_ising_fourier_observables(NiIsingParameters(4, 1.0, -1.05, 0.5, :periodic))
         @test !supports_ising_fourier_observables(RydbergParameters(4, 1.0, 0.0, 1.0, :periodic))
         @test !supports_ising_fourier_observables(nothing)
+    end
+
+    @testset "Reference parity sector for ambiguous states" begin
+        @test CoolingTNS.reference_parity_sector(0.98) == 1
+        @test CoolingTNS.reference_parity_sector(-0.98) == -1
+        @test (@test_logs (:warn, r"not close") CoolingTNS.reference_parity_sector(0.4)) == 1
+        @test (@test_logs (:warn, r"not close") CoolingTNS.reference_parity_sector(-0.4)) == -1
+        @test (@test_logs (:warn, r"not close") CoolingTNS.reference_parity_sector(0.0; default=-1)) == -1
+        @test (@test_logs (:warn, r"not close") CoolingTNS.reference_fermionic_bc(:periodic, 0.0)) == -1
+        @test (@test_logs (:warn, r"not close") CoolingTNS.reference_fermionic_bc(:antiperiodic, 0.0)) == 1
     end
 
     @testset "H_notes from JW equals ED Hamiltonian (N=$N)" for N in [4, 6]

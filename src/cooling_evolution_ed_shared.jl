@@ -219,8 +219,8 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
     if haskey(measurements, RESULT_MOMENTUM_DISTRIBUTION) && supports_ising_fourier_observables(ham_params)
         # Store a time series on one fixed fermionic grid.  The reference grid is
         # the ground-state parity sector, matching the mode-measurement convention.
-        parity = round(Int, measure_state_parity(ϕ₀, ham_params.N))
-        gF = fermionic_bc(ham_params.bc, parity)
+        px_ref = measure_state_parity(ϕ₀, ham_params.N)
+        gF = reference_fermionic_bc(ham_params.bc, px_ref; label="ground-state reference")
 
         if isa(state, EDStateVector)
             # For pure states

@@ -380,8 +380,7 @@ function _add_ising_mode_measurement_slots!(measurements, problem::CoolingProble
     # density matrices, where the instantaneous parity expectation need not be
     # close to one parity sector.
     px = measure_state_parity(problem.ϕ₀, ham_params.N)
-    parity = round(Int, px)
-    gF = fermionic_bc(ham_params.bc, parity)
+    gF = reference_fermionic_bc(ham_params.bc, px; label="ground-state reference")
     measurements[RESULT_MODE_GF] = gF
 
     measurements[RESULT_MODE_HK] = nothing

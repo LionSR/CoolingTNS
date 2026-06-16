@@ -749,6 +749,9 @@ function measure_momentum_distribution_ed(
     ham_params::HamiltonianParameters;
     gF=nothing,
 )
+    supports_ising_fourier_observables(ham_params) || throw(ArgumentError(
+        "Momentum distribution is only defined for even-length Ising chains with periodic or antiperiodic spin boundary conditions."
+    ))
     return measure_momentum_distribution_ed_clean(state, ham_params; gF=gF)
 end
 

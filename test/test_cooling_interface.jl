@@ -338,6 +338,41 @@ using HDF5
                CoolingTNS.allowed_k_indices(ham_params_apbc.N, gF_apbc)]
     end
 
+    @testset "Odd ED Ising chains skip Fourier k-space measurements" begin
+        backend = CoolingTNS.EDBackend()
+        ham_params_odd = CoolingTNS.IsingParameters(3, 1.0, 0.5, :periodic)
+        coupling_params_odd = CoolingTNS.BasicCouplingParameters("XX", 0.1, 1, 0.5, nothing)
+        sim_params_odd = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.MonteCarloWavefunction(),
+            CoolingTNS.ContinuousEvolution();
+            pe=0.0,
+            n_trajectories=1,
+        )
+        problem_odd = CoolingTNS.setup_problem(
+            backend,
+            ham_params_odd,
+            coupling_params_odd,
+            sim_params_odd,
+        )
+        state_odd = CoolingTNS.setup_initial_state(
+            problem_odd,
+            sim_params_odd,
+            "product",
+            0.0,
+        )
+        results_odd = CoolingTNS.run_cooling(
+            problem_odd,
+            state_odd,
+            coupling_params_odd,
+            sim_params_odd,
+            ham_params_odd,
+        )
+
+        @test haskey(results_odd, CoolingTNS.RESULT_ENERGY)
+        @test !haskey(results_odd, CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION)
+        @test !haskey(results_odd, CoolingTNS.RESULT_K_VALUES)
+    end
+
     # Cross-backend cooling comparisons are covered in `test_correctness.jl`.
     # They are intentionally gated behind `ENV["COOLINGTNS_FULL_TESTS"]` since
     # Monte Carlo trajectories can be slow and inherently stochastic.
