@@ -6,6 +6,7 @@ Canonical string keys for cooling result dictionaries.
 These constants do not change the public output format.  They name the strings
 used by `run_cooling`, HDF5 writers, plotting scripts, and tests, so changes to
 the result schema can be made deliberately rather than by scattered literals.
+`RESULT_KEYS` is the complete registry of keys owned by the cooling result schema.
 """
 
 const RESULT_ENERGY = "E_list"
@@ -29,3 +30,23 @@ const RESULT_SCHEDULE = "schedule"
 const RESULT_RANDOMIZE_TIMES = "randomize_times"
 
 const RESULT_N_TRAJECTORIES = "n_trajectories"
+
+const RESULT_KEYS = (
+    RESULT_ENERGY,
+    RESULT_GROUND_STATE_OVERLAP,
+    RESULT_PURITY,
+    RESULT_BATH_MAGNETIZATION,
+    RESULT_BATH_SAMPLE_MAGNETIZATION,
+    RESULT_MOMENTUM_DISTRIBUTION,
+    RESULT_K_VALUES,
+    RESULT_MODE_GF,
+    RESULT_MODE_HK,
+    RESULT_MODE_K_INDICES,
+    RESULT_MODE_ENERGIES,
+    RESULT_DELTA_LIST,
+    RESULT_TE_LIST,
+    RESULT_DELTA_VALUES,
+    RESULT_SCHEDULE,
+    RESULT_RANDOMIZE_TIMES,
+    RESULT_N_TRAJECTORIES,
+)

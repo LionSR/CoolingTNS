@@ -69,6 +69,7 @@ export RESULT_MOMENTUM_DISTRIBUTION, RESULT_K_VALUES
 export RESULT_MODE_GF, RESULT_MODE_HK, RESULT_MODE_K_INDICES, RESULT_MODE_ENERGIES
 export RESULT_DELTA_LIST, RESULT_TE_LIST, RESULT_DELTA_VALUES
 export RESULT_SCHEDULE, RESULT_RANDOMIZE_TIMES, RESULT_N_TRAJECTORIES
+export RESULT_KEYS
 # Dispersion relations (pure math, legacy — see mode_analysis.jl for canonical versions)
 export generate_k_values, compute_energy_dispersion, compute_ground_state_occupation
 
