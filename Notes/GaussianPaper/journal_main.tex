@@ -261,6 +261,15 @@ with mode energies $\epsilon_k$ and Bogoliubov angles $\varphi_k$ given by
     \varphi_k  &= \frac{1}{2}\tan^{-1}\left(\frac{\sin\tfrac{2\pi k}{N}}{\tan\theta + \cos\tfrac{2\pi k}{N}}\right).
     \label{eq:varphik}
 \end{align}
+\emph{Convention.}
+The momentum labels used in this paper differ from the canonical Ising
+spin-chain convention used in \texttt{Notes/NotesED/MapToSpin.tex} and
+\texttt{src/mode\_analysis.jl} by a staggered transformation, equivalently by the
+momentum relabelling $q=k+N/2$ modulo $N$. Under this relabelling,
+$\cos(2\pi q/N)=-\cos(2\pi k/N)$, so the code convention
+$\epsilon^{\mathrm{can}}_q=\sqrt{1-\sin(2\theta)\cos(2\pi q/N)}$
+is the same dispersion as \cref{eq:epsilonk}. Thus the sign difference in the
+cosine term is a convention for momentum labels, not a different spectrum.
 Note that $\epsilon_k=\epsilon_{-k}$, and that for $k=0$, $\hat{a}_0=\tilde{a}_0$, whereas for $k=N/2$, $\hat{a}_{N/2}=\tilde{a}_{N/2}^\dagger$.
 
 The ground state $\ket{\Psi_{GS}}$ of $H_S$ is the vacuum state with respect to the Bogoliubov modes $\hat{a}_k$, i.e., $\hat{a}_k\ket{\Psi_{GS}}=0$ for all $k$. The ground state energy is

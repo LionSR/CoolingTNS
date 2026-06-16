@@ -60,6 +60,19 @@ and the $2 \times 2$ matrix $\tilde{H}_k$ is given by
     \end{pmatrix}.
     \label{eq:Hk_2x2_matrix}
 \end{align}
+\emph{Convention.}
+The block \cref{eq:Hk_2x2_matrix} is written in the Gaussian-paper momentum
+labelling. The canonical code convention in \texttt{Notes/NotesED/MapToSpin.tex}
+and \texttt{src/mode\_analysis.jl} uses the relabelled momentum $q=k+N/2$ modulo $N$ and
+therefore writes
+\begin{equation}
+    w^{\mathrm{can}}_q=\sin\theta-\cos\theta\cos(2\pi q/N),\qquad
+    r^{\mathrm{can}}_q=-\cos\theta\sin(2\pi q/N).
+\end{equation}
+Since $\cos(2\pi q/N)=-\cos(2\pi k/N)$ and
+$\sin(2\pi q/N)=-\sin(2\pi k/N)$, the two pairs of coefficients agree after
+this momentum shift. The apparent sign change in the dispersion is therefore a
+choice of momentum convention.
 Moreover, since terms such as $\tilde{a}_0^\dagger \tilde{a}_{-0}^\dagger$ vanish due to the fermionic anticommutation relation, we obtain only diagonal terms for both $H_{k=0,N/2}$. In particular, we have
 \begin{align}
     H_{k=0}
@@ -337,6 +350,9 @@ with
     w_k &= \sin\theta + \cos\theta\cos(2\pi k/N),\\
     r_k &= \cos\theta\sin(2\pi k/N).
 \end{align}
+These are the same coefficients as the canonical MapToSpin/code coefficients
+after the momentum relabelling $q=k+N/2$ described in the convention paragraph
+following \cref{eq:Hk_2x2_matrix}.
 For the special cases $k=0$ and $k=N/2$, we multiply the matrices $h_{S,k}$, $h_{B,k}$, and $v_{SB,k}$ by $1/2$ as shown in \cref{eq:vSB_0}, and the entries $w_k$ and $r_k$ are evaluated at the corresponding values of $k=0$ and $k=N/2$.
 For the case where coupling is not local (i.e., $nn>0$), the derivation is similar. However, the entries of the matrices depend on the values of various coupling constants $\lambda_j$ and $\mu_j$. The final result for this case is presented below.
 
