@@ -58,7 +58,13 @@ using Random
 
         @test length(spectral_values) == 5
         @test issorted(spectral_values)
+        # These generic non-integrable parameters lift the simple Ising degeneracies.
         @test all(>(0), spectral_values)
+
+        krylov_capped_values = CoolingTNS.spectral_delta_values(
+            ham_params, backend; R=5, num_excitations=10, krylovdim=7
+        )
+        @test length(krylov_capped_values) == 5
 
         @test_throws ArgumentError CoolingTNS.spectral_delta_values(
             ham_params, backend; R=5, num_excitations=4
@@ -68,6 +74,12 @@ using Random
         )
         @test_throws ArgumentError CoolingTNS.compute_excitation_gaps(
             ham_params, backend; num_excitations=2^N
+        )
+        @test_throws ArgumentError CoolingTNS.compute_excitation_gaps(
+            ham_params, backend; num_excitations=5, krylovdim=6
+        )
+        @test_throws ArgumentError CoolingTNS.spectral_delta_values(
+            ham_params, backend; R=5, num_excitations=10, krylovdim=6
         )
         @test_throws ArgumentError CoolingTNS.spectral_delta_values(
             ham_params, backend; R=2^N
