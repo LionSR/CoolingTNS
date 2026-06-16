@@ -160,6 +160,44 @@ using CoolingTNS
         @test results["E_list"][end] <= results["E_list"][1] + 1e-10
     end
 
+    @testset "Odd ED Ising chains skip Fourier k-space measurements" begin
+        backend = CoolingTNS.EDBackend()
+        ham_params_odd = CoolingTNS.IsingParameters(3, 1.0, 0.5, :antiperiodic)
+        coupling_params_odd = CoolingTNS.BasicCouplingParameters("XX", 0.0, 1, 0.1, nothing)
+        sim_params_odd = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.MonteCarloWavefunction(),
+            CoolingTNS.ContinuousEvolution();
+            pe=0.0,
+            n_trajectories=1,
+        )
+        problem_odd = CoolingTNS.setup_problem(
+            backend,
+            ham_params_odd,
+            coupling_params_odd,
+            sim_params_odd,
+        )
+        state_odd = CoolingTNS.setup_initial_state(
+            problem_odd,
+            sim_params_odd,
+            "product",
+            0.0,
+        )
+        results_odd = redirect_stdout(devnull) do
+            CoolingTNS.run_cooling(
+                problem_odd,
+                state_odd,
+                coupling_params_odd,
+                sim_params_odd,
+                ham_params_odd,
+            )
+        end
+
+        @test haskey(results_odd, "E_list")
+        @test haskey(results_odd, "GS_overlap_list")
+        @test !haskey(results_odd, "momentum_dist")
+        @test !haskey(results_odd, "k_values")
+    end
+
     # Cross-backend cooling comparisons are covered in `test_correctness.jl`.
     # They are intentionally gated behind `ENV["COOLINGTNS_FULL_TESTS"]` since
     # Monte Carlo trajectories can be slow and inherently stochastic.

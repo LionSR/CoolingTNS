@@ -11,8 +11,8 @@ include(joinpath(@__DIR__, "PlotUtils.jl"))
     plot_energy_dispersion(N, J, h, bc; delta=nothing, save_fig=true, filename=nothing)
 
 Plot the energy dispersion epsilon_k vs k for the transverse field Ising model.
-For periodic BC: k = 2*pi*n/N where n = 0, 1, ..., N-1
-For antiperiodic BC: k = pi*(2n+1)/N where n = 0, 1, ..., N-1
+Here `bc` denotes the fermionic boundary condition used for the plotted
+momentum grid.
 """
 function plot_energy_dispersion(N::Int, J::Real, h::Real, bc::Symbol;
                                delta=nothing, save_fig=true, filename=nothing)
@@ -35,7 +35,7 @@ function plot_energy_dispersion(N::Int, J::Real, h::Real, bc::Symbol;
     ax.set_title("Energy Dispersion (N=$N, J=$J, h=$h, BC=$bc)", fontsize=16)
     ax.grid(true, alpha=0.3)
     ax.legend(fontsize=12)
-    ax.set_xlim(0, 2)
+    ax.set_xlim(minimum(k_sorted) / pi, maximum(k_sorted) / pi)
     plt.tight_layout()
 
     if save_fig && filename !== nothing
