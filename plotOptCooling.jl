@@ -3,25 +3,15 @@ using CoolingTNS
 include(joinpath(@__DIR__, "scripts", "plotting", "plotting.jl"))
 
 parsed_args = CoolingTNS.parse_commandline()
+CoolingTNS.normalize_optimization_args!(parsed_args)
 
 # Common parameters (typed)
 problem, ham_params, ham_name, coupling_params = CoolingTNS.setup_common_parameters(parsed_args)
 
-# Optimization runs are typically TN + MC + continuous, but you can override these.
-backend = CoolingTNS.TNBackend()
-sim_method = CoolingTNS.MonteCarloWavefunction()
-evolution_method = CoolingTNS.ContinuousEvolution()
-
-sim_params = CoolingTNS.create_sim_params(
-    backend;
-    sim_method=sim_method,
-    evolution_method=evolution_method,
-    Dmax=parsed_args["Dmax"],
-    cutoff=parsed_args["cutoff"],
-    tau=parsed_args["tau"],
-    pe=parsed_args["peInt"] * 1e-3,
-    n_trajectories=parsed_args["n_trajectories"],
-)
+# Optimization plots must use the same backend and method naming convention as
+# the optimization driver, otherwise the expected result filenames differ.
+backend = CoolingTNS.get_backend(parsed_args["backend"])
+sim_params = CoolingTNS.create_sim_params_from_args(parsed_args)
 
 # Used to form the optimization filename suffix: "_Search<method>trials<num_trials>"
 search_params = Dict(
