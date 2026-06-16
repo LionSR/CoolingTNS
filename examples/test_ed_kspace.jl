@@ -1,7 +1,8 @@
 #!/usr/bin/env julia
 
 """
-Test script for ED backend with periodic/antiperiodic boundary conditions and k-space measurements.
+Smoke example for ED cooling with periodic/antiperiodic boundary conditions and
+k-space measurements.
 """
 
 using CoolingTNS
@@ -13,21 +14,27 @@ function test_ed_kspace()
     println("Testing ED backend with k-space measurements...")
     
     # Test parameters
-    N = 6  # Small system for ED
+    N = 4  # Small system for ED smoke checks
+    J = 1.0
+    h = 0.5
+    g = 0.2
+    steps = 2
+    te = 1.0
+    backend = CoolingTNS.EDBackend()
     
     # Test both periodic and antiperiodic BC
     for bc in [:periodic, :antiperiodic]
         println("\n=== Testing with $bc boundary conditions ===")
         
-        # Create Hamiltonian parameters
-        ham_params = CoolingTNS.NiIsingParameters(N, 1.0, -1.05, 0.5; bc=bc)
+        # K-space measurements are defined for the integrable Ising model.
+        ham_params = CoolingTNS.IsingParameters(N, J, h, bc)
         
         # Coupling parameters
         coupling_params = CoolingTNS.BasicCouplingParameters(
             "XX",     # coupling type
-            0.3,      # g
-            20,       # steps
-            2.0,      # te
+            g,        # coupling strength
+            steps,    # cooling steps
+            te,       # evolution time per step
             nothing   # delta (will be computed)
         )
         
@@ -39,17 +46,14 @@ function test_ed_kspace()
             n_trajectories=1
         )
         
-        # Setup problem
-        backend = CoolingTNS.EDBackend()
         problem = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params)
         
         # Initial state - product state
         state = CoolingTNS.setup_initial_state(
-            backend, 
             problem,
             sim_params,
             "product",  # init_state_type
-            Dict{String, Any}()  # No special parameters
+            0.0         # theta code, unused for product state
         )
         
         # Run cooling
@@ -68,12 +72,12 @@ function test_ed_kspace()
             # Print initial and final momentum distributions
             println("\nInitial momentum distribution:")
             for (k, n_k) in zip(k_values, momentum_dist[1, :])
-                @printf("k = %3d: n_k = %.4f\n", k, n_k)
+                @printf("k = %+8.5f (k/pi = %+7.4f): n_k = %.4f\n", k, k / pi, n_k)
             end
             
             println("\nFinal momentum distribution:")
             for (k, n_k) in zip(k_values, momentum_dist[end, :])
-                @printf("k = %3d: n_k = %.4f\n", k, n_k)
+                @printf("k = %+8.5f (k/pi = %+7.4f): n_k = %.4f\n", k, k / pi, n_k)
             end
             
             # Save results for plotting
@@ -86,15 +90,6 @@ function test_ed_kspace()
                 write(file, "delta", problem.extra.coupling_params.delta)
             end
             println("\nResults saved to $filename")
-            
-            # Test plotting functions if available
-            try
-                CoolingTNS.plot_momentum_distribution(filename; save_fig=false)
-                CoolingTNS.plot_momentum_distribution_heatmap(filename; save_fig=false)
-                println("Plotting functions work correctly!")
-            catch e
-                println("Plotting error (might be due to missing display): $e")
-            end
             
         else
             println("WARNING: No k-space data found in results!")
@@ -110,16 +105,15 @@ function test_ed_kspace()
         
         problem_dm = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params_dm)
         state_dm = CoolingTNS.setup_initial_state(
-            backend, 
             problem_dm,
             sim_params_dm,
             "identity",  # Start from maximally mixed
-            Dict{String, Any}()
+            0.0
         )
         
         # Run short cooling
         coupling_params_short = CoolingTNS.BasicCouplingParameters(
-            "XX", 0.3, 5, 2.0, problem_dm.extra.coupling_params.delta
+            "XX", g, steps, te, problem_dm.extra.coupling_params.delta
         )
         results_dm = CoolingTNS.run_cooling(problem_dm, state_dm, coupling_params_short, sim_params_dm, ham_params)
         

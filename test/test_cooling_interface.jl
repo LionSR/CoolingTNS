@@ -281,6 +281,56 @@ using HDF5
         @test results[CoolingTNS.RESULT_ENERGY][end] <= results[CoolingTNS.RESULT_ENERGY][1] + 1e-10
     end
 
+    @testset "ED k-space smoke example stays on current interface" begin
+        example_path = normpath(joinpath(@__DIR__, "..", "examples", "test_ed_kspace.jl"))
+        example_text = read(example_path, String)
+
+        @test occursin("IsingParameters(N, J, h, bc)", example_text)
+        @test !occursin("NiIsingParameters", example_text)
+        @test !occursin("%3d", example_text)
+        @test !occursin("plot_momentum_distribution", example_text)
+
+        include(example_path)
+        @test isdefined(@__MODULE__, :test_ed_kspace)
+    end
+
+    @testset "ED antiperiodic k-space allocation follows allowed momentum grid" begin
+        backend = CoolingTNS.EDBackend()
+        ham_params_apbc = CoolingTNS.IsingParameters(4, 1.0, 0.5, :antiperiodic)
+        coupling_params_apbc = CoolingTNS.BasicCouplingParameters("XX", 0.1, 1, 0.5, nothing)
+        sim_params_apbc = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.MonteCarloWavefunction(),
+            CoolingTNS.ContinuousEvolution();
+            pe=0.0,
+            n_trajectories=1,
+        )
+        problem_apbc = CoolingTNS.setup_problem(
+            backend,
+            ham_params_apbc,
+            coupling_params_apbc,
+            sim_params_apbc,
+        )
+        state_apbc = CoolingTNS.setup_initial_state(
+            problem_apbc,
+            sim_params_apbc,
+            "product",
+            0.0,
+        )
+        results_apbc = CoolingTNS.run_cooling(
+            problem_apbc,
+            state_apbc,
+            coupling_params_apbc,
+            sim_params_apbc,
+            ham_params_apbc,
+        )
+
+        @test haskey(results_apbc, CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION)
+        @test haskey(results_apbc, CoolingTNS.RESULT_K_VALUES)
+        @test length(results_apbc[CoolingTNS.RESULT_K_VALUES]) ==
+              size(results_apbc[CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION], 2)
+        @test length(results_apbc[CoolingTNS.RESULT_K_VALUES]) == 3
+    end
+
     # Cross-backend cooling comparisons are covered in `test_correctness.jl`.
     # They are intentionally gated behind `ENV["COOLINGTNS_FULL_TESTS"]` since
     # Monte Carlo trajectories can be slow and inherently stochastic.
