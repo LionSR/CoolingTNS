@@ -159,19 +159,19 @@ function construct_system_hamiltonian(ham_params::HamiltonianParameters{RydbergM
 
     # Single-site terms: (Ω/2) X - Δ n with n = (I + Z)/2.
     for i in 1:N
-        H_sys += Ωx * pauli_x(i, N) - (Δ/2) * pauli_z(i, N)
+        H_sys .+= Ωx * pauli_x(i, N) - (Δ/2) * pauli_z(i, N)
     end
 
     # Van der Waals interaction: V/r^6 * n_i * n_j where n = (I + Z)/2
     # Expands to V/4r^6 * (Z_i*Z_j + Z_i + Z_j + I).
     for i in 1:N-1, j in i+1:N
         V_ij = rydberg_interaction_coefficient(V, i, j)
-        H_sys += (V_ij/4) * (pauli_zz(i, j, N) + pauli_z(i, N) + pauli_z(j, N))
+        H_sys .+= (V_ij/4) * (pauli_zz(i, j, N) + pauli_z(i, N) + pauli_z(j, N))
     end
 
     identity_shift = rydberg_number_identity_shift(N, Δ, V)
     if identity_shift != 0
-        H_sys += spdiagm(0 => fill(identity_shift, 2^N))
+        H_sys .+= spdiagm(0 => fill(identity_shift, 2^N))
     end
 
     return H_sys
