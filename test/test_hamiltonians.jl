@@ -165,6 +165,9 @@ end
         V = 0.2
 
         @test CoolingTNS.rydberg_rabi_x_coefficient(Ω) == Ω / 2
+        @test CoolingTNS.rydberg_interaction_coefficient(V, 1, 3) ≈ V / 2^6
+        @test CoolingTNS.rydberg_interaction_coefficient(V, 3, 1) ≈ V / 2^6
+        @test_throws ArgumentError CoolingTNS.rydberg_interaction_coefficient(V, 2, 2)
         @test CoolingTNS.rydberg_number_identity_shift(1, Δ, V) ≈ -Δ / 2
         @test CoolingTNS.rydberg_number_identity_shift(2, Δ, V) ≈ -Δ + V / 4
 

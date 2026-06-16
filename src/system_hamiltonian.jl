@@ -30,6 +30,17 @@ used for the two ladder-operator terms.
 rydberg_rabi_x_coefficient(Ω) = Ω / 2
 
 """
+    rydberg_interaction_coefficient(V, i, j)
+
+Return the van der Waals coefficient multiplying `n_i n_j` for Rydberg sites
+`i < j`, namely `V / |i-j|^6`.
+"""
+function rydberg_interaction_coefficient(V, i::Int, j::Int)
+    i == j && throw(ArgumentError("Rydberg interaction sites must be distinct."))
+    return V / abs(j - i)^6
+end
+
+"""
     rydberg_number_identity_shift(N, Δ, V)
 
 Return the coefficient of the identity operator in the Rydberg Hamiltonian after
@@ -41,7 +52,10 @@ make the absolute Hamiltonian, and hence its energy expectation values, agree
 with the tensor-network convention.
 """
 function rydberg_number_identity_shift(N::Int, Δ, V)
-    interaction_shift = sum((V / (j - i)^6 / 4 for i in 1:N-1 for j in i+1:N); init=0.0)
+    interaction_shift = sum(
+        (rydberg_interaction_coefficient(V, i, j) / 4 for i in 1:N-1 for j in i+1:N);
+        init=0.0,
+    )
     return -N * Δ / 2 + interaction_shift
 end
 
@@ -90,7 +104,7 @@ function construct_system_hamiltonian(ham_params::HamiltonianParameters{RydbergM
         terms += -Δ, "ProjUp", i
     end
     for i in 1:N-1, j in i+1:N
-        terms += V / (j - i)^6, "ProjUp", i, "ProjUp", j
+        terms += rydberg_interaction_coefficient(V, i, j), "ProjUp", i, "ProjUp", j
     end
     return MPO(terms, sites)
 end
@@ -143,7 +157,7 @@ function construct_system_hamiltonian(ham_params::HamiltonianParameters{RydbergM
 
     H_sys = spzeros(Float64, 2^N, 2^N)
 
-    # Single-site terms: -Δ n with n = (I + Z)/2.
+    # Single-site terms: (Ω/2) X - Δ n with n = (I + Z)/2.
     for i in 1:N
         H_sys += Ωx * pauli_x(i, N) - (Δ/2) * pauli_z(i, N)
     end
@@ -151,7 +165,7 @@ function construct_system_hamiltonian(ham_params::HamiltonianParameters{RydbergM
     # Van der Waals interaction: V/r^6 * n_i * n_j where n = (I + Z)/2
     # Expands to V/4r^6 * (Z_i*Z_j + Z_i + Z_j + I).
     for i in 1:N-1, j in i+1:N
-        V_ij = V / (j - i)^6
+        V_ij = rydberg_interaction_coefficient(V, i, j)
         H_sys += (V_ij/4) * (pauli_zz(i, j, N) + pauli_z(i, N) + pauli_z(j, N))
     end
 
