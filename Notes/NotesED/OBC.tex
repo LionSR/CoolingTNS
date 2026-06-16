@@ -5,16 +5,16 @@ When $g_I=0$, we have $g_F=0$, and the fermionic model has open boundary conditi
 
 Starting from the fermionic Hamiltonian with open boundary conditions:
 \begin{align}
-    H_{\mathrm{spin}}^{\mathrm{OBC}} &= \frac{\cos\theta}{2} \sum_{n=1}^{N-1} (a_n a_{n+1} + a_n a_{n+1}^\dag - a_n^\dag a_{n+1} - a_n^\dag a_{n+1}^\dag) \nn\\
-                                     &\quad +\sin\theta \sum_{n=1}^N (a_n a_n^\dag - a_n^\dag a_n)
+    H_{\mathrm{spin}}^{\mathrm{OBC}} &= \frac{\cos\theta}{2} \sum_{n=1}^{N-1} (a_n a_{n+1} + a_n a_{n+1}^\dag - a_n^\dag a_{n+1} - a_n^\dag a_{n+1}^\dag) \notag\\
+                                     &\quad -\frac{\sin\theta}{2} \sum_{n=1}^N (a_n a_n^\dag - a_n^\dag a_n).
 \end{align}
 We can rewrite this Hamiltonian in matrix form using the Nambu spinor formalism. For the one-body terms $a_n^\dag a_m$, we define a matrix $A$ with elements:
 \begin{align}
-    A_{nm} &= -\sin\theta \delta_{nm} - \frac{\cos\theta}{2}(\delta_{n,m+1} + \delta_{n+1,m})
+    A_{nm} &= \sin\theta \delta_{nm} - \frac{\cos\theta}{2}(\delta_{n,m+1} + \delta_{n+1,m})
 \end{align}
 Similarly, for the pairing terms $a_n a_m$ and $a_n^\dag a_m^\dag$, we define an antisymmetric matrix $B$ with elements:
 \begin{align}
-    B_{nm} &= \frac{\cos\theta}{2}(\delta_{n+1,m} - \delta_{n,m+1})
+    B_{nm} &= \frac{\cos\theta}{2}(\delta_{n,m+1} - \delta_{n+1,m})
 \end{align}
 Using the $2N$-component Nambu spinor $\bm{\Psi} = (a_1, \dots, a_N, a_1^\dag, \dots, a_N^\dag)^T$, the Hamiltonian takes the compact form:
 \begin{align}
@@ -59,27 +59,41 @@ Eliminating $\psi_k$ (or $\phi_k$), we obtain:
     (A - B)(A + B) \phi_k &= \epsilon_k^2 \phi_k \label{eq:E2_phi}\\
     (A + B)(A - B) \psi_k &= \epsilon_k^2 \psi_k \label{eq:E2_psi}
 \end{align}
-The key insight from the Lieb-Schultz-Mattis approach is that for our specific matrices $A$ and $B$, the products $(A+B)(A-B)$ and $(A-B)(A+B)$ have tridiagonal form. Calculating these products explicitly:
+The key insight from the Lieb-Schultz-Mattis approach is that for our specific matrices $A$ and $B$, the products $(A+B)(A-B)$ and $(A-B)(A+B)$ have tridiagonal form. With the convention above,
 \begin{align}
-    [(A + B)(A - B)]_{nl} &= \sin^2\theta \delta_{nl} + \sin\theta \cos\theta (\delta_{n,l+1} + \delta_{n+1,l}) + \cos^2\theta \delta_{n+1,l+1}\\
-    [(A - B)(A + B)]_{nl} &= \sin^2\theta \delta_{nl} + \sin\theta \cos\theta (\delta_{n,l-1} + \delta_{n-1,l}) + \cos^2\theta \delta_{n-1,l-1}
+    A+B &= \sin\theta\,\Id - \cos\theta\,U,\\
+    A-B &= \sin\theta\,\Id - \cos\theta\,L,
 \end{align}
+where $L_{n,n-1}=1$ and $U_{n,n+1}=1$ are the lower and upper shift matrices on the open chain. Thus
+\begin{align}
+    (A+B)(A-B) &= \sin^2\theta\,\Id
+        - \sin\theta\cos\theta\,(L+U)
+        + \cos^2\theta\,UL,\\
+    (A-B)(A+B) &= \sin^2\theta\,\Id
+        - \sin\theta\cos\theta\,(L+U)
+        + \cos^2\theta\,LU.
+\end{align}
+In the bulk this gives the difference equation
+\begin{equation}
+    -\sin\theta\cos\theta\,(\chi_{n-1}+\chi_{n+1})
+    + \chi_n = \epsilon^2 \chi_n.
+\end{equation}
 This tridiagonal structure allows for an analytic solution. The eigenvectors of these matrices have the form:
 \begin{align}
-    \phi_k &= \mathcal{N}_k (\sin\omega_k, \sin 2\omega_k, \ldots, \sin N \omega_k)^T\\
-    \psi_k &= \mathcal{N}_k (\sin N\omega_k, \sin (N-1)\omega_k, \ldots, \sin\omega_k)^T
+    \phi_k &= \mathcal{N}_k (\sin N\omega_k, \sin (N-1)\omega_k, \ldots, \sin\omega_k)^T\\
+    \psi_k &= \mathcal{N}_k (\sin\omega_k, \sin 2\omega_k, \ldots, \sin N \omega_k)^T
 \end{align}
 where $\mathcal{N}_k$ is a normalization constant, and the values of $\omega_k$ are determined by the transcendental equation:
 \begin{align}
-    \frac{\sin(N+1)\omega_k}{\sin N\omega_k} = -\frac{\cos\theta}{2\sin\theta}
+    \frac{\sin(N+1)\omega_k}{\sin N\omega_k} = \cot\theta
 \end{align}
 The eigenvalues (squared energies) for these eigenvectors are:
 \begin{align}
-    \epsilon_k^2 = 1 + \sin(2\theta)\cos\omega_k
+    \epsilon_k^2 = 1 - \sin(2\theta)\cos\omega_k
 \end{align}
 giving us the energy eigenvalues:
 \begin{align}
-    E_k = \epsilon_k = \sqrt{1 + \sin(2\theta)\cos\omega_k}
+    E_k = \epsilon_k = \sqrt{1 - \sin(2\theta)\cos\omega_k}
 \end{align}
 The diagonalized Hamiltonian takes the form:
 \begin{align}
@@ -112,7 +126,7 @@ The columns of the matrix $U$ directly provide the linear combination of the ori
 To express the mode occupation operators $\gamma_k^\dag \gamma_k$ in terms of the original fermionic operators, we use the Bogoliubov coefficients derived from the eigenvectors:
 \begin{align}
     u_{nk} &= \frac{\mathcal{N}_k}{2}[\sin n\omega_k + \sin(N+1-n)\omega_k]\\
-    v_{nk} &= \frac{\mathcal{N}_k}{2}[\sin n\omega_k - \sin(N+1-n)\omega_k]
+    v_{nk} &= \frac{\mathcal{N}_k}{2}[\sin(N+1-n)\omega_k - \sin n\omega_k]
 \end{align}
 The mode occupation is given by:
 \begin{align}
@@ -123,7 +137,7 @@ Using the anticommutation relation $a_n a_m^\dag = \delta_{nm} - a_m^\dag a_n$, 
 \begin{widetext}
     \color{red}
     \begin{align}
-        \gamma_k^\dag \gamma_k &= \sum_{n,m=1}^N \left[u_{nk}^* u_{mk} \left(S_n S_m \frac{\sigma_n^+ \sigma_m^-}{4}\right) + u_{nk}^* v_{mk} \left(S_n S_m \frac{\sigma_n^+ \sigma_m^+}{4}\right) \right. \nn\\
+        \gamma_k^\dag \gamma_k &= \sum_{n,m=1}^N \left[u_{nk}^* u_{mk} \left(S_n S_m \frac{\sigma_n^+ \sigma_m^-}{4}\right) + u_{nk}^* v_{mk} \left(S_n S_m \frac{\sigma_n^+ \sigma_m^+}{4}\right) \right. \notag\\
                                &\quad \left. + v_{nk}^* u_{mk} \left(S_n S_m \frac{\sigma_n^- \sigma_m^-}{4}\right) - v_{nk}^* v_{mk} \left(S_n S_m \frac{\sigma_m^+ \sigma_n^-}{4}\right)\right] + \sum_{n=1}^N v_{nk}^* v_{nk}
     \end{align}
 \end{widetext}
