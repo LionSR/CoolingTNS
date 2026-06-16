@@ -654,8 +654,8 @@ function process_bath_and_update(problem::CoolingProblem{TNBackend}, ρ_evolved:
                                _sim_params) where E<:EvolutionMethod
     sites = problem.extra.sites
     N = length(sites) ÷ 2
-    sites_sys = sites[1:2:2N-1]
-    sites_bath = sites[2:2:2N]
+    sites_sys = interleaved_system_indices(sites, N)
+    sites_bath = interleaved_bath_indices(sites, N)
 
     ρ_b = partial_trace_system(ρ_evolved, sites, sites_bath)
     ρ_b /= tr(ρ_b)

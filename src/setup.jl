@@ -65,8 +65,8 @@ function setup_problem(
     end
 
     N = ham_params.N
-    sites = siteinds("S=1/2", 2 * N)
-    sites_sys = sites[1:2:2 * N - 1]
+    sites = siteinds("S=1/2", interleaved_total_sites(N))
+    sites_sys = interleaved_system_indices(sites, N)
 
     H_sys, Δ_dmrg, e₀, ϕ₀ = setup_system(ham_params, backend, sites_sys)
 
@@ -123,9 +123,9 @@ end
 function setup_problem(backend::TNBackend, ham_params::HamiltonianParameters, coupling_params, sim_params::UnifiedSimulationParameters)
     # Common TN setup
     N = ham_params.N
-    sites = siteinds("S=1/2", 2*N)
-    sites_sys = sites[1:2:2*N-1]
-    sites_bath = sites[2:2:2*N]
+    sites = siteinds("S=1/2", interleaved_total_sites(N))
+    sites_sys = interleaved_system_indices(sites, N)
+    sites_bath = interleaved_bath_indices(sites, N)
     
     # Get system Hamiltonian and ground state
     H_sys, Δ_dmrg, e₀, ϕ₀ = setup_system(ham_params, backend, sites_sys)

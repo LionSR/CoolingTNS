@@ -53,7 +53,7 @@ function interleave_system_bath_ed(ψ_sys::EDStateVector, ψ_bath::EDStateVector
     N = ψ_sys.n_qubits
     @assert ψ_bath.n_qubits == N "System and bath must have same number of qubits"
 
-    N_total = 2 * N
+    N_total = interleaved_total_sites(N)
     dim_total = 2^N_total
     data = zeros(ComplexF64, dim_total)
 
@@ -104,7 +104,7 @@ function prepare_combined_state_ed(state::EDDensityMatrix, N_bath::Int, coupling
     ψ_bath = get_bath_ground_state_ed(N_bath, coupling)
     ρ_bath = state_to_density_ed(ψ_bath)
 
-    N_total = 2 * N
+    N_total = interleaved_total_sites(N)
     dim_total = 2^N_total
     data = zeros(ComplexF64, dim_total, dim_total)
 
@@ -155,7 +155,7 @@ Returns (system_state, bath_outcomes).
 """
 function process_bath_ed_monte_carlo(state::EDStateVector, N_bath::Int)
     # Bath qubits are at even positions in alternating layout
-    bath_qubits = [2*i for i in 1:N_bath]
+    bath_qubits = interleaved_bath_sites(N_bath)
     
     # Measure bath qubits and collapse
     ψ_sys, bath_outcomes = measure_ed!(state, bath_qubits)
@@ -210,13 +210,13 @@ tracing out the bath.
 _system_state_for_measurement(state::EDStateVector, ::Int) = state
 
 function _system_state_for_measurement(ρ::EDDensityMatrix, N_sys::Int)
-    if ρ.n_qubits == 2 * N_sys
+    if ρ.n_qubits == interleaved_total_sites(N_sys)
         return trace_out_bath_ed(ρ, N_sys)
     elseif ρ.n_qubits == N_sys
         return ρ
     else
         throw(DimensionMismatch(
-            "ED density-matrix measurements expected $N_sys or $(2 * N_sys) qubits, " *
+            "ED density-matrix measurements expected $N_sys or $(interleaved_total_sites(N_sys)) qubits, " *
             "got $(ρ.n_qubits)"
         ))
     end
@@ -265,7 +265,9 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
         end
         
         # Bath magnetization (only if we have full state and not first step)
-        if step > 1 && ρ_total.n_qubits == 2*N_sys && haskey(measurements, RESULT_BATH_MAGNETIZATION)
+        if step > 1 &&
+           ρ_total.n_qubits == interleaved_total_sites(N_sys) &&
+           haskey(measurements, RESULT_BATH_MAGNETIZATION)
             N_bath = N_sys
             ρ_bath = trace_out_system_ed(ρ_total, N_sys)
             # Compute magnetization

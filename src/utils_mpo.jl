@@ -21,7 +21,7 @@ function appendzeros_MPO(ρ::MPO, sites::Vector{<:Index}, coupling::String="XX")
 
     for i = 1:N
         # Create bath density matrix |ψ₀⟩⟨ψ₀| from amplitudes
-        s = sites[2i]
+        s = sites[interleaved_bath_site(i)]
         ψ0 = ITensor(ComplexF64, s)
         for (state_idx, amp) in enumerate(bath_amps)
             if abs(amp) > 1e-15
@@ -34,13 +34,13 @@ function appendzeros_MPO(ρ::MPO, sites::Vector{<:Index}, coupling::String="XX")
             ll = sim(linkind(ρ, i))
             lr = linkind(ρ, i)
             δlr = delta(dag(lr), ll)
-            dataρ_appended[2i-1] = data_ρ[i] * δlr
-            dataρ_appended[2i] = ρ0 * dag(δlr)
+            dataρ_appended[interleaved_system_site(i)] = data_ρ[i] * δlr
+            dataρ_appended[interleaved_bath_site(i)] = ρ0 * dag(δlr)
         else
-            ll = linkind(ρ_appended, 2i - 1)
+            ll = linkind(ρ_appended, interleaved_system_site(i))
             lT = ITensor(1, ll)
-            dataρ_appended[2i-1] = data_ρ[i] * lT
-            dataρ_appended[2i] = ρ0 * dag(lT)
+            dataρ_appended[interleaved_system_site(i)] = data_ρ[i] * lT
+            dataρ_appended[interleaved_bath_site(i)] = ρ0 * dag(lT)
         end
     end
     # Keep interlaced system+bath MPO (length = 2N)
@@ -50,11 +50,21 @@ end
 function partial_trace_bath(ρ_sb::MPO, sites::Vector{<:Index}, sites_sys::Vector{<:Index})
     N = length(sites_sys)
     # Trace out bath (even sites) and merge system+bath tensors back into N-site MPO
-    return MPO([ρ_sb[2i-1] * ρ_sb[2i] * delta(sites[2i], sites[2i]') for i in 1:N])
+    return MPO([
+        ρ_sb[interleaved_system_site(i)] *
+        ρ_sb[interleaved_bath_site(i)] *
+        delta(sites[interleaved_bath_site(i)], sites[interleaved_bath_site(i)]')
+        for i in 1:N
+    ])
 end
 
 function partial_trace_system(ρ_sb::MPO, sites::Vector{<:Index}, sites_bath::Vector{<:Index})
     N = length(sites_bath)
     # Trace out system (odd sites) and merge system+bath tensors back into N-site MPO
-    return MPO([ρ_sb[2i-1] * ρ_sb[2i] * delta(sites[2i-1], sites[2i-1]') for i in 1:N])
+    return MPO([
+        ρ_sb[interleaved_system_site(i)] *
+        ρ_sb[interleaved_bath_site(i)] *
+        delta(sites[interleaved_system_site(i)], sites[interleaved_system_site(i)]')
+        for i in 1:N
+    ])
 end

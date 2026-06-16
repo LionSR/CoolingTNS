@@ -29,7 +29,7 @@ bath qubits in product state.
 """
 function appendzeros_MPS(ψ::MPS, sites::Vector{<:Index}, coupling::String="XX")
     N = length(ψ)  # Number of system sites
-    @assert length(sites) == 2*N "sites must have 2N elements for N system qubits"
+    @assert length(sites) == interleaved_total_sites(N) "sites must have 2N elements for N system qubits"
 
     # Get bath ground state based on coupling type
     _, bath_amps = get_bath_ground_state(coupling)
@@ -39,16 +39,16 @@ function appendzeros_MPS(ψ::MPS, sites::Vector{<:Index}, coupling::String="XX")
 
     # Build tensors for the combined MPS
     # Structure: [sys₁]-[bath₁]-[sys₂]-[bath₂]-...-[sysₙ]-[bathₙ]
-    tensors = Vector{ITensor}(undef, 2*N)
+    tensors = Vector{ITensor}(undef, interleaved_total_sites(N))
 
     # Pre-create all new link indices
     # Combined MPS has 2N-1 links
-    new_links = Vector{Index}(undef, 2*N-1)
+    new_links = Vector{Index}(undef, interleaved_total_sites(N) - 1)
 
     # Determine bond dimensions
     for i in 1:N
-        sys_pos = 2*i - 1
-        bath_pos = 2*i
+        sys_pos = interleaved_system_site(i)
+        bath_pos = interleaved_bath_site(i)
 
         if i < N
             # Link between sys_i and bath_i has dimension = dim of original link i
@@ -89,8 +89,8 @@ function appendzeros_MPS(ψ::MPS, sites::Vector{<:Index}, coupling::String="XX")
 
     # Build each tensor
     for i in 1:N
-        sys_pos = 2*i - 1
-        bath_pos = 2*i
+        sys_pos = interleaved_system_site(i)
+        bath_pos = interleaved_bath_site(i)
 
         # Get system tensor and change its site index
         T_sys = copy(ψ[i])
@@ -154,8 +154,6 @@ end
 
 function _sample_bath_impl(rng::AbstractRNG, m::MPS; copy_input::Bool)
     # Layout: [sys₁, bath₁, sys₂, bath₂, ..., sysₙ, bathₙ]
-    # Bath sites are at even indices: 2, 4, 6, ..., 2N
-    # System sites are at odd indices: 1, 3, 5, ..., 2N-1
     N_total = length(m)
     N = div(N_total, 2)
 
@@ -174,8 +172,8 @@ function _sample_bath_impl(rng::AbstractRNG, m::MPS; copy_input::Bool)
     # By preserving canonical form info (llim/rlim), each subsequent
     # orthogonalize! only needs to sweep ~1 site left instead of the full MPS.
     for bath_idx in N:-1:1
-        bath_site = 2 * bath_idx
-        sys_site = 2 * bath_idx - 1
+        bath_site = interleaved_bath_site(bath_idx)
+        sys_site = interleaved_system_site(bath_idx)
 
         # Move orth center to bath_site (cheap: only sweeps from current center)
         orthogonalize!(m_working, bath_site)
