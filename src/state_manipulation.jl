@@ -50,14 +50,14 @@ end
 
 function process_bath(::TNBackend, ::DensityMatrix, ρ_sb::MPO, N_sys::Int, _N_bath::Int)
     sites = [siteind(ρ_sb, i) for i in 1:length(ρ_sb)]
-    sites_sys = sites[1:2:2*N_sys-1]
+    sites_sys = interleaved_system_indices(sites, N_sys)
     ρ_s = partial_trace_bath(ρ_sb, sites, sites_sys)
     return ρ_s / tr(ρ_s), nothing
 end
 
 # ED Backend
 function process_bath(::EDBackend, ::MonteCarloWavefunction, ψ_evolved::EDStateVector, _N_sys::Int, N_bath::Int)
-    return measure_ed!(ψ_evolved, collect(2:2:2*N_bath))
+    return measure_ed!(ψ_evolved, interleaved_bath_sites(N_bath))
 end
 
 # ED Density Matrix: return full state, trace during measurements
@@ -73,7 +73,7 @@ trace_out_bath(::EDBackend, ρ::EDDensityMatrix, N_sys::Int, _) = trace_out_bath
 
 function trace_out_bath(::TNBackend, ρ::MPO, N_sys::Int, _)
     sites = [siteind(ρ, i) for i in 1:length(ρ)]
-    sites_sys = sites[1:2:2*N_sys-1]
+    sites_sys = interleaved_system_indices(sites, N_sys)
     return partial_trace_bath(ρ, sites, sites_sys)
 end
 

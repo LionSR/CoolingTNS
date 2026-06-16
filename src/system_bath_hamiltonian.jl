@@ -57,10 +57,12 @@ function construct_system_bath_hamiltonian(
     op1, op2 = parse_coupling(coupling)
     bath_op = get_bath_operator(coupling)
 
-    terms = append_system_terms_tn(OpSum(), ham_params, i -> 2i - 1)
+    terms = append_system_terms_tn(OpSum(), ham_params, interleaved_system_site)
     for i in 1:N
-        terms += Δ/2, bath_op, 2i             # Bath site - operator depends on coupling
-        terms += g, op1, 2i-1, op2, 2i        # System-bath coupling
+        sys_site = interleaved_system_site(i)
+        bath_site = interleaved_bath_site(i)
+        terms += Δ/2, bath_op, bath_site
+        terms += g, op1, sys_site, op2, bath_site
     end
 
     return MPO(terms, sites)
@@ -95,7 +97,7 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     bath_op_func = (coupling_type in ["ZZ", "YZ"]) ? pauli_x : pauli_z
 
     for i in 1:N
-        bath_idx = 2*i
+        bath_idx = interleaved_bath_site(i)
         H_sb += (Δ/2) * bath_op_func(bath_idx, N_total)
     end
     
@@ -104,8 +106,8 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     coupling_type = coupling_params.coupling
     
     for i in 1:N
-        sys_idx = 2*i - 1  # System qubit i
-        bath_idx = 2*i     # Corresponding bath qubit
+        sys_idx = interleaved_system_site(i)
+        bath_idx = interleaved_bath_site(i)
         
         H_sb += construct_coupling_term_ed(sys_idx, bath_idx, N_total, coupling_type, g)
     end

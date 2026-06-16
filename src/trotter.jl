@@ -82,8 +82,8 @@ function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{Isi
     # Layer 1: 2-site gates on (s_i, b_i) at positions (2i-1, 2i)
     # Contains: h*X_{si} + (Δ/2)*bath_op_{bi} + g*op1_{si}*op2_{bi}
     for i in 1:N
-        si = sites[2i-1]
-        bi = sites[2i]
+        si = sites[interleaved_system_site(i)]
+        bi = sites[interleaved_bath_site(i)]
         h_local = h * op("X", si) * op("I", bi) +
                   delta / 2 * op("I", si) * op(bath_op, bi) +
                   g * op(op1, si) * op(op2, bi)
@@ -93,9 +93,9 @@ function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{Isi
     # Layer 2: 3-site gates on (s_i, b_i, s_{i+1}) at positions (2i-1, 2i, 2i+1)
     # Contains: J * Z_{si} ⊗ I_{bi} ⊗ Z_{s_{i+1}}
     for i in 1:N-1
-        si = sites[2i-1]
-        bi = sites[2i]
-        si1 = sites[2i+1]
+        si = sites[interleaved_system_site(i)]
+        bi = sites[interleaved_bath_site(i)]
+        si1 = sites[interleaved_system_site(i+1)]
         h_zz = J * op("Z", si) * op("I", bi) * op("Z", si1)
         push!(forward_gates, exp(-1.0im * tau / 2 * h_zz))
     end
@@ -126,8 +126,8 @@ function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{NiI
     # Layer 1: 2-site gates on (s_i, b_i) at positions (2i-1, 2i)
     # Contains: hx*X_{si} + hz*Z_{si} + (Δ/2)*bath_op_{bi} + g*op1_{si}*op2_{bi}
     for i in 1:N
-        si = sites[2i-1]
-        bi = sites[2i]
+        si = sites[interleaved_system_site(i)]
+        bi = sites[interleaved_bath_site(i)]
         h_local = hx * op("X", si) * op("I", bi) +
                   hz * op("Z", si) * op("I", bi) +
                   delta / 2 * op("I", si) * op(bath_op, bi) +
@@ -138,9 +138,9 @@ function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{NiI
     # Layer 2: 3-site gates on (s_i, b_i, s_{i+1}) at positions (2i-1, 2i, 2i+1)
     # Contains: J * Z_{si} ⊗ I_{bi} ⊗ Z_{s_{i+1}}
     for i in 1:N-1
-        si = sites[2i-1]
-        bi = sites[2i]
-        si1 = sites[2i+1]
+        si = sites[interleaved_system_site(i)]
+        bi = sites[interleaved_bath_site(i)]
+        si1 = sites[interleaved_system_site(i+1)]
         h_zz = J * op("Z", si) * op("I", bi) * op("Z", si1)
         push!(forward_gates, exp(-1.0im * tau / 2 * h_zz))
     end

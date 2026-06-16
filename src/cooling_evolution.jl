@@ -515,7 +515,9 @@ end
 function prepare_combined_state(problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend,DensityMatrix,E}) where E<:EvolutionMethod
     N_bath = problem.extra.ham_params.N
     coupling = problem.extra.coupling_params.coupling
-    ρ_sys = state.state.n_qubits == 2*N_bath ? trace_out_bath_ed(state.state, N_bath) : state.state
+    ρ_sys = state.state.n_qubits == interleaved_total_sites(N_bath) ?
+        trace_out_bath_ed(state.state, N_bath) :
+        state.state
     return prepare_combined_state_ed(ρ_sys, N_bath, coupling)
 end
 
@@ -632,7 +634,7 @@ function process_bath_and_update(problem::CoolingProblem{TNBackend}, ρ_evolved:
                                _sim_params) where E<:EvolutionMethod
     sites = problem.extra.sites
     N = length(sites) ÷ 2
-    sites_sys = sites[1:2:2N-1]
+    sites_sys = interleaved_system_indices(sites, N)
 
     ρ_s = partial_trace_bath(ρ_evolved, sites, sites_sys)
     ρ_s = 0.5 * (ρ_s + dag(swapprime(ρ_s, 0, 1)))  # Enforce Hermiticity
@@ -653,4 +655,3 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     measurements["GS_overlap_list"][step] = real(inner(ρ_s, projector_mpo(ϕ₀)))
     measurements["purity_list"][step] = real(tr(apply(ρ_s, ρ_s)))
 end
-

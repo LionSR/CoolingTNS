@@ -42,7 +42,7 @@ function interleave_system_bath_ed(ψ_sys::EDStateVector, ψ_bath::EDStateVector
     N = ψ_sys.n_qubits
     @assert ψ_bath.n_qubits == N "System and bath must have same number of qubits"
 
-    N_total = 2 * N
+    N_total = interleaved_total_sites(N)
     dim_total = 2^N_total
     data = zeros(ComplexF64, dim_total)
 
@@ -93,7 +93,7 @@ function prepare_combined_state_ed(state::EDDensityMatrix, N_bath::Int, coupling
     ψ_bath = get_bath_ground_state_ed(N_bath, coupling)
     ρ_bath = state_to_density_ed(ψ_bath)
 
-    N_total = 2 * N
+    N_total = interleaved_total_sites(N)
     dim_total = 2^N_total
     data = zeros(ComplexF64, dim_total, dim_total)
 
@@ -144,7 +144,7 @@ Returns (system_state, bath_outcomes).
 """
 function process_bath_ed_monte_carlo(state::EDStateVector, N_bath::Int)
     # Bath qubits are at even positions in alternating layout
-    bath_qubits = [2*i for i in 1:N_bath]
+    bath_qubits = interleaved_bath_sites(N_bath)
     
     # Measure bath qubits and collapse
     ψ_sys, bath_outcomes = measure_ed!(state, bath_qubits)
@@ -182,7 +182,7 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
         ρ_total = state
         
         # Get system density matrix
-        if ρ_total.n_qubits == 2*N_sys
+        if ρ_total.n_qubits == interleaved_total_sites(N_sys)
             # Full system+bath state - trace out bath
             ρ_sys = trace_out_bath_ed(ρ_total, N_sys)
         else
@@ -202,7 +202,9 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
         end
         
         # Bath magnetization (only if we have full state and not first step)
-        if step > 1 && ρ_total.n_qubits == 2*N_sys && haskey(measurements, "bath_mag_list")
+        if step > 1 &&
+           ρ_total.n_qubits == interleaved_total_sites(N_sys) &&
+           haskey(measurements, "bath_mag_list")
             N_bath = N_sys
             ρ_bath = trace_out_system_ed(ρ_total, N_sys)
             # Compute magnetization
@@ -226,7 +228,7 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
             measurements["momentum_dist"][step, :] .= n_k
         else
             # For density matrices, we need to get the system state
-            if ρ_total.n_qubits == 2*N_sys
+            if ρ_total.n_qubits == interleaved_total_sites(N_sys)
                 ρ_sys = trace_out_bath_ed(ρ_total, N_sys)
             else
                 ρ_sys = ρ_total
@@ -248,7 +250,7 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
             state
         else
             # Density matrix: get system-only state
-            if ρ_total.n_qubits == 2*N_sys
+            if ρ_total.n_qubits == interleaved_total_sites(N_sys)
                 trace_out_bath_ed(ρ_total, N_sys)
             else
                 ρ_total

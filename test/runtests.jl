@@ -11,6 +11,7 @@ end
 
 @testset "CoolingTNS" begin
     @testset "Fast" begin
+        include("test_interleaved_layout.jl")
         include("test_hamiltonians.jl")
         include("test_initial_states.jl")
         include("test_cooling_interface.jl")
