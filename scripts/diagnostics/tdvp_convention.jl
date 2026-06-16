@@ -38,7 +38,7 @@ function tdvp_convention_check(; te::Float64=0.5, tau::Float64=0.5,
         0 1 1 0
     ]
 
-    exact_real = exp(-im * te * H_mat) * psi0_vec
+    exact_real = exp(CoolingTNS._tdvp_real_time(te) * H_mat) * psi0_vec
     exact_real ./= norm(exact_real)
 
     sim_params = CoolingTNS.UnifiedSimulationParameters(
@@ -58,7 +58,7 @@ function tdvp_convention_check(; te::Float64=0.5, tau::Float64=0.5,
 
     # Negative control: a real TDVP time parameter is not the Schrodinger
     # evolution used by the package wrapper.
-    nsteps = max(1, Int(ceil(te / tau)))
+    nsteps = CoolingTNS._tdvp_step_count(te, tau)
     nonunitary = tdvp(H_mpo, te, psi0;
                       nsteps=nsteps, nsite=2, reverse_step=true,
                       normalize=true, maxdim=100, cutoff=1e-14, outputlevel=0)

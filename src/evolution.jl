@@ -28,17 +28,30 @@ end
 # Monte Carlo + Continuous Evolution + Tensor Networks
 # ============================================================================
 
+function _tdvp_real_time(t::Float64)
+    t < 0 && throw(ArgumentError("TDVP real-time evolution time must be nonnegative; got t=$t."))
+    return -1.0im * t
+end
+
+function _tdvp_step_count(t::Float64, tau::Float64)
+    t < 0 && throw(ArgumentError("TDVP evolution time must be nonnegative; got t=$t."))
+    tau <= 0 && throw(ArgumentError("TDVP step tau must be positive; got tau=$tau."))
+    t == 0 && return 0
+    return max(1, Int(ceil(t / tau)))
+end
+
 function evolve_state(::HamiltonianParameters, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, ContinuousEvolution},
                      ::TNBackend, H_total, ψ, t::Float64, ::Vector{<:Index}; kwargs...)
     Dmax, cutoff, tau = sim_params.Dmax, sim_params.cutoff, sim_params.tau
 
     # Pick an integer number of TDVP steps so arbitrary `t` works even when `t/tau`
     # is not an integer (e.g. randomized evolution times in multi-frequency cooling).
-    nsteps = max(1, Int(ceil(t / tau)))
+    nsteps = _tdvp_step_count(t, tau)
+    nsteps == 0 && return ψ
     @debug "evolve_state MC+Continuous: Dmax=$Dmax, tau=$tau, t=$t, nsteps=$nsteps, nsite=2"
 
     # Use nsite=2 to allow bond dimension growth from product states
-    ψ_evolved = tdvp(H_total, -im * t, ψ;
+    ψ_evolved = tdvp(H_total, _tdvp_real_time(t), ψ;
                      nsteps=nsteps, nsite=2, reverse_step=true, normalize=true,
                      maxdim=Dmax, cutoff=cutoff, outputlevel=0)
     normalize!(ψ_evolved)
