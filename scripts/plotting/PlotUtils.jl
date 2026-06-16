@@ -56,14 +56,14 @@ Select which steps to plot from an evolution.
 Default: initial, 25%, 50%, 75%, and final steps.
 """
 function select_evolution_steps(total_steps::Int; steps_to_plot=nothing)::Vector{Int}
+    total_steps < 1 && return Int[]
+
     if steps_to_plot !== nothing
-        return steps_to_plot
+        return unique([Int(step) for step in steps_to_plot if 1 <= Int(step) <= total_steps])
     end
-    return unique([1,
-                   div(total_steps, 4),
-                   div(total_steps, 2),
-                   div(3*total_steps, 4),
-                   total_steps])
+
+    n_steps = min(total_steps, 5)
+    return unique(round.(Int, range(1, total_steps; length=n_steps)))
 end
 
 """
@@ -105,6 +105,8 @@ end
 Generate a color array for evolution plots using viridis colormap.
 """
 function get_evolution_colors(plt, n_steps::Int)
+    n_steps <= 0 && return Any[]
+    n_steps == 1 && return [plt.cm.viridis(0.0)]
     return plt.cm.viridis(range(0, 1, length=n_steps))
 end
 

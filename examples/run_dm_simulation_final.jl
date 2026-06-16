@@ -1,28 +1,16 @@
-using CoolingTNS
+include(joinpath(@__DIR__, "ed_dm_example_utils.jl"))
 
-# Parameters
-N = 6
-J = 1.0
-h = 2.0
-g = 0.3
-te = 2.0
-steps = 20
+params = ed_dm_ising_example()
 
-println("Running density matrix simulation with complex Jordan-Wigner operators...")
-println("Parameters: N=$N, J=$J, h=$h, g=$g, te=$te, steps=$steps")
+println("Running ED density-matrix simulation with k-space measurements.")
+println("N=$(params.N), J=$(params.J), h=$(params.h), g=$(params.g), te=$(params.te), steps=$(params.steps), bc=$(params.bc)")
 
-# Run the simulation
-run(`julia --project=. Cooling.jl --N $N --problem Ising --backend ED --bc periodic --sim_method density_matrix --evolution_method continuous --coupling XX --g $g --te $te --steps $steps --J $J --h $h`)
+run_ed_dm_ising_driver(params)
 
-# Check if the file was created
-dm_file = "Results/Cooling_HamIsingJ$(J)h$(h)bcperiodic_CouplingXXg$(g)te$(te)steps$(steps)_SimEDDM.h5"
-
-if isfile(dm_file)
-    println("\nSimulation completed successfully!")
-    println("Data saved to: $dm_file")
-    
-    # Generate plots
-    include("plot_existing_dm.jl")
+if isfile(params.result_path)
+    println("\nSimulation completed successfully.")
+    println("Data saved to: $(params.result_path)")
+    println("The cooling driver also writes the standard energy and k-space figures under Results/Figs.")
 else
-    println("\nError: Simulation file not found at $dm_file")
+    println("\nError: simulation file not found at $(params.result_path)")
 end

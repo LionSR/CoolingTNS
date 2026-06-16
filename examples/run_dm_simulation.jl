@@ -1,24 +1,16 @@
-using CoolingTNS
+include(joinpath(@__DIR__, "ed_dm_example_utils.jl"))
 
-# Parameters
-N = 6
-J = 1.0
-h = 2.0
-g = 0.3
-te = 2.0
-steps = 20
+params = ed_dm_ising_example()
 
-println("Running ED simulation with density matrix method...")
-run(`julia --project=. Cooling.jl --N $N --problem Ising --backend ED --bc periodic --sim_method density_matrix --evolution_method continuous --coupling XX --g $g --te $te --steps $steps --J $J --h $h`)
+println("Running ED density-matrix simulation.")
+println("N=$(params.N), J=$(params.J), h=$(params.h), g=$(params.g), te=$(params.te), steps=$(params.steps), bc=$(params.bc)")
 
-# Find the generated file
-dm_file = "Results/Cooling_HamIsingJ$(J)h$(h)bcperiodic_CouplingXXg$(g)te$(te)steps$(steps)_SimEDDM.h5"
+run_ed_dm_ising_driver(params)
 
-if isfile(dm_file)
-    println("\nSimulation completed. Generating plots...")
-    
-    # Generate n_k and e_k evolution plots
-    include("plot_actual_cooling_evolution.jl")
+if isfile(params.result_path)
+    println("\nSimulation completed.")
+    println("Data saved to: $(params.result_path)")
+    println("The cooling driver also writes the standard energy and k-space figures under Results/Figs.")
 else
-    println("Error: DM simulation file not found at $dm_file")
+    println("\nError: simulation file not found at $(params.result_path)")
 end

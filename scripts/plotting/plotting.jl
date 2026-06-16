@@ -451,14 +451,14 @@ end
 
 
 """
-    plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true)
+    plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true, show_fig=false)
 
 Plot the momentum distribution n_k vs k at a subset of cooling steps.
 
 If the file contains a scalar `delta`, it is drawn as a horizontal line on a
 secondary y-axis (to indicate the resonant bath frequency).
 """
-function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true)
+function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true, show_fig=false)
     plt = get_pyplot()
 
     data = read_h5_data(filename)
@@ -504,15 +504,16 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
         save_figure(fig, dirname(filename), "momentum_dist_$(base_name).pdf")
     end
 
-    plt.show()
+    show_fig && plt.show()
+    return fig
 end
 
 """
-    plot_momentum_distribution_heatmap(filename; save_fig=true)
+    plot_momentum_distribution_heatmap(filename; save_fig=true, show_fig=false)
 
 Plot the momentum distribution as a heatmap showing n_k vs (k, step).
 """
-function plot_momentum_distribution_heatmap(filename; save_fig=true)
+function plot_momentum_distribution_heatmap(filename; save_fig=true, show_fig=false)
     plt = get_pyplot()
 
     data = read_h5_data(filename)
@@ -556,7 +557,8 @@ function plot_momentum_distribution_heatmap(filename; save_fig=true)
         save_figure(fig, dirname(filename), "momentum_dist_heatmap_$(base_name).pdf")
     end
 
-    plt.show()
+    show_fig && plt.show()
+    return fig
 end
 
 """
