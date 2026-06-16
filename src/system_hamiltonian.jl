@@ -77,17 +77,41 @@ function append_system_terms_tn(terms::OpSum, ham_params::HamiltonianParameters,
     error("TN system terms not implemented for model $(typeof(ham_params.model))")
 end
 
+"""
+    spin_boundary_bond_sign(bc::Symbol) -> Int
+
+Return the coefficient sign of the closing Ising spin bond `Z_N Z_1`.
+The values are `0` for an open chain, `+1` for a periodic chain, and `-1`
+for an antiperiodic chain.
+"""
+function spin_boundary_bond_sign(bc::Symbol)
+    bc == :open && return 0
+    bc == :periodic && return 1
+    bc == :antiperiodic && return -1
+    throw(ArgumentError("Unsupported boundary condition: $bc"))
+end
+
+"""Append Ising ZZ chain terms with the requested spin boundary condition."""
+function append_zz_chain_terms_tn(terms::OpSum, J::Real, N::Int, bc::Symbol, site_of)
+    for i in 1:N-1
+        terms += J, "Z", site_of(i), "Z", site_of(i+1)
+    end
+    boundary_sign = spin_boundary_bond_sign(bc)
+    if boundary_sign != 0
+        terms += boundary_sign * J, "Z", site_of(N), "Z", site_of(1)
+    end
+    return terms
+end
+
 function append_system_terms_tn(
     terms::OpSum,
     ham_params::HamiltonianParameters{IsingModel},
     site_of,
 )
     J, h = ham_params.params.J, ham_params.params.h
-    N = ham_params.N
+    N, bc = ham_params.N, ham_params.bc
 
-    for i in 1:N-1
-        terms += J, "Z", site_of(i), "Z", site_of(i+1)
-    end
+    terms = append_zz_chain_terms_tn(terms, J, N, bc, site_of)
     for i in 1:N
         terms += h, "X", site_of(i)
     end
@@ -100,11 +124,9 @@ function append_system_terms_tn(
     site_of,
 )
     J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
-    N = ham_params.N
+    N, bc = ham_params.N, ham_params.bc
 
-    for i in 1:N-1
-        terms += J, "Z", site_of(i), "Z", site_of(i+1)
-    end
+    terms = append_zz_chain_terms_tn(terms, J, N, bc, site_of)
     for i in 1:N
         terms += hx, "X", site_of(i)
         terms += hz, "Z", site_of(i)
@@ -151,8 +173,8 @@ function add_zz_chain_ed!(H::SparseMatrixCSC, J::Float64, N::Int, bc::Symbol)
     for i in 1:N-1
         H .+= J * pauli_zz(i, i+1, N)
     end
-    bc == :periodic && (H .+= J * pauli_zz(N, 1, N))
-    bc == :antiperiodic && (H .-= J * pauli_zz(N, 1, N))
+    boundary_sign = spin_boundary_bond_sign(bc)
+    boundary_sign != 0 && (H .+= boundary_sign * J * pauli_zz(N, 1, N))
     return H
 end
 

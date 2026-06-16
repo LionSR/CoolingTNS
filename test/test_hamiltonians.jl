@@ -58,6 +58,17 @@ end
 
 @testset "Hamiltonian Construction Tests" begin
     N = 4
+
+    function zz_product_energy(N, J, bc)
+        if bc == :open
+            return (N - 1) * J
+        elseif bc == :periodic
+            return N * J
+        elseif bc == :antiperiodic
+            return (N - 2) * J
+        end
+        error("unsupported test boundary condition $bc")
+    end
     
     @testset "Parse Coupling" begin
         @test CoolingTNS.parse_coupling("XX") == ("X", "X")
@@ -173,6 +184,23 @@ end
             E = real(inner(ψ', H, ψ))
             @test abs(E) < N * (abs(J) + abs(h))  # Energy should be bounded
         end
+
+        @testset "Ising Model Boundary Conditions" begin
+            J, h = 1.0, 0.0
+            ψ_up = MPS(sites, "Up")
+
+            for bc in [:open, :periodic, :antiperiodic]
+                ham_params = CoolingTNS.IsingParameters(N, J, h, bc)
+                H = CoolingTNS.construct_system_hamiltonian(ham_params, backend, sites)
+                E_tn = real(inner(ψ_up', H, ψ_up))
+                ψ_ed = CoolingTNS.product_state_ed(N, 0)
+                H_ed = CoolingTNS.construct_system_hamiltonian(ham_params, CoolingTNS.EDBackend(), N)
+                E_ed = CoolingTNS.expect_ed(H_ed, ψ_ed)
+
+                @test E_tn ≈ zz_product_energy(N, J, bc) atol=1e-10
+                @test E_tn ≈ E_ed atol=1e-10
+            end
+        end
         
         @testset "Non-integrable Ising Model" begin
             J, hx, hz = 1.0, -1.05, 0.5
@@ -196,6 +224,20 @@ end
             # Energy should be: (N-1)*J - N*hz (since Z|1⟩ = -|1⟩)
             expected_E_down = (N-1) * J - N * hz
             @test abs(E_down - expected_E_down) < 1e-10
+        end
+
+        @testset "Non-integrable Ising Boundary Conditions" begin
+            J, hx, hz = 1.0, 0.0, 0.25
+            ψ_up = MPS(sites, "Up")
+
+            for bc in [:open, :periodic, :antiperiodic]
+                ham_params = CoolingTNS.NiIsingParameters(N, J, hx, hz, bc)
+                H = CoolingTNS.construct_system_hamiltonian(ham_params, backend, sites)
+                E_tn = real(inner(ψ_up', H, ψ_up))
+                expected_E = zz_product_energy(N, J, bc) + N * hz
+
+                @test E_tn ≈ expected_E atol=1e-10
+            end
         end
     end
 
@@ -276,6 +318,26 @@ end
             @test H isa MPO
             @test length(H) == 2N
         end
+
+        @testset "TN Backend - Ising System-Bath Boundary Conditions" begin
+            backend = CoolingTNS.TNBackend()
+            J, h = 1.0, 0.0
+            ψ_up = MPS(sites, "Up")
+            zero_coupling = CoolingTNS.BasicCouplingParameters("XX", 0.0, 1, 1.0, 0.0)
+
+            for bc in [:open, :periodic, :antiperiodic]
+                ham_params = CoolingTNS.IsingParameters(N, J, h, bc)
+                H = CoolingTNS.construct_system_bath_hamiltonian(ham_params, backend, sites, zero_coupling)
+                E_tn = real(inner(ψ_up', H, ψ_up))
+                H_ed = CoolingTNS.construct_system_bath_hamiltonian(
+                    ham_params, CoolingTNS.EDBackend(), 2N, zero_coupling
+                )
+                E_ed = CoolingTNS.expect_ed(H_ed, CoolingTNS.product_state_ed(2N, 0))
+
+                @test E_tn ≈ zz_product_energy(N, J, bc) atol=1e-10
+                @test E_tn ≈ E_ed atol=1e-10
+            end
+        end
         
         @testset "TN Backend - Non-integrable Ising System-Bath" begin
             backend = CoolingTNS.TNBackend()
@@ -287,6 +349,26 @@ end
             @test length(H) == 2N
         end
 
+        @testset "TN Backend - Non-integrable Ising System-Bath Boundary Conditions" begin
+            backend = CoolingTNS.TNBackend()
+            J, hx, hz = 1.0, 0.0, 0.25
+            ψ_up = MPS(sites, "Up")
+            zero_coupling = CoolingTNS.BasicCouplingParameters("XX", 0.0, 1, 1.0, 0.0)
+
+            for bc in [:open, :periodic, :antiperiodic]
+                ham_params = CoolingTNS.NiIsingParameters(N, J, hx, hz, bc)
+                H = CoolingTNS.construct_system_bath_hamiltonian(ham_params, backend, sites, zero_coupling)
+                E_tn = real(inner(ψ_up', H, ψ_up))
+                H_ed = CoolingTNS.construct_system_bath_hamiltonian(
+                    ham_params, CoolingTNS.EDBackend(), 2N, zero_coupling
+                )
+                E_ed = CoolingTNS.expect_ed(H_ed, CoolingTNS.product_state_ed(2N, 0))
+                expected_E = zz_product_energy(N, J, bc) + N * hz
+
+                @test E_tn ≈ expected_E atol=1e-10
+                @test E_tn ≈ E_ed atol=1e-10
+            end
+        end
         @testset "TN Backend - Rydberg System-Bath" begin
             backend = CoolingTNS.TNBackend()
             Ω, Δ, V = 1.0, 0.3, 0.2
@@ -469,6 +551,26 @@ end
                     H_sb_element = inner(basis_sb[bra]', H_sb, basis_sb[ket])
                     @test H_sb_element ≈ H_sys_element atol=1e-10
                 end
+            end
+        end
+
+        @testset "TN Trotter rejects non-open Ising boundary conditions" begin
+            backend = CoolingTNS.TNBackend()
+            sim_params = CoolingTNS.UnifiedSimulationParameters(
+                CoolingTNS.DensityMatrix(), CoolingTNS.TrotterEvolution(); tau=0.1
+            )
+            trotter_coupling = CoolingTNS.BasicCouplingParameters("XX", 0.1, 1, 1.0, 0.5)
+
+            for bc in [:periodic, :antiperiodic]
+                ham_params = CoolingTNS.IsingParameters(N, 1.0, -0.5, bc)
+                @test_throws ArgumentError CoolingTNS.build_trotter_circuit_interleaved(
+                    ham_params, backend, sites, trotter_coupling, sim_params
+                )
+
+                ni_ham_params = CoolingTNS.NiIsingParameters(N, 1.0, -0.5, 0.2, bc)
+                @test_throws ArgumentError CoolingTNS.build_trotter_circuit_interleaved(
+                    ni_ham_params, backend, sites, trotter_coupling, sim_params
+                )
             end
         end
     end
