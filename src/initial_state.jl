@@ -29,15 +29,22 @@ end
 # ============================================================================
 
 """
-    create_theta_state_ed(N::Int, init_type::String, theta::Float64) -> EDStateVector
+    _theta_site_amplitudes(theta::Float64) -> Tuple{Float64, Float64}
 
-Create an ED state vector based on init_type and theta parameter.
+Return the one-site amplitudes for the real product state
+`cos(α)|0⟩ + sin(α)|1⟩`, with `α = (theta + 1/2)π/2`.
 """
 function _theta_site_amplitudes(theta::Float64)
     α = (theta + 0.5) * π / 2
     return cos(α), sin(α)
 end
 
+"""
+    _theta_product_mps(sites_sys, theta::Float64) -> MPS
+
+Create the tensor-network product state whose one-site amplitudes are given by
+`_theta_site_amplitudes(theta)`.
+"""
 function _theta_product_mps(sites_sys::Vector{<:Index}, theta::Float64)
     amp0, amp1 = _theta_site_amplitudes(theta)
     ψ = MPS(ComplexF64, sites_sys, "Up")
@@ -60,6 +67,13 @@ function _theta_product_mps(sites_sys::Vector{<:Index}, theta::Float64)
     return ψ
 end
 
+"""
+    create_theta_state_ed(N::Int, init_type::String, theta::Float64) -> EDStateVector
+
+Create an ED state vector based on `init_type` and the theta product-state
+parameter. For `init_type == "theta"`, the convention is
+`theta = -0.5, 0, 0.5` giving `|0⟩`, `|+⟩`, and `|1⟩` on each site.
+"""
 function create_theta_state_ed(N::Int, init_type::String, theta::Float64)::EDStateVector
     if init_type == "identity"
         # Equal superposition state (uniform distribution)
