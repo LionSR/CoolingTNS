@@ -93,5 +93,22 @@ include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
         ),
     )
 
+    detuning_calls = Any[]
+    dummy_ax = (
+        axhline=(; y, color, linestyle, linewidth, label, alpha) -> begin
+            push!(
+                detuning_calls,
+                (y=y, color=color, linestyle=linestyle, linewidth=linewidth, label=label, alpha=alpha),
+            )
+            return :line
+        end,
+    )
+    @test mark_bath_detuning_energy!(dummy_ax, -2.5) == :line
+    @test only(detuning_calls).y == 2.5
+    @test only(detuning_calls).label == "|delta|"
+    @test mark_bath_detuning_energy!(dummy_ax, nothing) === nothing
+    @test mark_bath_detuning_energy!(dummy_ax, 0.0) === nothing
+    @test length(detuning_calls) == 1
+
     @test_throws ErrorException _mode_occupation_from_plot_data(Dict{String, Any}())
 end

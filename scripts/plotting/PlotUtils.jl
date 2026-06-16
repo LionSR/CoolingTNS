@@ -118,6 +118,38 @@ function get_evolution_colors(plt, n_steps::Int)
 end
 
 """
+    mark_bath_detuning_energy!(ax, delta; kwargs...)
+
+Mark a bath detuning on an energy axis.
+
+In a dispersion plot, `delta` is an energy/frequency, not a momentum.  The
+resonant modes are therefore the intersections of `epsilon_k` with the
+horizontal line at `|delta|`.
+"""
+function mark_bath_detuning_energy!(
+    ax,
+    delta;
+    color="red",
+    linestyle="--",
+    linewidth=2,
+    label="|delta|",
+    alpha=0.7,
+)
+    if delta === nothing || delta == 0
+        return nothing
+    end
+
+    return ax.axhline(
+        y=abs(Float64(delta)),
+        color=color,
+        linestyle=linestyle,
+        linewidth=linewidth,
+        label=label,
+        alpha=alpha,
+    )
+end
+
+"""
     _maybe_scalar(x)
 
 If `x` is a 0-d or length-1 array (a common HDF5 scalar encoding), return its only
