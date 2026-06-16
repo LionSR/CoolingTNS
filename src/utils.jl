@@ -127,6 +127,23 @@ function relative_energy(E, E_GS)
     return abs((E - E_GS) / E_GS)
 end
 
+const HDF5_PARSED_ARGS_GROUP = "parsed_args"
+
+function _write_hdf5_dataset_unless_present(parent, key::AbstractString, value)
+    if key in keys(parent)
+        return false
+    end
+    write(parent, key, value)
+    return true
+end
+
+function _create_hdf5_group_unless_present(file, group_name::AbstractString)
+    if group_name in keys(file)
+        error("Cannot write parsed command-line metadata group '$group_name'; a result dataset already uses that top-level name.")
+    end
+    return create_group(file, group_name)
+end
+
 function save_results(filename, result, e₀, ham_name, parsed_args; is_optimization=false)
     directory = is_optimization ? "ResultsOpt" : "Results"
     mkpath(directory)
@@ -136,10 +153,14 @@ function save_results(filename, result, e₀, ham_name, parsed_args; is_optimiza
             write(file, string(key), value)
         end
         write(file, "ham_name", ham_name)
+
+        # /parsed_args is the canonical configuration namespace. Top-level
+        # mirrors are kept only for legacy readers and skipped on collisions.
+        parsed_args_group = _create_hdf5_group_unless_present(file, HDF5_PARSED_ARGS_GROUP)
         for (key, value) in parsed_args
-            key_string = string(key)
-            haskey(file, key_string) && continue
-            write(file, key_string, value)
+            arg_key = string(key)
+            write(parsed_args_group, arg_key, value)
+            _write_hdf5_dataset_unless_present(file, arg_key, value)
         end
     end
     println("Data saved to $(filename) with Hamiltonian information and argparse variables")

@@ -43,7 +43,9 @@ function read_h5_data(filename::String)::Union{Dict{String, Any}, Nothing}
     data = Dict{String, Any}()
     h5open(filename, "r") do file
         for key in keys(file)
-            data[key] = read(file, key)
+            object = file[key]
+            object isa HDF5.Group && continue
+            data[key] = read(object)
         end
     end
     return data
