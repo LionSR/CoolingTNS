@@ -111,7 +111,13 @@ function verify_sign(; N::Int=6, theta::Float64=0.4, verbose::Bool=true)
     if result.sigma_z_error > 1e-12 || result.max_canonical_error > 1e-10
         error("Canonical Jordan-Wigner convention does not match ED.")
     end
-    if result.obsolete_error <= 100 * max(result.canonical_error, eps(Float64))
+
+    # The occupation-number negative control is meaningful only away from
+    # sin(theta)=0, where flipping the sigma_z sign changes the BdG block.
+    separation_factor = 100.0
+    negative_control_is_distinct = abs(sin(theta_code)) > 1e-12
+    if negative_control_is_distinct &&
+            result.obsolete_error <= separation_factor * max(result.canonical_error, eps(Float64))
         error("Obsolete sign convention is not clearly separated from the canonical one.")
     end
 
