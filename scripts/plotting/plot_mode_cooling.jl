@@ -25,7 +25,9 @@ using CoolingTNS:
     RESULT_MODE_NK,
     RESULT_MODE_K_INDICES,
     RESULT_MODE_ENERGIES,
-    mode_occupation_from_hk
+    mode_occupation_from_hk,
+    bath_detuning_energy,
+    nearest_bath_resonance_indices
 
 """
     _mode_occupation_from_plot_data(data)
@@ -54,6 +56,8 @@ function _occupation_ylim(mode_nk)
         max(1.05, maximum(finite_values) + 0.05),
     )
 end
+
+_mode_index_label(k) = k isa Rational ? "$(numerator(k))/$(denominator(k))" : "$(k)"
 
 """
     plot_mode_occupation_from_data(mode_nk, k_indices, εk_values;
@@ -88,7 +92,7 @@ function plot_mode_occupation_from_data(mode_nk::AbstractMatrix, k_indices, εk_
     # --- Left panel: n_k vs step ---
     for i in 1:n_modes
         color = cmap(norm(εk_values[i]))
-        k_label = k_indices[i] isa Rational ? "$(numerator(k_indices[i]))/$(denominator(k_indices[i]))" : "$(k_indices[i])"
+        k_label = _mode_index_label(k_indices[i])
         ax1.plot(steps, mode_nk[:, i], color=color, linewidth=1.5,
                  label=L"k = %$k_label" * L", \varepsilon_k = %$(round(εk_values[i], digits=3))")
     end
@@ -98,13 +102,14 @@ function plot_mode_occupation_from_data(mode_nk::AbstractMatrix, k_indices, εk_
     ax1.axhline(y=0.5, color="gray", linestyle=":", alpha=0.3, label=L"n_k = 1/2")
     ax1.axhline(y=1.0, color="black", linestyle=":", alpha=0.25)
 
-    # Highlight resonant mode
-    if delta !== nothing
-        res_idx = argmin(abs.(εk_values .- abs(delta)))
-        res_k = k_indices[res_idx]
-        k_label = res_k isa Rational ? "$(numerator(res_k))/$(denominator(res_k))" : "$(res_k)"
-        ax1.plot(steps, mode_nk[:, res_idx], color="red", linewidth=3, alpha=0.4,
-                 label=L"resonant: k=%$k_label" * L", \Delta=%$(round(abs(delta), digits=3))")
+    # Highlight all resonant modes closest to the bath detuning.
+    δ_abs = bath_detuning_energy(delta)
+    if δ_abs !== nothing
+        for res_idx in nearest_bath_resonance_indices(εk_values, δ_abs)
+            k_label = _mode_index_label(k_indices[res_idx])
+            ax1.plot(steps, mode_nk[:, res_idx], color="red", linewidth=3, alpha=0.4,
+                     label=L"resonant: k=%$k_label" * L", \Delta=%$(round(δ_abs, digits=3))")
+        end
     end
 
     ax1.set_xlabel("Cooling step")
@@ -133,9 +138,9 @@ function plot_mode_occupation_from_data(mode_nk::AbstractMatrix, k_indices, εk_
     ax2.axhline(y=0.5, color="gray", linestyle=":", alpha=0.3, label=L"n_k = 1/2")
     ax2.axhline(y=1.0, color="black", linestyle=":", alpha=0.25)
 
-    if delta !== nothing
-        ax2.axvline(x=abs(delta), color="green", linestyle="--", alpha=0.7,
-                    label=L"\Delta = %$(round(abs(delta), digits=3))")
+    if δ_abs !== nothing
+        ax2.axvline(x=δ_abs, color="green", linestyle="--", alpha=0.7,
+                    label=L"\Delta = %$(round(δ_abs, digits=3))")
     end
 
     ax2.set_xlabel(L"\varepsilon_k \; \mathrm{(code\;units)}")
