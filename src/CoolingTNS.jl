@@ -18,9 +18,6 @@ include("utils_mps.jl")
 include("coupling_utils.jl")
 include("utils_mpo.jl")
 
-# Analytical dispersion relations (pure math, no plotting deps)
-include("dispersion.jl")
-
 include("policy.jl")
 include("argparse.jl")
 include("noise.jl")
@@ -29,6 +26,7 @@ include("noise.jl")
 include("ed_backend.jl")
 include("ed_backend_complex_jw.jl")  # Complex JW (notes convention) — single source of truth
 include("mode_analysis.jl")          # Parameter mapping, dispersion, k-grid
+include("dispersion.jl")             # Plotting-facing wrappers around canonical mode analysis
 include("tn_mode_observables.jl")    # MPS mode observables using split-string correlators
 include("multi_frequency.jl")       # Multi-frequency (multi-Δ) cooling helpers
 

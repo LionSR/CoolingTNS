@@ -31,10 +31,11 @@ function plot_nk_evolution(filename; steps_to_plot=nothing, save_fig=true)
     J = plot_data.J
     h = plot_data.h
     bc = plot_data.bc
+    mode_gF = plot_data.mode_gF
     total_steps = plot_data.total_steps
 
     step_indices = select_evolution_steps(total_steps; steps_to_plot=steps_to_plot)
-    n_k_gs = compute_ground_state_occupation(k_values, J, h)
+    n_k_gs = compute_ground_state_occupation(k_values, J, h; N=N, spin_bc=bc, gF=mode_gF)
 
     fig, ax = plt.subplots(figsize=(10, 6))
     colors = get_evolution_colors(plt, length(step_indices))

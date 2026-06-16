@@ -56,6 +56,7 @@ include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
             "J" => 1.5,
             "h" => 0.7,
             "bc" => "periodic",
+            RESULT_MODE_GF => [1],
         ),
     )
     @test canonical_kspace.momentum_dist == step_by_mode
@@ -65,6 +66,28 @@ include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
     @test canonical_kspace.J == 1.5
     @test canonical_kspace.h == 0.7
     @test canonical_kspace.bc == :periodic
+    @test canonical_kspace.mode_gF == 1
+
+    example_kspace = kspace_evolution_plot_data(
+        Dict{String, Any}(
+            RESULT_MOMENTUM_DISTRIBUTION => step_by_mode,
+            RESULT_K_VALUES => k_values,
+            "ham_params_bc" => "antiperiodic",
+            RESULT_MODE_GF => [-1],
+        ),
+    )
+    @test example_kspace.bc == :antiperiodic
+    @test example_kspace.mode_gF == -1
+
+    unknown_bc_kspace = kspace_evolution_plot_data(
+        Dict{String, Any}(
+            RESULT_MOMENTUM_DISTRIBUTION => step_by_mode,
+            RESULT_K_VALUES => k_values,
+            RESULT_MODE_GF => [1],
+        ),
+    )
+    @test unknown_bc_kspace.bc == :open
+    @test unknown_bc_kspace.mode_gF === nothing
 
     legacy_mode_by_step = permutedims(step_by_mode)
     legacy_kspace = kspace_evolution_plot_data(
@@ -75,6 +98,7 @@ include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
     )
     @test legacy_kspace.momentum_dist == step_by_mode
     @test legacy_kspace.total_steps == 2
+    @test legacy_kspace.mode_gF === nothing
 
     square_step_by_mode = [0.1 0.2; 0.3 0.4]
     square_kspace = kspace_evolution_plot_data(
