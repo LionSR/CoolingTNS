@@ -1,0 +1,3 @@
+{
+  "claude-interactive": "Read,Glob,Grep,Edit,Write,Bash(grep:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(gh pr:*),Bash(gh issue:*),Bash(gh api:*),Bash(julia --version),mcp__github__*"
+}

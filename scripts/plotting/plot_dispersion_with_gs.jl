@@ -11,6 +11,8 @@ include(joinpath(@__DIR__, "PlotUtils.jl"))
     plot_dispersion_with_ground_state(N, J, h, bc; delta=nothing, save_fig=true, filename=nothing)
 
 Plot the energy dispersion epsilon_k vs k and ground state occupation n_k^(GS) for the transverse field Ising model.
+Here `bc` denotes the fermionic boundary condition used for the plotted
+momentum grid.
 """
 function plot_dispersion_with_ground_state(N::Int, J::Real, h::Real, bc::Symbol;
                                          delta=nothing, save_fig=true, filename=nothing)
@@ -40,7 +42,7 @@ function plot_dispersion_with_ground_state(N::Int, J::Real, h::Real, bc::Symbol;
 
     ax1.set_title("Energy Dispersion and Ground State Occupation\n(N=$N, J=$J, h=$h, BC=$bc)", fontsize=16)
     ax1.grid(true, alpha=0.3)
-    ax1.set_xlim(0, 2)
+    ax1.set_xlim(minimum(k_sorted) / pi, maximum(k_sorted) / pi)
 
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
