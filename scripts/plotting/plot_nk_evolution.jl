@@ -49,7 +49,7 @@ function plot_nk_evolution(filename; steps_to_plot=nothing, save_fig=true)
     end
 
     ax.plot(k_values/pi, n_k_gs, "k--", linewidth=2.5, label="Ground state")
-
+    mark_bath_resonance_from_data!(ax, data, k_values; momentum_scale=pi)
 
     ax.set_xlabel("k/pi", fontsize=14)
     ax.set_ylabel("n_k", fontsize=14)

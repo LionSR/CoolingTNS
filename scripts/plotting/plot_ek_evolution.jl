@@ -53,7 +53,7 @@ function plot_ek_evolution(filename; steps_to_plot=nothing, save_fig=true)
 
     ax.plot(k_values/pi, e_k_gs, "k--", linewidth=2.5, label="Ground state")
     ax.plot(k_values/pi, epsilon_k, ":", color="gray", linewidth=1.5, label="epsilon_k", alpha=0.7)
-
+    mark_bath_resonance_from_data!(ax, data, k_values; momentum_scale=pi)
 
     ax.set_xlabel("k/pi", fontsize=14)
     ax.set_ylabel("e_k = epsilon_k n_k", fontsize=14)
