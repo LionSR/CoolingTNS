@@ -103,6 +103,20 @@ end
 
 @testset "Mode Energy Measurements" begin
 
+    @testset "ED momentum distribution has one JW implementation" begin
+        ed_backend_text = read(joinpath(@__DIR__, "..", "src", "ed_backend.jl"), String)
+        stale_private_names = [
+            "JW_CACHE",
+            "function jordan_wigner_transform(",
+            "function momentum_state_overlap_ed(",
+            "CORRELATION_OP_CACHE",
+            "function get_correlation_operator(",
+        ]
+        for name in stale_private_names
+            @test !occursin(name, ed_backend_text)
+        end
+    end
+
     @testset "Parity measurement" begin
         @testset "N=$N" for N in [4, 6]
             J, h = 1.0, 0.5
