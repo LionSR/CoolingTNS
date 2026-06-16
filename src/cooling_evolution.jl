@@ -404,6 +404,23 @@ function add_mode_measurements!(measurements, problem::CoolingProblem{TNBackend}
     end
 end
 
+function add_mode_measurements!(measurements, problem::CoolingProblem{TNBackend},
+                                state::QuantumState{TNBackend,DensityMatrix,E},
+                                steps, ham_params) where E<:EvolutionMethod
+    hp = ham_params !== nothing ? ham_params : (haskey(problem.extra, :ham_params) ? problem.extra.ham_params : nothing)
+    if hp !== nothing && hp.bc in [:periodic, :antiperiodic] && isa(hp.model, IsingModel)
+        px = measure_state_parity(problem.ϕ₀, hp.N)
+        parity = round(Int, px)
+        gF = fermionic_bc(hp.bc, parity)
+        measurements[RESULT_MODE_GF] = gF
+
+        measurements[RESULT_MODE_HK] = nothing
+        measurements[RESULT_MODE_NK] = nothing
+        measurements[RESULT_MODE_K_INDICES] = nothing
+        measurements[RESULT_MODE_ENERGIES] = nothing
+    end
+end
+
 # Fallback: mode measurements not supported for non-ED backends
 add_mode_measurements!(measurements, problem, state, steps, ham_params) = nothing
 
@@ -679,7 +696,7 @@ end
 # Unified TN+DM measurements for both Continuous and Trotter evolution
 function perform_backend_measurements!(measurements, step::Int, problem::CoolingProblem{TNBackend},
                                      state::QuantumState{TNBackend,DensityMatrix,E},
-                                     _ham_params, _bath_info=nothing) where E<:EvolutionMethod
+                                     ham_params, _bath_info=nothing) where E<:EvolutionMethod
     ρ_s = state.state
     H_sys = problem.H_sys
     ϕ₀ = problem.ϕ₀
@@ -687,4 +704,21 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     measurements[RESULT_ENERGY][step] = real(inner(ρ_s, H_sys))
     measurements[RESULT_GROUND_STATE_OVERLAP][step] = real(inner(ρ_s, projector_mpo(ϕ₀)))
     measurements[RESULT_PURITY][step] = real(tr(apply(ρ_s, ρ_s)))
+
+    if haskey(measurements, RESULT_MODE_HK) && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
+        gF_kwarg = haskey(measurements, RESULT_MODE_GF) ? measurements[RESULT_MODE_GF] : nothing
+        k_indices, hk_values, εk_values = measure_all_mode_energies(ρ_s, ham_params; gF=gF_kwarg)
+        n_modes = length(k_indices)
+
+        if measurements[RESULT_MODE_HK] === nothing
+            n_steps_total = size(measurements[RESULT_ENERGY], 1)
+            measurements[RESULT_MODE_HK] = fill(NaN, n_steps_total, n_modes)
+            measurements[RESULT_MODE_NK] = fill(NaN, n_steps_total, n_modes)
+            measurements[RESULT_MODE_K_INDICES] = k_indices
+            measurements[RESULT_MODE_ENERGIES] = εk_values
+        end
+
+        measurements[RESULT_MODE_HK][step, :] .= hk_values
+        measurements[RESULT_MODE_NK][step, :] .= mode_occupation_from_hk(hk_values)
+    end
 end
