@@ -576,6 +576,29 @@ end
         run_dm_text = read(joinpath(repo_root, "examples", "run_dm_and_plot.jl"), String)
         @test occursin("compute_energy_dispersion(k_values, J, h)", run_dm_text)
         @test occursin("compute_ground_state_occupation(k_values, J, h)", run_dm_text)
+        @test occursin("mark_bath_resonance_momentum!(ax1, k_values, epsilon_k, delta)", run_dm_text)
+        @test occursin("mark_bath_resonance_momentum!(ax2, k_values, epsilon_k, delta)", run_dm_text)
+        @test !occursin("delta/π", run_dm_text)
+        @test !occursin("δ/π", run_dm_text)
+    end
+
+    @testset "Dispersion plots mark bath detuning on energy axis" begin
+        repo_root = normpath(joinpath(@__DIR__, ".."))
+        plotutils_text = read(joinpath(repo_root, "scripts", "plotting", "PlotUtils.jl"), String)
+        energy_plot_text = read(joinpath(repo_root, "scripts", "plotting", "plot_energy_dispersion.jl"), String)
+        gs_plot_text = read(joinpath(repo_root, "scripts", "plotting", "plot_dispersion_with_gs.jl"), String)
+
+        @test occursin("function mark_bath_detuning_energy!", plotutils_text)
+        @test occursin("function mark_bath_resonance_momentum!", plotutils_text)
+        @test occursin("nearest_bath_resonance_indices", plotutils_text)
+        @test occursin("ax.axhline(y=δ_abs", plotutils_text)
+        @test occursin("mark_bath_detuning_energy!(ax, delta)", energy_plot_text)
+        @test occursin("mark_bath_detuning_energy!(ax1, delta)", gs_plot_text)
+
+        for text in (energy_plot_text, gs_plot_text)
+            @test !occursin("axvline(x=delta/pi", text)
+            @test !occursin("delta/pi", text)
+        end
     end
 
     @testset "Antiperiodic BC spectrum (N=$N)" for N in [4, 6]

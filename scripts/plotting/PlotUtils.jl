@@ -116,6 +116,74 @@ entry. Otherwise return `x` unchanged.
 """
 _maybe_scalar(x) = (x isa AbstractArray && length(x) == 1) ? only(x) : x
 
+function _bath_detuning_energy(delta)
+    δ = _maybe_scalar(delta)
+    if δ === nothing || δ == 0
+        return nothing
+    end
+    return abs(δ)
+end
+
+"""
+    mark_bath_detuning_energy!(ax, delta; kwargs...)
+
+Draw the bath detuning on an energy axis.  The detuning `delta` has the same
+units as the quasiparticle energy `epsilon_k`, so dispersion plots should mark
+it horizontally rather than as a momentum coordinate.
+"""
+function mark_bath_detuning_energy!(ax, delta;
+                                    color="red", linestyle="--", linewidth=2,
+                                    alpha=0.7, label=L"bath $|\Delta|$")
+    δ_abs = _bath_detuning_energy(delta)
+    if δ_abs === nothing
+        return nothing
+    end
+    return ax.axhline(y=δ_abs, color=color, linestyle=linestyle,
+                      linewidth=linewidth, alpha=alpha, label=label)
+end
+
+"""
+    nearest_bath_resonance_indices(εk_values, delta; atol=1e-12)
+
+Return all mode indices whose quasiparticle energy is closest to `|delta|`.
+This is the correct way to place a resonance marker on plots whose horizontal
+axis is momentum.
+"""
+function nearest_bath_resonance_indices(εk_values, delta; atol=1e-12)
+    δ_abs = _bath_detuning_energy(delta)
+    if δ_abs === nothing
+        return Int[]
+    end
+    isempty(εk_values) && return Int[]
+    distances = abs.(εk_values .- δ_abs)
+    dmin = minimum(distances)
+    return findall(d -> isapprox(d, dmin; atol=atol, rtol=sqrt(eps(Float64))), distances)
+end
+
+"""
+    mark_bath_resonance_momentum!(ax, k_values, εk_values, delta; kwargs...)
+
+Draw vertical markers at the momentum values of the modes closest to resonance,
+`ε_k ≈ |delta|`.  This should be used on occupation-vs-momentum plots; it does
+not identify the bath detuning itself with a momentum.
+"""
+function mark_bath_resonance_momentum!(ax, k_values, εk_values, delta;
+                                       momentum_scale=pi, color="red",
+                                       linestyle=":", linewidth=2, alpha=0.7,
+                                       label=L"nearest $\varepsilon_k \approx |\Delta|$")
+    indices = nearest_bath_resonance_indices(εk_values, delta)
+    isempty(indices) && return nothing
+
+    handles = Any[]
+    for (j, idx) in enumerate(indices)
+        push!(handles, ax.axvline(x=k_values[idx] / momentum_scale,
+                                  color=color, linestyle=linestyle,
+                                  linewidth=linewidth, alpha=alpha,
+                                  label=(j == 1 ? label : "_nolegend_")))
+    end
+    return handles
+end
+
 """
     safe_read_keys(filename, keys...) -> Tuple
 

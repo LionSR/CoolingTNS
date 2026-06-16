@@ -22,6 +22,7 @@ if isfile(dm_file)
     using HDF5
     using CoolingTNS: compute_energy_dispersion, compute_ground_state_occupation
     using PythonCall
+    include(joinpath("scripts", "plotting", "PlotUtils.jl"))
     plt = pyimport("matplotlib.pyplot")
 
     # Read simulation data
@@ -65,7 +66,7 @@ if isfile(dm_file)
     end
 
     ax1.plot(k_values/π, n_k_gs, "k--", linewidth=2.5, label="Ground state (T=0)")
-    ax1.axvline(x=delta/π, color="red", linestyle=":", linewidth=2, label="δ/π", alpha=0.7)
+    mark_bath_resonance_momentum!(ax1, k_values, epsilon_k, delta)
     ax1.set_xlabel("k/π", fontsize=14)
     ax1.set_ylabel("n_k", fontsize=14)
     ax1.set_title("Momentum Distribution (DM, N=\$N, J=\$J, h=\$h)", fontsize=16)
@@ -88,7 +89,7 @@ if isfile(dm_file)
 
     ax2.plot(k_values/π, e_k_gs, "k--", linewidth=2.5, label="Ground state (T=0)")
     ax2.plot(k_values/π, epsilon_k, ":", color="gray", linewidth=1.5, label="ε_k", alpha=0.7)
-    ax2.axvline(x=delta/π, color="red", linestyle=":", linewidth=2, label="δ/π", alpha=0.7)
+    mark_bath_resonance_momentum!(ax2, k_values, epsilon_k, delta)
     ax2.set_xlabel("k/π", fontsize=14)
     ax2.set_ylabel("e_k = ε_k n_k", fontsize=14)
     ax2.set_title("Energy Distribution (DM, N=\$N, J=\$J, h=\$h)", fontsize=16)
