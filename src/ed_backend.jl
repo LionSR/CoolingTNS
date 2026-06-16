@@ -693,7 +693,7 @@ end
 """
     get_allowed_k_values(N::Int, bc::Symbol)
 
-Get allowed momentum indices based on boundary conditions.
+Get allowed momentum indices based on a fermionic boundary condition symbol.
 
 This compatibility wrapper delegates to the canonical `allowed_k_indices`
 definition used by the mode observables.  In particular, antiperiodic boundary
@@ -755,13 +755,12 @@ end
 Measure momentum distribution n_k = ⟨a†_k a_k⟩ for all allowed k values.
 Returns (k_values, n_k) where k_values are in units of 2π/N.
 """
-function measure_momentum_distribution_ed(state::Union{EDStateVector, EDDensityMatrix}, ham_params::HamiltonianParameters)
-    N = ham_params.N
-    k_indices = get_allowed_k_values(N, ham_params.bc)
-    correlations = compute_real_space_correlations(state, N)
-    n_k = fourier_transform_correlations(correlations, k_indices, N)
-    k_momentum = [2π * k / N for k in k_indices]
-    return k_momentum, n_k
+function measure_momentum_distribution_ed(
+    state::Union{EDStateVector, EDDensityMatrix},
+    ham_params::HamiltonianParameters;
+    gF=nothing,
+)
+    return measure_momentum_distribution_ed_clean(state, ham_params; gF=gF)
 end
 
 """
