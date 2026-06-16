@@ -22,6 +22,12 @@ using ITensorMPS
         CoolingTNS.ContinuousEvolution(),
         nothing,
     )
+    tn_dm_state = CoolingTNS.QuantumState(
+        CoolingTNS.TNBackend(),
+        CoolingTNS.DensityMatrix(),
+        CoolingTNS.TrotterEvolution(),
+        nothing,
+    )
 
     @testset "Monte Carlo sample maps" begin
         # TN samples are ITensor site indices: 1 = Up, 2 = Dn.
@@ -67,6 +73,19 @@ using ITensorMPS
         @test CoolingTNS.compute_bath_magnetization(
             CoolingTNS.EDBackend(), ed_dm_state, ρ_mix, 1
         ) ≈ 0.0
+
+        sites_bath = siteinds("S=1/2", 2)
+        ψ_up_dn = MPS(sites_bath, ["Up", "Dn"])
+        ψ_dn_dn = MPS(sites_bath, ["Dn", "Dn"])
+        ρ_up_dn = outer(ψ_up_dn', ψ_up_dn)
+        ρ_dn_dn = outer(ψ_dn_dn', ψ_dn_dn)
+
+        @test CoolingTNS.compute_bath_magnetization(
+            CoolingTNS.TNBackend(), tn_dm_state, ρ_up_dn, sites_bath
+        ) ≈ 0.0
+        @test CoolingTNS.compute_bath_magnetization(
+            CoolingTNS.TNBackend(), tn_dm_state, ρ_dn_dn, sites_bath
+        ) ≈ -1.0
     end
 
     @testset "TN bath sampling uses the same convention" begin

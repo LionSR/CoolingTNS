@@ -33,6 +33,12 @@ function _pauli_z_from_ed_bit(bit::Int)
     throw(ArgumentError("ED bath measurement bits must be 0 or 1, got $bit"))
 end
 
+function _single_site_mpo(sites::Vector{<:Index}, op_name::String, site::Int)
+    terms = OpSum()
+    terms += 1.0, op_name, site
+    return MPO(terms, sites)
+end
+
 # --- Tensor Network + Monte Carlo ---
 # For MPS Monte Carlo, bath magnetization comes from the sampled bath configuration
 function compute_bath_magnetization(::TNBackend, ::QuantumState{TNBackend,MonteCarloWavefunction,E}, 
@@ -74,7 +80,7 @@ function compute_bath_magnetization(::TNBackend, ::QuantumState{TNBackend,Densit
     total_mag = 0.0
     
     for i in 1:N_bath
-        z_op = MPO(sites_bath, [i => "Z"])
+        z_op = _single_site_mpo(sites_bath, "Z", i)
         # Compute expectation value
         mag_i = real(inner(ρ_bath, z_op))
         total_mag += mag_i
