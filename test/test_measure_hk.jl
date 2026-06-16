@@ -387,6 +387,75 @@ end
         end
     end
 
+    @testset "Cooling measurements use parity-aware n_k grid" begin
+        N = 4; J = 1.0; h = 0.5
+        ham_params = IsingParameters(N, J, h, :periodic)
+        coupling_params = BasicCouplingParameters("XX", 0.0, 0, 0.0, nothing)
+        sim_params = UnifiedSimulationParameters(DensityMatrix(), ContinuousEvolution())
+
+        problem = setup_problem(EDBackend(), ham_params, coupling_params, sim_params)
+        ρ0 = state_to_density_ed(problem.ϕ₀)
+        state0 = QuantumState(EDBackend(), DensityMatrix(), ContinuousEvolution(), ρ0)
+
+        results = redirect_stdout(devnull) do
+            run_cooling(problem, state0, coupling_params, sim_params, ham_params)
+        end
+
+        k_expected, nk_expected = measure_momentum_distribution_ed_clean(ρ0, ham_params)
+
+        @test results["momentum_gF"] == fermionic_bc(:periodic, 1)
+        @test results["momentum_gF_source"] == "state"
+        @test results["k_values"] ≈ k_expected atol=1e-12
+        @test results["momentum_dist"][1, :] ≈ nk_expected atol=1e-10
+
+        ρ_sb = CoolingTNS.prepare_combined_state_ed(ρ0, N, coupling_params.coupling)
+        state_sb = QuantumState(EDBackend(), DensityMatrix(), ContinuousEvolution(), ρ_sb)
+        results_sb = redirect_stdout(devnull) do
+            run_cooling(problem, state_sb, coupling_params, sim_params, ham_params)
+        end
+
+        @test results_sb["momentum_gF"] == fermionic_bc(:periodic, 1)
+        @test results_sb["momentum_gF_source"] == "state"
+        @test results_sb["k_values"] ≈ k_expected atol=1e-12
+        @test results_sb["momentum_dist"][1, :] ≈ nk_expected atol=1e-10
+    end
+
+    @testset "Momentum grid helper fallback and cache source" begin
+        N = 4; J = 1.0; h = 0.5
+        ham_params = IsingParameters(N, J, h, :periodic)
+        H = _build_H(N, J, h, :periodic)
+
+        _, ψ_even = _find_gs_in_sector(H, N, 1)
+        _, ψ_odd = _find_gs_in_sector(H, N, -1)
+        ϕ₀ = EDStateVector(ψ_even, N)
+        odd_state = EDStateVector(ψ_odd, N)
+        ρ_mix = EDDensityMatrix(0.5 * ψ_even * ψ_even' + 0.5 * ψ_odd * ψ_odd', N)
+
+        measurements = Dict{String, Any}()
+        gF = CoolingTNS._momentum_measurement_gF!(measurements, ρ_mix, ϕ₀, ham_params)
+        @test gF == fermionic_bc(:periodic, 1)
+        @test measurements["momentum_gF_source"] == "ground_state"
+
+        @test CoolingTNS._momentum_measurement_gF!(measurements, odd_state, ϕ₀, ham_params) == gF
+        @test measurements["momentum_gF_source"] == "ground_state"
+
+        ambiguous_ϕ₀ = CoolingTNS.product_state_ed(N, 0)
+        @test abs(measure_state_parity(ambiguous_ϕ₀, N)) < 1e-10
+        ambiguous_measurements = Dict{String, Any}()
+        @test CoolingTNS._momentum_measurement_gF!(
+            ambiguous_measurements,
+            ρ_mix,
+            ambiguous_ϕ₀,
+            ham_params,
+        ) == fermionic_bc(:periodic, 1)
+        @test ambiguous_measurements["momentum_gF_source"] == "ground_state"
+
+        precomputed = Dict{String, Any}("momentum_gF" => fermionic_bc(:periodic, -1))
+        @test CoolingTNS._momentum_measurement_gF!(precomputed, ρ_mix, ϕ₀, ham_params) ==
+              fermionic_bc(:periodic, -1)
+        @test precomputed["momentum_gF_source"] == "precomputed"
+    end
+
     @testset "h_k range and symmetry (N=$N)" for N in [4, 6]
         J, h = 1.0, 0.5
         ham_params = IsingParameters(N, J, h, :periodic)

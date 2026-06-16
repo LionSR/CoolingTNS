@@ -524,6 +524,47 @@ end
         end
     end
 
+    @testset "Plotting dispersion helpers follow canonical mode convention" begin
+        N = 6
+        J, h = 1.0, 0.5
+        θ = theta_from_Jh(J, h)
+
+        for (bc, gF) in [(:periodic, 1), (:antiperiodic, -1)]
+            ks = allowed_k_indices(N, gF)
+            expected_momenta = [2π * Float64(k) / N for k in ks]
+            k_values = generate_k_values(N, bc)
+
+            @test k_values ≈ expected_momenta atol=1e-15
+            @test generate_k_values(N, gF) ≈ expected_momenta atol=1e-15
+
+            dispersion = compute_energy_dispersion(k_values, J, h)
+            expected_dispersion = [mode_energy_Jh(Float64(k), J, h, N) for k in ks]
+
+            @test all(dispersion .>= 0)
+            @test dispersion ≈ expected_dispersion atol=1e-15
+
+            occupations = compute_ground_state_occupation(k_values, J, h)
+            expected_occupations = map(ks) do k
+                kf = Float64(k)
+                if abs(sin(2π * kf / N)) < 1e-12
+                    wk = w_k_coefficient(kf, θ, N)
+                    abs(wk) < 1e-12 ? 0.5 : (wk < 0 ? 1.0 : 0.0)
+                else
+                    sin(bogoliubov_angle(kf, θ, N))^2
+                end
+            end
+
+            @test occupations ≈ expected_occupations atol=1e-15
+        end
+
+        critical_k_values = generate_k_values(N, :periodic)
+        critical_occupations = compute_ground_state_occupation(critical_k_values, 1.0, 1.0)
+        k0_index = findfirst(k -> abs(k) < 1e-12, critical_k_values)
+
+        @test k0_index !== nothing
+        @test critical_occupations[k0_index] ≈ 0.5 atol=1e-15
+    end
+
     @testset "Antiperiodic BC spectrum (N=$N)" for N in [4, 6]
         J, h = 1.0, 0.5
         θ = theta_from_Jh(J, h)

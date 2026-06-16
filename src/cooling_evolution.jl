@@ -360,7 +360,7 @@ end
 function add_kspace_measurements!(measurements, problem::CoolingProblem{EDBackend}, steps)
     if haskey(problem.extra, :ham_params)
         ham_params = problem.extra.ham_params
-        if ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
+        if _supports_ising_fourier_observables(ham_params)
             N = ham_params.N
             measurements["momentum_dist"] = zeros(Float64, steps + 1, N)
             measurements["k_values"] = zeros(Float64, N)
@@ -371,12 +371,11 @@ end
 # Helper for mode energy measurements ⟨h_k⟩ (ED only, Ising PBC/APBC)
 function add_mode_measurements!(measurements, problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend}, steps, ham_params)
     hp = ham_params !== nothing ? ham_params : (haskey(problem.extra, :ham_params) ? problem.extra.ham_params : nothing)
-    if hp !== nothing && hp.bc in [:periodic, :antiperiodic] && isa(hp.model, IsingModel)
+    if _supports_ising_fourier_observables(hp)
         # Determine gF from the ground state's parity sector.
         # This ensures consistent mode measurement even for mixed states.
         px = measure_state_parity(problem.ϕ₀, hp.N)
-        parity = round(Int, px)
-        gF = fermionic_bc(hp.bc, parity)
+        gF = _reference_fermionic_bc(hp.bc, px)
         measurements["mode_gF"] = gF
 
         # Preallocate arrays (will be filled on first measurement call)
@@ -515,7 +514,7 @@ end
 function prepare_combined_state(problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend,DensityMatrix,E}) where E<:EvolutionMethod
     N_bath = problem.extra.ham_params.N
     coupling = problem.extra.coupling_params.coupling
-    ρ_sys = state.state.n_qubits == 2*N_bath ? trace_out_bath_ed(state.state, N_bath) : state.state
+    ρ_sys = _system_state_for_measurement(state.state, N_bath)
     return prepare_combined_state_ed(ρ_sys, N_bath, coupling)
 end
 
@@ -653,4 +652,3 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     measurements["GS_overlap_list"][step] = real(inner(ρ_s, projector_mpo(ϕ₀)))
     measurements["purity_list"][step] = real(tr(apply(ρ_s, ρ_s)))
 end
-

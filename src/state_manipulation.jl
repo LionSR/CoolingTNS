@@ -80,7 +80,7 @@ end
 # Matrix support for backward compatibility
 function trace_out_bath(::EDBackend, ρ::Matrix, N_sys::Int, _N_bath::Int)
     N_total = Int(log2(size(ρ, 1)))
-    return trace_out_bath_ed(EDDensityMatrix(real(ρ), N_total), N_sys).data
+    return trace_out_bath_ed(EDDensityMatrix(Matrix{ComplexF64}(ρ), N_total), N_sys).data
 end
 
 # ============================================================================
