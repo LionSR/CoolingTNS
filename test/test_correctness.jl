@@ -482,6 +482,27 @@ end
     nonzero_count = count(x -> abs(x) > 1e-10, ψ_combined.data)
     @test nonzero_count == 1
 
+    ψ_appended = CoolingTNS.append_bath(CoolingTNS.EDBackend(), ψ_sys, N)
+    ψ_expected = CoolingTNS.prepare_combined_state_ed(ψ_sys, N, "XX")
+    @test norm(ψ_appended.data - ψ_expected.data) < 1e-12
+
+    ψ_appended_zz = CoolingTNS.append_bath(CoolingTNS.EDBackend(), ψ_sys, N, "ZZ")
+    ψ_expected_zz = CoolingTNS.prepare_combined_state_ed(ψ_sys, N, "ZZ")
+    @test norm(ψ_appended_zz.data - ψ_expected_zz.data) < 1e-12
+    @test norm(ψ_appended_zz.data - ψ_appended.data) > 1e-3
+
+    ρ_sys = CoolingTNS.state_to_density_ed(ψ_sys)
+    ρ_appended = CoolingTNS.append_bath(CoolingTNS.EDBackend(), ρ_sys, N)
+    ρ_expected = CoolingTNS.prepare_combined_state_ed(ρ_sys, N, "XX")
+    @test norm(ρ_appended.data - ρ_expected.data) < 1e-12
+
+    ρ_matrix_appended = CoolingTNS.append_bath(CoolingTNS.EDBackend(), ρ_sys.data, N)
+    @test norm(ρ_matrix_appended - ρ_expected.data) < 1e-12
+
+    ρ_matrix_appended_zz = CoolingTNS.append_bath(CoolingTNS.EDBackend(), ρ_sys.data, N, "ZZ")
+    ρ_expected_zz = CoolingTNS.prepare_combined_state_ed(ρ_sys, N, "ZZ")
+    @test norm(ρ_matrix_appended_zz - ρ_expected_zz.data) < 1e-12
+
     println("  Interleaved state has $(length(ψ_combined.data)) components, $nonzero_count nonzero")
 end
 
@@ -509,6 +530,62 @@ end
     # The recovered system density matrix should match the original
     @test abs(tr(ρ_sys_recovered.data) - 1.0) < 1e-10
     @test norm(ρ_sys_recovered.data - ρ_sys.data) < 1e-10
+
+    ψ_sys_layout = CoolingTNS.product_state_ed(N, 1)
+    ψ_bath_layout = CoolingTNS.product_state_ed(N, 2)
+    ρ_layout = CoolingTNS.state_to_density_ed(
+        CoolingTNS.interleave_system_bath_ed(ψ_sys_layout, ψ_bath_layout)
+    )
+    state_layout = CoolingTNS.QuantumState(
+        CoolingTNS.EDBackend(),
+        CoolingTNS.DensityMatrix(),
+        CoolingTNS.ContinuousEvolution(),
+        ρ_layout,
+    )
+    ρ_bath_expected = CoolingTNS.trace_out_system_ed(ρ_layout, N).data
+    ρ_bath_extracted = CoolingTNS.extract_bath_state(
+        CoolingTNS.EDBackend(), state_layout, ρ_layout.data, N, N
+    )
+
+    @test ρ_bath_extracted ≈ ρ_bath_expected atol=1e-12
+    bath_population_index = argmax(real.(diag(ρ_bath_expected)))
+    @test real(diag(ρ_bath_extracted)[bath_population_index]) ≈
+        real(diag(ρ_bath_expected)[bath_population_index]) atol=1e-12
+    @test_throws ArgumentError CoolingTNS.extract_bath_state(
+        CoolingTNS.EDBackend(), state_layout, ρ_layout.data, N, N + 1
+    )
+
+    ψ_bath_coherent = CoolingTNS.EDStateVector(ComplexF64[1, im, 0, 0], N)
+    ρ_coherent = CoolingTNS.state_to_density_ed(
+        CoolingTNS.interleave_system_bath_ed(ψ_sys, ψ_bath_coherent)
+    )
+    ρ_bath_coherent = CoolingTNS.extract_bath_state(
+        CoolingTNS.EDBackend(), state_layout, ρ_coherent.data, N, N
+    )
+    ρ_bath_coherent_expected = CoolingTNS.state_to_density_ed(ψ_bath_coherent).data
+
+    @test ρ_bath_coherent ≈ ρ_bath_coherent_expected atol=1e-12
+    @test !isapprox(ρ_bath_coherent_expected[1, 2], 0; atol=1e-12)
+
+    ψ_complex = CoolingTNS.EDStateVector(ComplexF64[1 / sqrt(2), im / sqrt(2)], 1)
+    ψ_bath_one = CoolingTNS.zero_state_ed(1)
+    ρ_complex_combined = CoolingTNS.state_to_density_ed(
+        CoolingTNS.interleave_system_bath_ed(ψ_complex, ψ_bath_one)
+    )
+    ρ_complex_typed = CoolingTNS.trace_out_bath(
+        CoolingTNS.EDBackend(), ρ_complex_combined, 1, 1
+    )
+    ρ_complex_matrix = CoolingTNS.trace_out_bath(
+        CoolingTNS.EDBackend(), ρ_complex_combined.data, 1, 1
+    )
+
+    @test ρ_complex_matrix ≈ ρ_complex_typed.data atol=1e-12
+    @test abs(imag(ρ_complex_matrix[1, 2])) > 1e-12
+    @test imag(ρ_complex_matrix[1, 2]) ≈ -0.5 atol=1e-12
+
+    ρ_real_matrix = Matrix{Float64}(I, 4, 4) / 4
+    ρ_real_reduced = CoolingTNS.trace_out_bath(CoolingTNS.EDBackend(), ρ_real_matrix, 1, 1)
+    @test ρ_real_reduced ≈ Matrix{ComplexF64}(I, 2, 2) / 2 atol=1e-12
 
     println("  Partial trace recovers system state: ✓")
     println("  Trace of recovered ρ_sys = $(tr(ρ_sys_recovered.data))")

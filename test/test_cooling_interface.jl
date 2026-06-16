@@ -32,6 +32,45 @@ using Random
         @test CoolingTNS.default_evolution_method(CoolingTNS.TNBackend()) isa CoolingTNS.ContinuousEvolution
     end
 
+    @testset "Command-line Rydberg Parameters" begin
+        parsed = CoolingTNS.parse_commandline([
+            "--problem", "Rydberg",
+            "--N", "3",
+            "--Omega", "1.2",
+            "--Delta", "-0.4",
+            "--V", "2.5",
+            "--bc", "periodic",
+            "--backend", "ED",
+            "--coupling", "ZZ",
+            "--g", "0.05",
+            "--steps", "7",
+            "--te", "1.5",
+        ])
+
+        problem_name, parsed_ham_params, ham_name, parsed_coupling =
+            CoolingTNS.setup_common_parameters(parsed)
+
+        @test problem_name == "Rydberg"
+        @test parsed_ham_params.model isa CoolingTNS.RydbergModel
+        @test parsed_ham_params.N == 3
+        @test parsed_ham_params.bc == :periodic
+        @test parsed_ham_params.params.Ω == 1.2
+        @test parsed_ham_params.params.Δ == -0.4
+        @test parsed_ham_params.params.V == 2.5
+        @test ham_name == "RydbergN3bcperiodicOmega1.2Delta-0.4V2.5"
+
+        roundtrip_ham_params = CoolingTNS.parse_hamiltonian_name(ham_name)
+        @test roundtrip_ham_params.model isa CoolingTNS.RydbergModel
+        @test roundtrip_ham_params.N == parsed_ham_params.N
+        @test roundtrip_ham_params.bc == parsed_ham_params.bc
+        @test roundtrip_ham_params.params == parsed_ham_params.params
+
+        @test parsed_coupling.coupling == "ZZ"
+        @test parsed_coupling.g == 0.05
+        @test parsed_coupling.steps == 7
+        @test parsed_coupling.te == 1.5
+    end
+
     @testset "Problem Setup for Different Backends" begin
         # Create simulation parameters for each backend/method combination
         sim_params_ed = CoolingTNS.UnifiedSimulationParameters(
@@ -159,6 +198,44 @@ using Random
         
         # Energy should decrease (cooling)
         @test results["E_list"][end] <= results["E_list"][1] + 1e-10
+    end
+
+    @testset "Odd ED Ising chains skip Fourier k-space measurements" begin
+        backend = CoolingTNS.EDBackend()
+        ham_params_odd = CoolingTNS.IsingParameters(3, 1.0, 0.5, :antiperiodic)
+        coupling_params_odd = CoolingTNS.BasicCouplingParameters("XX", 0.0, 1, 0.1, nothing)
+        sim_params_odd = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.MonteCarloWavefunction(),
+            CoolingTNS.ContinuousEvolution();
+            pe=0.0,
+            n_trajectories=1,
+        )
+        problem_odd = CoolingTNS.setup_problem(
+            backend,
+            ham_params_odd,
+            coupling_params_odd,
+            sim_params_odd,
+        )
+        state_odd = CoolingTNS.setup_initial_state(
+            problem_odd,
+            sim_params_odd,
+            "product",
+            0.0,
+        )
+        results_odd = redirect_stdout(devnull) do
+            CoolingTNS.run_cooling(
+                problem_odd,
+                state_odd,
+                coupling_params_odd,
+                sim_params_odd,
+                ham_params_odd,
+            )
+        end
+
+        @test haskey(results_odd, "E_list")
+        @test haskey(results_odd, "GS_overlap_list")
+        @test !haskey(results_odd, "momentum_dist")
+        @test !haskey(results_odd, "k_values")
     end
 
     @testset "ED Monte Carlo Noise Dispatch" begin
