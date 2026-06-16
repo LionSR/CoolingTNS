@@ -18,6 +18,47 @@ function construct_system_hamiltonian(ham_params::HamiltonianParameters, backend
     error("construct_system_hamiltonian not implemented for model $(typeof(ham_params.model)) and backend $(typeof(backend))")
 end
 
+"""
+    rydberg_rabi_x_coefficient(Ω)
+
+Return the coefficient multiplying `σˣ` in the Rydberg Hamiltonian. The input
+`Ω` is the Rabi frequency, so the Hamiltonian term is `(Ω/2) σˣ`.
+
+For the tensor-network backend, `S+ + S- = σˣ`, hence the same coefficient is
+used for the two ladder-operator terms.
+"""
+rydberg_rabi_x_coefficient(Ω) = Ω / 2
+
+"""
+    rydberg_interaction_coefficient(V, i, j)
+
+Return the van der Waals coefficient multiplying `n_i n_j` for Rydberg sites
+`i < j`, namely `V / |i-j|^6`.
+"""
+function rydberg_interaction_coefficient(V, i::Int, j::Int)
+    i == j && throw(ArgumentError("Rydberg interaction sites must be distinct."))
+    return V / abs(j - i)^6
+end
+
+"""
+    rydberg_number_identity_shift(N, Δ, V)
+
+Return the coefficient of the identity operator in the Rydberg Hamiltonian after
+expanding the number operators as `n = (I + σᶻ)/2`.
+
+The tensor-network construction uses `ProjUp` number operators directly. The ED
+construction uses Pauli `σᶻ` operators, so this scalar is added once in ED to
+make the absolute Hamiltonian, and hence its energy expectation values, agree
+with the tensor-network convention.
+"""
+function rydberg_number_identity_shift(N::Int, Δ, V)
+    interaction_shift = sum(
+        (rydberg_interaction_coefficient(V, i, j) / 4 for i in 1:N-1 for j in i+1:N);
+        init=0.0,
+    )
+    return -N * Δ / 2 + interaction_shift
+end
+
 # ============================================================================
 # Tensor Network (ITensors) Implementations
 # ============================================================================
@@ -53,16 +94,17 @@ end
 
 function construct_system_hamiltonian(ham_params::HamiltonianParameters{RydbergModel}, ::TNBackend, sites::Vector{<:Index})
     Ω, Δ, V = ham_params.params.Ω, ham_params.params.Δ, ham_params.params.V
+    Ωx = rydberg_rabi_x_coefficient(Ω)
     N = ham_params.N
 
     terms = OpSum()
     for i in 1:N
-        terms += Ω/2, "S+", i
-        terms += Ω/2, "S-", i
+        terms += Ωx, "S+", i
+        terms += Ωx, "S-", i
         terms += -Δ, "ProjUp", i
     end
     for i in 1:N-1, j in i+1:N
-        terms += V / (j - i)^6, "ProjUp", i, "ProjUp", j
+        terms += rydberg_interaction_coefficient(V, i, j), "ProjUp", i, "ProjUp", j
     end
     return MPO(terms, sites)
 end
@@ -110,20 +152,26 @@ end
 
 function construct_system_hamiltonian(ham_params::HamiltonianParameters{RydbergModel}, ::EDBackend, ::Int)
     Ω, Δ, V = ham_params.params.Ω, ham_params.params.Δ, ham_params.params.V
+    Ωx = rydberg_rabi_x_coefficient(Ω)
     N = ham_params.N
 
     H_sys = spzeros(Float64, 2^N, 2^N)
 
-    # Single-site terms: Rabi coupling (Ω*X) and detuning (-Δ/2*Z)
+    # Single-site terms: (Ω/2) X - Δ n with n = (I + Z)/2.
     for i in 1:N
-        H_sys += Ω * pauli_x(i, N) - (Δ/2) * pauli_z(i, N)
+        H_sys .+= Ωx * pauli_x(i, N) - (Δ/2) * pauli_z(i, N)
     end
 
     # Van der Waals interaction: V/r^6 * n_i * n_j where n = (I + Z)/2
-    # Expands to V/4r^6 * (Z_i*Z_j + Z_i + Z_j + const), keeping non-constant terms
+    # Expands to V/4r^6 * (Z_i*Z_j + Z_i + Z_j + I).
     for i in 1:N-1, j in i+1:N
-        V_ij = V / (j - i)^6
-        H_sys += (V_ij/4) * (pauli_zz(i, j, N) + pauli_z(i, N) + pauli_z(j, N))
+        V_ij = rydberg_interaction_coefficient(V, i, j)
+        H_sys .+= (V_ij/4) * (pauli_zz(i, j, N) + pauli_z(i, N) + pauli_z(j, N))
+    end
+
+    identity_shift = rydberg_number_identity_shift(N, Δ, V)
+    if identity_shift != 0
+        H_sys .+= spdiagm(0 => fill(identity_shift, 2^N))
     end
 
     return H_sys
