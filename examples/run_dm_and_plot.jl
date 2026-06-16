@@ -20,6 +20,7 @@ if isfile(dm_file)
     # Update the plot script to use the DM file
     plot_script = """
     using HDF5
+    using CoolingTNS: compute_energy_dispersion, compute_ground_state_occupation
     using PythonCall
     plt = pyimport("matplotlib.pyplot")
 
@@ -42,17 +43,14 @@ if isfile(dm_file)
     J = data["J"]
     h = data["h"]
     delta = data["delta"]
-    k_indices = data["k_values"]
+    k_values = data["k_values"]
     momentum_dist = transpose(data["momentum_dist"])  # Now (n_k, steps)
 
-    # Convert k indices to actual momentum values
-    k_values = [2π * k / N for k in k_indices]
+    # Result files store momenta 2pi*k/N. Keep the reference curves tied to
+    # the canonical Ising mode helpers used by the ED diagnostics.
+    epsilon_k = compute_energy_dispersion(k_values, J, h)
+    n_k_gs = compute_ground_state_occupation(k_values, J, h)
 
-    # Compute energy dispersion
-    epsilon_k = [-2 * sqrt(J^2 + h^2 + 2*J*h*cos(k)) for k in k_values]
-
-    # Compute ground state values
-    n_k_gs = [0.5 * (1 - (J*cos(k) + h)/sqrt(J^2 + h^2 + 2*J*h*cos(k))) for k in k_values]
     e_k_gs = epsilon_k .* n_k_gs
 
     # Plot n_k evolution

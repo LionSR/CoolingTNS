@@ -90,7 +90,8 @@ The generated plots show:
    - Shows which modes are being cooled most effectively
 
 Key physics:
-- For the Ising model, the single-particle energies are ε_k = √(1 + sin(2θ)cos(2πk/N))
+- For the Ising model, the code-unit quasiparticle energies are ε_k = 2√(J²+h²)√(1 - sin(2θ)cos(2πk/N)), with θ = atan(h,J)
+- The plotted ground-state occupation curve uses the same Bogoliubov convention as compute_ground_state_occupation
 - The bath resonantly cools modes where ε_k ≈ δ (bath frequency)
 - Different boundary conditions (PBC vs APBC) have different allowed k values
 - PBC: k ∈ {-N/2+1, ..., N/2}

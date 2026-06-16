@@ -549,6 +549,35 @@ end
         @test critical_occupations[k0_index] ≈ 0.5 atol=1e-15
     end
 
+    @testset "K-space examples do not duplicate legacy reference curves" begin
+        repo_root = normpath(joinpath(@__DIR__, ".."))
+        checked_files = [
+            joinpath(repo_root, "examples", "run_dm_and_plot.jl"),
+            joinpath(repo_root, "examples", "ed_kspace_demo.jl"),
+            joinpath(repo_root, "scripts", "plotting", "plot_nk_evolution.jl"),
+            joinpath(repo_root, "scripts", "plotting", "plot_ek_evolution.jl"),
+            joinpath(repo_root, "scripts", "plotting", "plot_energy_dispersion.jl"),
+            joinpath(repo_root, "scripts", "plotting", "plot_dispersion_with_gs.jl"),
+        ]
+        legacy_fragments = [
+            "-2 * sqrt(J^2 + h^2 + 2*J*h*cos(k))",
+            "J*cos(k) + h",
+            "sqrt(1 + sin(2θ)cos",
+            "sqrt(1 + sin(2theta)cos",
+        ]
+
+        for file in checked_files
+            text = read(file, String)
+            for fragment in legacy_fragments
+                @test !occursin(fragment, text)
+            end
+        end
+
+        run_dm_text = read(joinpath(repo_root, "examples", "run_dm_and_plot.jl"), String)
+        @test occursin("compute_energy_dispersion(k_values, J, h)", run_dm_text)
+        @test occursin("compute_ground_state_occupation(k_values, J, h)", run_dm_text)
+    end
+
     @testset "Antiperiodic BC spectrum (N=$N)" for N in [4, 6]
         J, h = 1.0, 0.5
         θ = theta_from_Jh(J, h)
