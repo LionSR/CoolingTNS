@@ -528,6 +528,70 @@ end
         end
     end
 
+    @testset "Open-boundary BdG spectrum matches ED (N=$N)" for N in [4, 6]
+        J, h = 1.0, 0.5
+        θ = theta_from_Jh(J, h)
+        Λ = energy_scale(J, h)
+
+        A, B = open_bdg_matrices(N, θ)
+        @test diag(A) ≈ fill(sin(θ), N) atol=1e-15
+        @test norm(B + transpose(B)) < 1e-15
+        for n in 1:N-1
+            @test A[n, n+1] ≈ -cos(θ) / 2 atol=1e-15
+            @test A[n+1, n] ≈ -cos(θ) / 2 atol=1e-15
+            @test B[n, n+1] ≈ -cos(θ) / 2 atol=1e-15
+            @test B[n+1, n] ≈ cos(θ) / 2 atol=1e-15
+        end
+
+        U = zeros(Float64, N, N)
+        L = zeros(Float64, N, N)
+        for n in 1:N-1
+            U[n, n+1] = 1
+            L[n+1, n] = 1
+        end
+        I_N = Matrix{Float64}(I, N, N)
+        @test A + B ≈ sin(θ) * I_N - cos(θ) * U atol=1e-15
+        @test A - B ≈ sin(θ) * I_N - cos(θ) * L atol=1e-15
+
+        ε_notes = open_mode_energies(N, θ)
+        @test ε_notes ≈ sort(ε_notes) atol=1e-15
+        @test open_mode_energies_Jh(N, J, h) ≈ Λ .* ε_notes atol=1e-15
+
+        H_notes_open = _test_build_H_notes(N, θ, :open)
+        ed_notes = sort(real.(eigvals(H_notes_open)))
+        predicted_notes = sort(vec([
+            sum(ε_notes[i] * (occ[i] - 1/2) for i in 1:N)
+            for occ in Iterators.product(ntuple(_ -> (0, 1), N)...)
+        ]))
+        @test predicted_notes ≈ ed_notes atol=1e-10
+
+        H_code_open = _test_build_H_code(N, J, h, :open)
+        ed_code = sort(real.(eigvals(H_code_open)))
+        predicted_code = Λ .* predicted_notes
+        @test predicted_code ≈ ed_code atol=1e-10
+    end
+
+    @testset "Open-boundary BdG helper edge cases" begin
+        θ = 0.37
+        @test open_mode_energies(1, θ) ≈ [abs(sin(θ))] atol=1e-15
+        @test_throws ArgumentError open_bdg_matrices(0, θ)
+    end
+
+    @testset "OBC note uses the canonical BdG convention" begin
+        repo_root = normpath(joinpath(@__DIR__, ".."))
+        text = read(joinpath(repo_root, "Notes", "NotesED", "OBC.tex"), String)
+
+        @test occursin("-\\frac{\\sin\\theta}{2} \\sum_{n=1}^N (a_n a_n^\\dag - a_n^\\dag a_n)", text)
+        @test occursin("A_{nm} &= \\sin\\theta \\delta_{nm}", text)
+        @test occursin("B_{nm} &= \\frac{\\cos\\theta}{2}(\\delta_{n,m+1} - \\delta_{n+1,m})", text)
+        @test occursin("A+B &= \\sin\\theta\\,\\Id - \\cos\\theta\\,U", text)
+        @test occursin("A-B &= \\sin\\theta\\,\\Id - \\cos\\theta\\,L", text)
+        @test occursin("v_{nk} &= \\frac{\\mathcal{N}_k}{2}[\\sin(N+1-n)\\omega_k - \\sin n\\omega_k]", text)
+        @test occursin("\\frac{\\sin(N+1)\\omega_k}{\\sin N\\omega_k} = \\cot\\theta", text)
+        @test occursin("\\epsilon_k^2 = 1 - \\sin(2\\theta)\\cos\\omega_k", text)
+        @test !occursin("\\epsilon_k^2 = 1 + \\sin(2\\theta)\\cos\\omega_k", text)
+    end
+
     @testset "Energy reconstruction from mode h_k" begin
         N = 6
         J, h = 1.0, 0.5
