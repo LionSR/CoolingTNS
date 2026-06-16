@@ -6,7 +6,8 @@ using ITensors
     appendzeros_MPO(ρ::MPO, sites::Vector{<:Index}, coupling::String="XX")
 
 Append bath qubits in appropriate ground state density matrix to system MPO.
-Bath basis is selected by `get_bath_operator`.
+The bath state is the ground state of the bath field selected by
+`get_bath_operator(coupling)`.
 """
 function appendzeros_MPO(ρ::MPO, sites::Vector{<:Index}, coupling::String="XX")
     N = length(ρ)

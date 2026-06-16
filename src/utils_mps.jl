@@ -6,35 +6,21 @@ function energy(ψ::MPS, H::MPO)
 end
 
 """
-    get_bath_ground_state(coupling::String) -> (String, Vector{Float64})
+    get_bath_ground_state(coupling::String) -> (String, Vector{ComplexF64})
 
-Return the bath ground state name and amplitudes based on coupling type.
-Bath Hamiltonian must NOT commute with coupling for energy transfer.
-
-With Δ > 0 and bath H = (Δ/2) * Op:
-- Ground state is eigenvalue -1 of Op
-- `get_bath_operator(coupling) == "Z"` → ground state |↓⟩ (Z=-1)
-- `get_bath_operator(coupling) == "X"` → ground state |−⟩ (X=-1)
+Return the one-site bath ground state name and amplitudes selected by the
+shared bath Hamiltonian convention.
 
 Bath absorbs energy |Δ| when excited from ground to excited state.
 """
-function get_bath_ground_state(coupling::String)
-    if get_bath_operator(coupling) == "X"
-        # X-basis ground state: |−⟩ = (|↑⟩ - |↓⟩)/√2 (eigenvalue X = -1)
-        # In S=1/2 convention: state 1 = |↑⟩, state 2 = |↓⟩
-        return "X-", [1/sqrt(2), -1/sqrt(2)]
-    else
-        # Z-basis ground state: |↓⟩ (state 2, eigenvalue Z = -1)
-        return "Dn", [0.0, 1.0]
-    end
-end
+get_bath_ground_state(coupling::String) = bath_ground_state_amplitudes(coupling)
 
 """
     appendzeros_MPS(ψ::MPS, sites::Vector{<:Index}, coupling::String="XX")
 
 Append bath qubits in appropriate ground state to system MPS.
 Input: ψ is MPS on system sites (N sites) with arbitrary bond dimensions
-       coupling determines bath basis (XX→Z-basis bath, ZZ→X-basis bath)
+       coupling determines the bath field through `get_bath_operator`
 Output: MPS on interleaved sites [sys₁, bath₁, sys₂, bath₂, ...] (2N sites)
 
 For product state input (D=1), creates proper interleaved product state.

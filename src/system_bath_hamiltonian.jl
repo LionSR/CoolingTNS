@@ -94,15 +94,14 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     # Add system Hamiltonian terms with alternating layout mapping
     add_system_hamiltonian_ed!(H_sb, H_sys, N, N_total)
     
-    # Add bath terms (at resonance with system gap if not specified)
-    # Δ > 0 so bath ground state is eigenvalue -1 (|↓⟩ for Z, |−⟩ for X)
+    # Add bath terms (at resonance with system gap if not specified).
+    # Δ > 0, so the bath ground state is the eigenvalue -1 state of bath_op.
     Δ = coupling_params.delta !== nothing ? coupling_params.delta : compute_gap_ed(H_sys)
     
-    # Bath qubits are at positions: 2, 4, 6, ..., 2N
-    # Bath operator depends on coupling type (must not commute with coupling)
+    # Bath qubits are at positions: 2, 4, 6, ..., 2N.
+    # The bath field is chosen from the bath-side coupling operators.
     coupling_type = coupling_params.coupling
-    bath_op = get_bath_operator(coupling_type)
-    bath_op_func = bath_op == "X" ? pauli_x : pauli_z
+    bath_op_func = ED_HAMILTONIAN_PAULI_MAP[get_bath_operator(coupling_type)]
 
     for i in 1:N
         bath_idx = 2*i
@@ -122,8 +121,6 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     
     return H_sb
 end
-
-
 
 """
     construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters, backend::CoolingBackend, sites)

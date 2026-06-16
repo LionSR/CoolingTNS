@@ -59,10 +59,59 @@ end
         @test CoolingTNS.coupling_operator_terms("ZY") == (("Z", "Y"), ("Y", "Z"))
         @test CoolingTNS.get_bath_operator("YZ") == "X"
         @test CoolingTNS.get_bath_operator("ZY") == "X"
-        @test CoolingTNS.get_bath_operator("XZ") == "Z"
-        @test CoolingTNS.get_bath_operator("ZX") == "Z"
+        @test CoolingTNS.get_bath_operator("XZ") == "Y"
+        @test CoolingTNS.get_bath_operator("ZX") == "Y"
         @test_throws ArgumentError CoolingTNS.parse_coupling("XXX")
         @test_throws ArgumentError CoolingTNS.parse_coupling("XA")
+    end
+
+    @testset "Bath Operator Convention" begin
+        local_paulis = Dict(
+            "X" => ComplexF64[0 1; 1 0],
+            "Y" => ComplexF64[0 -im; im 0],
+            "Z" => ComplexF64[1 0; 0 -1],
+        )
+
+        expected_bath_ops = Dict(
+            "XX" => "Z",
+            "YY" => "Z",
+            "ZZ" => "X",
+            "XY" => "Z",
+            "YX" => "Z",
+            "XZ" => "Y",
+            "ZX" => "Y",
+            "YZ" => "X",
+            "ZY" => "X",
+        )
+
+        for coupling in sort(collect(keys(expected_bath_ops)))
+            bath_op = CoolingTNS.get_bath_operator(coupling)
+            @test bath_op == expected_bath_ops[coupling]
+
+            for (_, bath_coupling_op) in CoolingTNS.coupling_operator_terms(coupling)
+                commutator = local_paulis[bath_op] * local_paulis[bath_coupling_op] -
+                             local_paulis[bath_coupling_op] * local_paulis[bath_op]
+                @test norm(commutator) > 1e-12
+            end
+        end
+    end
+
+    @testset "Bath Ground State Convention" begin
+        xz_label, xz_amps = CoolingTNS.bath_ground_state_amplitudes("XZ")
+        tn_xz_label, tn_xz_amps = CoolingTNS.get_bath_ground_state("XZ")
+        @test xz_label == "Y-"
+        @test xz_amps ≈ ComplexF64[1 / sqrt(2), -im / sqrt(2)]
+        @test tn_xz_label == xz_label
+        @test tn_xz_amps ≈ xz_amps
+
+        xy_label, xy_amps = CoolingTNS.bath_ground_state_amplitudes("XY")
+        @test xy_label == "Dn"
+        @test xy_amps ≈ ComplexF64[0, 1]
+
+        ψ_bath_xz = CoolingTNS.get_bath_ground_state_ed(1, "XZ")
+        ψ_bath_xy = CoolingTNS.get_bath_ground_state_ed(1, "XY")
+        @test CoolingTNS.expect_ed(CoolingTNS.pauli_y_complex(1, 1), ψ_bath_xz) ≈ -1.0 atol=1e-12
+        @test CoolingTNS.expect_ed(CoolingTNS.pauli_z(1, 1), ψ_bath_xy) ≈ -1.0 atol=1e-12
     end
     
     @testset "System Hamiltonians - Tensor Network Backend" begin
@@ -158,6 +207,30 @@ end
                 @test H isa MPO
                 @test length(H) == 2N
             end
+        end
+
+        @testset "XZ bath field uses Y" begin
+            ham_params = CoolingTNS.IsingParameters(1, 0.0, 0.0)
+            xz_coupling_params = CoolingTNS.BasicCouplingParameters(
+                "XZ", 0.0, 1, 1.0, 2.0
+            )
+            H = Matrix(CoolingTNS.construct_system_bath_hamiltonian(
+                ham_params, CoolingTNS.EDBackend(), 2, xz_coupling_params
+            ))
+
+            expected = Matrix((xz_coupling_params.delta / 2) * CoolingTNS.pauli_y_complex(2, 2))
+            x_field = Matrix((xz_coupling_params.delta / 2) * CoolingTNS.pauli_x(2, 2))
+            z_field = Matrix((xz_coupling_params.delta / 2) * CoolingTNS.pauli_z(2, 2))
+
+            @test H ≈ expected atol=1e-12
+            @test norm(H - x_field) > 1e-6
+            @test norm(H - z_field) > 1e-6
+
+            sites_xz = siteinds("S=1/2", 2)
+            H_tn = CoolingTNS.construct_system_bath_hamiltonian(
+                ham_params, CoolingTNS.TNBackend(), sites_xz, xz_coupling_params
+            )
+            @test hamiltonian_test_mpo_to_matrix(H_tn) ≈ expected atol=1e-12
         end
 
         @testset "ED and TN system-bath couplings agree" begin

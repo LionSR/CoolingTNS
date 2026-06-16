@@ -32,24 +32,15 @@ end
 """
     get_bath_ground_state_ed(N_bath::Int, coupling::String) -> EDStateVector
 
-Create bath ground state for ED backend based on coupling type.
-The bath Hamiltonian operator is selected by `get_bath_operator`.
+Create the ED bath ground state from the shared bath Hamiltonian convention.
 """
 function get_bath_ground_state_ed(N_bath::Int, coupling::String)
-    if get_bath_operator(coupling) == "X"
-        # X-basis ground state: |−⟩^⊗N where |−⟩ = (|0⟩ - |1⟩)/√2
-        # Build as product of single-qubit |−⟩ states
-        minus = ComplexF64[1/sqrt(2), -1/sqrt(2)]
-        data = minus
-        for _ in 2:N_bath
-            data = kron(data, minus)
-        end
-        return EDStateVector(data, N_bath)
-    else
-        # Z-basis ground state: |↓↓...↓⟩ = |11...1⟩ (all ones config)
-        config = (1 << N_bath) - 1  # All bits set to 1
-        return product_state_ed(N_bath, config)
+    _, one_site = bath_ground_state_amplitudes(coupling)
+    data = copy(one_site)
+    for _ in 2:N_bath
+        data = kron(data, one_site)
     end
+    return EDStateVector(data, N_bath)
 end
 
 """

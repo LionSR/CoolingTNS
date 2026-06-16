@@ -51,18 +51,45 @@ end
 """
     get_bath_operator(coupling::String) -> String
 
-Return the Pauli operator used in the local bath Hamiltonian for a coupling
-label. The bath field is chosen from the repository's current ``X/Z`` bath
-convention and is invariant under reversing a mixed coupling label.
+Return the Pauli operator used in the local bath Hamiltonian.
 
-In particular, `"YZ"` and `"ZY"` both contain the same symmetric bath
-operators and therefore both use an ``X`` bath field, just as `"ZZ"` does.
-All other valid labels use a ``Z`` bath field.
+The bath field is chosen from the Pauli operators appearing on the bath leg of
+`coupling_operator_terms(coupling)`. For a one-Pauli bath set we keep the
+historical convention: bath-side `X` or `Y` uses a `Z` field, while bath-side
+`Z` uses an `X` field. For a mixed symmetric coupling, the field is the unique
+Pauli operator absent from the bath-side set. Thus `XY`/`YX` use `Z`,
+`YZ`/`ZY` use `X`, and `XZ`/`ZX` use `Y`.
 """
 function get_bath_operator(coupling::String)
-    bath_labels = last.(coupling_operator_terms(coupling))
-    has_bath_x = any(==("X"), bath_labels)
-    has_bath_z = any(==("Z"), bath_labels)
+    bath_labels = unique(last.(coupling_operator_terms(coupling)))
 
-    return has_bath_z && !has_bath_x ? "X" : "Z"
+    if length(bath_labels) == 1
+        return only(bath_labels) == "Z" ? "X" : "Z"
+    end
+
+    has_bath_x = "X" in bath_labels
+    has_bath_y = "Y" in bath_labels
+
+    !has_bath_x && return "X"
+    !has_bath_y && return "Y"
+    return "Z"
+end
+
+"""
+    bath_ground_state_amplitudes(coupling::String) -> (String, Vector{ComplexF64})
+
+Return the one-qubit bath ground state selected by `get_bath_operator`.
+
+For positive detuning, the bath ground state is the eigenvalue `-1` state of the
+bath Hamiltonian Pauli operator.
+"""
+function bath_ground_state_amplitudes(coupling::String)
+    bath_op = get_bath_operator(coupling)
+    if bath_op == "X"
+        return "X-", ComplexF64[1 / sqrt(2), -1 / sqrt(2)]
+    elseif bath_op == "Y"
+        return "Y-", ComplexF64[1 / sqrt(2), -im / sqrt(2)]
+    end
+
+    return "Dn", ComplexF64[0, 1]
 end
