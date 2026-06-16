@@ -108,8 +108,8 @@ Generate a color array for evolution plots using viridis colormap.
 """
 function get_evolution_colors(plt, n_steps::Int)
     n_steps <= 0 && return Any[]
-    n_steps == 1 && return [plt.cm.viridis(0.0)]
-    return plt.cm.viridis(range(0, 1, length=n_steps))
+    color_values = n_steps == 1 ? [0.0] : collect(range(0, 1; length=n_steps))
+    return [plt.cm.viridis(value) for value in color_values]
 end
 
 """
