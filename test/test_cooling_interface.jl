@@ -119,6 +119,17 @@ using HDF5
 
         @test occursin("result_path=joinpath(ED_DM_EXAMPLE_ROOT, \"Results\", filename * \".h5\")", example_text)
         @test occursin("run(Cmd(cmd; dir=ED_DM_EXAMPLE_ROOT))", example_text)
+
+        include(example_utils)
+        integer_params = ed_dm_ising_example(N=4, J=1, h=2, g=1, te=2)
+        float_params = ed_dm_ising_example(N=4, J=1.0, h=2.0, g=1.0, te=2.0)
+
+        @test integer_params.filename == float_params.filename
+        @test integer_params.result_path == float_params.result_path
+        @test integer_params.J === 1.0
+        @test integer_params.h === 2.0
+        @test integer_params.g === 1.0
+        @test integer_params.te === 2.0
     end
 
     @testset "Result Key Constants" begin

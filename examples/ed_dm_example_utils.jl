@@ -13,9 +13,14 @@ function ed_dm_ising_example(;
     steps::Int=20,
     bc::Symbol=:periodic,
 )
+    J_float = Float64(J)
+    h_float = Float64(h)
+    g_float = Float64(g)
+    te_float = Float64(te)
+
     backend = CoolingTNS.EDBackend()
-    ham_params = CoolingTNS.IsingParameters(N, J, h, bc)
-    coupling_params = CoolingTNS.BasicCouplingParameters(coupling, g, steps, te, nothing)
+    ham_params = CoolingTNS.IsingParameters(N, J_float, h_float, bc)
+    coupling_params = CoolingTNS.BasicCouplingParameters(coupling, g_float, steps, te_float, nothing)
     sim_params = CoolingTNS.UnifiedSimulationParameters(
         CoolingTNS.DensityMatrix(),
         CoolingTNS.ContinuousEvolution(),
@@ -24,11 +29,11 @@ function ed_dm_ising_example(;
 
     return (
         N=N,
-        J=J,
-        h=h,
+        J=J_float,
+        h=h_float,
         coupling=coupling,
-        g=g,
-        te=te,
+        g=g_float,
+        te=te_float,
         steps=steps,
         bc=bc,
         filename=filename,
