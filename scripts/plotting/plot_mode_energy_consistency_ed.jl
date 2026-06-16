@@ -61,21 +61,10 @@ res = redirect_stdout(devnull) do
     end
 end
 
-E_direct = Float64.(res["E_list"])
-mode_hk = Float64.(res["mode_hk"])
-k_indices = res["mode_k_indices"]
-
-# Mode reconstruction uses the same coefficients as in scripts/diagnostics/mode_cooling_diagnostic.jl
-θ = theta_from_Jh(J, h)
-Λ = energy_scale(J, h)
-
-E_modes = similar(E_direct)
-for step_idx in eachindex(E_direct)
-    E_modes[step_idx] = (Λ / 2) * sum(
-        coeff_k(k, θ, N) * mode_hk[step_idx, i]
-        for (i, k) in enumerate(k_indices)
-    )
-end
+E_direct = Float64.(res[RESULT_ENERGY])
+mode_hk = Float64.(res[RESULT_MODE_HK])
+k_indices = res[RESULT_MODE_K_INDICES]
+E_modes = ising_energy_from_mode_hk(k_indices, mode_hk, ham_params)
 
 ΔE_abs = abs.(E_direct .- E_modes)
 ΔE_rel = similar(ΔE_abs)

@@ -228,6 +228,49 @@ function coeff_k(k, θ, N)
     end
 end
 
+"""
+    ising_energy_from_mode_hk(k_indices, hk_values, ham_params) -> energy
+
+Reconstruct the Ising energy from the Bogoliubov mode observables ``h_k``.
+
+For a fixed fermionic boundary-condition sector, the code-unit energy is
+``E = (Λ/2) Σ_k coeff_k h_k``, where ``Λ = 2√(J²+h²)`` and `coeff_k` is the
+signed coefficient used in the notes-basis diagonal decomposition. The input
+`k_indices` must be the same mode grid used to produce `hk_values`.
+
+If `hk_values` is a vector, this returns one energy. If `hk_values` is a matrix,
+rows are interpreted as cooling steps and columns as modes, and a vector of
+stepwise reconstructed energies is returned.
+"""
+function ising_energy_from_mode_hk(k_indices, hk_values::AbstractVector,
+                                   ham_params::HamiltonianParameters{IsingModel})
+    length(k_indices) == length(hk_values) || throw(ArgumentError(
+        "k_indices length $(length(k_indices)) does not match hk_values length $(length(hk_values))"
+    ))
+
+    N = ham_params.N
+    J, h = ham_params.params.J, ham_params.params.h
+    θ = theta_from_Jh(J, h)
+    Λ = energy_scale(J, h)
+
+    return (Λ / 2) * sum(
+        coeff_k(Float64(k), θ, N) * hk_values[i]
+        for (i, k) in pairs(k_indices)
+    )
+end
+
+function ising_energy_from_mode_hk(k_indices, hk_values::AbstractMatrix,
+                                   ham_params::HamiltonianParameters{IsingModel})
+    size(hk_values, 2) == length(k_indices) || throw(ArgumentError(
+        "hk_values has $(size(hk_values, 2)) mode columns, but k_indices has length $(length(k_indices))"
+    ))
+
+    return [
+        ising_energy_from_mode_hk(k_indices, view(hk_values, step, :), ham_params)
+        for step in axes(hk_values, 1)
+    ]
+end
+
 # ============================================================================
 # Vacuum Energy
 # ============================================================================

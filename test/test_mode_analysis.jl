@@ -508,6 +508,27 @@ end
         end
     end
 
+    @testset "Energy reconstruction from mode h_k" begin
+        N = 6
+        J, h = 1.0, 0.5
+        ham_params = IsingParameters(N, J, h, :periodic)
+        gF = fermionic_bc(:periodic, 1)
+        ks = allowed_k_indices(N, gF)
+
+        hk_vac = fill(-1.0, length(ks))
+        E_vac = ising_energy_from_mode_hk(ks, hk_vac, ham_params)
+        @test E_vac ≈ vacuum_energy_Jh(N, J, h, gF) atol=1e-12
+
+        hk_matrix = [hk_vac'; (hk_vac .+ 0.1)']
+        E_steps = ising_energy_from_mode_hk(ks, hk_matrix, ham_params)
+        @test length(E_steps) == 2
+        @test E_steps[1] ≈ E_vac atol=1e-12
+        @test E_steps[2] ≈ ising_energy_from_mode_hk(ks, hk_matrix[2, :], ham_params) atol=1e-12
+
+        @test_throws ArgumentError ising_energy_from_mode_hk(ks[1:end-1], hk_vac, ham_params)
+        @test_throws ArgumentError ising_energy_from_mode_hk(ks, reshape(hk_vac, :, 1), ham_params)
+    end
+
     @testset "Antiperiodic BC spectrum (N=$N)" for N in [4, 6]
         J, h = 1.0, 0.5
         θ = theta_from_Jh(J, h)

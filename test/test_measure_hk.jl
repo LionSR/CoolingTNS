@@ -223,8 +223,6 @@ end
 
     @testset "Total energy from mode decomposition (N=$N)" for N in [4, 6]
         J, h = 1.0, 0.5
-        θ = theta_from_Jh(J, h)
-        Λ = energy_scale(J, h)
         ham_params = IsingParameters(N, J, h, :periodic)
         H = _build_H(N, J, h, :periodic)
 
@@ -235,9 +233,7 @@ end
 
             ks_all, hk_vals, εk_vals = measure_all_mode_energies(gs_state, ham_params; gF=gF)
 
-            # E = (Λ/2) Σ_k coeff_k · h_k
-            E_modes = sum(Λ * coeff_k(Float64(k), θ, N) * hk / 2
-                         for (k, hk) in zip(ks_all, hk_vals))
+            E_modes = ising_energy_from_mode_hk(ks_all, hk_vals, ham_params)
 
             @test E_modes ≈ E_gs atol=1e-8
         end
@@ -245,8 +241,6 @@ end
 
     @testset "Total energy for excited states (N=4)" begin
         N = 4; J = 1.0; h = 0.5
-        θ = theta_from_Jh(J, h)
-        Λ = energy_scale(J, h)
         ham_params = IsingParameters(N, J, h, :periodic)
         H = _build_H(N, J, h, :periodic)
 
@@ -256,8 +250,7 @@ end
         gF = fermionic_bc(:periodic, 1)
 
         ks_all, hk_vals, _ = measure_all_mode_energies(ex_state, ham_params; gF=gF)
-        E_modes = sum(Λ * coeff_k(Float64(k), θ, N) * hk / 2
-                     for (k, hk) in zip(ks_all, hk_vals))
+        E_modes = ising_energy_from_mode_hk(ks_all, hk_vals, ham_params)
 
         @test E_modes ≈ E_ex atol=1e-8
     end
@@ -354,8 +347,7 @@ end
         E_direct = real(tr(Matrix(H) * ρ))
 
         ks_all, hk_vals, _ = measure_all_mode_energies(state, ham_params; gF=gF)
-        E_modes = sum(Λ * coeff_k(Float64(k), θ, N) * hk / 2
-                     for (k, hk) in zip(ks_all, hk_vals))
+        E_modes = ising_energy_from_mode_hk(ks_all, hk_vals, ham_params)
 
         @test E_modes ≈ E_direct atol=1e-8
 
@@ -424,8 +416,7 @@ end
 
             # Total energy check
             ks_all, hk_vals, _ = measure_all_mode_energies(gs_state, ham_params; gF=gF)
-            E_modes = sum(Λ * coeff_k(Float64(k), θ, N) * hk / 2
-                         for (k, hk) in zip(ks_all, hk_vals))
+            E_modes = ising_energy_from_mode_hk(ks_all, hk_vals, ham_params)
             @test E_modes ≈ E_gs atol=1e-8
         end
     end
@@ -452,8 +443,7 @@ end
 
             # Total energy check
             ks_all, hk_vals, _ = measure_all_mode_energies(gs_state, ham_params; gF=gF)
-            E_modes = sum(Λ * coeff_k(Float64(k), θ, N) * hk / 2
-                         for (k, hk) in zip(ks_all, hk_vals))
+            E_modes = ising_energy_from_mode_hk(ks_all, hk_vals, ham_params)
             @test E_modes ≈ E_gs atol=1e-8
         end
     end
