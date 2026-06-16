@@ -195,6 +195,12 @@ end
         @test allowed_k_indices(4, :antiperiodic) == allowed_k_indices(4, -1)
     end
 
+    @testset "Complex JW uses canonical k-grid" begin
+        source = read(joinpath(@__DIR__, "..", "src", "ed_backend_complex_jw.jl"), String)
+        @test !occursin(r"function\s+_allowed_k_indices\b", source)
+        @test occursin("allowed_k_indices(N, gF)", source)
+    end
+
     @testset "H_notes from JW equals ED Hamiltonian (N=$N)" for N in [4, 6]
         J, h = 1.0, 0.5
         θ = theta_from_Jh(J, h)
