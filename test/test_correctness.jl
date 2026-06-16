@@ -528,6 +528,21 @@ end
 
     @test ρ_bath_extracted ≈ ρ_bath_expected atol=1e-12
     @test real(diag(ρ_bath_extracted)[3]) ≈ 1.0 atol=1e-12
+    @test_throws ArgumentError CoolingTNS.extract_bath_state(
+        CoolingTNS.EDBackend(), state_layout, ρ_layout.data, N, N + 1
+    )
+
+    ψ_bath_coherent = CoolingTNS.EDStateVector(ComplexF64[1, im, 0, 0], N)
+    ρ_coherent = CoolingTNS.state_to_density_ed(
+        CoolingTNS.interleave_system_bath_ed(ψ_sys, ψ_bath_coherent)
+    )
+    ρ_bath_coherent = CoolingTNS.extract_bath_state(
+        CoolingTNS.EDBackend(), state_layout, ρ_coherent.data, N, N
+    )
+    ρ_bath_coherent_expected = CoolingTNS.state_to_density_ed(ψ_bath_coherent).data
+
+    @test ρ_bath_coherent ≈ ρ_bath_coherent_expected atol=1e-12
+    @test abs(imag(ρ_bath_coherent[1, 2])) > 0.49
 
     println("  Partial trace recovers system state: ✓")
     println("  Trace of recovered ρ_sys = $(tr(ρ_sys_recovered.data))")
