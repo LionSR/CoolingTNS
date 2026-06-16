@@ -26,7 +26,7 @@ function plot_energy_dispersion(N::Int, J::Real, h::Real, bc::Symbol;
 
     ax.plot(k_sorted / pi, e_k, "b-", linewidth=2, label="epsilon_k")
 
-    mark_bath_detuning_energy!(ax, delta; linewidth=2)
+    mark_bath_detuning_energy!(ax, delta; reference_energies=e_k, linewidth=2)
 
     ax.set_xlabel("k/pi", fontsize=14)
     ax.set_ylabel("epsilon_k", fontsize=14)

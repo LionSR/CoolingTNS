@@ -105,14 +105,17 @@ include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
     )
     @test mark_bath_detuning_energy!(dummy_ax, -2.5) == :line
     @test only(detuning_calls).y == 2.5
-    @test only(detuning_calls).label == "|delta|"
+    @test only(detuning_calls).label == "signed |delta|"
+    @test mark_bath_detuning_energy!(dummy_ax, 2.5; reference_energies=[-4.0, -2.0]) == :line
+    @test detuning_calls[end].y == -2.5
     @test mark_bath_detuning_energy!(dummy_ax, nothing) === nothing
     @test mark_bath_detuning_energy!(dummy_ax, 0.0) === nothing
-    @test length(detuning_calls) == 1
+    @test length(detuning_calls) == 2
 
     mode_energies = [0.5, 1.5, 1.5, 3.0]
     @test nearest_bath_resonance_indices(mode_energies, 1.5) == [2, 3]
     @test nearest_bath_resonance_indices(mode_energies, -1.45) == [2, 3]
+    @test nearest_bath_resonance_indices(-mode_energies, 1.45) == [2, 3]
     @test nearest_bath_resonance_indices(mode_energies, nothing) == Int[]
     @test nearest_bath_resonance_indices(Float64[], 1.0) == Int[]
 

@@ -119,24 +119,26 @@ function get_evolution_colors(plt, n_steps::Int)
 end
 
 """
-    mark_bath_detuning_energy!(ax, delta; kwargs...)
+    mark_bath_detuning_energy!(ax, delta; reference_energies=nothing, kwargs...)
 
 Mark a bath detuning on an energy axis.
 
 In a dispersion plot, `delta` is an energy/frequency, not a momentum.  The
 resonant modes are therefore the intersections of `epsilon_k` with the
-horizontal line at `|delta|`.
+horizontal line at the detuning energy. When `reference_energies` are supplied,
+the marker uses the sign convention of the plotted dispersion.
 """
 function mark_bath_detuning_energy!(
     ax,
     delta;
+    reference_energies=nothing,
     color="red",
     linestyle="--",
     linewidth=2,
-    label="|delta|",
+    label="signed |delta|",
     alpha=0.7,
 )
-    delta_energy = _bath_detuning_energy(delta)
+    delta_energy = _bath_detuning_energy(delta; reference_energies=reference_energies)
     if delta_energy === nothing
         return nothing
     end
@@ -159,13 +161,21 @@ entry. Otherwise return `x` unchanged.
 """
 _maybe_scalar(x) = (x isa AbstractArray && length(x) == 1) ? only(x) : x
 
-function _bath_detuning_energy(delta)
+function _bath_detuning_energy(delta; reference_energies=nothing)
     value = _maybe_scalar(delta)
     if value === nothing || value == 0
         return nothing
     end
     value isa Number || return nothing
-    return abs(Float64(value))
+    magnitude = abs(Float64(value))
+    reference_energies === nothing && return magnitude
+
+    energies = filter(isfinite, Float64.(vec(reference_energies)))
+    isempty(energies) && return magnitude
+
+    distance_to_positive = minimum(abs.(energies .- magnitude))
+    distance_to_negative = minimum(abs.(energies .+ magnitude))
+    return distance_to_negative < distance_to_positive ? -magnitude : magnitude
 end
 
 function _scalar_float_from_data(data::AbstractDict, key::AbstractString)
@@ -179,12 +189,12 @@ end
     nearest_bath_resonance_indices(mode_energies, delta; atol=1e-12)
 
 Return every mode index whose quasiparticle energy is closest to the bath
-detuning energy `|delta|`.
+detuning energy in the sign convention of `mode_energies`.
 """
 function nearest_bath_resonance_indices(mode_energies, delta; atol=1e-12)
-    delta_energy = _bath_detuning_energy(delta)
-    delta_energy === nothing && return Int[]
     isempty(mode_energies) && return Int[]
+    delta_energy = _bath_detuning_energy(delta; reference_energies=mode_energies)
+    delta_energy === nothing && return Int[]
 
     distances = abs.(Float64.(mode_energies) .- delta_energy)
     dmin = minimum(distances)
