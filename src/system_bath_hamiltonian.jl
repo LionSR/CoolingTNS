@@ -46,42 +46,19 @@ function get_bath_operator(coupling::String)
     end
 end
 
-function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{IsingModel},
-                                         ::TNBackend, sites::Vector{<:Index}, coupling_params::CouplingParameters)
-    J, h = ham_params.params.J, ham_params.params.h
+function construct_system_bath_hamiltonian(
+    ham_params::HamiltonianParameters,
+    ::TNBackend,
+    sites::Vector{<:Index},
+    coupling_params::CouplingParameters,
+)
     N = ham_params.N
     g, Δ, coupling = coupling_params.g, coupling_params.delta, coupling_params.coupling
     op1, op2 = parse_coupling(coupling)
     bath_op = get_bath_operator(coupling)
 
-    terms = OpSum()
-    for i in 1:N-1
-        terms += J, "Z", 2i-1, "Z", 2(i+1)-1
-    end
+    terms = append_system_terms_tn(OpSum(), ham_params, i -> 2i - 1)
     for i in 1:N
-        terms += h, "X", 2i-1
-        terms += Δ/2, bath_op, 2i             # Bath site - operator depends on coupling
-        terms += g, op1, 2i-1, op2, 2i        # System-bath coupling
-    end
-
-    return MPO(terms, sites)
-end
-
-function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{NiIsingModel},
-                                         ::TNBackend, sites::Vector{<:Index}, coupling_params::CouplingParameters)
-    J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
-    N = ham_params.N
-    g, Δ, coupling = coupling_params.g, coupling_params.delta, coupling_params.coupling
-    op1, op2 = parse_coupling(coupling)
-    bath_op = get_bath_operator(coupling)
-
-    terms = OpSum()
-    for i in 1:N-1
-        terms += J, "Z", 2i-1, "Z", 2(i+1)-1
-    end
-    for i in 1:N
-        terms += hx, "X", 2i-1
-        terms += hz, "Z", 2i-1
         terms += Δ/2, bath_op, 2i             # Bath site - operator depends on coupling
         terms += g, op1, 2i-1, op2, 2i        # System-bath coupling
     end
