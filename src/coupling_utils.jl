@@ -33,18 +33,46 @@ function parse_coupling(coupling::String)
 end
 
 """
+    coupling_operator_terms(coupling::String) -> Tuple
+
+Expand a two-character coupling label into the local Hamiltonian terms used by
+all backends.
+
+Identical labels represent a single product operator, for example `"XX"` gives
+``X_S X_B``. Mixed labels represent the symmetric Hermitian convention, for
+example `"XY"` gives ``X_S Y_B + Y_S X_B``.
+"""
+function coupling_operator_terms(coupling::String)
+    op1, op2 = parse_coupling(coupling)
+    op1 == op2 && return ((op1, op2),)
+    return ((op1, op2), (op2, op1))
+end
+
+"""
     get_bath_operator(coupling::String) -> String
 
-Choose the bath Hamiltonian Pauli operator for a system-bath coupling label.
+Return the Pauli operator used in the local bath Hamiltonian.
 
-The bath field must not commute with the Pauli operator acting on the bath leg
-of the coupling. With the convention `"AB" = A_S B_B`, this helper inspects
-only `B`. We choose `Z` for bath-side `X` or `Y` couplings and `X` for
-bath-side `Z` couplings.
+The bath field is chosen from the Pauli operators appearing on the bath leg of
+`coupling_operator_terms(coupling)`. For a one-Pauli bath set we keep the
+historical convention: bath-side `X` or `Y` uses a `Z` field, while bath-side
+`Z` uses an `X` field. For a mixed symmetric coupling, the field is the unique
+Pauli operator absent from the bath-side set. Thus `XY`/`YX` use `Z`,
+`YZ`/`ZY` use `X`, and `XZ`/`ZX` use `Y`.
 """
 function get_bath_operator(coupling::String)
-    _, bath_coupling_op = parse_coupling(coupling)
-    return bath_coupling_op == "Z" ? "X" : "Z"
+    bath_labels = unique(last.(coupling_operator_terms(coupling)))
+
+    if length(bath_labels) == 1
+        return only(bath_labels) == "Z" ? "X" : "Z"
+    end
+
+    has_bath_x = "X" in bath_labels
+    has_bath_y = "Y" in bath_labels
+
+    !has_bath_x && return "X"
+    !has_bath_y && return "Y"
+    return "Z"
 end
 
 """
@@ -53,13 +81,14 @@ end
 Return the one-qubit bath ground state selected by `get_bath_operator`.
 
 For positive detuning, the bath ground state is the eigenvalue `-1` state of the
-bath Hamiltonian Pauli operator. Thus a `Z` bath field gives `|Dn⟩`, while an
-`X` bath field gives `|X-⟩ = (|Up⟩ - |Dn⟩)/√2`.
+bath Hamiltonian Pauli operator.
 """
 function bath_ground_state_amplitudes(coupling::String)
     bath_op = get_bath_operator(coupling)
     if bath_op == "X"
         return "X-", ComplexF64[1 / sqrt(2), -1 / sqrt(2)]
+    elseif bath_op == "Y"
+        return "Y-", ComplexF64[1 / sqrt(2), -im / sqrt(2)]
     end
 
     return "Dn", ComplexF64[0, 1]

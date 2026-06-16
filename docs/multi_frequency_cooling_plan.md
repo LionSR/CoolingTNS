@@ -32,7 +32,10 @@ operator `B`, so that it does not commute with the local bath coupling. The
 present convention uses a Z bath field for bath-side X or Y couplings and an X
 bath field for bath-side Z couplings.
 
-System-bath coupling: V_SB = g Σ op1_i ⊗ op2_i (e.g., σ^x ⊗ σ^x for XX).
+System-bath coupling labels use one local product for identical operators and
+the symmetric Hermitian convention for mixed operators. Thus `XX` denotes
+V_SB = g Σ σ^x_{S,i} σ^x_{B,i}, while `XY` denotes
+V_SB = g Σ (σ^x_{S,i} σ^y_{B,i} + σ^y_{S,i} σ^x_{B,i}).
 
 ## Architecture
 

@@ -34,7 +34,6 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{Isi
     J, h = ham_params.params.J, ham_params.params.h
     N = ham_params.N
     g, Δ, coupling = coupling_params.g, coupling_params.delta, coupling_params.coupling
-    op1, op2 = parse_coupling(coupling)
     bath_op = get_bath_operator(coupling)
 
     terms = OpSum()
@@ -44,7 +43,9 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{Isi
     for i in 1:N
         terms += h, "X", 2i-1
         terms += Δ/2, bath_op, 2i             # Bath site - operator depends on coupling
-        terms += g, op1, 2i-1, op2, 2i        # System-bath coupling
+        for (sys_op, bath_coupling_op) in coupling_operator_terms(coupling)
+            terms += g, sys_op, 2i-1, bath_coupling_op, 2i
+        end
     end
 
     return MPO(terms, sites)
@@ -55,7 +56,6 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{NiI
     J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
     N = ham_params.N
     g, Δ, coupling = coupling_params.g, coupling_params.delta, coupling_params.coupling
-    op1, op2 = parse_coupling(coupling)
     bath_op = get_bath_operator(coupling)
 
     terms = OpSum()
@@ -66,7 +66,9 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{NiI
         terms += hx, "X", 2i-1
         terms += hz, "Z", 2i-1
         terms += Δ/2, bath_op, 2i             # Bath site - operator depends on coupling
-        terms += g, op1, 2i-1, op2, 2i        # System-bath coupling
+        for (sys_op, bath_coupling_op) in coupling_operator_terms(coupling)
+            terms += g, sys_op, 2i-1, bath_coupling_op, 2i
+        end
     end
 
     return MPO(terms, sites)
@@ -85,18 +87,19 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     # Get system Hamiltonian on N qubits
     H_sys = construct_system_hamiltonian(ham_params, backend, N)
     
-    # Initialize full Hamiltonian
-    H_sb = spzeros(Float64, 2^N_total, 2^N_total)
+    # Initialize full Hamiltonian. Mixed couplings involving Y require the
+    # standard complex Pauli Y to be Hermitian.
+    H_sb = spzeros(ComplexF64, 2^N_total, 2^N_total)
     
     # Add system Hamiltonian terms with alternating layout mapping
     add_system_hamiltonian_ed!(H_sb, H_sys, N, N_total)
     
-    # Add bath terms (at resonance with system gap if not specified)
-    # Δ > 0 so bath ground state is eigenvalue -1 (|↓⟩ for Z, |−⟩ for X)
+    # Add bath terms (at resonance with system gap if not specified).
+    # Δ > 0, so the bath ground state is the eigenvalue -1 state of bath_op.
     Δ = coupling_params.delta !== nothing ? coupling_params.delta : compute_gap_ed(H_sys)
     
     # Bath qubits are at positions: 2, 4, 6, ..., 2N.
-    # The bath field is chosen from the bath-side coupling operator.
+    # The bath field is chosen from the bath-side coupling operators.
     coupling_type = coupling_params.coupling
     bath_op_func = bath_operator_function_ed(get_bath_operator(coupling_type))
 
@@ -121,6 +124,7 @@ end
 
 function bath_operator_function_ed(op_label::String)
     op_label == "X" && return pauli_x
+    op_label == "Y" && return pauli_y_complex
     op_label == "Z" && return pauli_z
     error("Unsupported ED bath Hamiltonian operator: $op_label")
 end
@@ -200,14 +204,10 @@ function map_system_bath_to_full_basis_ed(sys_state::Int, bath_state::Int, N::In
     return full_state
 end
 
-# Map coupling types to Pauli operator pairs for ED backend
-const COUPLING_PAULI_MAP = Dict(
-    "XX" => (pauli_x, pauli_x),
-    "YY" => (pauli_y, pauli_y),
-    "ZZ" => (pauli_z, pauli_z),
-    "XY" => (pauli_x, pauli_y),
-    "XZ" => (pauli_x, pauli_z),
-    "YZ" => (pauli_y, pauli_z)
+const ED_HAMILTONIAN_PAULI_MAP = Dict(
+    "X" => pauli_x,
+    "Y" => pauli_y_complex,
+    "Z" => pauli_z,
 )
 
 """
@@ -218,20 +218,16 @@ For symmetric couplings (XX, YY, ZZ): g * A⊗A
 For mixed couplings (XY, XZ, YZ): g * (A⊗B + B⊗A)
 """
 function construct_coupling_term_ed(sys_idx::Int, bath_idx::Int, N_total::Int, coupling_type::String, g::Float64)
-    haskey(COUPLING_PAULI_MAP, coupling_type) || error("Unknown coupling type: $coupling_type")
+    terms = coupling_operator_terms(coupling_type)
+    result = spzeros(ComplexF64, 2^N_total, 2^N_total)
 
-    op_a, op_b = COUPLING_PAULI_MAP[coupling_type]
-    A_sys = op_a(sys_idx, N_total)
-    B_bath = op_b(bath_idx, N_total)
-
-    if op_a === op_b
-        return g * A_sys * B_bath
+    for (sys_label, bath_label) in terms
+        sys_op = ED_HAMILTONIAN_PAULI_MAP[sys_label](sys_idx, N_total)
+        bath_op = ED_HAMILTONIAN_PAULI_MAP[bath_label](bath_idx, N_total)
+        result += g * sys_op * bath_op
     end
 
-    # Mixed coupling: symmetrized form A⊗B + B⊗A
-    B_sys = op_b(sys_idx, N_total)
-    A_bath = op_a(bath_idx, N_total)
-    return g * (A_sys * B_bath + B_sys * A_bath)
+    return result
 end
 
 """
