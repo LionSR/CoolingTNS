@@ -1,0 +1,23 @@
+\input{../NotesED/preamble.tex}
+
+% The numerical figures in this note are generated artifacts and are not all
+% tracked in the repository.  For source-level checks, keep the text and
+% equations compilable by replacing absent figures with explicit placeholders.
+\usepackage{xparse}
+\let\CoolingTNSOriginalIncludeGraphics\includegraphics
+\RenewDocumentCommand{\includegraphics}{O{} m}{%
+	\IfFileExists{#2}{%
+		\CoolingTNSOriginalIncludeGraphics[#1]{#2}%
+	}{%
+		\begingroup
+		\setlength{\fboxsep}{4pt}%
+		\fbox{%
+			\begin{minipage}{0.85\linewidth}
+				\centering
+				\small Missing generated figure\\
+				\raggedright\footnotesize\path{#2}
+			\end{minipage}%
+		}%
+		\endgroup
+	}%
+}
