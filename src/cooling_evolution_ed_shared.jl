@@ -179,6 +179,21 @@ function _momentum_measurement_gF!(measurements, state::Union{EDStateVector, EDD
     return gF
 end
 
+_system_state_for_measurement(state::EDStateVector, ::Int) = state
+
+function _system_state_for_measurement(ρ::EDDensityMatrix, N_sys::Int)
+    if ρ.n_qubits == 2 * N_sys
+        return trace_out_bath_ed(ρ, N_sys)
+    elseif ρ.n_qubits == N_sys
+        return ρ
+    else
+        throw(DimensionMismatch(
+            "ED density-matrix measurements expected $N_sys or $(2 * N_sys) qubits, " *
+            "got $(ρ.n_qubits)"
+        ))
+    end
+end
+
 """
     perform_measurements_ed!(measurements, step::Int, problem::CoolingProblem{EDBackend},
                             state::Union{EDStateVector, EDDensityMatrix}, is_monte_carlo::Bool,
@@ -190,10 +205,11 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
                                 H_sys_mat::AbstractMatrix, ϕ₀::EDStateVector,
                                 ham_params, _bath_info=nothing)
     N_sys = ham_params.N
+    sys_state = _system_state_for_measurement(state, N_sys)
     
-    if isa(state, EDStateVector)
+    if isa(sys_state, EDStateVector)
         # Monte Carlo: state is a wave function (system only)
-        ψ_s = state
+        ψ_s = sys_state
         
         # Energy: <ψ|H|ψ>
         measurements["E_list"][step] = expect_ed(H_sys_mat, ψ_s)
@@ -207,15 +223,7 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
     else
         # Density matrix: may be full system+bath or system only
         ρ_total = state
-        
-        # Get system density matrix
-        if ρ_total.n_qubits == 2*N_sys
-            # Full system+bath state - trace out bath
-            ρ_sys = trace_out_bath_ed(ρ_total, N_sys)
-        else
-            # Just system state
-            ρ_sys = ρ_total
-        end
+        ρ_sys = sys_state
         
         # Energy
         measurements["E_list"][step] = expect_ed(H_sys_mat, ρ_sys)
@@ -244,45 +252,16 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
     
     # K-space measurements for ED with periodic/antiperiodic BC (only for Ising model)
     if haskey(measurements, "momentum_dist") && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
-        gF = _momentum_measurement_gF!(measurements, state, ϕ₀, ham_params)
-        if isa(state, EDStateVector)
-            # For pure states
-            k_values, n_k = measure_momentum_distribution_ed_clean(state, ham_params; gF=gF)
-            if step == 1
-                measurements["k_values"][:] = k_values
-            end
-            measurements["momentum_dist"][step, :] .= n_k
-        else
-            # For density matrices, we need to get the system state
-            if ρ_total.n_qubits == 2*N_sys
-                ρ_sys = trace_out_bath_ed(ρ_total, N_sys)
-            else
-                ρ_sys = ρ_total
-            end
-            
-            # Measure momentum distribution from density matrix
-            k_values, n_k = measure_momentum_distribution_ed_clean(ρ_sys, ham_params; gF=gF)
-            if step == 1
-                measurements["k_values"][:] = k_values
-            end
-            measurements["momentum_dist"][step, :] .= n_k
+        gF = _momentum_measurement_gF!(measurements, sys_state, ϕ₀, ham_params)
+        k_values, n_k = measure_momentum_distribution_ed_clean(sys_state, ham_params; gF=gF)
+        if step == 1
+            measurements["k_values"][:] = k_values
         end
+        measurements["momentum_dist"][step, :] .= n_k
     end
 
     # Mode energy measurements ⟨h_k⟩ (requires measure_modes=true in run_cooling)
     if haskey(measurements, "mode_hk") && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
-        # Get the system state for measurement
-        sys_state = if isa(state, EDStateVector)
-            state
-        else
-            # Density matrix: get system-only state
-            if ρ_total.n_qubits == 2*N_sys
-                trace_out_bath_ed(ρ_total, N_sys)
-            else
-                ρ_total
-            end
-        end
-
         # Use the stored ground-state gF for consistent sector choice.
         # For pure states, measure_all_mode_energies auto-detects gF from parity.
         # For density matrices (mixed states), parity may not be ±1, so we use

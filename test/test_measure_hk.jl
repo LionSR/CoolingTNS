@@ -407,6 +407,17 @@ end
         @test results["momentum_gF_source"] == "state"
         @test results["k_values"] ≈ k_expected atol=1e-12
         @test results["momentum_dist"][1, :] ≈ nk_expected atol=1e-10
+
+        ρ_sb = CoolingTNS.prepare_combined_state_ed(ρ0, N, coupling_params.coupling)
+        state_sb = QuantumState(EDBackend(), DensityMatrix(), ContinuousEvolution(), ρ_sb)
+        results_sb = redirect_stdout(devnull) do
+            run_cooling(problem, state_sb, coupling_params, sim_params, ham_params)
+        end
+
+        @test results_sb["momentum_gF"] == fermionic_bc(:periodic, 1)
+        @test results_sb["momentum_gF_source"] == "state"
+        @test results_sb["k_values"] ≈ k_expected atol=1e-12
+        @test results_sb["momentum_dist"][1, :] ≈ nk_expected atol=1e-10
     end
 
     @testset "h_k range and symmetry (N=$N)" for N in [4, 6]
