@@ -469,9 +469,10 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
         return
     end
 
-    momentum_dist = data[RESULT_MOMENTUM_DISTRIBUTION]
-    k_values = data[RESULT_K_VALUES]
-    total_steps = size(momentum_dist, 1)
+    plot_data = kspace_evolution_plot_data(data)
+    momentum_dist = plot_data.momentum_dist
+    k_values = plot_data.k_values
+    total_steps = plot_data.total_steps
     step_indices = select_evolution_steps(total_steps; steps_to_plot=steps_to_plot)
 
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -524,9 +525,10 @@ function plot_momentum_distribution_heatmap(filename; save_fig=true, show_fig=fa
         return
     end
 
-    momentum_dist = data[RESULT_MOMENTUM_DISTRIBUTION]
-    k_values = data[RESULT_K_VALUES]
-    total_steps = size(momentum_dist, 1)
+    plot_data = kspace_evolution_plot_data(data)
+    momentum_dist = plot_data.momentum_dist
+    k_values = plot_data.k_values
+    total_steps = plot_data.total_steps
 
     fig, ax = plt.subplots(figsize=(10, 6))
 

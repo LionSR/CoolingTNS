@@ -46,5 +46,52 @@ include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
         @test !haskey(h5_data, CoolingTNS.HDF5_PARSED_ARGS_GROUP)
     end
 
+    k_values = [-pi, 0.0, pi]
+    step_by_mode = [0.1 0.2 0.3; 0.4 0.5 0.6]
+    canonical_kspace = kspace_evolution_plot_data(
+        Dict{String, Any}(
+            RESULT_MOMENTUM_DISTRIBUTION => step_by_mode,
+            RESULT_K_VALUES => k_values,
+            "N" => 3,
+            "J" => 1.5,
+            "h" => 0.7,
+            "bc" => "periodic",
+        ),
+    )
+    @test canonical_kspace.momentum_dist == step_by_mode
+    @test canonical_kspace.k_values == k_values
+    @test canonical_kspace.total_steps == 2
+    @test canonical_kspace.N == 3
+    @test canonical_kspace.J == 1.5
+    @test canonical_kspace.h == 0.7
+    @test canonical_kspace.bc == :periodic
+
+    legacy_mode_by_step = permutedims(step_by_mode)
+    legacy_kspace = kspace_evolution_plot_data(
+        Dict{String, Any}(
+            RESULT_MOMENTUM_DISTRIBUTION => legacy_mode_by_step,
+            RESULT_K_VALUES => k_values,
+        ),
+    )
+    @test legacy_kspace.momentum_dist == step_by_mode
+    @test legacy_kspace.total_steps == 2
+
+    square_step_by_mode = [0.1 0.2; 0.3 0.4]
+    square_kspace = kspace_evolution_plot_data(
+        Dict{String, Any}(
+            RESULT_MOMENTUM_DISTRIBUTION => square_step_by_mode,
+            RESULT_K_VALUES => [0.0, pi],
+        ),
+    )
+    @test square_kspace.momentum_dist == square_step_by_mode
+
+    @test_throws ErrorException kspace_evolution_plot_data(Dict{String, Any}())
+    @test_throws DimensionMismatch kspace_evolution_plot_data(
+        Dict{String, Any}(
+            RESULT_MOMENTUM_DISTRIBUTION => [0.1 0.2; 0.3 0.4],
+            RESULT_K_VALUES => [0.0, pi, 2pi],
+        ),
+    )
+
     @test_throws ErrorException _mode_occupation_from_plot_data(Dict{String, Any}())
 end

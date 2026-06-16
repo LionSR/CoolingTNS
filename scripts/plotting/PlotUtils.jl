@@ -10,8 +10,13 @@ using HDF5
 using PythonCall
 using LaTeXStrings
 
-# Re-export dispersion functions from CoolingTNS for convenience
-using CoolingTNS: generate_k_values, compute_energy_dispersion, compute_ground_state_occupation
+# Import shared dispersion functions and result-key constants from CoolingTNS.
+using CoolingTNS:
+    generate_k_values,
+    compute_energy_dispersion,
+    compute_ground_state_occupation,
+    RESULT_MOMENTUM_DISTRIBUTION,
+    RESULT_K_VALUES
 
 # Lazy pyplot access - imported once per session
 const _pyplot = Ref{Py}()
@@ -119,6 +124,65 @@ If `x` is a 0-d or length-1 array (a common HDF5 scalar encoding), return its on
 entry. Otherwise return `x` unchanged.
 """
 _maybe_scalar(x) = (x isa AbstractArray && length(x) == 1) ? only(x) : x
+
+"""
+    _normalize_momentum_distribution_by_step(momentum_dist, k_values)
+
+Return the momentum distribution in the canonical plotting orientation
+`(cooling step, momentum mode)`.
+
+Current result files write `RESULT_MOMENTUM_DISTRIBUTION` with one row per
+cooling step and one column per momentum mode.  Some older plotting scripts also
+accepted the transpose; that legacy orientation is still accepted here.  If both
+axes have length `length(k_values)`, the canonical result-file orientation is
+preferred.
+"""
+function _normalize_momentum_distribution_by_step(momentum_dist, k_values)
+    matrix = Float64.(momentum_dist)
+    ndims(matrix) == 2 || throw(ArgumentError("Expected a matrix for $RESULT_MOMENTUM_DISTRIBUTION"))
+
+    n_modes = length(k_values)
+    if size(matrix, 2) == n_modes
+        return matrix
+    elseif size(matrix, 1) == n_modes
+        return permutedims(matrix)
+    end
+
+    throw(
+        DimensionMismatch(
+            "$RESULT_MOMENTUM_DISTRIBUTION has size $(size(matrix)), " *
+            "but $RESULT_K_VALUES has length $n_modes",
+        ),
+    )
+end
+
+"""
+    kspace_evolution_plot_data(data)
+
+Extract k-space evolution data from an HDF5 data dictionary using the canonical
+result-key constants.  The returned `momentum_dist` has shape `(steps, modes)`.
+"""
+function kspace_evolution_plot_data(data::AbstractDict)
+    if !haskey(data, RESULT_MOMENTUM_DISTRIBUTION) || !haskey(data, RESULT_K_VALUES)
+        error("Expected HDF5 datasets \"$RESULT_MOMENTUM_DISTRIBUTION\" and \"$RESULT_K_VALUES\"")
+    end
+
+    k_values = vec(Float64.(data[RESULT_K_VALUES]))
+    momentum_dist = _normalize_momentum_distribution_by_step(
+        data[RESULT_MOMENTUM_DISTRIBUTION],
+        k_values,
+    )
+
+    return (
+        momentum_dist=momentum_dist,
+        k_values=k_values,
+        total_steps=size(momentum_dist, 1),
+        N=Int(_maybe_scalar(get(data, "N", length(k_values)))),
+        J=Float64(_maybe_scalar(get(data, "J", 1.0))),
+        h=Float64(_maybe_scalar(get(data, "h", 1.0))),
+        bc=Symbol(string(_maybe_scalar(get(data, "bc", "open")))),
+    )
+end
 
 """
     safe_read_keys(filename, keys...) -> Tuple
