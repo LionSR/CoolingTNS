@@ -5,12 +5,13 @@ Tensor-network measurements of Ising mode observables.
 
 The formulas follow `Notes/NotesED/MapToSpin.tex`: the code Hamiltonian is
 rotated to the notes basis by `R_y(-π/2)`, and the Jordan-Wigner strings are
-then evaluated as Pauli strings on the original MPS.
+then evaluated as Pauli strings on the original tensor-network state.
 
-This implementation evaluates O(N^2) split-string correlators by direct MPS
-network contraction. It is convention-correct and avoids building an MPO for
-each correlator; a later production implementation can still cache left/right
-environments across correlators for large scans.
+For MPS states the O(N^2) split-string correlators are evaluated by direct
+network contraction. For density matrices the same Pauli strings are converted
+to MPOs and contracted as `Tr(ρ O)`. These paths are convention-correct; a later
+production implementation can still cache environments across correlators for
+large scans.
 """
 
 using ITensors
@@ -88,29 +89,65 @@ function _expect_pauli_string(ψ::MPS, coeff::ComplexF64, ops::Vector{Symbol})
     return coeff * scalar(contraction)
 end
 
-function _split_string_correlator(ψ::MPS, n::Int, m::Int, α::Symbol, β::Symbol)
-    N = length(ψ)
+function _pauli_string_mpo(sites::Vector{<:Index}, ops::Vector{Symbol})
+    length(sites) == length(ops) || throw(ArgumentError(
+        "Pauli string length $(length(ops)) does not match site count $(length(sites))"
+    ))
+
+    if all(op -> op == :I, ops)
+        return MPO(sites, "Id")
+    end
+
+    term = Any[1.0]
+    for (i, op) in pairs(ops)
+        op == :I && continue
+        push!(term, _PAULI_LABELS_TN[op], i)
+    end
+
+    os = OpSum()
+    os += Tuple(term)
+    return MPO(os, sites)
+end
+
+function _expect_pauli_string(ρ::MPO, coeff::ComplexF64, ops::Vector{Symbol})
+    sites = first.(siteinds(ρ; plev=0))
+    O = _pauli_string_mpo(sites, ops)
+    # ITensors computes inner(ρ, O) as Tr(ρ' O); cooling keeps ρ Hermitian.
+    return coeff * inner(ρ, O)
+end
+
+function _split_string_correlator(state::Union{MPS,MPO}, n::Int, m::Int, α::Symbol, β::Symbol)
+    N = length(state)
     1 <= n <= N || throw(ArgumentError("n=$n outside 1:$N"))
     1 <= m <= N || throw(ArgumentError("m=$m outside 1:$N"))
     coeff, ops = _split_string_pauli_code(n, m, α, β, N)
-    return _expect_pauli_string(ψ, ComplexF64(coeff), ops)
+    return _expect_pauli_string(state, ComplexF64(coeff), ops)
 end
 
-function _split_string_correlators(ψ::MPS)
-    N = length(ψ)
+function _split_string_correlators(state::Union{MPS,MPO})
+    N = length(state)
     Cxx = Matrix{ComplexF64}(undef, N, N)
     Cyy = Matrix{ComplexF64}(undef, N, N)
     Cyx = Matrix{ComplexF64}(undef, N, N)
     Cxy = Matrix{ComplexF64}(undef, N, N)
 
     for n in 1:N, m in 1:N
-        Cxx[n, m] = _split_string_correlator(ψ, n, m, :X, :X)
-        Cyy[n, m] = _split_string_correlator(ψ, n, m, :Y, :Y)
-        Cyx[n, m] = _split_string_correlator(ψ, n, m, :Y, :X)
-        Cxy[n, m] = _split_string_correlator(ψ, n, m, :X, :Y)
+        Cxx[n, m] = _split_string_correlator(state, n, m, :X, :X)
+        Cyy[n, m] = _split_string_correlator(state, n, m, :Y, :Y)
+        Cyx[n, m] = _split_string_correlator(state, n, m, :Y, :X)
+        Cxy[n, m] = _split_string_correlator(state, n, m, :X, :Y)
     end
 
     return (Cxx=Cxx, Cyy=Cyy, Cyx=Cyx, Cxy=Cxy)
+end
+
+function _validate_tn_mode_state(state::Union{MPS,MPO}, ham_params::HamiltonianParameters{IsingModel})
+    N = ham_params.N
+    state_label = state isa MPS ? "MPS" : "MPO"
+    length(state) == N || throw(ArgumentError("$state_label length $(length(state)) does not match N=$N"))
+    ham_params.bc in (:periodic, :antiperiodic) || throw(ArgumentError(
+        "TN mode observables require spin :periodic or :antiperiodic boundary conditions; got $(ham_params.bc)"
+    ))
 end
 
 """
@@ -121,6 +158,17 @@ Measure the code-basis Ising parity ``P_x = ∏_i σ^x_i`` on an MPS.
 function measure_state_parity(ψ::MPS, N::Int)
     length(ψ) == N || throw(ArgumentError("MPS length $(length(ψ)) does not match N=$N"))
     return real(_expect_pauli_string(ψ, 1.0 + 0.0im, fill(:X, N)))
+end
+
+"""
+    measure_state_parity(ρ::MPO, N::Int) -> Float64
+
+Measure the code-basis Ising parity ``P_x = ∏_i σ^x_i`` on a density matrix
+represented as an MPO.
+"""
+function measure_state_parity(ρ::MPO, N::Int)
+    length(ρ) == N || throw(ArgumentError("MPO length $(length(ρ)) does not match N=$N"))
+    return real(_expect_pauli_string(ρ, 1.0 + 0.0im, fill(:X, N)))
 end
 
 """
@@ -166,7 +214,7 @@ function _measure_hk_from_correlators(correlators, k, ham_params::HamiltonianPar
     bogo_nk = c2 * nk + s2 * (1 - nmk) + im * sc * pair
     hk = 2 * bogo_nk - 1
     if abs(imag(hk)) > 1e-8
-        @warn "measure_hk(MPS): significant imaginary part $(imag(hk)) for k=$k"
+        @warn "measure_hk(TN): significant imaginary part $(imag(hk)) for k=$k"
     end
     return real(hk)
 end
@@ -185,13 +233,20 @@ allowed momentum index it is the individual-mode observable
 fermionic grid with the prefactor already used by `measure_all_mode_energies`.
 """
 function measure_hk(ψ::MPS, k, ham_params::HamiltonianParameters{IsingModel})
-    N = ham_params.N
-    length(ψ) == N || throw(ArgumentError("MPS length $(length(ψ)) does not match N=$N"))
-    ham_params.bc in (:periodic, :antiperiodic) || throw(ArgumentError(
-        "TN mode observables require spin :periodic or :antiperiodic boundary conditions; got $(ham_params.bc)"
-    ))
-
+    _validate_tn_mode_state(ψ, ham_params)
     correlators = _split_string_correlators(ψ)
+    return _measure_hk_from_correlators(correlators, k, ham_params)
+end
+
+"""
+    measure_hk(ρ::MPO, k, ham_params) -> Float64
+
+Density-matrix analogue of [`measure_hk(::MPS, k, ham_params)`](@ref). The
+same split-string Pauli formula is evaluated as ``Tr(ρ O_k)``.
+"""
+function measure_hk(ρ::MPO, k, ham_params::HamiltonianParameters{IsingModel})
+    _validate_tn_mode_state(ρ, ham_params)
+    correlators = _split_string_correlators(ρ)
     return _measure_hk_from_correlators(correlators, k, ham_params)
 end
 
@@ -203,18 +258,20 @@ and the corresponding code-unit mode energies.
 """
 function measure_all_mode_energies(ψ::MPS, ham_params::HamiltonianParameters{IsingModel};
                                    gF=nothing)
+    return _measure_all_mode_energies_tn(ψ, ham_params; gF=gF)
+end
+
+function _measure_all_mode_energies_tn(state::Union{MPS,MPO}, ham_params::HamiltonianParameters{IsingModel};
+                                       gF=nothing)
+    _validate_tn_mode_state(state, ham_params)
     N = ham_params.N
-    length(ψ) == N || throw(ArgumentError("MPS length $(length(ψ)) does not match N=$N"))
-    ham_params.bc in (:periodic, :antiperiodic) || throw(ArgumentError(
-        "TN mode observables require spin :periodic or :antiperiodic boundary conditions; got $(ham_params.bc)"
-    ))
 
     J, h = ham_params.params.J, ham_params.params.h
     θ = theta_from_Jh(J, h)
     Λ = energy_scale(J, h)
 
     if isnothing(gF)
-        px = measure_state_parity(ψ, N)
+        px = measure_state_parity(state, N)
         parity = round(Int, px)
         if abs(px - parity) > 0.1
             @warn "State parity ⟨Px⟩ = $px is not close to ±1; " *
@@ -223,9 +280,20 @@ function measure_all_mode_energies(ψ::MPS, ham_params::HamiltonianParameters{Is
         gF = fermionic_bc(ham_params.bc, parity)
     end
 
-    correlators = _split_string_correlators(ψ)
+    correlators = _split_string_correlators(state)
     ks = allowed_k_indices(N, gF)
     hk_values = [_measure_hk_from_correlators(correlators, k, ham_params) for k in ks]
     εk_values = [Λ * mode_energy(Float64(k), θ, N) for k in ks]
     return ks, hk_values, εk_values
+end
+
+"""
+    measure_all_mode_energies(ρ::MPO, ham_params; gF=nothing)
+
+MPO analogue of the ED mode measurement. Returns allowed k-indices,
+``⟨h_k⟩``, and the corresponding code-unit mode energies.
+"""
+function measure_all_mode_energies(ρ::MPO, ham_params::HamiltonianParameters{IsingModel};
+                                   gF=nothing)
+    return _measure_all_mode_energies_tn(ρ, ham_params; gF=gF)
 end
