@@ -451,8 +451,9 @@ end
 
 Plot the momentum distribution n_k vs k at a subset of cooling steps.
 
-If the file contains a scalar `delta`, it is drawn as a horizontal line on a
-secondary y-axis (to indicate the resonant bath frequency).
+If the file contains a scalar `delta`, resonant momenta are marked only when the
+corresponding mode energies are known, either from stored `mode_ek_values` or
+from the Ising parameters `J,h`.
 """
 function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true)
     plt = get_pyplot()
@@ -481,12 +482,7 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
         end
     end
 
-    if haskey(data, "delta") && data["delta"] !== nothing
-        ax2 = ax.twinx()
-        ax2.axhline(y=data["delta"], color="red", linestyle="--", alpha=0.7, label="Bath freq delta")
-        ax2.set_ylabel("Energy", color="red")
-        ax2.tick_params(axis="y", labelcolor="red")
-    end
+    mark_bath_resonance_from_data!(ax, data, k_values; momentum_scale=1)
 
     ax.set_xlabel(L"Momentum $k$")
     ax.set_ylabel(L"Occupation $n_k$")

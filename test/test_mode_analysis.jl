@@ -601,6 +601,47 @@ end
         end
     end
 
+    @testset "Momentum plots derive resonance markers from mode energies" begin
+        repo_root = normpath(joinpath(@__DIR__, ".."))
+        if !@isdefined(momentum_plot_mode_energies)
+            include(joinpath(repo_root, "scripts", "plotting", "PlotUtils.jl"))
+        end
+
+        N = 6
+        J, h = 1.0, 0.5
+        k_values = generate_k_values(N, :periodic)
+        εk_values = compute_energy_dispersion(k_values, J, h)
+
+        stored_data = Dict{String, Any}("mode_ek_values" => εk_values, "J" => 4.0, "h" => 3.0)
+        @test momentum_plot_mode_energies(stored_data, k_values) ≈ εk_values atol=1e-15
+
+        parameter_data = Dict{String, Any}("J" => [J], "h" => h)
+        @test momentum_plot_mode_energies(parameter_data, k_values) ≈ εk_values atol=1e-15
+
+        bad_stored_data = Dict{String, Any}("mode_ek_values" => εk_values[1:end-1])
+        @test_logs (:warn, r"Skipping stored mode energies") begin
+            @test momentum_plot_mode_energies(bad_stored_data, k_values) === nothing
+        end
+        bad_stored_with_parameters = Dict{String, Any}(
+            "mode_ek_values" => εk_values[1:end-1],
+            "J" => J,
+            "h" => h,
+        )
+        @test_logs (:warn, r"Skipping stored mode energies") begin
+            @test momentum_plot_mode_energies(bad_stored_with_parameters, k_values) ≈ εk_values atol=1e-15
+        end
+        @test momentum_plot_mode_energies(Dict{String, Any}(), k_values) === nothing
+
+        delta = εk_values[3]
+        @test nearest_bath_resonance_indices(εk_values, delta) == [3]
+
+        plotting_text = read(joinpath(repo_root, "scripts", "plotting", "plotting.jl"), String)
+        @test occursin("mark_bath_resonance_from_data!(ax, data, k_values; momentum_scale=1)", plotting_text)
+        @test !occursin("Bath freq delta", plotting_text)
+        @test !occursin("ax2 = ax.twinx()", plotting_text)
+        @test !occursin("axhline(y=data[\"delta\"]", plotting_text)
+    end
+
     @testset "Antiperiodic BC spectrum (N=$N)" for N in [4, 6]
         J, h = 1.0, 0.5
         θ = theta_from_Jh(J, h)

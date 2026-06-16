@@ -13,6 +13,8 @@ using LaTeXStrings
 # Re-export dispersion functions from CoolingTNS for convenience
 using CoolingTNS: generate_k_values, compute_energy_dispersion, compute_ground_state_occupation
 
+const _MODE_ENERGIES_DATASET = "mode_ek_values"
+
 # Lazy pyplot access - imported once per session
 const _pyplot = Ref{Py}()
 
@@ -182,6 +184,58 @@ function mark_bath_resonance_momentum!(ax, k_values, εk_values, delta;
                                   label=(j == 1 ? label : "_nolegend_")))
     end
     return handles
+end
+
+function _scalar_float_from_data(data::AbstractDict, key::AbstractString)
+    haskey(data, key) || return nothing
+    value = _maybe_scalar(data[key])
+    value isa Number || return nothing
+    return Float64(value)
+end
+
+"""
+    momentum_plot_mode_energies(data, k_values)
+
+Return the quasiparticle energies that correspond to `k_values` in an HDF5 plot
+data dictionary.  Stored mode energies are preferred because they are the
+energies actually measured during the simulation.  If those are unavailable,
+the Ising parameters `J` and `h` are used with the canonical dispersion helper.
+If neither source is present, return `nothing`.
+"""
+function momentum_plot_mode_energies(data::AbstractDict, k_values)
+    if haskey(data, _MODE_ENERGIES_DATASET)
+        εk_values = vec(Float64.(data[_MODE_ENERGIES_DATASET]))
+        if length(εk_values) == length(k_values)
+            return εk_values
+        end
+        @warn "Skipping stored mode energies whose length does not match k_values" *
+              " (got $(length(εk_values)), expected $(length(k_values)))." *
+              " Falling back to J,h if available."
+    end
+
+    J = _scalar_float_from_data(data, "J")
+    h = _scalar_float_from_data(data, "h")
+    if J !== nothing && h !== nothing
+        return compute_energy_dispersion(k_values, J, h)
+    end
+
+    return nothing
+end
+
+function mark_bath_resonance_from_data!(ax, data::AbstractDict, k_values; momentum_scale=1)
+    if !haskey(data, "delta") || data["delta"] === nothing
+        return nothing
+    end
+
+    εk_values = momentum_plot_mode_energies(data, k_values)
+    if εk_values === nothing
+        @warn "Cannot mark bath resonance in momentum plot without mode energies or Ising parameters J,h."
+        return nothing
+    end
+
+    return mark_bath_resonance_momentum!(
+        ax, k_values, εk_values, data["delta"]; momentum_scale=momentum_scale
+    )
 end
 
 """
