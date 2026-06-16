@@ -37,6 +37,16 @@ function hamiltonian_test_mpo_to_matrix(H::MPO)
     return mat
 end
 
+function hamiltonian_test_mps_to_vector(ψ::MPS, sites)
+    dim = 2^length(sites)
+    vec = zeros(ComplexF64, dim)
+    for idx in 0:(dim - 1)
+        config = [((idx >> (site - 1)) & 1) == 0 ? "Up" : "Dn" for site in eachindex(sites)]
+        vec[idx + 1] = inner(MPS(sites, config), ψ)
+    end
+    return vec
+end
+
 @testset "Hamiltonian Construction Tests" begin
     N = 4
     
@@ -179,6 +189,32 @@ end
             ψ0 = CoolingTNS.product_state_ed(2small_N, 0)
             ψt = CoolingTNS.evolve_ed(H_xy, ψ0, 0.37)
             @test norm(ψt.data) ≈ 1.0 atol=1e-12
+        end
+
+        @testset "TN Trotter mixed coupling uses symmetric local term" begin
+            ham_params = CoolingTNS.IsingParameters(1, 0.0, 0.0)
+            coupling_params = CoolingTNS.BasicCouplingParameters("XY", 0.23, 1, 0.4, 0.0)
+            sim_params = CoolingTNS.UnifiedSimulationParameters(
+                CoolingTNS.MonteCarloWavefunction(),
+                CoolingTNS.TrotterEvolution();
+                tau=0.4,
+                Dmax=20,
+                cutoff=1e-14,
+            )
+            sites_pair = siteinds("S=1/2", 2)
+
+            gates = CoolingTNS.build_trotter_circuit_interleaved(
+                ham_params, CoolingTNS.TNBackend(), sites_pair, coupling_params, sim_params
+            )
+            ψ_tn = apply(gates, MPS(sites_pair, ["Up", "Up"]); cutoff=1e-14, maxdim=20, move_sites_back=true)
+            tn_vec = hamiltonian_test_mps_to_vector(ψ_tn, sites_pair)
+
+            H_ed = CoolingTNS.construct_system_bath_hamiltonian(
+                ham_params, CoolingTNS.EDBackend(), 2, coupling_params
+            )
+            ψ_ed = CoolingTNS.evolve_ed(H_ed, CoolingTNS.product_state_ed(2, 0), sim_params.tau)
+
+            @test norm(tn_vec - ψ_ed.data) < 1e-10
         end
     end
     
