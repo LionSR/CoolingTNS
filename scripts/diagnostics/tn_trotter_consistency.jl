@@ -68,7 +68,7 @@ for i in 1:n_traj
         results = CoolingTNS.run_cooling(problem, state0, coupling_params, sim_params, ham_params)
         results, problem
     end
-    push!(mc_E_lists, results_mc["E_list"])
+    push!(mc_E_lists, results_mc[CoolingTNS.RESULT_ENERGY])
 end
 
 # Compare step by step
@@ -81,7 +81,7 @@ println("\nStep-by-step comparison (MPO vs MC avg, $n_traj trajectories):")
 println(@sprintf("%-6s %-12s %-12s %-12s %-12s %-8s", "Step", "MPO E/N", "MC E/N", "diff/N", "MC stderr", "sigmas"))
 println("-"^70)
 for step in 1:n_steps+1
-    E_mpo = results_mpo["E_list"][step] / N
+    E_mpo = results_mpo[CoolingTNS.RESULT_ENERGY][step] / N
     E_mc = mc_E_avg[step] / N
     diff = abs(E_mpo - E_mc) / N
     stderr = mc_E_stderr[step] / N
@@ -110,7 +110,7 @@ results_ed, prob_ed = let
     results, problem
 end
 
-E_ed_final = results_ed["E_list"][end] / N
+E_ed_final = results_ed[CoolingTNS.RESULT_ENERGY][end] / N
 println("\nED DM+Continuous final E/N = $E_ed_final (exact reference)")
 
 println(@sprintf("\n%-8s %-14s %-14s %-14s %-14s", "tau", "MPO E/N", "|MPO-ED|/N", "MC avg E/N", "|MC-ED|/N"))
@@ -149,10 +149,10 @@ for tau_test in [0.5, 0.2, 0.1, 0.05, 0.02]
             results = CoolingTNS.run_cooling(problem, state0, coupling_test, sim_params, ham_params)
             results, problem
         end
-        push!(mc_final_Es, results_mc_t["E_list"][end])
+        push!(mc_final_Es, results_mc_t[CoolingTNS.RESULT_ENERGY][end])
     end
 
-    E_mpo = results_mpo_t["E_list"][end] / N
+    E_mpo = results_mpo_t[CoolingTNS.RESULT_ENERGY][end] / N
     E_mc = mean(mc_final_Es) / N
     diff_mpo = abs(E_mpo - E_ed_final)
     diff_mc = abs(E_mc - E_ed_final)

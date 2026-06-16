@@ -111,11 +111,11 @@ function run_diagnostic(; do_plot::Bool=false)
     # Print mode cooling summary
     # ========================================================================
 
-    mode_hk = results["mode_hk"]
-    k_indices = results["mode_k_indices"]
-    εk_values = results["mode_ek_values"]
-    E_list = results["E_list"]
-    overlap_list = results["GS_overlap_list"]
+    mode_hk = results[CoolingTNS.RESULT_MODE_HK]
+    k_indices = results[CoolingTNS.RESULT_MODE_K_INDICES]
+    εk_values = results[CoolingTNS.RESULT_MODE_ENERGIES]
+    E_list = results[CoolingTNS.RESULT_ENERGY]
+    overlap_list = results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP]
     n_steps_total = size(mode_hk, 1)
     n_modes = size(mode_hk, 2)
 
