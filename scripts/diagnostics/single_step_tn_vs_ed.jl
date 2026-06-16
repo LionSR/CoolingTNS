@@ -16,6 +16,7 @@ println("Single Cooling Step: TN vs ED Diagnostic")
 println("="^60)
 
 N = 3
+N_total = CoolingTNS.interleaved_total_sites(N)
 ham_params = CoolingTNS.IsingParameters(N, 1.0, 1.0)
 g = 0.2
 te = 1.0
@@ -30,12 +31,12 @@ ed_backend = CoolingTNS.EDBackend()
 H_sys_ed = CoolingTNS.construct_system_hamiltonian(ham_params, ed_backend, N)
 e0_ed, ψ0_ed, gap_ed = CoolingTNS.ground_state_ed(H_sys_ed)
 coupling_params_ed = CoolingTNS.BasicCouplingParameters(coupling_str, g, 5, te, gap_ed)
-H_sb_ed = CoolingTNS.construct_system_bath_hamiltonian(ham_params, ed_backend, 2*N, coupling_params_ed)
+H_sb_ed = CoolingTNS.construct_system_bath_hamiltonian(ham_params, ed_backend, N_total, coupling_params_ed)
 
 # TN setup
 tn_backend = CoolingTNS.TNBackend()
-sites = siteinds("S=1/2", 2*N)
-sites_sys = sites[1:2:2*N-1]
+sites = siteinds("S=1/2", N_total)
+sites_sys = CoolingTNS.interleaved_system_indices(sites, N)
 H_sys_tn = CoolingTNS.construct_system_hamiltonian(ham_params, tn_backend, sites_sys)
 e0_tn, ψ0_tn, gap_tn = CoolingTNS.find_ground_state(H_sys_tn, tn_backend, sites_sys)
 coupling_params_tn = CoolingTNS.BasicCouplingParameters(coupling_str, g, 5, te, gap_tn)
@@ -94,10 +95,10 @@ for tdvp_tau in [0.1, 0.01]
     println("    |E_TN - E_ED| = $(abs(E_evolved_tn - E_evolved_ed))")
 
     # Compare state overlap: convert TN to ED vector
-    dim = 2^(2*N)
+    dim = 2^N_total
     ψ_tn_vec = zeros(ComplexF64, dim)
     for idx in 0:dim-1
-        config = [((idx >> (k-1)) & 1) == 0 ? "Up" : "Dn" for k in 1:2*N]
+        config = [((idx >> (k-1)) & 1) == 0 ? "Up" : "Dn" for k in 1:N_total]
         ψ_basis = MPS(sites, config)
         ψ_tn_vec[idx+1] = inner(ψ_basis, ψ_evolved_tn)
     end
@@ -127,17 +128,17 @@ println("  ED system energy / N = $(E_sys_ed / N)")
 normalize!(ψ_evolved_tn_final)
 
 # Convert TN evolved to density matrix and trace bath
-dim = 2^(2*N)
+dim = 2^N_total
 ψ_tn_vec_final = zeros(ComplexF64, dim)
 for idx in 0:dim-1
-    config = [((idx >> (k-1)) & 1) == 0 ? "Up" : "Dn" for k in 1:2*N]
+    config = [((idx >> (k-1)) & 1) == 0 ? "Up" : "Dn" for k in 1:N_total]
     ψ_basis = MPS(sites, config)
     ψ_tn_vec_final[idx+1] = inner(ψ_basis, ψ_evolved_tn_final)
 end
 ψ_tn_vec_final /= norm(ψ_tn_vec_final)
 
 ρ_tn_full = ψ_tn_vec_final * ψ_tn_vec_final'
-# Trace out bath (keep system qubits at positions 1,3,5 = bit positions 0,2,4)
+# Trace out bath using the shared ED interleaved-basis map.
 ρ_sys_tn = zeros(ComplexF64, 2^N, 2^N)
 for si in 0:2^N-1, sj in 0:2^N-1
     for bath in 0:2^N-1

@@ -61,7 +61,7 @@ end
 function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters, 
                                          backend::EDBackend, nbits::Int, coupling_params::CouplingParameters)
     N = ham_params.N
-    N_total = nbits  # Should be 2 * N
+    N_total = nbits
     
     # Get system Hamiltonian on N qubits
     H_sys = construct_system_hamiltonian(ham_params, backend, N)
@@ -70,7 +70,7 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     # standard complex Pauli Y to be Hermitian.
     H_sb = spzeros(ComplexF64, 2^N_total, 2^N_total)
     
-    # Add system Hamiltonian terms with alternating layout mapping
+    # Add system Hamiltonian terms with interleaved layout mapping
     add_system_hamiltonian_ed!(H_sb, H_sys, N, N_total)
     
     # Add bath terms (at resonance with system gap if not specified).
@@ -143,36 +143,18 @@ end
     map_system_to_full_basis_ed(sys_state::Int, N::Int) -> Int
 
 Map a system basis state to the full system+bath basis (bath bits set to 0).
-System qubits are at odd positions: 1, 3, 5, ...
 """
 function map_system_to_full_basis_ed(sys_state::Int, N::Int)
-    full_state = 0
-    for i in 0:(N-1)
-        if (sys_state >> i) & 1 == 1
-            # System qubit i is at position 2*i in the full space (0-indexed)
-            full_state |= (1 << (2*i))
-        end
-    end
-    return full_state
+    return interleaved_system_basis_state(sys_state, N)
 end
 
 """
     map_system_bath_to_full_basis_ed(sys_state::Int, bath_state::Int, N::Int) -> Int
 
 Map system and bath basis states to the full interleaved basis.
-System qubit i → position 2i (0-indexed), bath qubit i → position 2i+1 (0-indexed).
 """
 function map_system_bath_to_full_basis_ed(sys_state::Int, bath_state::Int, N::Int)
-    full_state = 0
-    for i in 0:(N-1)
-        if (sys_state >> i) & 1 == 1
-            full_state |= (1 << (2*i))       # System qubit at position 2i
-        end
-        if (bath_state >> i) & 1 == 1
-            full_state |= (1 << (2*i + 1))   # Bath qubit at position 2i+1
-        end
-    end
-    return full_state
+    return interleaved_basis_state(sys_state, bath_state, N)
 end
 
 const ED_HAMILTONIAN_PAULI_MAP = Dict(

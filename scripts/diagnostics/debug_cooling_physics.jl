@@ -65,7 +65,7 @@ function test_cptp_unitality()
     e0, _, gap = CoolingTNS.ground_state_ed(H_sys)
 
     cp = CoolingTNS.BasicCouplingParameters("XX", 0.2, 1, 1.0, nothing)
-    N_total = 2 * N
+    N_total = CoolingTNS.interleaved_total_sites(N)
     H_sb = CoolingTNS.construct_system_bath_hamiltonian(ham_params, CoolingTNS.EDBackend(), N_total, cp)
 
     println("N=$N, E0=$e0, gap=$gap")
@@ -108,7 +108,7 @@ function test_single_step_energy()
     e0, ψ0, gap = CoolingTNS.ground_state_ed(H_sys)
 
     cp = CoolingTNS.BasicCouplingParameters("XX", 0.2, 1, 1.0, nothing)
-    N_total = 2 * N
+    N_total = CoolingTNS.interleaved_total_sites(N)
     H_sb = CoolingTNS.construct_system_bath_hamiltonian(ham_params, CoolingTNS.EDBackend(), N_total, cp)
     H_sys_mat = Matrix(H_sys)
 
@@ -177,7 +177,7 @@ function test_cptp_spectrum()
     H_sys = CoolingTNS.construct_system_hamiltonian(ham_params, CoolingTNS.EDBackend(), N)
 
     cp = CoolingTNS.BasicCouplingParameters("XX", 0.2, 1, 1.0, nothing)
-    N_total = 2 * N
+    N_total = CoolingTNS.interleaved_total_sites(N)
     H_sb = CoolingTNS.construct_system_bath_hamiltonian(ham_params, CoolingTNS.EDBackend(), N_total, cp)
 
     d = 2^N  # System Hilbert space dimension
@@ -202,18 +202,13 @@ function test_cptp_spectrum()
         # Manually apply the CPTP map without the Hermiticity check
         # 1. Tensor with bath: ρ_basis ⊗ |bath><bath|
         ρ_bath = ψ_bath.data * ψ_bath.data'
-        N_total = 2 * N
+        N_total = CoolingTNS.interleaved_total_sites(N)
         dim_total = 2^N_total
         ρ_combined = zeros(ComplexF64, dim_total, dim_total)
         for si in 0:(d-1), sj in 0:(d-1)
             for bi in 0:(d-1), bj in 0:(d-1)
-                ci = 0; cj = 0
-                for k in 0:(N-1)
-                    ci |= ((si >> k) & 1) << (2*k)
-                    ci |= ((bi >> k) & 1) << (2*k + 1)
-                    cj |= ((sj >> k) & 1) << (2*k)
-                    cj |= ((bj >> k) & 1) << (2*k + 1)
-                end
+                ci = CoolingTNS.interleaved_basis_state(si, bi, N)
+                cj = CoolingTNS.interleaved_basis_state(sj, bj, N)
                 ρ_combined[ci+1, cj+1] = ρ_basis[si+1, sj+1] * ρ_bath[bi+1, bj+1]
             end
         end
@@ -225,13 +220,8 @@ function test_cptp_spectrum()
         ρ_out = zeros(ComplexF64, d, d)
         for si in 0:(d-1), sj in 0:(d-1)
             for b in 0:(d-1)
-                ci = 0; cj = 0
-                for k in 0:(N-1)
-                    ci |= ((si >> k) & 1) << (2*k)
-                    ci |= ((b >> k) & 1) << (2*k + 1)
-                    cj |= ((sj >> k) & 1) << (2*k)
-                    cj |= ((b >> k) & 1) << (2*k + 1)
-                end
+                ci = CoolingTNS.interleaved_basis_state(si, b, N)
+                cj = CoolingTNS.interleaved_basis_state(sj, b, N)
                 ρ_out[si+1, sj+1] += ρ_evolved_data[ci+1, cj+1]
             end
         end
@@ -309,7 +299,7 @@ function test_te_scan()
 
     for te in [0.1, 0.5, 1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 15.0, 20.0]
         cp = CoolingTNS.BasicCouplingParameters("XX", 0.2, 1, te, nothing)
-        N_total = 2 * N
+        N_total = CoolingTNS.interleaved_total_sites(N)
         H_sb = CoolingTNS.construct_system_bath_hamiltonian(ham_params, CoolingTNS.EDBackend(), N_total, cp)
 
         ρ_combined = CoolingTNS.prepare_combined_state_ed(ρ_up, N, "XX")

@@ -69,6 +69,10 @@ export interleaved_total_sites
 export interleaved_system_site, interleaved_bath_site
 export interleaved_system_sites, interleaved_bath_sites
 export interleaved_system_indices, interleaved_bath_indices
+export interleaved_bit_position
+export interleaved_system_bit, interleaved_bath_bit
+export interleaved_system_bits, interleaved_bath_bits
+export interleaved_basis_state, interleaved_system_basis_state
 # Result dictionary keys
 export RESULT_ENERGY, RESULT_GROUND_STATE_OVERLAP, RESULT_PURITY
 export RESULT_BATH_MAGNETIZATION, RESULT_BATH_SAMPLE_MAGNETIZATION
