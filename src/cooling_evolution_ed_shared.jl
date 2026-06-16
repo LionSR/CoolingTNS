@@ -8,6 +8,27 @@ Shared functions for ED backend cooling evolution to follow DRY principles.
 # Shared ED Backend Functions
 # ============================================================================
 
+function _supports_ising_fourier_observables(ham_params)
+    return ham_params !== nothing &&
+           iseven(ham_params.N) &&
+           ham_params.bc in [:periodic, :antiperiodic] &&
+           isa(ham_params.model, IsingModel)
+end
+
+function _reference_parity_sector(px::Real; atol=0.1, default::Int=1)
+    @assert default == 1 || default == -1 "default must be +1 or -1"
+    abs(px - 1) <= atol && return 1
+    abs(px + 1) <= atol && return -1
+    return default
+end
+
+function _reference_fermionic_bc(spin_bc::Symbol, px::Real; atol=0.1, default_parity::Int=1)
+    return fermionic_bc(
+        spin_bc,
+        _reference_parity_sector(px; atol=atol, default=default_parity),
+    )
+end
+
 """
     get_bath_ground_state_ed(N_bath::Int, coupling::String) -> EDStateVector
 
@@ -153,6 +174,65 @@ function process_bath_ed_monte_carlo(state::EDStateVector, N_bath::Int)
 end
 
 """
+    _momentum_measurement_gF!(measurements, state, ϕ₀, ham_params) -> Int
+
+Return and cache the fermionic boundary sector used for ED momentum
+diagnostics. If the current system state has definite ``P_x`` parity, the
+momentum grid is fixed from that state on the first call. If the state has no
+unique parity sector, the grid falls back to the ground-state sector, matching
+the mode-diagnostic reference convention. Later calls reuse the cached grid so
+all cooling steps share the same momentum axis.
+"""
+function _momentum_measurement_gF!(measurements, state::Union{EDStateVector, EDDensityMatrix},
+                                   ϕ₀::EDStateVector, ham_params)
+    if haskey(measurements, "momentum_gF")
+        get!(measurements, "momentum_gF_source", "precomputed")
+        return measurements["momentum_gF"]
+    end
+
+    N = ham_params.N
+    px = measure_state_parity(state, N)
+    parity = round(Int, px)
+
+    if abs(px - parity) <= 0.1 && abs(parity) == 1
+        gF = fermionic_bc(ham_params.bc, parity)
+        measurements["momentum_gF_source"] = "state"
+    else
+        # A mixed-parity state has no unique fermionic boundary condition.
+        # Use the ground-state sector as a fixed reference grid for diagnostics,
+        # following the convention used for mode-resolved h_k measurements.
+        px0 = measure_state_parity(ϕ₀, N)
+        gF = _reference_fermionic_bc(ham_params.bc, px0)
+        measurements["momentum_gF_source"] = "ground_state"
+    end
+
+    measurements["momentum_gF"] = gF
+    return gF
+end
+
+"""
+    _system_state_for_measurement(state, N_sys)
+
+Return the ED system state used for system observables. System-only states are
+returned unchanged; an interleaved system-bath density matrix is reduced by
+tracing out the bath.
+"""
+_system_state_for_measurement(state::EDStateVector, ::Int) = state
+
+function _system_state_for_measurement(ρ::EDDensityMatrix, N_sys::Int)
+    if ρ.n_qubits == 2 * N_sys
+        return trace_out_bath_ed(ρ, N_sys)
+    elseif ρ.n_qubits == N_sys
+        return ρ
+    else
+        throw(DimensionMismatch(
+            "ED density-matrix measurements expected $N_sys or $(2 * N_sys) qubits, " *
+            "got $(ρ.n_qubits)"
+        ))
+    end
+end
+
+"""
     perform_measurements_ed!(measurements, step::Int, problem::CoolingProblem{EDBackend},
                             state::Union{EDStateVector, EDDensityMatrix}, is_monte_carlo::Bool,
                             ham_params, bath_info=nothing)
@@ -163,10 +243,11 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
                                 H_sys_mat::AbstractMatrix, ϕ₀::EDStateVector,
                                 ham_params, _bath_info=nothing)
     N_sys = ham_params.N
+    sys_state = _system_state_for_measurement(state, N_sys)
     
-    if isa(state, EDStateVector)
+    if isa(sys_state, EDStateVector)
         # Monte Carlo: state is a wave function (system only)
-        ψ_s = state
+        ψ_s = sys_state
         
         # Energy: <ψ|H|ψ>
         measurements["E_list"][step] = expect_ed(H_sys_mat, ψ_s)
@@ -180,15 +261,7 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
     else
         # Density matrix: may be full system+bath or system only
         ρ_total = state
-        
-        # Get system density matrix
-        if ρ_total.n_qubits == 2*N_sys
-            # Full system+bath state - trace out bath
-            ρ_sys = trace_out_bath_ed(ρ_total, N_sys)
-        else
-            # Just system state
-            ρ_sys = ρ_total
-        end
+        ρ_sys = sys_state
         
         # Energy
         measurements["E_list"][step] = expect_ed(H_sys_mat, ρ_sys)
@@ -216,45 +289,17 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
     end
     
     # K-space measurements for ED with periodic/antiperiodic BC (only for Ising model)
-    if haskey(measurements, "momentum_dist") && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
-        if isa(state, EDStateVector)
-            # For pure states
-            k_values, n_k = measure_momentum_distribution_ed(state, ham_params)
-            if step == 1
-                measurements["k_values"][:] = k_values
-            end
-            measurements["momentum_dist"][step, :] .= n_k
-        else
-            # For density matrices, we need to get the system state
-            if ρ_total.n_qubits == 2*N_sys
-                ρ_sys = trace_out_bath_ed(ρ_total, N_sys)
-            else
-                ρ_sys = ρ_total
-            end
-            
-            # Measure momentum distribution from density matrix
-            k_values, n_k = measure_momentum_distribution_ed(ρ_sys, ham_params)
-            if step == 1
-                measurements["k_values"][:] = k_values
-            end
-            measurements["momentum_dist"][step, :] .= n_k
+    if haskey(measurements, "momentum_dist") && _supports_ising_fourier_observables(ham_params)
+        gF = _momentum_measurement_gF!(measurements, sys_state, ϕ₀, ham_params)
+        k_values, n_k = measure_momentum_distribution_ed_clean(sys_state, ham_params; gF=gF)
+        if step == 1
+            measurements["k_values"][:] = k_values
         end
+        measurements["momentum_dist"][step, :] .= n_k
     end
 
     # Mode energy measurements ⟨h_k⟩ (requires measure_modes=true in run_cooling)
-    if haskey(measurements, "mode_hk") && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
-        # Get the system state for measurement
-        sys_state = if isa(state, EDStateVector)
-            state
-        else
-            # Density matrix: get system-only state
-            if ρ_total.n_qubits == 2*N_sys
-                trace_out_bath_ed(ρ_total, N_sys)
-            else
-                ρ_total
-            end
-        end
-
+    if haskey(measurements, "mode_hk") && _supports_ising_fourier_observables(ham_params)
         # Use the stored ground-state gF for consistent sector choice.
         # For pure states, measure_all_mode_energies auto-detects gF from parity.
         # For density matrices (mixed states), parity may not be ±1, so we use
