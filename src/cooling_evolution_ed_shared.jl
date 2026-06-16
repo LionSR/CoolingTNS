@@ -169,11 +169,11 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
         ψ_s = state
         
         # Energy: <ψ|H|ψ>
-        measurements["E_list"][step] = expect_ed(H_sys_mat, ψ_s)
+        measurements[RESULT_ENERGY][step] = expect_ed(H_sys_mat, ψ_s)
         
         # Ground state overlap: |<ϕ₀|ψ>|²
         overlap = abs2(dot(ϕ₀.data, ψ_s.data))
-        measurements["GS_overlap_list"][step] = overlap
+        measurements[RESULT_GROUND_STATE_OVERLAP][step] = overlap
         
         # Purity is always 1 for pure states
         # No bath magnetization for system-only state
@@ -191,18 +191,18 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
         end
         
         # Energy
-        measurements["E_list"][step] = expect_ed(H_sys_mat, ρ_sys)
+        measurements[RESULT_ENERGY][step] = expect_ed(H_sys_mat, ρ_sys)
         
         # Ground state overlap: <ϕ₀|ρ|ϕ₀>
-        measurements["GS_overlap_list"][step] = real(ϕ₀.data' * ρ_sys.data * ϕ₀.data)
+        measurements[RESULT_GROUND_STATE_OVERLAP][step] = real(ϕ₀.data' * ρ_sys.data * ϕ₀.data)
         
         # Purity
-        if haskey(measurements, "purity_list")
-            measurements["purity_list"][step] = purity_ed(ρ_sys)
+        if haskey(measurements, RESULT_PURITY)
+            measurements[RESULT_PURITY][step] = purity_ed(ρ_sys)
         end
         
         # Bath magnetization (only if we have full state and not first step)
-        if step > 1 && ρ_total.n_qubits == 2*N_sys && haskey(measurements, "bath_mag_list")
+        if step > 1 && ρ_total.n_qubits == 2*N_sys && haskey(measurements, RESULT_BATH_MAGNETIZATION)
             N_bath = N_sys
             ρ_bath = trace_out_system_ed(ρ_total, N_sys)
             # Compute magnetization
@@ -211,19 +211,19 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
                 Z_i = pauli_z(i, N_bath)
                 mag += expect_ed(Z_i, ρ_bath)
             end
-            measurements["bath_mag_list"][step] = mag / N_bath
+            measurements[RESULT_BATH_MAGNETIZATION][step] = mag / N_bath
         end
     end
     
     # K-space measurements for ED with periodic/antiperiodic BC (only for Ising model)
-    if haskey(measurements, "momentum_dist") && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
+    if haskey(measurements, RESULT_MOMENTUM_DISTRIBUTION) && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
         if isa(state, EDStateVector)
             # For pure states
             k_values, n_k = measure_momentum_distribution_ed(state, ham_params)
             if step == 1
-                measurements["k_values"][:] = k_values
+                measurements[RESULT_K_VALUES][:] = k_values
             end
-            measurements["momentum_dist"][step, :] .= n_k
+            measurements[RESULT_MOMENTUM_DISTRIBUTION][step, :] .= n_k
         else
             # For density matrices, we need to get the system state
             if ρ_total.n_qubits == 2*N_sys
@@ -235,14 +235,14 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
             # Measure momentum distribution from density matrix
             k_values, n_k = measure_momentum_distribution_ed(ρ_sys, ham_params)
             if step == 1
-                measurements["k_values"][:] = k_values
+                measurements[RESULT_K_VALUES][:] = k_values
             end
-            measurements["momentum_dist"][step, :] .= n_k
+            measurements[RESULT_MOMENTUM_DISTRIBUTION][step, :] .= n_k
         end
     end
 
     # Mode energy measurements ⟨h_k⟩ (requires measure_modes=true in run_cooling)
-    if haskey(measurements, "mode_hk") && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
+    if haskey(measurements, RESULT_MODE_HK) && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
         # Get the system state for measurement
         sys_state = if isa(state, EDStateVector)
             state
@@ -259,8 +259,8 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
         # For pure states, measure_all_mode_energies auto-detects gF from parity.
         # For density matrices (mixed states), parity may not be ±1, so we use
         # the gF determined from the ground state's parity sector.
-        gF_kwarg = if haskey(measurements, "mode_gF")
-            measurements["mode_gF"]
+        gF_kwarg = if haskey(measurements, RESULT_MODE_GF)
+            measurements[RESULT_MODE_GF]
         else
             nothing
         end
@@ -269,13 +269,13 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
         n_modes = length(k_indices)
 
         # Allocate arrays on first call (now we know the number of modes)
-        if measurements["mode_hk"] === nothing
-            n_steps_total = size(measurements["E_list"], 1)
-            measurements["mode_hk"] = fill(NaN, n_steps_total, n_modes)
-            measurements["mode_k_indices"] = k_indices
-            measurements["mode_ek_values"] = εk_values
+        if measurements[RESULT_MODE_HK] === nothing
+            n_steps_total = size(measurements[RESULT_ENERGY], 1)
+            measurements[RESULT_MODE_HK] = fill(NaN, n_steps_total, n_modes)
+            measurements[RESULT_MODE_K_INDICES] = k_indices
+            measurements[RESULT_MODE_ENERGIES] = εk_values
         end
 
-        measurements["mode_hk"][step, :] .= hk_values
+        measurements[RESULT_MODE_HK][step, :] .= hk_values
     end
 end
