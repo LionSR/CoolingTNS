@@ -37,6 +37,10 @@ function hamiltonian_test_mpo_to_matrix(H::MPO)
     return mat
 end
 
+function product_labels_from_bits(N::Int, state::Int)
+    return [((state >> (i - 1)) & 1) == 0 ? "Up" : "Dn" for i in 1:N]
+end
+
 function hamiltonian_test_mps_to_vector(ψ::MPS, sites)
     dim = 2^length(sites)
     vec = zeros(ComplexF64, dim)
@@ -45,6 +49,11 @@ function hamiltonian_test_mps_to_vector(ψ::MPS, sites)
         vec[idx + 1] = inner(MPS(sites, config), ψ)
     end
     return vec
+end
+
+function interleaved_labels_from_system_bits(N::Int, system_state::Int; bath_label::String="Up")
+    system_labels = product_labels_from_bits(N, system_state)
+    return [isodd(site) ? system_labels[(site + 1) ÷ 2] : bath_label for site in 1:(2 * N)]
 end
 
 @testset "Hamiltonian Construction Tests" begin
@@ -424,6 +433,42 @@ end
                 E_sys = real(inner(ψ_sys', H_sys, ψ_sys))
                 E_sb = real(inner(ψ_sb', H_sb, ψ_sb))
                 @test E_sb ≈ E_sys atol=1e-10
+            end
+        end
+
+        @testset "System-term matrix elements agree in isolated and interleaved TN MPOs" begin
+            backend = CoolingTNS.TNBackend()
+            test_N = 2
+            zero_coupling = CoolingTNS.BasicCouplingParameters("XX", 0.0, 1, 0.0, 0.0)
+            cases = [
+                CoolingTNS.IsingParameters(test_N, 1.1, -0.7),
+                CoolingTNS.NiIsingParameters(test_N, 1.1, -0.7, 0.2),
+                CoolingTNS.RydbergParameters(test_N, 0.9, 0.4, 0.3),
+            ]
+
+            for ham_params in cases
+                sites_sys = siteinds("S=1/2", test_N)
+                sites_sb = siteinds("S=1/2", 2 * test_N)
+
+                H_sys = CoolingTNS.construct_system_hamiltonian(ham_params, backend, sites_sys)
+                H_sb = CoolingTNS.construct_system_bath_hamiltonian(
+                    ham_params, backend, sites_sb, zero_coupling
+                )
+
+                basis_sys = [
+                    MPS(sites_sys, product_labels_from_bits(test_N, state))
+                    for state in 0:(2^test_N - 1)
+                ]
+                basis_sb = [
+                    MPS(sites_sb, interleaved_labels_from_system_bits(test_N, state))
+                    for state in 0:(2^test_N - 1)
+                ]
+
+                for bra in 1:length(basis_sys), ket in 1:length(basis_sys)
+                    H_sys_element = inner(basis_sys[bra]', H_sys, basis_sys[ket])
+                    H_sb_element = inner(basis_sb[bra]', H_sb, basis_sb[ket])
+                    @test H_sb_element ≈ H_sys_element atol=1e-10
+                end
             end
         end
     end
