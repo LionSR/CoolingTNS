@@ -66,6 +66,10 @@ export interleaved_total_sites
 export interleaved_system_site, interleaved_bath_site
 export interleaved_system_sites, interleaved_bath_sites
 export interleaved_system_indices, interleaved_bath_indices
+export interleaved_bit_position
+export interleaved_system_bit, interleaved_bath_bit
+export interleaved_system_bits, interleaved_bath_bits
+export interleaved_basis_state, interleaved_system_basis_state
 # Dispersion relations (pure math, legacy — see mode_analysis.jl for canonical versions)
 export generate_k_values, compute_energy_dispersion, compute_ground_state_occupation
 

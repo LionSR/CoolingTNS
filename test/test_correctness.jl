@@ -473,7 +473,7 @@ end
     ψ_combined = CoolingTNS.interleave_system_bath_ed(ψ_sys, ψ_bath)
 
     # Should have 4 qubits total
-    @test ψ_combined.n_qubits == 2 * N
+    @test ψ_combined.n_qubits == CoolingTNS.interleaved_total_sites(N)
 
     # The combined state should be normalized
     @test abs(norm(ψ_combined.data) - 1.0) < 1e-10
@@ -501,9 +501,8 @@ end
     ψ_combined = CoolingTNS.interleave_system_bath_ed(ψ_sys, ψ_bath)
     ρ_combined = CoolingTNS.state_to_density_ed(ψ_combined)
 
-    # Trace out bath (keep system = first N qubits in alternating layout)
-    # In alternating layout: sys qubits are at positions 1, 3 (1-indexed)
-    sys_qubits = [2*i - 1 for i in 1:N]
+    # Trace out bath and keep the system qubits in the interleaved layout.
+    sys_qubits = CoolingTNS.interleaved_system_sites(N)
     ρ_sys_recovered = CoolingTNS.partial_trace_ed(ρ_combined, sys_qubits)
 
     # The recovered system density matrix should match the original
@@ -524,15 +523,15 @@ end
 
     # Build system-bath Hamiltonian with zero coupling
     # This should be H_sys ⊗ I_bath + (Δ/2) Z_bath
-    N_total = 2 * N
+    N_total = CoolingTNS.interleaved_total_sites(N)
     H_sys = CoolingTNS.construct_system_hamiltonian(ham_params, CoolingTNS.EDBackend(), N)
     H_sb = CoolingTNS.construct_system_bath_hamiltonian(ham_params, CoolingTNS.EDBackend(), N_total, coupling_params)
 
     # Extract the system-only part by subtracting bath terms
-    # Bath Hamiltonian: (Δ/2) Z on bath qubits (positions 2, 4 in 1-indexed)
+    # Bath Hamiltonian: (Δ/2) Z on bath qubits.
     H_bath = spzeros(Float64, 2^N_total, 2^N_total)
     for i in 1:N
-        bath_idx = 2*i
+        bath_idx = CoolingTNS.interleaved_bath_site(i)
         H_bath += (1.0/2) * CoolingTNS.pauli_z(bath_idx, N_total)
     end
     H_sys_embedded = H_sb - H_bath  # Should be H_sys ⊗ I_bath (since g=0)

@@ -46,17 +46,9 @@ function interleave_system_bath_ed(ψ_sys::EDStateVector, ψ_bath::EDStateVector
     dim_total = 2^N_total
     data = zeros(ComplexF64, dim_total)
 
-    # For each basis state in the combined space
     for sys_idx in 0:(2^N - 1)
         for bath_idx in 0:(2^N - 1)
-            # Interleave the bits: sys₁ bath₁ sys₂ bath₂ ...
-            combined_idx = 0
-            for i in 0:(N-1)
-                sys_bit = (sys_idx >> i) & 1
-                bath_bit = (bath_idx >> i) & 1
-                combined_idx |= (sys_bit << (2*i))      # System at odd positions (0, 2, 4...)
-                combined_idx |= (bath_bit << (2*i + 1)) # Bath at even positions (1, 3, 5...)
-            end
+            combined_idx = interleaved_basis_state(sys_idx, bath_idx, N)
             data[combined_idx + 1] = ψ_sys.data[sys_idx + 1] * ψ_bath.data[bath_idx + 1]
         end
     end
@@ -100,15 +92,8 @@ function prepare_combined_state_ed(state::EDDensityMatrix, N_bath::Int, coupling
     # Interleave density matrices
     for sys_i in 0:(2^N - 1), sys_j in 0:(2^N - 1)
         for bath_i in 0:(2^N - 1), bath_j in 0:(2^N - 1)
-            # Interleave indices
-            combined_i = 0
-            combined_j = 0
-            for k in 0:(N-1)
-                combined_i |= ((sys_i >> k) & 1) << (2*k)
-                combined_i |= ((bath_i >> k) & 1) << (2*k + 1)
-                combined_j |= ((sys_j >> k) & 1) << (2*k)
-                combined_j |= ((bath_j >> k) & 1) << (2*k + 1)
-            end
+            combined_i = interleaved_basis_state(sys_i, bath_i, N)
+            combined_j = interleaved_basis_state(sys_j, bath_j, N)
             data[combined_i + 1, combined_j + 1] = state.data[sys_i + 1, sys_j + 1] * ρ_bath.data[bath_i + 1, bath_j + 1]
         end
     end
@@ -143,7 +128,6 @@ Shared function to measure and collapse bath for Monte Carlo methods.
 Returns (system_state, bath_outcomes).
 """
 function process_bath_ed_monte_carlo(state::EDStateVector, N_bath::Int)
-    # Bath qubits are at even positions in alternating layout
     bath_qubits = interleaved_bath_sites(N_bath)
     
     # Measure bath qubits and collapse

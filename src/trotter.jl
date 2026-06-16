@@ -79,7 +79,7 @@ function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{Isi
 
     forward_gates = ITensor[]
 
-    # Layer 1: 2-site gates on (s_i, b_i) at positions (2i-1, 2i)
+    # Layer 1: 2-site gates on (s_i, b_i).
     # Contains: h*X_{si} + (Δ/2)*bath_op_{bi} + g*op1_{si}*op2_{bi}
     for i in 1:N
         si = sites[interleaved_system_site(i)]
@@ -90,7 +90,7 @@ function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{Isi
         push!(forward_gates, exp(-1.0im * tau / 2 * h_local))
     end
 
-    # Layer 2: 3-site gates on (s_i, b_i, s_{i+1}) at positions (2i-1, 2i, 2i+1)
+    # Layer 2: 3-site gates on (s_i, b_i, s_{i+1}).
     # Contains: J * Z_{si} ⊗ I_{bi} ⊗ Z_{s_{i+1}}
     for i in 1:N-1
         si = sites[interleaved_system_site(i)]
@@ -123,7 +123,7 @@ function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{NiI
 
     forward_gates = ITensor[]
 
-    # Layer 1: 2-site gates on (s_i, b_i) at positions (2i-1, 2i)
+    # Layer 1: 2-site gates on (s_i, b_i).
     # Contains: hx*X_{si} + hz*Z_{si} + (Δ/2)*bath_op_{bi} + g*op1_{si}*op2_{bi}
     for i in 1:N
         si = sites[interleaved_system_site(i)]
@@ -135,7 +135,7 @@ function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{NiI
         push!(forward_gates, exp(-1.0im * tau / 2 * h_local))
     end
 
-    # Layer 2: 3-site gates on (s_i, b_i, s_{i+1}) at positions (2i-1, 2i, 2i+1)
+    # Layer 2: 3-site gates on (s_i, b_i, s_{i+1}).
     # Contains: J * Z_{si} ⊗ I_{bi} ⊗ Z_{s_{i+1}}
     for i in 1:N-1
         si = sites[interleaved_system_site(i)]
