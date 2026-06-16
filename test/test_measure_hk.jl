@@ -456,6 +456,28 @@ end
         @test precomputed[RESULT_MOMENTUM_GF_SOURCE] == "precomputed"
     end
 
+    @testset "Legacy ED n_k helper delegates to canonical JW measurement" begin
+        N = 4; J = 1.0; h = 0.5
+        for bc in [:periodic, :antiperiodic]
+            ham_params = IsingParameters(N, J, h, bc)
+            problem = setup_problem(
+                EDBackend(),
+                ham_params,
+                BasicCouplingParameters("XX", 0.0, 0, 0.0, nothing),
+                UnifiedSimulationParameters(DensityMatrix(), ContinuousEvolution()),
+            )
+
+            states = (problem.ϕ₀, state_to_density_ed(problem.ϕ₀))
+            for state in states
+                k_old, nk_old = CoolingTNS.measure_momentum_distribution_ed(state, ham_params)
+                k_canon, nk_canon = measure_momentum_distribution_ed_clean(state, ham_params)
+
+                @test k_old ≈ k_canon atol=1e-12
+                @test nk_old ≈ nk_canon atol=1e-10
+            end
+        end
+    end
+
     @testset "h_k range and symmetry (N=$N)" for N in [4, 6]
         J, h = 1.0, 0.5
         ham_params = IsingParameters(N, J, h, :periodic)
