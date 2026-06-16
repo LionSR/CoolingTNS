@@ -298,12 +298,46 @@ where $J$ is the coupling strength between neighboring spins, $h_z$ and $h_x$ ar
 This ZZXZ Hamiltonian is in general non-integrable, except in the limits $h_z = 0$ (classical) and $h_x = 0$ (transverse field Ising model). We focus on a non-integrable point $J = 1,h_z = 0.5,h_x = -1.05$, the same as used in Ref.~\citep{Lu2021Algorithms}.
 
 \subsection{Initial states}
-As in Ref.~\citep{Lu2021Algorithms}, we consider real translationally invariant product states that can be parametrized as
+As in Ref.~\citep{Lu2021Algorithms}, we consider real translationally invariant product states. It is useful to distinguish the physical product-state angle from the parameter used in the simulation scripts. We write the physical angle as $\alpha$ and define
 \begin{equation}
-	\ket{\Psi(\theta)} = \ket{p(\theta)}^{\otimes N},
+	\ket{\Psi(\alpha)} = \ket{p(\alpha)}^{\otimes N},
 	\label{eq:PS}
 \end{equation}
-where $\ket{p(\theta)} = \cos{\theta}\ket{0} + \sin{\theta}\ket{1}$. In the thermodynamic limit, these states have energy density $E/N = J\cos^2(2\theta) + h_z \cos(2\theta) + h_x \sin(2\theta)$, ranging over most of the energy band (see Fig.~\ref{fig:ELNI}). For the initial states, we choose three values of $\theta$ corresponding to states in the lower part of the energy band, namely $\theta_1 = \pi/4$, for which $E_1/N = h_x = -1.05$, $\theta_2 = \pi/3$, for which $E_2/N = -0.909$, and $\theta_3 = \pi/6$, with $E_3/N = -0.409$. These product states already have rather low energies, and to gain quantum advantage, the quantum cooling algorithm must obtain lower energy in the presence of noise. In the following numerical experiments, we will test the performance of the cooling algorithm starting from these three translationally invariant product states.
+where
+\begin{equation}
+	\ket{p(\alpha)} = \cos\alpha\,\ket{0} + \sin\alpha\,\ket{1}.
+\end{equation}
+In the thermodynamic limit, these states have energy density
+\begin{equation}
+	\frac{E(\alpha)}{N}
+	= J\cos^2(2\alpha) + h_z \cos(2\alpha) + h_x \sin(2\alpha),
+	\label{eq:product-state-energy-alpha}
+\end{equation}
+ranging over most of the energy band (see Fig.~\ref{fig:ELNI}).
+
+The code path \texttt{init\_type="theta"} uses a dimensionless input parameter, denoted here by $\vartheta$, rather than the physical angle $\alpha$ itself. The convention is
+\begin{equation}
+	\begin{aligned}
+		\alpha(\vartheta)
+		&= \frac{\pi}{2}\left(\vartheta + \frac{1}{2}\right),\\
+		\ket{p(\vartheta)}
+		&= \cos\alpha(\vartheta)\ket{0}
+		+ \sin\alpha(\vartheta)\ket{1}.
+	\end{aligned}
+	\label{eq:code-theta-map}
+\end{equation}
+Thus $\vartheta=-1/2,0,1/2$ give respectively $\ket{0}$, $\ket{+}$, and $\ket{1}$. Equivalently,
+\begin{equation}
+	\begin{aligned}
+		\frac{E(\vartheta)}{N}
+		&= J\cos^2\!\left[\pi\left(\vartheta+\frac{1}{2}\right)\right]\\
+		&\quad + h_z\cos\!\left[\pi\left(\vartheta+\frac{1}{2}\right)\right]\\
+		&\quad + h_x\sin\!\left[\pi\left(\vartheta+\frac{1}{2}\right)\right].
+	\end{aligned}
+	\label{eq:product-state-energy-code-theta}
+\end{equation}
+
+For the initial states, we choose three physical angles in the lower part of the energy band, namely $\alpha_1 = \pi/4$, for which $E_1/N = h_x = -1.05$, $\alpha_2 = \pi/3$, for which $E_2/N = -0.909$, and $\alpha_3 = \pi/6$, with $E_3/N = -0.409$. In the code convention these correspond to $\vartheta_1=0$, $\vartheta_2=1/6$, and $\vartheta_3=-1/6$. These product states already have rather low energies, and to gain quantum advantage, the quantum cooling algorithm must obtain lower energy in the presence of noise. In the following numerical experiments, we will test the performance of the cooling algorithm starting from these three translationally invariant product states.
 
 \begin{figure}[htbp]
 	\centering
