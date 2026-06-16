@@ -65,6 +65,14 @@ For **spin APBC** (``g_I = -1``): the assignment is swapped.
 # ============================================================================
 
 """
+    mode_occupation_from_hk(hk)
+
+Convert the Bogoliubov mode observable ``h_k = 2 n_k - 1`` to the occupation
+number ``n_k``. This accepts either a scalar or an array.
+"""
+mode_occupation_from_hk(hk) = (hk .+ 1) ./ 2
+
+"""
     theta_from_Jh(J, h) -> θ
 
 Map the code's Ising parameters ``(J, h)`` to the notes' angular parameter ``θ``.

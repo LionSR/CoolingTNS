@@ -28,6 +28,7 @@ include("noise.jl")
 include("ed_backend.jl")
 include("ed_backend_complex_jw.jl")  # Complex JW (notes convention) — single source of truth
 include("mode_analysis.jl")          # Parameter mapping, dispersion, k-grid
+include("tn_mode_observables.jl")    # MPS mode observables using split-string correlators
 include("multi_frequency.jl")       # Multi-frequency (multi-Δ) cooling helpers
 
 include("bath_measurements.jl")    # Dispatched bath measurement functions
@@ -78,6 +79,7 @@ export theta_from_Jh, Jh_from_theta, energy_scale
 export mode_energy, mode_energy_Jh, w_k_coefficient, r_k_coefficient
 export bogoliubov_angle, coeff_k, vacuum_energy, vacuum_energy_Jh
 export allowed_k_indices, fermionic_bc, parity_operator_code
+export mode_occupation_from_hk
 
 # Multi-frequency cooling helpers
 export uniform_delta_grid, compute_excitation_gaps, spectral_delta_values

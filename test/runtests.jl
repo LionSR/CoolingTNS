@@ -24,6 +24,8 @@ end
     @testset "Mode Analysis" begin
         include("test_mode_analysis.jl")
         include("test_measure_hk.jl")
+        include("test_tn_mode_observables.jl")
+        include("test_plot_mode_cooling.jl")
     end
 
     if RUN_FULL_TESTS
