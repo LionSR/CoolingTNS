@@ -528,20 +528,28 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     end
 
     if haskey(measurements, RESULT_MODE_HK) && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
-        gF_kwarg = haskey(measurements, RESULT_MODE_GF) ? measurements[RESULT_MODE_GF] : nothing
-        k_indices, hk_values, εk_values = measure_all_mode_energies(ψ_s, ham_params; gF=gF_kwarg)
-        n_modes = length(k_indices)
+        if length(ψ_s) == ham_params.N
+            gF_kwarg = haskey(measurements, RESULT_MODE_GF) ? measurements[RESULT_MODE_GF] : nothing
+            k_indices, hk_values, εk_values = measure_all_mode_energies(ψ_s, ham_params; gF=gF_kwarg)
+            n_modes = length(k_indices)
 
-        if measurements[RESULT_MODE_HK] === nothing
-            n_steps_total = size(measurements[RESULT_ENERGY], 1)
-            measurements[RESULT_MODE_HK] = fill(NaN, n_steps_total, n_modes)
-            measurements[RESULT_MODE_NK] = fill(NaN, n_steps_total, n_modes)
-            measurements[RESULT_MODE_K_INDICES] = k_indices
-            measurements[RESULT_MODE_ENERGIES] = εk_values
+            if measurements[RESULT_MODE_HK] === nothing
+                n_steps_total = size(measurements[RESULT_ENERGY], 1)
+                measurements[RESULT_MODE_HK] = fill(NaN, n_steps_total, n_modes)
+                measurements[RESULT_MODE_NK] = fill(NaN, n_steps_total, n_modes)
+                measurements[RESULT_MODE_K_INDICES] = k_indices
+                measurements[RESULT_MODE_ENERGIES] = εk_values
+            end
+
+            measurements[RESULT_MODE_HK][step, :] .= hk_values
+            measurements[RESULT_MODE_NK][step, :] .= mode_occupation_from_hk(hk_values)
+        else
+            @warn "Skipping mode measurement due to dimension mismatch" MPS_length=length(ψ_s) expected_length=ham_params.N step=step
+            if step > 1 && measurements[RESULT_MODE_HK] !== nothing
+                measurements[RESULT_MODE_HK][step, :] .= measurements[RESULT_MODE_HK][step-1, :]
+                measurements[RESULT_MODE_NK][step, :] .= measurements[RESULT_MODE_NK][step-1, :]
+            end
         end
-
-        measurements[RESULT_MODE_HK][step, :] .= hk_values
-        measurements[RESULT_MODE_NK][step, :] .= mode_occupation_from_hk(hk_values)
     end
 end
 
