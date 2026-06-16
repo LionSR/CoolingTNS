@@ -65,6 +65,12 @@ function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{Isi
                                            ::TNBackend, sites::Vector{<:Index},
                                            coupling_params::CouplingParameters,
                                            sim_params::UnifiedSimulationParameters)
+    ham_params.bc == :open || throw(ArgumentError(
+        "TN Trotter evolution currently supports only open boundary conditions; " *
+        "got $(ham_params.bc). Use ContinuousEvolution with an MPO Hamiltonian, " *
+        "or implement an explicit boundary gate for the interleaved layout."
+    ))
+
     N = ham_params.N
     J, h = ham_params.params.J, ham_params.params.h
     g, delta, coupling, tau = coupling_params.g, coupling_params.delta, coupling_params.coupling, sim_params.tau
@@ -103,6 +109,12 @@ function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{NiI
                                            ::TNBackend, sites::Vector{<:Index},
                                            coupling_params::CouplingParameters,
                                            sim_params::UnifiedSimulationParameters)
+    ham_params.bc == :open || throw(ArgumentError(
+        "TN Trotter evolution currently supports only open boundary conditions; " *
+        "got $(ham_params.bc). Use ContinuousEvolution with an MPO Hamiltonian, " *
+        "or implement an explicit boundary gate for the interleaved layout."
+    ))
+
     N = ham_params.N
     J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
     g, delta, coupling, tau = coupling_params.g, coupling_params.delta, coupling_params.coupling, sim_params.tau
