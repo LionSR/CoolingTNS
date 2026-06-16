@@ -205,8 +205,8 @@ as
 \]
 where $s_i$ is the $i$-th system spin and $b_i$ is the corresponding bath spin.
 This interleaved ordering makes the system-bath interaction local on adjacent
-MPO sites.  For the non-integrable Ising model, the local terms in one Trotter
-step are
+MPO sites.  For the Ising and non-integrable Ising implementations, the local
+terms in one Trotter step are
 \begin{align}
 	h_i^{\mathrm{loc}}
 		&= h_x \sigma^x_{s_i} + h_z \sigma^z_{s_i}
@@ -219,6 +219,14 @@ where $\sigma^A\otimes\sigma^C$ is the chosen system-bath coupling and
 $\sigma^B$ is the bath Hamiltonian operator.  In the interleaved MPO, the
 nearest-neighbor system term $h_i^{ZZ}$ is applied as a three-site gate on
 $(s_i,b_i,s_{i+1})$, with the identity acting on the bath site $b_i$.
+For the integrable Ising model one sets $h_z=0$ and $h_x=h$ in the expression
+above.
+
+The implemented Trotter circuit applies the system interaction gates only for
+the bulk bonds $i=1,\ldots,N-1$.  Thus this local circuit represents the open
+spin chain.  A periodic or antiperiodic spin boundary term would couple
+$s_N$ to $s_1$ across the ends of the interleaved MPS/MPO chain, and is not
+part of this nearest-neighbor gate decomposition.
 
 Writing $\tau$ for the Trotter step, one step is a symmetric second-order sweep:
 first apply the two-site gates $\exp(-i\tau h_i^{\mathrm{loc}}/2)$, then the
