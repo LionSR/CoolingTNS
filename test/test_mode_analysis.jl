@@ -549,6 +549,102 @@ end
         @test_throws ArgumentError ising_energy_from_mode_hk(ks, reshape(hk_vac, :, 1), ham_params)
     end
 
+    @testset "Plotting dispersion helpers use canonical mode convention" begin
+        N = 4
+        J, h = 1.0, 0.5
+        θ = theta_from_Jh(J, h)
+
+        for gF in (-1, 1)
+            ks = allowed_k_indices(N, gF)
+            k_values = [2π * Float64(k) / N for k in ks]
+
+            @test compute_energy_dispersion(k_values, J, h; N=N) ≈
+                  [mode_energy_Jh(Float64(k), J, h, N) for k in ks] atol=1e-12
+
+            expected_nk = [
+                abs(sin(2π * Float64(k) / N)) < 1e-12 ?
+                (w_k_coefficient(Float64(k), θ, N) < 0 ? 1.0 : 0.0) :
+                sin(bogoliubov_angle(Float64(k), θ, N))^2
+                for k in ks
+            ]
+            @test compute_ground_state_occupation(k_values, J, h; N=N) ≈ expected_nk atol=1e-12
+        end
+    end
+
+    @testset "Ground-state plot references respect special-mode parity" begin
+        N = 4
+        J, h = 1.0, 0.5
+        θ = theta_from_Jh(J, h)
+        ks = allowed_k_indices(N, 1)
+        k_values = [2π * Float64(k) / N for k in ks]
+        idx0 = findfirst(k -> iszero(k), ks)
+        idxπ = findfirst(k -> Float64(k) == N / 2, ks)
+
+        legacy_reference = compute_ground_state_occupation(k_values, J, h; N=N)
+        @test legacy_reference[idx0] == 1.0
+        @test legacy_reference[idxπ] == 0.0
+
+        apbc_even_reference = compute_ground_state_occupation(
+            k_values,
+            J,
+            h;
+            N=N,
+            spin_bc=:antiperiodic,
+            gF=1,
+        )
+        @test apbc_even_reference[idx0] == 0.0
+        @test apbc_even_reference[idxπ] == 0.0
+
+        pbc_odd_reference = compute_ground_state_occupation(
+            k_values,
+            J,
+            h;
+            N=N,
+            spin_bc=:periodic,
+            gF=1,
+        )
+        @test pbc_odd_reference[idx0] == 1.0
+        @test pbc_odd_reference[idxπ] == 0.0
+
+        half_grid_ks = allowed_k_indices(N, -1)
+        half_grid_k_values = [2π * Float64(k) / N for k in half_grid_ks]
+        half_grid_vacuum = compute_ground_state_occupation(half_grid_k_values, J, h; N=N)
+
+        half_grid_even_reference = compute_ground_state_occupation(
+            half_grid_k_values,
+            J,
+            h;
+            N=N,
+            spin_bc=:periodic,
+            gF=-1,
+        )
+        @test half_grid_even_reference ≈ half_grid_vacuum atol=1e-12
+
+        half_grid_odd_reference = compute_ground_state_occupation(
+            half_grid_k_values,
+            J,
+            h;
+            N=N,
+            spin_bc=:antiperiodic,
+            gF=-1,
+        )
+        changed = findall(
+            i -> !isapprox(half_grid_odd_reference[i], half_grid_vacuum[i]; atol=1e-12),
+            eachindex(half_grid_ks),
+        )
+        @test length(changed) == 2
+
+        excited_index = changed[argmin(abs.(Float64.(half_grid_ks[changed])))]
+        excited_k = Float64(half_grid_ks[excited_index])
+        min_energy = minimum(mode_energy(Float64(k), θ, N) for k in half_grid_ks)
+        @test mode_energy(excited_k, θ, N) ≈ min_energy atol=1e-12
+        @test half_grid_odd_reference[excited_index] == 1.0
+
+        partner_index = only(setdiff(changed, [excited_index]))
+        @test Float64(half_grid_ks[partner_index]) ≈ -excited_k atol=1e-12
+        @test half_grid_odd_reference[partner_index] == 0.0
+    end
+
     @testset "ED k-space demo states canonical dispersion convention" begin
         repo_root = normpath(joinpath(@__DIR__, ".."))
         demo_text = read(joinpath(repo_root, "examples", "ed_kspace_demo.jl"), String)

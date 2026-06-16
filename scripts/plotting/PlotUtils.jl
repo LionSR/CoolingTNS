@@ -18,6 +18,7 @@ using CoolingTNS:
     mode_energy_Jh,
     RESULT_MOMENTUM_DISTRIBUTION,
     RESULT_K_VALUES,
+    RESULT_MODE_GF,
     RESULT_MODE_K_INDICES,
     RESULT_MODE_ENERGIES
 
@@ -367,6 +368,12 @@ function kspace_evolution_plot_data(data::AbstractDict)
         k_values,
     )
 
+    bc = _spin_bc_from_kspace_data(data)
+    mode_gF = _scalar_int_from_data(data, RESULT_MODE_GF, nothing)
+    if !(bc in (:periodic, :antiperiodic))
+        mode_gF = nothing
+    end
+
     return (
         momentum_dist=momentum_dist,
         k_values=k_values,
@@ -374,8 +381,18 @@ function kspace_evolution_plot_data(data::AbstractDict)
         N=Int(_maybe_scalar(get(data, "N", length(k_values)))),
         J=Float64(_maybe_scalar(get(data, "J", 1.0))),
         h=Float64(_maybe_scalar(get(data, "h", 1.0))),
-        bc=Symbol(string(_maybe_scalar(get(data, "bc", "open")))),
+        bc=bc,
+        mode_gF=mode_gF,
     )
+end
+
+function _spin_bc_from_kspace_data(data::AbstractDict)
+    if haskey(data, "bc")
+        return Symbol(string(_maybe_scalar(data["bc"])))
+    elseif haskey(data, "ham_params_bc")
+        return Symbol(string(_maybe_scalar(data["ham_params_bc"])))
+    end
+    return :open
 end
 
 """

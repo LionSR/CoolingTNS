@@ -331,6 +331,8 @@ using HDF5
 
         parity_apbc = round(Int, CoolingTNS.measure_state_parity(problem_apbc.ϕ₀, ham_params_apbc.N))
         gF_apbc = CoolingTNS.fermionic_bc(ham_params_apbc.bc, parity_apbc)
+        @test haskey(results_apbc, CoolingTNS.RESULT_MODE_GF)
+        @test results_apbc[CoolingTNS.RESULT_MODE_GF] == gF_apbc
         @test length(results_apbc[CoolingTNS.RESULT_K_VALUES]) ==
               length(CoolingTNS.allowed_k_indices(ham_params_apbc.N, gF_apbc))
         @test results_apbc[CoolingTNS.RESULT_K_VALUES] ≈
