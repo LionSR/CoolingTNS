@@ -129,6 +129,10 @@ function spectral_delta_values(
     kwargs...,
 )
     R < 1 && throw(ArgumentError("R must be ≥ 1, got $R"))
+    num_excitations < 1 && throw(ArgumentError("num_excitations must be ≥ 1, got $num_excitations"))
+    num_excitations < R && throw(ArgumentError(
+        "Need at least R=$R requested excitation gaps, got num_excitations=$num_excitations."
+    ))
 
     available_excitations = max_available_excitations(ham_params, backend)
     requested_excitations = min(num_excitations, available_excitations)

@@ -60,6 +60,12 @@ using Random
         @test issorted(spectral_values)
         @test all(>(0), spectral_values)
 
+        @test_throws ArgumentError CoolingTNS.spectral_delta_values(
+            ham_params, backend; R=5, num_excitations=4
+        )
+        @test_throws ArgumentError CoolingTNS.spectral_delta_values(
+            ham_params, backend; R=1, num_excitations=0
+        )
         @test_throws ArgumentError CoolingTNS.compute_excitation_gaps(
             ham_params, backend; num_excitations=2^N
         )
