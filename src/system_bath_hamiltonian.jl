@@ -101,7 +101,7 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     # Bath qubits are at positions: 2, 4, 6, ..., 2N.
     # The bath field is chosen from the bath-side coupling operators.
     coupling_type = coupling_params.coupling
-    bath_op_func = bath_operator_function_ed(get_bath_operator(coupling_type))
+    bath_op_func = ED_HAMILTONIAN_PAULI_MAP[get_bath_operator(coupling_type)]
 
     for i in 1:N
         bath_idx = 2*i
@@ -121,14 +121,6 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     
     return H_sb
 end
-
-function bath_operator_function_ed(op_label::String)
-    op_label == "X" && return pauli_x
-    op_label == "Y" && return pauli_y_complex
-    op_label == "Z" && return pauli_z
-    error("Unsupported ED bath Hamiltonian operator: $op_label")
-end
-
 
 """
     construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters, backend::CoolingBackend, sites)
