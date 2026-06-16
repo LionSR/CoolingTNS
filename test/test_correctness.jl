@@ -510,6 +510,26 @@ end
     @test abs(tr(ρ_sys_recovered.data) - 1.0) < 1e-10
     @test norm(ρ_sys_recovered.data - ρ_sys.data) < 1e-10
 
+    ψ_complex = CoolingTNS.EDStateVector(ComplexF64[1 / sqrt(2), im / sqrt(2)], 1)
+    ψ_bath_one = CoolingTNS.zero_state_ed(1)
+    ρ_complex_combined = CoolingTNS.state_to_density_ed(
+        CoolingTNS.interleave_system_bath_ed(ψ_complex, ψ_bath_one)
+    )
+    ρ_complex_typed = CoolingTNS.trace_out_bath(
+        CoolingTNS.EDBackend(), ρ_complex_combined, 1, 1
+    )
+    ρ_complex_matrix = CoolingTNS.trace_out_bath(
+        CoolingTNS.EDBackend(), ρ_complex_combined.data, 1, 1
+    )
+
+    @test ρ_complex_matrix ≈ ρ_complex_typed.data atol=1e-12
+    @test abs(imag(ρ_complex_matrix[1, 2])) > 1e-12
+    @test imag(ρ_complex_matrix[1, 2]) ≈ -0.5 atol=1e-12
+
+    ρ_real_matrix = Matrix{Float64}(I, 4, 4) / 4
+    ρ_real_reduced = CoolingTNS.trace_out_bath(CoolingTNS.EDBackend(), ρ_real_matrix, 1, 1)
+    @test ρ_real_reduced ≈ Matrix{ComplexF64}(I, 2, 2) / 2 atol=1e-12
+
     println("  Partial trace recovers system state: ✓")
     println("  Trace of recovered ρ_sys = $(tr(ρ_sys_recovered.data))")
 end
