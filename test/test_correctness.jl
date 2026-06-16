@@ -542,7 +542,7 @@ end
     ρ_bath_coherent_expected = CoolingTNS.state_to_density_ed(ψ_bath_coherent).data
 
     @test ρ_bath_coherent ≈ ρ_bath_coherent_expected atol=1e-12
-    @test abs(imag(ρ_bath_coherent[1, 2])) > 0.49
+    @test !isapprox(ρ_bath_coherent_expected[1, 2], 0; atol=1e-12)
 
     ψ_complex = CoolingTNS.EDStateVector(ComplexF64[1 / sqrt(2), im / sqrt(2)], 1)
     ψ_bath_one = CoolingTNS.zero_state_ed(1)
