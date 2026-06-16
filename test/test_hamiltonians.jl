@@ -22,8 +22,9 @@ using LinearAlgebra
             "Z" => ComplexF64[1 0; 0 -1],
         )
 
-        for sys_op in ["X", "Y", "Z"], bath_coupling_op in ["X", "Y", "Z"]
-            coupling = sys_op * bath_coupling_op
+        supported_couplings = ["XX", "YY", "ZZ", "XY", "XZ", "YZ"]
+        for coupling in supported_couplings
+            _, bath_coupling_op = CoolingTNS.parse_coupling(coupling)
             bath_op = CoolingTNS.get_bath_operator(coupling)
             expected_bath_op = bath_coupling_op == "Z" ? "X" : "Z"
 

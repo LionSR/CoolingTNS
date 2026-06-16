@@ -12,8 +12,8 @@ include("parameter_types.jl")      # Define parameter types first
 include("cooling_types.jl")        # CoolingProblem and QuantumState types
 
 include("utils.jl")
-include("utils_mps.jl")
 include("coupling_utils.jl")
+include("utils_mps.jl")
 include("utils_mpo.jl")
 
 # Analytical dispersion relations (pure math, no plotting deps)

@@ -60,8 +60,7 @@ function bath_ground_state_amplitudes(coupling::String)
     bath_op = get_bath_operator(coupling)
     if bath_op == "X"
         return "X-", ComplexF64[1 / sqrt(2), -1 / sqrt(2)]
-    elseif bath_op == "Z"
-        return "Dn", ComplexF64[0, 1]
     end
-    error("Unsupported bath Hamiltonian operator: $bath_op")
+
+    return "Dn", ComplexF64[0, 1]
 end
