@@ -11,6 +11,31 @@ using ITensorMPS
 using LinearAlgebra
 using Printf
 
+function mps_to_ed_vector(ψ::MPS, sites)
+    nsites = length(sites)
+    dim = 2^nsites
+    ψ_vec = zeros(ComplexF64, dim)
+    for idx in 0:(dim - 1)
+        config = [((idx >> (site - 1)) & 1) == 0 ? "Up" : "Dn" for site in 1:nsites]
+        ψ_basis = MPS(sites, config)
+        ψ_vec[idx + 1] = inner(ψ_basis, ψ)
+    end
+    return ψ_vec
+end
+
+function trace_bath_from_interleaved_vector(ψ_vec::AbstractVector, N::Int)
+    ρ_full = ψ_vec * ψ_vec'
+    ρ_sys = zeros(ComplexF64, 2^N, 2^N)
+    for si in 0:(2^N - 1), sj in 0:(2^N - 1)
+        for bath in 0:(2^N - 1)
+            fi = CoolingTNS.map_system_bath_to_full_basis_ed(si, bath, N)
+            fj = CoolingTNS.map_system_bath_to_full_basis_ed(sj, bath, N)
+            ρ_sys[si + 1, sj + 1] += ρ_full[fi + 1, fj + 1]
+        end
+    end
+    return ρ_sys
+end
+
 println("="^60)
 println("Single Cooling Step: TN vs ED Diagnostic")
 println("="^60)
@@ -83,31 +108,34 @@ println("  ED evolved norm = $(norm(ψ_evolved_ed.data))")
 E_evolved_ed = real(ψ_evolved_ed.data' * H_sb_ed * ψ_evolved_ed.data) / (norm(ψ_evolved_ed.data)^2)
 println("  ED evolved energy = $E_evolved_ed (should = initial = $E_combined_ed)")
 
-# TN: TDVP
-for tdvp_tau in [0.1, 0.01]
-    ψ_evolved_tn = tdvp(H_sb_tn, -im * te, ψ_combined_tn;
-                        time_step=-im * tdvp_tau, nsite=2, reverse_step=false, normalize=true,
-                        maxdim=200, cutoff=1e-14, outputlevel=0)
-    normalize!(ψ_evolved_tn)
+# TN: package continuous-evolution wrapper, which owns the TDVP convention.
+ψ_ed_vec = ψ_evolved_ed.data / norm(ψ_evolved_ed.data)
+tn_results = map([0.1, 0.01]) do tdvp_tau
+    sim_params_tn = CoolingTNS.UnifiedSimulationParameters(
+        CoolingTNS.MonteCarloWavefunction(),
+        CoolingTNS.ContinuousEvolution();
+        Dmax=200,
+        cutoff=1e-14,
+        tau=tdvp_tau,
+    )
+    ψ_evolved_tn = CoolingTNS.evolve_state(
+        ham_params, sim_params_tn, tn_backend, H_sb_tn, ψ_combined_tn, te, sites
+    )
 
     E_evolved_tn = real(inner(ψ_evolved_tn', H_sb_tn, ψ_evolved_tn))
     println("  TN evolved energy (tau=$tdvp_tau) = $E_evolved_tn (should ≈ $E_combined_ed)")
     println("    |E_TN - E_ED| = $(abs(E_evolved_tn - E_evolved_ed))")
 
-    # Compare state overlap: convert TN to ED vector
-    dim = 2^N_total
-    ψ_tn_vec = zeros(ComplexF64, dim)
-    for idx in 0:dim-1
-        config = [((idx >> (k-1)) & 1) == 0 ? "Up" : "Dn" for k in 1:N_total]
-        ψ_basis = MPS(sites, config)
-        ψ_tn_vec[idx+1] = inner(ψ_basis, ψ_evolved_tn)
-    end
+    ψ_tn_vec = mps_to_ed_vector(ψ_evolved_tn, sites)
     ψ_tn_vec /= norm(ψ_tn_vec)
-    ψ_ed_vec = ψ_evolved_ed.data / norm(ψ_evolved_ed.data)
-
     overlap = abs(dot(ψ_ed_vec, ψ_tn_vec))
     println("    State overlap |<ED|TN>| = $overlap")
+
+    return (tau=tdvp_tau, state_vector=ψ_tn_vec, overlap=overlap)
 end
+final_result = last(tn_results)
+ψ_tn_vec_final = final_result.state_vector
+final_overlap = final_result.overlap
 
 # ============================================================================
 # Step 3: Check system density matrix after partial trace (no measurement)
@@ -121,38 +149,21 @@ E_sys_ed = CoolingTNS.expect_ed(H_sys_ed, ρ_sys_ed)
 println("  ED system energy after trace = $E_sys_ed")
 println("  ED system energy / N = $(E_sys_ed / N)")
 
-# For TN: use partial trace on MPO
-ψ_evolved_tn_final = tdvp(H_sb_tn, -im * te, ψ_combined_tn;
-                          time_step=-im * 0.01, nsite=2, reverse_step=false, normalize=true,
-                          maxdim=200, cutoff=1e-14, outputlevel=0)
-normalize!(ψ_evolved_tn_final)
-
 # Convert TN evolved to density matrix and trace bath
-dim = 2^N_total
-ψ_tn_vec_final = zeros(ComplexF64, dim)
-for idx in 0:dim-1
-    config = [((idx >> (k-1)) & 1) == 0 ? "Up" : "Dn" for k in 1:N_total]
-    ψ_basis = MPS(sites, config)
-    ψ_tn_vec_final[idx+1] = inner(ψ_basis, ψ_evolved_tn_final)
-end
-ψ_tn_vec_final /= norm(ψ_tn_vec_final)
-
-ρ_tn_full = ψ_tn_vec_final * ψ_tn_vec_final'
-# Trace out bath using the shared ED interleaved-basis map.
-ρ_sys_tn = zeros(ComplexF64, 2^N, 2^N)
-for si in 0:2^N-1, sj in 0:2^N-1
-    for bath in 0:2^N-1
-        fi = CoolingTNS.map_system_bath_to_full_basis_ed(si, bath, N)
-        fj = CoolingTNS.map_system_bath_to_full_basis_ed(sj, bath, N)
-        ρ_sys_tn[si+1, sj+1] += ρ_tn_full[fi+1, fj+1]
-    end
-end
+ρ_sys_tn = trace_bath_from_interleaved_vector(ψ_tn_vec_final, N)
 E_sys_tn = real(tr(H_sys_ed * ρ_sys_tn))
 println("  TN system energy after trace = $E_sys_tn")
 println("  TN system energy / N = $(E_sys_tn / N)")
-println("  |E_sys_TN - E_sys_ED| = $(abs(E_sys_tn - E_sys_ed))")
+energy_trace_error = abs(E_sys_tn - E_sys_ed)
+println("  |E_sys_TN - E_sys_ED| = $energy_trace_error")
 
-println("\n  If these match, TDVP evolution is correct.")
-println("  If not, there's a fundamental difference in the evolution.")
+if final_overlap < 1 - 1e-8
+    error("TN package evolution does not match ED: final overlap = $final_overlap")
+end
+if energy_trace_error > 1e-6
+    error("Reduced system energy mismatch after tracing bath: $energy_trace_error")
+end
+
+println("\n  TN package evolution matches ED for this single-step diagnostic.")
 
 println("\n" * "="^60)
