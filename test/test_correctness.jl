@@ -486,6 +486,11 @@ end
     ψ_expected = CoolingTNS.prepare_combined_state_ed(ψ_sys, N, "XX")
     @test norm(ψ_appended.data - ψ_expected.data) < 1e-12
 
+    ψ_appended_zz = CoolingTNS.append_bath(CoolingTNS.EDBackend(), ψ_sys, N, "ZZ")
+    ψ_expected_zz = CoolingTNS.prepare_combined_state_ed(ψ_sys, N, "ZZ")
+    @test norm(ψ_appended_zz.data - ψ_expected_zz.data) < 1e-12
+    @test norm(ψ_appended_zz.data - ψ_appended.data) > 1e-3
+
     ρ_sys = CoolingTNS.state_to_density_ed(ψ_sys)
     ρ_appended = CoolingTNS.append_bath(CoolingTNS.EDBackend(), ρ_sys, N)
     ρ_expected = CoolingTNS.prepare_combined_state_ed(ρ_sys, N, "XX")
@@ -493,6 +498,10 @@ end
 
     ρ_matrix_appended = CoolingTNS.append_bath(CoolingTNS.EDBackend(), ρ_sys.data, N)
     @test norm(ρ_matrix_appended - ρ_expected.data) < 1e-12
+
+    ρ_matrix_appended_zz = CoolingTNS.append_bath(CoolingTNS.EDBackend(), ρ_sys.data, N, "ZZ")
+    ρ_expected_zz = CoolingTNS.prepare_combined_state_ed(ρ_sys, N, "ZZ")
+    @test norm(ρ_matrix_appended_zz - ρ_expected_zz.data) < 1e-12
 
     println("  Interleaved state has $(length(ψ_combined.data)) components, $nonzero_count nonzero")
 end

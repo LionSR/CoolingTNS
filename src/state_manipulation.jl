@@ -15,9 +15,16 @@ using LinearAlgebra
 # ============================================================================
 
 """
-    append_bath(backend::CoolingBackend, system_state, bath_state)
+    append_bath(backend::CoolingBackend, system_state, bath_spec[, coupling])
 
-Append fresh bath qubits to system state using dispatch.
+Append fresh bath qubits to a system state using dispatch.
+
+For ED backends, `bath_spec` is the number of bath qubits. The bath is prepared
+by `prepare_combined_state_ed`, including the coupling-dependent bath ground
+state and the interleaved layout `[S_1, B_1, S_2, B_2, ...]`.
+
+For TN backends, `bath_spec` is the full interleaved site vector passed to the
+MPS/MPO append helpers.
 """
 # TN Backend
 append_bath(::TNBackend, ψ_s::MPS, sites::Vector{<:Index}, coupling::String="XX") =
