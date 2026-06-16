@@ -20,6 +20,7 @@ const RESULT_K_VALUES = "k_values"
 
 const RESULT_MODE_GF = "mode_gF"
 const RESULT_MODE_HK = "mode_hk"
+const RESULT_MODE_NK = "mode_nk"
 const RESULT_MODE_K_INDICES = "mode_k_indices"
 const RESULT_MODE_ENERGIES = "mode_ek_values"
 
@@ -41,6 +42,7 @@ const RESULT_KEYS = (
     RESULT_K_VALUES,
     RESULT_MODE_GF,
     RESULT_MODE_HK,
+    RESULT_MODE_NK,
     RESULT_MODE_K_INDICES,
     RESULT_MODE_ENERGIES,
     RESULT_DELTA_LIST,

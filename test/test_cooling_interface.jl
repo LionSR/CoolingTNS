@@ -38,6 +38,7 @@ using CoolingTNS
         @test CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION == "momentum_dist"
         @test CoolingTNS.RESULT_K_VALUES == "k_values"
         @test CoolingTNS.RESULT_MODE_HK == "mode_hk"
+        @test CoolingTNS.RESULT_MODE_NK == "mode_nk"
         @test CoolingTNS.RESULT_DELTA_LIST == "delta_list"
         @test CoolingTNS.RESULT_TE_LIST == "te_list"
 
@@ -46,6 +47,7 @@ using CoolingTNS
         @test length(unique(CoolingTNS.RESULT_KEYS)) == length(CoolingTNS.RESULT_KEYS)
         @test CoolingTNS.RESULT_ENERGY in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_MODE_HK in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_MODE_NK in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_DELTA_LIST in CoolingTNS.RESULT_KEYS
     end
 
