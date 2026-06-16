@@ -102,7 +102,7 @@ function parse_commandline(args=ARGS)
         arg_type = String
         default = "product"
         "--theta"
-        help = "theta angle for initial state (in units of pi, e.g., -0.5 for all down)"
+        help = "theta parameter for initial state: -0.5 -> |0>, 0 -> |+>, 0.5 -> |1>"
         arg_type = Float64
         default = 0.0
     end

@@ -85,16 +85,6 @@ end
 # Momentum distribution (shared implementation)
 # -----------------------------------------------------------------------------
 
-function _allowed_k_indices(N::Int, bc::Symbol)
-    if bc == :periodic
-        return collect(-div(N, 2) + 1:div(N, 2))
-    elseif bc == :antiperiodic
-        return collect(-div(N - 1, 2):div(N - 1, 2))
-    else
-        error("Momentum distribution only defined for periodic/antiperiodic BC")
-    end
-end
-
 _expect_amdag_an(ψ::EDStateVector, a_m_dag, a_n) = dot(ψ.data, a_m_dag * a_n * ψ.data)
 _expect_amdag_an(ρ::EDDensityMatrix, a_m_dag, a_n) = tr(ρ.data * a_m_dag * a_n)
 
@@ -227,7 +217,8 @@ Rotate a code-basis density matrix to the notes basis.
 """
 function _rotate_dm_to_notes(state::EDDensityMatrix)
     U = _rotation_code_to_notes(state.n_qubits)
-    return U * state.data * U'
+    ρ_notes = U * state.data * U'
+    return (ρ_notes + ρ_notes') / 2
 end
 
 # =============================================================================
