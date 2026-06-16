@@ -1,3 +1,4 @@
+# CI smoke test for Claude + TeXRA PR-review workflows (remove after verification)
 if Sys.islinux()
     using MKL
 end
