@@ -113,6 +113,14 @@ using HDF5
         end
     end
 
+    @testset "ED density-matrix example driver root" begin
+        example_utils = normpath(joinpath(@__DIR__, "..", "examples", "ed_dm_example_utils.jl"))
+        example_text = read(example_utils, String)
+
+        @test occursin("result_path=joinpath(ED_DM_EXAMPLE_ROOT, \"Results\", filename * \".h5\")", example_text)
+        @test occursin("run(Cmd(cmd; dir=ED_DM_EXAMPLE_ROOT))", example_text)
+    end
+
     @testset "Result Key Constants" begin
         @test CoolingTNS.RESULT_ENERGY == "E_list"
         @test CoolingTNS.RESULT_GROUND_STATE_OVERLAP == "GS_overlap_list"

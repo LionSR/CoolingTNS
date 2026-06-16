@@ -37,7 +37,6 @@ function ed_dm_ising_example(;
 end
 
 function run_ed_dm_ising_driver(params)
-    run(
-        `$(Base.julia_cmd()) --project=$(ED_DM_EXAMPLE_ROOT) $(ED_DM_COOLING_DRIVER) --N $(params.N) --problem Ising --backend ED --bc $(String(params.bc)) --sim_method density_matrix --evolution_method continuous --coupling $(params.coupling) --g $(params.g) --te $(params.te) --steps $(params.steps) --J $(params.J) --h $(params.h)`,
-    )
+    cmd = `$(Base.julia_cmd()) --project=$(ED_DM_EXAMPLE_ROOT) $(ED_DM_COOLING_DRIVER) --N $(params.N) --problem Ising --backend ED --bc $(String(params.bc)) --sim_method density_matrix --evolution_method continuous --coupling $(params.coupling) --g $(params.g) --te $(params.te) --steps $(params.steps) --J $(params.J) --h $(params.h)`
+    run(Cmd(cmd; dir=ED_DM_EXAMPLE_ROOT))
 end
