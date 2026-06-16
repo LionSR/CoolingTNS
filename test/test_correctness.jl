@@ -524,6 +524,11 @@ end
 
     @test ρ_complex_matrix ≈ ρ_complex_typed.data atol=1e-12
     @test abs(imag(ρ_complex_matrix[1, 2])) > 1e-12
+    @test imag(ρ_complex_matrix[1, 2]) ≈ -0.5 atol=1e-12
+
+    ρ_real_matrix = Matrix{Float64}(I, 4, 4) / 4
+    ρ_real_reduced = CoolingTNS.trace_out_bath(CoolingTNS.EDBackend(), ρ_real_matrix, 1, 1)
+    @test ρ_real_reduced ≈ Matrix{ComplexF64}(I, 2, 2) / 2 atol=1e-12
 
     println("  Partial trace recovers system state: ✓")
     println("  Trace of recovered ρ_sys = $(tr(ρ_sys_recovered.data))")
