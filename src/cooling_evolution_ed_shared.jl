@@ -123,8 +123,8 @@ function evolve_cooling_step_ed(H::AbstractMatrix, state::Union{EDStateVector, E
                                te::Float64, tau::Union{Float64, Nothing}=nothing)
     tau === nothing && return evolve_ed(H, state, te)
 
-    n_steps = Int(ceil(te / tau))
-    dt = te / n_steps
+    n_steps, dt = trotter_time_slices(te, tau)
+    n_steps == 0 && return state
     evolved = state
     for _ in 1:n_steps
         evolved = evolve_ed(H, evolved, dt)

@@ -18,10 +18,40 @@ function _x_gate(site, dt)
     return [exp(-1.0im * dt * op("X", site))]
 end
 
+function _x_hamiltonian_ed()
+    return ComplexF64[0 1; 1 0]
+end
+
 @testset "TN Trotter requested-time slicing" begin
     @test CoolingTNS.trotter_time_slices(0.0, 0.2) == (0, 0.0)
     @test CoolingTNS.trotter_time_slices(0.19, 0.2) == (1, 0.19)
     @test CoolingTNS.trotter_time_slices(0.7, 0.3) == (3, 0.7 / 3)
+    @test_throws ArgumentError CoolingTNS.trotter_time_slices(-0.1, 0.2)
+    @test_throws ArgumentError CoolingTNS.trotter_time_slices(0.1, 0.0)
+
+    for (t, tau) in [(0.19, 0.2), (0.4, 0.2), (0.7, 0.3)]
+        steps, dt = CoolingTNS.trotter_time_slices(t, tau)
+        @test steps * dt ≈ t atol=1e-14
+        @test dt <= tau + 1e-12
+    end
+
+    H_ed = _x_hamiltonian_ed()
+    ψ_ed = CoolingTNS.EDStateVector(ComplexF64[1, 0], 1)
+    ρ_ed = CoolingTNS.state_to_density_ed(ψ_ed)
+
+    @test CoolingTNS.evolve_cooling_step_ed(H_ed, ψ_ed, 0.0, 0.2).data == ψ_ed.data
+    @test CoolingTNS.evolve_cooling_step_ed(H_ed, ρ_ed, 0.0, 0.2).data == ρ_ed.data
+    @test_throws ArgumentError CoolingTNS.evolve_cooling_step_ed(H_ed, ψ_ed, -0.1, 0.2)
+
+    for (t, tau) in [(0.19, 0.2), (0.7, 0.3)]
+        exact_ψ = CoolingTNS.evolve_ed(H_ed, ψ_ed, t)
+        stepped_ψ = CoolingTNS.evolve_cooling_step_ed(H_ed, ψ_ed, t, tau)
+        @test abs(abs(dot(exact_ψ.data, stepped_ψ.data)) - 1) < 1e-12
+
+        exact_ρ = CoolingTNS.evolve_ed(H_ed, ρ_ed, t)
+        stepped_ρ = CoolingTNS.evolve_cooling_step_ed(H_ed, ρ_ed, t, tau)
+        @test norm(exact_ρ.data - stepped_ρ.data) < 1e-12
+    end
 
     sites = siteinds("S=1/2", 1)
     ψ0 = MPS(sites, "Up")
