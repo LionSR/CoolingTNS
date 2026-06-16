@@ -87,6 +87,7 @@ end
 
 function save_results(filename, result, e₀, ham_name, parsed_args; is_optimization=false)
     directory = is_optimization ? "ResultsOpt" : "Results"
+    mkpath(directory)
     h5open(joinpath(directory, "$(filename).h5"), "w") do file
         write(file, "e₀", e₀)
         for (key, value) in result
@@ -252,4 +253,3 @@ function create_filename(
 
     return create_filename(ham_params, coupling, sim, backend)
 end
-
