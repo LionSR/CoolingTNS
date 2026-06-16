@@ -31,7 +31,7 @@ end
 """
     read_h5_data(filename::String) -> Union{Dict{String, Any}, Nothing}
 
-Read all data from an HDF5 file into a dictionary.
+Read all top-level datasets from an HDF5 file into a dictionary.
 Returns nothing if the file doesn't exist.
 """
 function read_h5_data(filename::String)::Union{Dict{String, Any}, Nothing}
@@ -43,7 +43,9 @@ function read_h5_data(filename::String)::Union{Dict{String, Any}, Nothing}
     data = Dict{String, Any}()
     h5open(filename, "r") do file
         for key in keys(file)
-            data[key] = read(file, key)
+            object = file[key]
+            object isa HDF5.Dataset || continue
+            data[key] = read(object)
         end
     end
     return data

@@ -1,5 +1,6 @@
 using Test
 using CoolingTNS
+using HDF5
 
 include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
 
@@ -26,6 +27,24 @@ include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
     @test get_evolution_colors(dummy_plt, 0) == Any[]
     @test get_evolution_colors(dummy_plt, 1) == [0.0]
     @test collect(get_evolution_colors(dummy_plt, 3)) == [0.0, 0.5, 1.0]
+
+    mktempdir() do dir
+        filename = joinpath(dir, "with_metadata_group.h5")
+        h5open(filename, "w") do file
+            write(file, RESULT_MOMENTUM_DISTRIBUTION, [0.1 0.2; 0.3 0.4])
+            write(file, RESULT_K_VALUES, [0.0, pi])
+
+            parsed_args = create_group(file, CoolingTNS.HDF5_PARSED_ARGS_GROUP)
+            write(parsed_args, "N", 2)
+            write(parsed_args, "backend", "ED")
+        end
+
+        h5_data = read_h5_data(filename)
+        @test h5_data !== nothing
+        @test h5_data[RESULT_MOMENTUM_DISTRIBUTION] == [0.1 0.2; 0.3 0.4]
+        @test h5_data[RESULT_K_VALUES] == [0.0, pi]
+        @test !haskey(h5_data, CoolingTNS.HDF5_PARSED_ARGS_GROUP)
+    end
 
     @test_throws ErrorException _mode_occupation_from_plot_data(Dict{String, Any}())
 end
