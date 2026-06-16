@@ -691,17 +691,6 @@ function get_correlation_operator(m::Int, n::Int, N::Int)
 end
 
 """
-    get_allowed_k_values(N::Int, bc::Symbol)
-
-Get allowed momentum indices based on a fermionic boundary condition symbol.
-
-This compatibility wrapper delegates to the canonical `allowed_k_indices`
-definition used by the mode observables.  In particular, antiperiodic boundary
-conditions use the full half-integer grid with `N` modes.
-"""
-get_allowed_k_values(N::Int, bc::Symbol) = allowed_k_indices(N, bc)
-
-"""
     compute_real_space_correlations(state::EDStateVector, N::Int) -> Matrix{Float64}
 
 Compute real-space fermionic correlations ⟨a†_m a_n⟩ for a pure state.
