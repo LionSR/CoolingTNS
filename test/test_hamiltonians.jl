@@ -158,6 +158,62 @@ end
             @test abs(E_down - expected_E_down) < 1e-10
         end
     end
+
+    @testset "Rydberg Rabi Convention" begin
+        Ω = 1.3
+        Δ = 0.7
+        V = 0.2
+
+        @test CoolingTNS.rydberg_rabi_x_coefficient(Ω) == Ω / 2
+        @test CoolingTNS.rydberg_interaction_coefficient(V, 1, 3) ≈ V / 2^6
+        @test CoolingTNS.rydberg_interaction_coefficient(V, 3, 1) ≈ V / 2^6
+        @test_throws ArgumentError CoolingTNS.rydberg_interaction_coefficient(V, 2, 2)
+        @test CoolingTNS.rydberg_number_identity_shift(1, Δ, V) ≈ -Δ / 2
+        @test CoolingTNS.rydberg_number_identity_shift(2, Δ, V) ≈ -Δ + V / 4
+
+        H_one = CoolingTNS.construct_system_hamiltonian(
+            CoolingTNS.RydbergParameters(1, Ω, 0.0, 0.0),
+            CoolingTNS.EDBackend(),
+            1,
+        )
+        @test sort(real(eigvals(Matrix(H_one)))) ≈ [-Ω / 2, Ω / 2]
+
+        N_rydberg = 3
+        ham_params = CoolingTNS.RydbergParameters(N_rydberg, Ω, Δ, V)
+        H_ed = CoolingTNS.construct_system_hamiltonian(
+            ham_params, CoolingTNS.EDBackend(), N_rydberg
+        )
+
+        ψ_ed = CoolingTNS.create_theta_state_ed(N_rydberg, "theta", 0.0)
+        E_ed = real(dot(ψ_ed.data, H_ed * ψ_ed.data))
+
+        sites = siteinds("S=1/2", N_rydberg)
+        H_tn = CoolingTNS.construct_system_hamiltonian(
+            ham_params, CoolingTNS.TNBackend(), sites
+        )
+        ψ_tn = MPS(sites, "X+")
+        E_tn = real(inner(ψ_tn', H_tn, ψ_tn))
+
+        @test E_tn ≈ E_ed atol=1e-10
+
+        @testset "ED and TN matrices agree exactly" begin
+            for N_matrix in [1, 2, 3]
+                ham_matrix = CoolingTNS.RydbergParameters(N_matrix, Ω, Δ, V)
+                H_ed_matrix = Matrix(CoolingTNS.construct_system_hamiltonian(
+                    ham_matrix, CoolingTNS.EDBackend(), N_matrix
+                ))
+
+                sites_matrix = siteinds("S=1/2", N_matrix)
+                H_tn_matrix = hamiltonian_test_mpo_to_matrix(
+                    CoolingTNS.construct_system_hamiltonian(
+                        ham_matrix, CoolingTNS.TNBackend(), sites_matrix
+                    )
+                )
+
+                @test H_tn_matrix ≈ H_ed_matrix atol=1e-12
+            end
+        end
+    end
     
     
     @testset "System-Bath Hamiltonians" begin
