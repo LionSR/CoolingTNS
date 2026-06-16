@@ -4,6 +4,49 @@ using ITensors
 using ITensorMPS
 using LinearAlgebra
 
+function hamiltonian_test_mpo_to_matrix(H::MPO)
+    N_sites = length(H)
+    Tfull = H[1]
+    for i in 2:N_sites
+        Tfull *= H[i]
+    end
+
+    all_inds = inds(Tfull)
+    s_inds = Index[]
+    sp_inds = Index[]
+    for idx in all_inds
+        if hastags(idx, "Site") && plev(idx) == 0
+            push!(s_inds, idx)
+        elseif hastags(idx, "Site") && plev(idx) == 1
+            push!(sp_inds, idx)
+        end
+    end
+    sort!(s_inds, by=x -> parse(Int, match(r"n=(\d+)", string(tags(x))).captures[1]))
+    sort!(sp_inds, by=x -> parse(Int, match(r"n=(\d+)", string(tags(x))).captures[1]))
+
+    dim = 2^N_sites
+    mat = zeros(ComplexF64, dim, dim)
+    for i in 0:dim-1, j in 0:dim-1
+        vals = Dict{Index, Int}()
+        for k in 1:N_sites
+            vals[sp_inds[k]] = ((i >> (k-1)) & 1) + 1
+            vals[s_inds[k]] = ((j >> (k-1)) & 1) + 1
+        end
+        mat[i+1, j+1] = Tfull[vals...]
+    end
+    return mat
+end
+
+function hamiltonian_test_mps_to_vector(ψ::MPS, sites)
+    dim = 2^length(sites)
+    vec = zeros(ComplexF64, dim)
+    for idx in 0:(dim - 1)
+        config = [((idx >> (site - 1)) & 1) == 0 ? "Up" : "Dn" for site in eachindex(sites)]
+        vec[idx + 1] = inner(MPS(sites, config), ψ)
+    end
+    return vec
+end
+
 @testset "Hamiltonian Construction Tests" begin
     N = 4
     
@@ -11,6 +54,13 @@ using LinearAlgebra
         @test CoolingTNS.parse_coupling("XX") == ("X", "X")
         @test CoolingTNS.parse_coupling("YZ") == ("Y", "Z")
         @test CoolingTNS.parse_coupling("ZY") == ("Z", "Y")
+        @test CoolingTNS.coupling_operator_terms("XX") == (("X", "X"),)
+        @test CoolingTNS.coupling_operator_terms("XY") == (("X", "Y"), ("Y", "X"))
+        @test CoolingTNS.coupling_operator_terms("ZY") == (("Z", "Y"), ("Y", "Z"))
+        @test CoolingTNS.get_bath_operator("YZ") == "X"
+        @test CoolingTNS.get_bath_operator("ZY") == "X"
+        @test CoolingTNS.get_bath_operator("XZ") == "Z"
+        @test CoolingTNS.get_bath_operator("ZX") == "Z"
         @test_throws ArgumentError CoolingTNS.parse_coupling("XXX")
         @test_throws ArgumentError CoolingTNS.parse_coupling("XA")
     end
@@ -94,7 +144,7 @@ using LinearAlgebra
         
         
         @testset "Different Coupling Types" begin
-            coupling_types = ["XX", "YY", "ZZ", "XY", "YZ", "XZ"]
+            coupling_types = ["XX", "YY", "ZZ", "XY", "YX", "YZ", "ZY", "XZ", "ZX"]
             backend = CoolingTNS.TNBackend()
             J, hx, hz = 1.0, -1.05, 0.5
             ham_params = CoolingTNS.NiIsingParameters(N, J, hx, hz)
@@ -108,6 +158,70 @@ using LinearAlgebra
                 @test H isa MPO
                 @test length(H) == 2N
             end
+        end
+
+        @testset "ED and TN system-bath couplings agree" begin
+            small_N = 2
+            coupling_types = ["XX", "YY", "ZZ", "XY", "YX", "YZ", "ZY", "XZ", "ZX"]
+            sites_small = siteinds("S=1/2", 2small_N)
+            ham_params = CoolingTNS.IsingParameters(small_N, 0.8, -0.4)
+
+            for coupling in coupling_types
+                test_coupling_params = CoolingTNS.BasicCouplingParameters(
+                    coupling, 0.17, 1, 0.3, 0.6
+                )
+
+                H_ed = Matrix(CoolingTNS.construct_system_bath_hamiltonian(
+                    ham_params, CoolingTNS.EDBackend(), 2small_N, test_coupling_params
+                ))
+                H_tn = hamiltonian_test_mpo_to_matrix(
+                    CoolingTNS.construct_system_bath_hamiltonian(
+                        ham_params, CoolingTNS.TNBackend(), sites_small, test_coupling_params
+                    )
+                )
+
+                @test H_ed ≈ H_ed' atol=1e-12
+                @test H_tn ≈ H_tn' atol=1e-12
+                @test H_tn ≈ H_ed atol=1e-12
+            end
+
+            xy_coupling_params = CoolingTNS.BasicCouplingParameters(
+                "XY", 0.17, 1, 0.3, 0.6
+            )
+            H_xy = CoolingTNS.construct_system_bath_hamiltonian(
+                ham_params, CoolingTNS.EDBackend(), 2small_N, xy_coupling_params
+            )
+            ψ0 = CoolingTNS.product_state_ed(2small_N, 0)
+            raw_ψt = exp(-im * Matrix(H_xy) * 0.37) * ψ0.data
+            @test norm(raw_ψt) ≈ norm(ψ0.data) atol=1e-12
+            ψt = CoolingTNS.evolve_ed(H_xy, ψ0, 0.37)
+            @test ψt.data ≈ raw_ψt atol=1e-12
+        end
+
+        @testset "TN Trotter mixed coupling uses symmetric local term" begin
+            ham_params = CoolingTNS.IsingParameters(1, 0.0, 0.0)
+            coupling_params = CoolingTNS.BasicCouplingParameters("XY", 0.23, 1, 0.4, 0.0)
+            sim_params = CoolingTNS.UnifiedSimulationParameters(
+                CoolingTNS.MonteCarloWavefunction(),
+                CoolingTNS.TrotterEvolution();
+                tau=0.4,
+                Dmax=20,
+                cutoff=1e-14,
+            )
+            sites_pair = siteinds("S=1/2", 2)
+
+            gates = CoolingTNS.build_trotter_circuit_interleaved(
+                ham_params, CoolingTNS.TNBackend(), sites_pair, coupling_params, sim_params
+            )
+            ψ_tn = apply(gates, MPS(sites_pair, ["Up", "Up"]); cutoff=1e-14, maxdim=20, move_sites_back=true)
+            tn_vec = hamiltonian_test_mps_to_vector(ψ_tn, sites_pair)
+
+            H_ed = CoolingTNS.construct_system_bath_hamiltonian(
+                ham_params, CoolingTNS.EDBackend(), 2, coupling_params
+            )
+            ψ_ed = CoolingTNS.evolve_ed(H_ed, CoolingTNS.product_state_ed(2, 0), sim_params.tau)
+
+            @test norm(tn_vec - ψ_ed.data) < 1e-10
         end
     end
     

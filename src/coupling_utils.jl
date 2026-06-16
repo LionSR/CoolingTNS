@@ -31,3 +31,38 @@ function parse_coupling(coupling::String)
 
     return string(op1), string(op2)
 end
+
+"""
+    coupling_operator_terms(coupling::String) -> Tuple
+
+Expand a two-character coupling label into the local Hamiltonian terms used by
+all backends.
+
+Identical labels represent a single product operator, for example `"XX"` gives
+``X_S X_B``. Mixed labels represent the symmetric Hermitian convention, for
+example `"XY"` gives ``X_S Y_B + Y_S X_B``.
+"""
+function coupling_operator_terms(coupling::String)
+    op1, op2 = parse_coupling(coupling)
+    op1 == op2 && return ((op1, op2),)
+    return ((op1, op2), (op2, op1))
+end
+
+"""
+    get_bath_operator(coupling::String) -> String
+
+Return the Pauli operator used in the local bath Hamiltonian for a coupling
+label. The bath field is chosen from the repository's current ``X/Z`` bath
+convention and is invariant under reversing a mixed coupling label.
+
+In particular, `"YZ"` and `"ZY"` both contain the same symmetric bath
+operators and therefore both use an ``X`` bath field, just as `"ZZ"` does.
+All other valid labels use a ``Z`` bath field.
+"""
+function get_bath_operator(coupling::String)
+    bath_labels = last.(coupling_operator_terms(coupling))
+    has_bath_x = any(==("X"), bath_labels)
+    has_bath_z = any(==("Z"), bath_labels)
+
+    return has_bath_z && !has_bath_x ? "X" : "Z"
+end

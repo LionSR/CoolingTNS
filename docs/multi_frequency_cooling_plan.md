@@ -29,7 +29,10 @@ the CoolingAlgTN paper.
 Bath: N independent spin-1/2 sites with H_B = (Δ/2) Σ bath_op_i, where
 bath_op depends on the coupling type (Z for XX coupling, X for ZZ coupling).
 
-System-bath coupling: V_SB = g Σ op1_i ⊗ op2_i (e.g., σ^x ⊗ σ^x for XX).
+System-bath coupling labels use one local product for identical operators and
+the symmetric Hermitian convention for mixed operators. Thus `XX` denotes
+V_SB = g Σ σ^x_{S,i} σ^x_{B,i}, while `XY` denotes
+V_SB = g Σ (σ^x_{S,i} σ^y_{B,i} + σ^y_{S,i} σ^x_{B,i}).
 
 ## Architecture
 

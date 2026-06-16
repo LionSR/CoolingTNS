@@ -13,13 +13,13 @@ Bath Hamiltonian must NOT commute with coupling for energy transfer.
 
 With Δ > 0 and bath H = (Δ/2) * Op:
 - Ground state is eigenvalue -1 of Op
-- XX, XY, XZ coupling → bath H = (Δ/2)Z → ground state |↓⟩ (Z=-1)
-- ZZ, YZ coupling → bath H = (Δ/2)X → ground state |−⟩ (X=-1)
+- `get_bath_operator(coupling) == "Z"` → ground state |↓⟩ (Z=-1)
+- `get_bath_operator(coupling) == "X"` → ground state |−⟩ (X=-1)
 
 Bath absorbs energy |Δ| when excited from ground to excited state.
 """
 function get_bath_ground_state(coupling::String)
-    if coupling in ["ZZ", "YZ"]
+    if get_bath_operator(coupling) == "X"
         # X-basis ground state: |−⟩ = (|↑⟩ - |↓⟩)/√2 (eigenvalue X = -1)
         # In S=1/2 convention: state 1 = |↑⟩, state 2 = |↓⟩
         return "X-", [1/sqrt(2), -1/sqrt(2)]
