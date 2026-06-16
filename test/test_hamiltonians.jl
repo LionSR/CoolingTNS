@@ -56,6 +56,11 @@ end
         @test CoolingTNS.parse_coupling("ZY") == ("Z", "Y")
         @test CoolingTNS.coupling_operator_terms("XX") == (("X", "X"),)
         @test CoolingTNS.coupling_operator_terms("XY") == (("X", "Y"), ("Y", "X"))
+        @test CoolingTNS.coupling_operator_terms("ZY") == (("Z", "Y"), ("Y", "Z"))
+        @test CoolingTNS.get_bath_operator("YZ") == "X"
+        @test CoolingTNS.get_bath_operator("ZY") == "X"
+        @test CoolingTNS.get_bath_operator("XZ") == "Z"
+        @test CoolingTNS.get_bath_operator("ZX") == "Z"
         @test_throws ArgumentError CoolingTNS.parse_coupling("XXX")
         @test_throws ArgumentError CoolingTNS.parse_coupling("XA")
     end
@@ -139,7 +144,7 @@ end
         
         
         @testset "Different Coupling Types" begin
-            coupling_types = ["XX", "YY", "ZZ", "XY", "YZ", "XZ"]
+            coupling_types = ["XX", "YY", "ZZ", "XY", "YX", "YZ", "ZY", "XZ", "ZX"]
             backend = CoolingTNS.TNBackend()
             J, hx, hz = 1.0, -1.05, 0.5
             ham_params = CoolingTNS.NiIsingParameters(N, J, hx, hz)
@@ -157,7 +162,7 @@ end
 
         @testset "ED and TN system-bath couplings agree" begin
             small_N = 2
-            coupling_types = ["XX", "YY", "ZZ", "XY", "YZ", "XZ"]
+            coupling_types = ["XX", "YY", "ZZ", "XY", "YX", "YZ", "ZY", "XZ", "ZX"]
             sites_small = siteinds("S=1/2", 2small_N)
             ham_params = CoolingTNS.IsingParameters(small_N, 0.8, -0.4)
 
@@ -187,8 +192,10 @@ end
                 ham_params, CoolingTNS.EDBackend(), 2small_N, xy_coupling_params
             )
             ψ0 = CoolingTNS.product_state_ed(2small_N, 0)
+            raw_ψt = exp(-im * Matrix(H_xy) * 0.37) * ψ0.data
+            @test norm(raw_ψt) ≈ norm(ψ0.data) atol=1e-12
             ψt = CoolingTNS.evolve_ed(H_xy, ψ0, 0.37)
-            @test norm(ψt.data) ≈ 1.0 atol=1e-12
+            @test ψt.data ≈ raw_ψt atol=1e-12
         end
 
         @testset "TN Trotter mixed coupling uses symmetric local term" begin

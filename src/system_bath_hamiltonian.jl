@@ -29,23 +29,6 @@ end
 
 # Note: OpSum uses immutable operations (+=), so bath/coupling terms are inlined in each constructor
 
-"""
-    get_bath_operator(coupling::String) -> String
-
-Return the bath Hamiltonian operator that doesn't commute with the coupling.
-- XX, XY, XZ coupling → bath feels Z
-- ZZ, YZ coupling → bath feels X
-- YY coupling → bath feels Z
-"""
-function get_bath_operator(coupling::String)
-    # Bath operator must NOT commute with coupling for energy transfer
-    if coupling in ["ZZ", "YZ"]
-        return "X"  # Z coupling → bath feels X
-    else
-        return "Z"  # X or Y coupling → bath feels Z
-    end
-end
-
 function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{IsingModel},
                                          ::TNBackend, sites::Vector{<:Index}, coupling_params::CouplingParameters)
     J, h = ham_params.params.J, ham_params.params.h
@@ -118,7 +101,8 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     # Bath qubits are at positions: 2, 4, 6, ..., 2N
     # Bath operator depends on coupling type (must not commute with coupling)
     coupling_type = coupling_params.coupling
-    bath_op_func = (coupling_type in ["ZZ", "YZ"]) ? pauli_x : pauli_z
+    bath_op = get_bath_operator(coupling_type)
+    bath_op_func = bath_op == "X" ? pauli_x : pauli_z
 
     for i in 1:N
         bath_idx = 2*i

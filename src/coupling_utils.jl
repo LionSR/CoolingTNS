@@ -47,3 +47,22 @@ function coupling_operator_terms(coupling::String)
     op1 == op2 && return ((op1, op2),)
     return ((op1, op2), (op2, op1))
 end
+
+"""
+    get_bath_operator(coupling::String) -> String
+
+Return the Pauli operator used in the local bath Hamiltonian for a coupling
+label. The bath field is chosen from the repository's current ``X/Z`` bath
+convention and is invariant under reversing a mixed coupling label.
+
+In particular, `"YZ"` and `"ZY"` both contain the same symmetric bath
+operators and therefore both use an ``X`` bath field, just as `"ZZ"` does.
+All other valid labels use a ``Z`` bath field.
+"""
+function get_bath_operator(coupling::String)
+    bath_labels = last.(coupling_operator_terms(coupling))
+    has_bath_x = any(==("X"), bath_labels)
+    has_bath_z = any(==("Z"), bath_labels)
+
+    return has_bath_z && !has_bath_x ? "X" : "Z"
+end

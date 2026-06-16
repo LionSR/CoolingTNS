@@ -60,7 +60,14 @@ function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters, ::
     error("build_trotter_circuit_interleaved not implemented for model $(typeof(ham_params.model))")
 end
 
-function _tn_coupling_operator(sys_site::Index, bath_site::Index, coupling::String, g::Real)
+"""
+    _tn_coupling_operator(sys_site, bath_site, coupling, g)
+
+Return the local TN coupling operator `g * sum(O_S * O_B)` using the shared
+`coupling_operator_terms` convention; for example, `"XY"` gives
+`g * (X_S * Y_B + Y_S * X_B)`.
+"""
+function _tn_coupling_operator(sys_site::Index, bath_site::Index, coupling::String, g::Float64)
     return sum(
         g * op(sys_op, sys_site) * op(bath_op, bath_site)
         for (sys_op, bath_op) in coupling_operator_terms(coupling)

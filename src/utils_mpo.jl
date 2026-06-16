@@ -6,9 +6,7 @@ using ITensors
     appendzeros_MPO(ρ::MPO, sites::Vector{<:Index}, coupling::String="XX")
 
 Append bath qubits in appropriate ground state density matrix to system MPO.
-Bath basis depends on coupling type:
-- XX, XY, XZ coupling → bath in |↓⟩⟨↓| (Z-basis)
-- ZZ, YZ coupling → bath in |−⟩⟨−| (X-basis)
+Bath basis is selected by `get_bath_operator`.
 """
 function appendzeros_MPO(ρ::MPO, sites::Vector{<:Index}, coupling::String="XX")
     N = length(ρ)
@@ -53,4 +51,3 @@ function partial_trace_bath(ρ_sb::MPO, sites::Vector{<:Index}, sites_sys::Vecto
     # Trace out bath (even sites) and merge system+bath tensors back into N-site MPO
     return MPO([ρ_sb[2i-1] * ρ_sb[2i] * delta(sites[2i], sites[2i]') for i in 1:N])
 end
-

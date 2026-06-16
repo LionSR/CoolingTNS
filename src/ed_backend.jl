@@ -358,6 +358,7 @@ function _get_eigendecomp(H::AbstractMatrix)
         return EVOLUTION_EIG_CACHE[H_hash]
     end
 
+    @assert ishermitian(H) "H must be Hermitian for eigendecomposition"
     F = eigen(Hermitian(Matrix(H)))
     vals = Vector{Float64}(F.values)
     vecs = Matrix{ComplexF64}(F.vectors)
