@@ -104,9 +104,10 @@ end
 Construct transverse-field Ising Hamiltonian parameters.
 
 The boundary condition `bc` must be one of `:open`, `:periodic`, or
-`:antiperiodic`. Tensor-network Hamiltonian construction currently uses open
-boundaries; periodic and antiperiodic boundary conditions are meaningful for
-exact-diagonalization workflows and TN mode-observable analysis.
+`:antiperiodic`. Exact diagonalization and tensor-network continuous MPO
+construction honor all three boundary conditions. Tensor-network Trotter
+evolution currently supports open boundaries only and rejects non-open
+boundaries.
 """
 IsingParameters(N::Int, J, h; bc::Symbol=:open) =
     HamiltonianParameters(
@@ -120,9 +121,10 @@ Construct non-integrable Ising Hamiltonian parameters with transverse and
 longitudinal fields.
 
 The boundary condition `bc` must be one of `:open`, `:periodic`, or
-`:antiperiodic`. Tensor-network Hamiltonian construction currently uses open
-boundaries; periodic and antiperiodic boundary conditions are meaningful for
-exact-diagonalization workflows and TN mode-observable analysis.
+`:antiperiodic`. Exact diagonalization and tensor-network continuous MPO
+construction honor all three boundary conditions. Tensor-network Trotter
+evolution currently supports open boundaries only and rejects non-open
+boundaries.
 """
 NiIsingParameters(N::Int, J, hx, hz; bc::Symbol=:open) =
     HamiltonianParameters(
@@ -135,9 +137,9 @@ NiIsingParameters(N::Int, J, hx, hz; bc::Symbol=:open) =
 Construct Rydberg-chain Hamiltonian parameters.
 
 The boundary condition `bc` must be one of `:open`, `:periodic`, or
-`:antiperiodic`. Tensor-network Hamiltonian construction currently uses open
-boundaries; periodic and antiperiodic boundary conditions are meaningful for
-exact-diagonalization workflows and TN mode-observable analysis.
+`:antiperiodic`. The present Rydberg Hamiltonian uses the open-chain
+van der Waals distance convention; use `:open` for Rydberg dynamics until a
+non-open Rydberg boundary convention is specified.
 """
 RydbergParameters(N::Int, Ω, Δ, V; bc::Symbol=:open) =
     HamiltonianParameters(

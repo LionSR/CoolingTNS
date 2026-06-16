@@ -84,7 +84,11 @@ julia optCooling.jl --search_method Bayesian --num_trials 20 --N 10 --problem ni
 - `--theta`: Parameterized initial state angle (in units of π)
 - `--n_trajectories`: Number of trajectories for Monte Carlo method
 - `--peInt`: Noise strength (×10⁻³)
-- `--bc`: Boundary conditions (open, periodic, antiperiodic) - only for ED backend
+- `--bc`: Boundary conditions (open, periodic, antiperiodic). ED and TN
+  continuous Ising-family MPO construction honor them. TN Trotter currently
+  supports open boundaries only and rejects non-open boundaries. Rydberg
+  dynamics should use open boundaries until a non-open Rydberg convention is
+  specified.
 - `--J`: Ising coupling strength (default 1.0)
 - `--h`: Transverse field strength (default 1.0)
 

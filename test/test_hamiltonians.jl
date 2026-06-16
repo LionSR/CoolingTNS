@@ -425,27 +425,35 @@ end
             small_N = 2
             coupling_types = ["XX", "YY", "ZZ", "XY", "YX", "YZ", "ZY", "XZ", "ZX"]
             sites_small = siteinds("S=1/2", 2small_N)
-            ham_params = CoolingTNS.IsingParameters(small_N, 0.8, -0.4)
+            hamiltonian_cases = [
+                ("Ising", CoolingTNS.IsingParameters(small_N, 0.8, -0.4)),
+                ("Rydberg", CoolingTNS.RydbergParameters(small_N, 0.7, 0.2, 0.5)),
+            ]
 
-            for coupling in coupling_types
-                test_coupling_params = CoolingTNS.BasicCouplingParameters(
-                    coupling, 0.17, 1, 0.3, 0.6
-                )
+            for (label, ham_params) in hamiltonian_cases
+                @testset "$label" begin
+                    for coupling in coupling_types
+                        test_coupling_params = CoolingTNS.BasicCouplingParameters(
+                            coupling, 0.17, 1, 0.3, 0.6
+                        )
 
-                H_ed = Matrix(CoolingTNS.construct_system_bath_hamiltonian(
-                    ham_params, CoolingTNS.EDBackend(), 2small_N, test_coupling_params
-                ))
-                H_tn = hamiltonian_test_mpo_to_matrix(
-                    CoolingTNS.construct_system_bath_hamiltonian(
-                        ham_params, CoolingTNS.TNBackend(), sites_small, test_coupling_params
-                    )
-                )
+                        H_ed = Matrix(CoolingTNS.construct_system_bath_hamiltonian(
+                            ham_params, CoolingTNS.EDBackend(), 2small_N, test_coupling_params
+                        ))
+                        H_tn = hamiltonian_test_mpo_to_matrix(
+                            CoolingTNS.construct_system_bath_hamiltonian(
+                                ham_params, CoolingTNS.TNBackend(), sites_small, test_coupling_params
+                            )
+                        )
 
-                @test H_ed ≈ H_ed' atol=1e-12
-                @test H_tn ≈ H_tn' atol=1e-12
-                @test H_tn ≈ H_ed atol=1e-12
+                        @test H_ed ≈ H_ed' atol=1e-12
+                        @test H_tn ≈ H_tn' atol=1e-12
+                        @test H_tn ≈ H_ed atol=1e-12
+                    end
+                end
             end
 
+            ham_params = CoolingTNS.IsingParameters(small_N, 0.8, -0.4)
             xy_coupling_params = CoolingTNS.BasicCouplingParameters(
                 "XY", 0.17, 1, 0.3, 0.6
             )
