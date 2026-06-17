@@ -52,3 +52,9 @@ function partial_trace_bath(ρ_sb::MPO, sites::Vector{<:Index}, sites_sys::Vecto
     # Trace out bath (even sites) and merge system+bath tensors back into N-site MPO
     return MPO([ρ_sb[2i-1] * ρ_sb[2i] * delta(sites[2i], sites[2i]') for i in 1:N])
 end
+
+function partial_trace_system(ρ_sb::MPO, sites::Vector{<:Index}, sites_bath::Vector{<:Index})
+    N = length(sites_bath)
+    # Trace out system (odd sites) and merge system+bath tensors back into N-site MPO
+    return MPO([ρ_sb[2i-1] * ρ_sb[2i] * delta(sites[2i-1], sites[2i-1]') for i in 1:N])
+end
