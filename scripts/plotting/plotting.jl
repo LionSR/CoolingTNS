@@ -712,7 +712,7 @@ function _add_momentum_resonance_markers!(ax, k_values, εk_values, delta)
 end
 
 """
-    plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true)
+    plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true, show_fig=false)
 
 Plot the momentum distribution n_k vs k at a subset of cooling steps.
 
@@ -723,7 +723,7 @@ data with `J` and `h` metadata, they are reconstructed from the canonical
 dispersion helper. No marker is drawn when no mode-energy convention is
 available.
 """
-function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true)
+function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true, show_fig=false)
     plt = get_pyplot()
 
     data = read_h5_data(filename)
@@ -765,16 +765,16 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
         save_figure(fig, dirname(filename), "momentum_dist_$(base_name).pdf")
     end
 
-    plt.show()
+    _maybe_show_figure(plt, show_fig)
     return fig
 end
 
 """
-    plot_momentum_distribution_heatmap(filename; save_fig=true)
+    plot_momentum_distribution_heatmap(filename; save_fig=true, show_fig=false)
 
 Plot the momentum distribution as a heatmap showing n_k vs (k, step).
 """
-function plot_momentum_distribution_heatmap(filename; save_fig=true)
+function plot_momentum_distribution_heatmap(filename; save_fig=true, show_fig=false)
     plt = get_pyplot()
 
     data = read_h5_data(filename)
@@ -818,7 +818,8 @@ function plot_momentum_distribution_heatmap(filename; save_fig=true)
         save_figure(fig, dirname(filename), "momentum_dist_heatmap_$(base_name).pdf")
     end
 
-    plt.show()
+    _maybe_show_figure(plt, show_fig)
+    return fig
 end
 
 """

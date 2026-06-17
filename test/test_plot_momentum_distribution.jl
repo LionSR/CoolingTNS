@@ -72,6 +72,17 @@ function _momentum_has_label_containing(ax, text)
     return any(line -> occursin(text, _momentum_line_label(line)), _momentum_axis_lines(ax))
 end
 
+@testset "Momentum plot display is explicit" begin
+    show_count = Ref(0)
+    fake_pyplot = (show=() -> (show_count[] += 1; nothing),)
+
+    @test !_maybe_show_figure(fake_pyplot, false)
+    @test show_count[] == 0
+
+    @test _maybe_show_figure(fake_pyplot, true)
+    @test show_count[] == 1
+end
+
 @testset "Momentum distribution detuning markers use momentum axis" begin
     plt = get_pyplot()
 
