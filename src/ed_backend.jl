@@ -316,23 +316,19 @@ end
 """
     trace_out_system_ed(ρ::EDDensityMatrix, n_sys::Int) -> EDDensityMatrix
 
-Trace out system qubits, keeping bath qubits in the interleaved layout
-[s1, b1, s2, b2, ..., sN, bN]. Bath qubits are at even positions: 2, 4, 6, ..., 2N.
+Trace out system qubits, keeping bath qubits in the interleaved layout.
 """
 function trace_out_system_ed(ρ::EDDensityMatrix, n_sys::Int)
-    bath_qubits = [2i for i in 1:n_sys]
-    return partial_trace_ed(ρ, bath_qubits)
+    return partial_trace_ed(ρ, interleaved_bath_sites(n_sys))
 end
 
 """
     trace_out_bath_ed(ρ::EDDensityMatrix, n_sys::Int) -> EDDensityMatrix
 
-Trace out bath qubits, keeping system qubits in the interleaved layout
-[s1, b1, s2, b2, ..., sN, bN]. System qubits are at odd positions: 1, 3, 5, ..., 2N-1.
+Trace out bath qubits, keeping system qubits in the interleaved layout.
 """
 function trace_out_bath_ed(ρ::EDDensityMatrix, n_sys::Int)
-    sys_qubits = [2i - 1 for i in 1:n_sys]
-    return partial_trace_ed(ρ, sys_qubits)
+    return partial_trace_ed(ρ, interleaved_system_sites(n_sys))
 end
 
 # ============================================================================

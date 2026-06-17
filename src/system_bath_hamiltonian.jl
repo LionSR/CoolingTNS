@@ -40,11 +40,13 @@ function construct_system_bath_hamiltonian(
         coupling_params.g, coupling_params.delta, coupling_params.coupling
     bath_op = get_bath_operator(coupling)
 
-    terms = append_system_terms_tn(OpSum(), ham_params, i -> 2i - 1)
+    terms = append_system_terms_tn(OpSum(), ham_params, interleaved_system_site)
     for i in 1:N
-        terms += bath_detuning/2, bath_op, 2i # Bath site - operator depends on coupling
+        sys_site = interleaved_system_site(i)
+        bath_site = interleaved_bath_site(i)
+        terms += bath_detuning/2, bath_op, bath_site
         for (sys_op, bath_coupling_op) in coupling_operator_terms(coupling)
-            terms += g, sys_op, 2i-1, bath_coupling_op, 2i
+            terms += g, sys_op, sys_site, bath_coupling_op, bath_site
         end
     end
 
@@ -59,7 +61,7 @@ end
 function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters, 
                                          backend::EDBackend, nbits::Int, coupling_params::CouplingParameters)
     N = ham_params.N
-    N_total = nbits  # Should be 2 * N
+    N_total = nbits
     
     # Get system Hamiltonian on N qubits
     H_sys = construct_system_hamiltonian(ham_params, backend, N)
@@ -68,7 +70,7 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     # standard complex Pauli Y to be Hermitian.
     H_sb = spzeros(ComplexF64, 2^N_total, 2^N_total)
     
-    # Add system Hamiltonian terms with alternating layout mapping
+    # Add system Hamiltonian terms with interleaved layout mapping
     add_system_hamiltonian_ed!(H_sb, H_sys, N, N_total)
     
     # Add bath terms (at resonance with system gap if not specified).
@@ -81,7 +83,7 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     bath_op_func = ED_HAMILTONIAN_PAULI_MAP[get_bath_operator(coupling_type)]
 
     for i in 1:N
-        bath_idx = 2*i
+        bath_idx = interleaved_bath_site(i)
         H_sb += (Δ/2) * bath_op_func(bath_idx, N_total)
     end
     
@@ -90,8 +92,8 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     coupling_type = coupling_params.coupling
     
     for i in 1:N
-        sys_idx = 2*i - 1  # System qubit i
-        bath_idx = 2*i     # Corresponding bath qubit
+        sys_idx = interleaved_system_site(i)
+        bath_idx = interleaved_bath_site(i)
         
         H_sb += construct_coupling_term_ed(sys_idx, bath_idx, N_total, coupling_type, g)
     end
@@ -141,36 +143,18 @@ end
     map_system_to_full_basis_ed(sys_state::Int, N::Int) -> Int
 
 Map a system basis state to the full system+bath basis (bath bits set to 0).
-System qubits are at odd positions: 1, 3, 5, ...
 """
 function map_system_to_full_basis_ed(sys_state::Int, N::Int)
-    full_state = 0
-    for i in 0:(N-1)
-        if (sys_state >> i) & 1 == 1
-            # System qubit i is at position 2*i in the full space (0-indexed)
-            full_state |= (1 << (2*i))
-        end
-    end
-    return full_state
+    return interleaved_system_basis_state(sys_state, N)
 end
 
 """
     map_system_bath_to_full_basis_ed(sys_state::Int, bath_state::Int, N::Int) -> Int
 
 Map system and bath basis states to the full interleaved basis.
-System qubit i → position 2i (0-indexed), bath qubit i → position 2i+1 (0-indexed).
 """
 function map_system_bath_to_full_basis_ed(sys_state::Int, bath_state::Int, N::Int)
-    full_state = 0
-    for i in 0:(N-1)
-        if (sys_state >> i) & 1 == 1
-            full_state |= (1 << (2*i))       # System qubit at position 2i
-        end
-        if (bath_state >> i) & 1 == 1
-            full_state |= (1 << (2*i + 1))   # Bath qubit at position 2i+1
-        end
-    end
-    return full_state
+    return interleaved_basis_state(sys_state, bath_state, N)
 end
 
 const ED_HAMILTONIAN_PAULI_MAP = Dict(

@@ -14,6 +14,7 @@ include("result_keys.jl")          # Public result dictionary keys
 
 include("utils.jl")
 include("coupling_utils.jl")
+include("interleaved_layout.jl")
 include("utils_mps.jl")
 include("utils_mpo.jl")
 
@@ -64,6 +65,14 @@ export to_dict
 export setup_common_parameters, create_filename, save_results
 export get_backend, get_sim_method, get_evolution_method, mean_last_window, relative_energy
 export parse_coupling, coupling_operator_terms, get_bath_operator
+export interleaved_total_sites
+export interleaved_system_site, interleaved_bath_site
+export interleaved_system_sites, interleaved_bath_sites
+export interleaved_system_indices, interleaved_bath_indices
+export interleaved_bit_position
+export interleaved_system_bit, interleaved_bath_bit
+export interleaved_system_bits, interleaved_bath_bits
+export interleaved_basis_state, interleaved_system_basis_state
 # Result dictionary keys
 export RESULT_ENERGY, RESULT_GROUND_STATE_OVERLAP, RESULT_PURITY
 export RESULT_BATH_MAGNETIZATION, RESULT_BATH_SAMPLE_MAGNETIZATION

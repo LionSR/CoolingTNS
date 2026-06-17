@@ -53,21 +53,13 @@ function interleave_system_bath_ed(ψ_sys::EDStateVector, ψ_bath::EDStateVector
     N = ψ_sys.n_qubits
     @assert ψ_bath.n_qubits == N "System and bath must have same number of qubits"
 
-    N_total = 2 * N
+    N_total = interleaved_total_sites(N)
     dim_total = 2^N_total
     data = zeros(ComplexF64, dim_total)
 
-    # For each basis state in the combined space
     for sys_idx in 0:(2^N - 1)
         for bath_idx in 0:(2^N - 1)
-            # Interleave the bits: sys₁ bath₁ sys₂ bath₂ ...
-            combined_idx = 0
-            for i in 0:(N-1)
-                sys_bit = (sys_idx >> i) & 1
-                bath_bit = (bath_idx >> i) & 1
-                combined_idx |= (sys_bit << (2*i))      # System at odd positions (0, 2, 4...)
-                combined_idx |= (bath_bit << (2*i + 1)) # Bath at even positions (1, 3, 5...)
-            end
+            combined_idx = interleaved_basis_state(sys_idx, bath_idx, N)
             data[combined_idx + 1] = ψ_sys.data[sys_idx + 1] * ψ_bath.data[bath_idx + 1]
         end
     end
@@ -104,22 +96,15 @@ function prepare_combined_state_ed(state::EDDensityMatrix, N_bath::Int, coupling
     ψ_bath = get_bath_ground_state_ed(N_bath, coupling)
     ρ_bath = state_to_density_ed(ψ_bath)
 
-    N_total = 2 * N
+    N_total = interleaved_total_sites(N)
     dim_total = 2^N_total
     data = zeros(ComplexF64, dim_total, dim_total)
 
     # Interleave density matrices
     for sys_i in 0:(2^N - 1), sys_j in 0:(2^N - 1)
         for bath_i in 0:(2^N - 1), bath_j in 0:(2^N - 1)
-            # Interleave indices
-            combined_i = 0
-            combined_j = 0
-            for k in 0:(N-1)
-                combined_i |= ((sys_i >> k) & 1) << (2*k)
-                combined_i |= ((bath_i >> k) & 1) << (2*k + 1)
-                combined_j |= ((sys_j >> k) & 1) << (2*k)
-                combined_j |= ((bath_j >> k) & 1) << (2*k + 1)
-            end
+            combined_i = interleaved_basis_state(sys_i, bath_i, N)
+            combined_j = interleaved_basis_state(sys_j, bath_j, N)
             data[combined_i + 1, combined_j + 1] = state.data[sys_i + 1, sys_j + 1] * ρ_bath.data[bath_i + 1, bath_j + 1]
         end
     end
@@ -154,8 +139,7 @@ Shared function to measure and collapse bath for Monte Carlo methods.
 Returns (system_state, bath_outcomes).
 """
 function process_bath_ed_monte_carlo(state::EDStateVector, N_bath::Int)
-    # Bath qubits are at even positions in alternating layout
-    bath_qubits = [2*i for i in 1:N_bath]
+    bath_qubits = interleaved_bath_sites(N_bath)
     
     # Measure bath qubits and collapse
     ψ_sys, bath_outcomes = measure_ed!(state, bath_qubits)
@@ -210,13 +194,13 @@ tracing out the bath.
 _system_state_for_measurement(state::EDStateVector, ::Int) = state
 
 function _system_state_for_measurement(ρ::EDDensityMatrix, N_sys::Int)
-    if ρ.n_qubits == 2 * N_sys
+    if ρ.n_qubits == interleaved_total_sites(N_sys)
         return trace_out_bath_ed(ρ, N_sys)
     elseif ρ.n_qubits == N_sys
         return ρ
     else
         throw(DimensionMismatch(
-            "ED density-matrix measurements expected $N_sys or $(2 * N_sys) qubits, " *
+            "ED density-matrix measurements expected $N_sys or $(interleaved_total_sites(N_sys)) qubits, " *
             "got $(ρ.n_qubits)"
         ))
     end
@@ -265,7 +249,9 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
         end
         
         # Bath magnetization (only if we have full state and not first step)
-        if step > 1 && ρ_total.n_qubits == 2*N_sys && haskey(measurements, RESULT_BATH_MAGNETIZATION)
+        if step > 1 &&
+           ρ_total.n_qubits == interleaved_total_sites(N_sys) &&
+           haskey(measurements, RESULT_BATH_MAGNETIZATION)
             N_bath = N_sys
             ρ_bath = trace_out_system_ed(ρ_total, N_sys)
             # Compute magnetization
