@@ -368,38 +368,36 @@ function add_kspace_measurements!(measurements, problem::CoolingProblem{EDBacken
     end
 end
 
+function _mode_measurement_ham_params(problem::CoolingProblem, ham_params)
+    return ham_params !== nothing ? ham_params : (haskey(problem.extra, :ham_params) ? problem.extra.ham_params : nothing)
+end
+
+function _add_ising_mode_measurements!(measurements, problem::CoolingProblem, ham_params)
+    hp = _mode_measurement_ham_params(problem, ham_params)
+    _supports_ising_fourier_observables(hp) || return nothing
+
+    # Determine gF from the ground state's parity sector.
+    # This ensures consistent mode measurement even for mixed states.
+    px = measure_state_parity(problem.ϕ₀, hp.N)
+    measurements[RESULT_MODE_GF] = _reference_fermionic_bc(hp.bc, px)
+
+    # Preallocate arrays after the first measurement call, when the mode count is known.
+    measurements[RESULT_MODE_HK] = nothing
+    measurements[RESULT_MODE_NK] = nothing
+    measurements[RESULT_MODE_K_INDICES] = nothing
+    measurements[RESULT_MODE_ENERGIES] = nothing
+    return nothing
+end
+
 # Helper for mode energy measurements ⟨h_k⟩ (Ising PBC/APBC)
 function add_mode_measurements!(measurements, problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend}, steps, ham_params)
-    hp = ham_params !== nothing ? ham_params : (haskey(problem.extra, :ham_params) ? problem.extra.ham_params : nothing)
-    if _supports_ising_fourier_observables(hp)
-        # Determine gF from the ground state's parity sector.
-        # This ensures consistent mode measurement even for mixed states.
-        px = measure_state_parity(problem.ϕ₀, hp.N)
-        gF = _reference_fermionic_bc(hp.bc, px)
-        measurements[RESULT_MODE_GF] = gF
-
-        # Preallocate arrays (will be filled on first measurement call)
-        measurements[RESULT_MODE_HK] = nothing  # allocated in perform_measurements_ed
-        measurements[RESULT_MODE_NK] = nothing
-        measurements[RESULT_MODE_K_INDICES] = nothing
-        measurements[RESULT_MODE_ENERGIES] = nothing
-    end
+    _add_ising_mode_measurements!(measurements, problem, ham_params)
 end
 
 function add_mode_measurements!(measurements, problem::CoolingProblem{TNBackend},
                                 state::QuantumState{TNBackend,MonteCarloWavefunction,E},
                                 steps, ham_params) where E<:EvolutionMethod
-    hp = ham_params !== nothing ? ham_params : (haskey(problem.extra, :ham_params) ? problem.extra.ham_params : nothing)
-    if _supports_ising_fourier_observables(hp)
-        px = measure_state_parity(problem.ϕ₀, hp.N)
-        gF = _reference_fermionic_bc(hp.bc, px)
-        measurements[RESULT_MODE_GF] = gF
-
-        measurements[RESULT_MODE_HK] = nothing
-        measurements[RESULT_MODE_NK] = nothing
-        measurements[RESULT_MODE_K_INDICES] = nothing
-        measurements[RESULT_MODE_ENERGIES] = nothing
-    end
+    _add_ising_mode_measurements!(measurements, problem, ham_params)
 end
 
 # Fallback: mode measurements not supported for non-ED backends
@@ -525,7 +523,7 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
         measurements[RESULT_BATH_SAMPLE_MAGNETIZATION][step] = compute_bath_magnetization(problem.backend, state, bath_info, ham_params.N)
     end
 
-    if haskey(measurements, RESULT_MODE_HK) && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, IsingModel)
+    if haskey(measurements, RESULT_MODE_HK) && _supports_ising_fourier_observables(ham_params)
         if length(ψ_s) == ham_params.N
             gF_kwarg = haskey(measurements, RESULT_MODE_GF) ? measurements[RESULT_MODE_GF] : nothing
             k_indices, hk_values, εk_values = measure_all_mode_energies(ψ_s, ham_params; gF=gF_kwarg)

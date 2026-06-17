@@ -52,6 +52,34 @@ using ITensorMPS
         end
     end
 
+    @testset "MPS h_k agrees with ED for an entangled state" begin
+        N = 4
+        ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
+        sites = siteinds("S=1/2", N)
+        θ = 0.37
+
+        gate = exp(-1.0im * θ * op("X", sites[1]) * op("X", sites[2]))
+        ψ_tn = apply([gate], MPS(sites, "Up"); cutoff=1e-14, maxdim=20, move_sites_back=true)
+        normalize!(ψ_tn)
+
+        data = zeros(ComplexF64, 2^N)
+        data[1] = cos(θ)
+        data[4] = -1.0im * sin(θ)
+        ψ_ed = CoolingTNS.EDStateVector(data, N)
+
+        @test abs(measure_state_parity(ψ_tn, N)) < 1e-10
+        @test abs(measure_state_parity(ψ_ed, N)) < 1e-10
+
+        for gF in [-1, 1]
+            ks_tn, hk_tn, εk_tn = measure_all_mode_energies(ψ_tn, ham_params; gF=gF)
+            ks_ed, hk_ed, εk_ed = measure_all_mode_energies(ψ_ed, ham_params; gF=gF)
+
+            @test ks_tn == ks_ed
+            @test εk_tn ≈ εk_ed atol=1e-12
+            @test hk_tn ≈ hk_ed atol=1e-10
+        end
+    end
+
     @testset "MPS mode observables reject open spin boundaries" begin
         N = 4
         ham_params = IsingParameters(N, 1.0, 0.5, :open)
