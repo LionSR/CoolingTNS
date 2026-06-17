@@ -45,3 +45,7 @@ scripts/plotting/Data/
 
 # Slides build artifacts
 slides/build/
+
+# Local auxiliary worktrees
+.worktree/
+.worktrees/
