@@ -81,7 +81,7 @@ The generated plots show:
    - Shows n_k (occupation number) vs k (momentum) at different cooling steps
    - Initial state (usually uniform or specific pattern based on product state)
    - Evolution shows population transfer to lower energy modes
-   - The bath frequency δ is marked to show resonant modes
+   - The bath detuning energy |δ| is marked to show resonant modes
 
 2. **momentum_dist_heatmap_*.pdf**:
    - 2D heatmap showing n_k vs (k, cooling step)
@@ -90,11 +90,12 @@ The generated plots show:
    - Shows which modes are being cooled most effectively
 
 Key physics:
-- For the Ising model, the single-particle energies are ε_k = √(1 + sin(2θ)cos(2πk/N))
-- The bath resonantly cools modes where ε_k ≈ δ (bath frequency)
-- Different boundary conditions (PBC vs APBC) have different allowed k values
-- PBC: k ∈ {-N/2+1, ..., N/2}
-- APBC: k ∈ {-(N-1)/2, ..., (N-1)/2}
+- For the Ising model, the positive code-unit quasiparticle energies are
+  ε_k = 2√(J² + h²)√(1 - sin(2θ)cos(2πk/N)), with θ = atan(h, J).
+- The bath resonantly cools modes where ε_k ≈ |δ| (bath detuning energy)
+- The fermionic boundary condition g_F fixes the allowed k grid
+- g_F = +1: k ∈ {-N/2+1, ..., N/2}
+- g_F = -1: k ∈ {-(N-1)/2, ..., (N-1)/2}
 """)
 
 println("\nAll plots saved in Results/Figs/")

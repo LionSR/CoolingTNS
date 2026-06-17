@@ -38,6 +38,7 @@ end
         include("test_plot_momentum_distribution.jl")
         include("test_ed_dm_kspace_examples.jl")
         include("test_ed_kspace_smoke_example.jl")
+        include("test_ed_kspace_demo_text.jl")
     end
 
     if RUN_FULL_TESTS
