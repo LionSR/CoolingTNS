@@ -5,7 +5,7 @@
 Standalone diagnostic script that:
 1. Sets up a small Ising chain (N=6, PBC) with reasonable parameters
 2. Runs ED DensityMatrix cooling for ~50 steps with mode measurement
-3. Prints a summary table of mode energies at each step
+3. Prints a summary table of physical mode occupations n_k at each step
 4. Verifies energy consistency: (Λ/2) Σ_k coeff_k · ⟨h_k⟩ ≈ ⟨H⟩
 5. Optionally generates a matplotlib plot
 
@@ -111,11 +111,16 @@ function run_diagnostic(; do_plot::Bool=false)
     # Print mode cooling summary
     # ========================================================================
 
-    mode_hk = results["mode_hk"]
-    k_indices = results["mode_k_indices"]
-    εk_values = results["mode_ek_values"]
-    E_list = results["E_list"]
-    overlap_list = results["GS_overlap_list"]
+    mode_hk = results[CoolingTNS.RESULT_MODE_HK]
+    mode_nk = if haskey(results, CoolingTNS.RESULT_MODE_NK)
+        results[CoolingTNS.RESULT_MODE_NK]
+    else
+        CoolingTNS.mode_occupation_from_hk(mode_hk)
+    end
+    k_indices = results[CoolingTNS.RESULT_MODE_K_INDICES]
+    εk_values = results[CoolingTNS.RESULT_MODE_ENERGIES]
+    E_list = results[CoolingTNS.RESULT_ENERGY]
+    overlap_list = results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP]
     n_steps_total = size(mode_hk, 1)
     n_modes = size(mode_hk, 2)
 
@@ -123,8 +128,10 @@ function run_diagnostic(; do_plot::Bool=false)
     res_idx = argmin(abs.(εk_values .- abs(Δ)))
 
     println("=" ^ 80)
-    println("  Cooling Summary Table")
+    println("  Cooling Summary Table: physical occupations n_k")
     println("=" ^ 80)
+    println("  Table entries are quasiparticle occupations n_k; the resonant mode is marked by *.")
+    println()
 
     # Header
     k_headers = [k isa Rational ? "k=$(numerator(k))/$(denominator(k))" : "k=$k" for k in k_indices]
@@ -150,7 +157,7 @@ function run_diagnostic(; do_plot::Bool=false)
         @printf("  %-6d  %10.6f  %8.5f", step - 1, E_list[step] / N, overlap_list[step])
         for i in 1:n_modes
             marker = i == res_idx ? "*" : " "
-            @printf("  %9.5f%s", mode_hk[step, i], marker)
+            @printf("  %9.5f%s", mode_nk[step, i], marker)
         end
         println()
     end
@@ -196,20 +203,20 @@ function run_diagnostic(; do_plot::Bool=false)
     # ========================================================================
 
     println("=" ^ 80)
-    println("  Mode Cooling Effectiveness")
+    println("  Mode Cooling Effectiveness: physical occupations n_k")
     println("=" ^ 80)
     @printf("  %-10s  %-10s  %-12s  %-12s  %-10s  %-10s\n",
-            "k", "ε_k", "⟨h_k⟩_init", "⟨h_k⟩_final", "Δ⟨h_k⟩", "|ε_k - Δ|")
+            "k", "ε_k", "n_k(init)", "n_k(final)", "Δn_k", "|ε_k - Δ|")
     println("  " * "─" ^ 66)
 
     for i in 1:n_modes
         k = k_indices[i]
         k_str = k isa Rational ? "$(numerator(k))/$(denominator(k))" : "$k"
-        hk_init = mode_hk[1, i]
-        hk_final = mode_hk[end, i]
+        nk_init = mode_nk[1, i]
+        nk_final = mode_nk[end, i]
         marker = i == res_idx ? "  ← resonant" : ""
         @printf("  %-10s  %10.4f  %12.6f  %12.6f  %10.6f  %10.4f%s\n",
-                k_str, εk_values[i], hk_init, hk_final, hk_final - hk_init,
+                k_str, εk_values[i], nk_init, nk_final, nk_final - nk_init,
                 abs(εk_values[i] - abs(Δ)), marker)
     end
     println()
@@ -224,9 +231,9 @@ function run_diagnostic(; do_plot::Bool=false)
             include(joinpath(@__DIR__, "..", "plotting", "plot_mode_cooling.jl"))
             savepath = joinpath(@__DIR__, "..", "..", "Figs", "mode_cooling_diagnostic_N$(N).pdf")
             mkpath(dirname(savepath))
-            fig = plot_mode_cooling_from_data(mode_hk, k_indices, εk_values;
-                                              delta=Δ, savepath=savepath,
-                                              title="Mode cooling: N=$N, J=$J, h=$h, $COUPLING coupling")
+            fig = plot_mode_occupation_from_data(mode_nk, k_indices, εk_values;
+                                                 delta=Δ, savepath=savepath,
+                                                 title="Mode occupation cooling: N=$N, J=$J, h=$h, $COUPLING coupling")
             println("Plot saved to $savepath")
         catch e
             if isa(e, LoadError) || isa(e, MethodError)

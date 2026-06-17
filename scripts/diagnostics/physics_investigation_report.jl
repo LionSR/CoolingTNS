@@ -98,9 +98,9 @@ pretty_header("1) ED DM+Continuous: N=2 transverse-field Ising")
         CoolingTNS.run_cooling(prob, state0, prob.extra.coupling_params, sim_params, ham_params)
     end
 
-    E_list = results["E_list"]
-    ov_list = results["GS_overlap_list"]
-    purity_list = results["purity_list"]
+    E_list = results[CoolingTNS.RESULT_ENERGY]
+    ov_list = results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP]
+    purity_list = results[CoolingTNS.RESULT_PURITY]
 
     print_energy_table(N=N, E_list=E_list, ov_list=ov_list, purity_list=purity_list)
 
@@ -139,8 +139,8 @@ pretty_header("2) ED DM: Continuous vs (time-sliced) 'Trotter' evolution")
         CoolingTNS.run_cooling(prob_trot, st0_trot, prob_trot.extra.coupling_params, sim_trot, ham_params)
     end
 
-    E_cont = res_cont["E_list"]
-    E_trot = res_trot["E_list"]
+    E_cont = res_cont[CoolingTNS.RESULT_ENERGY]
+    E_trot = res_trot[CoolingTNS.RESULT_ENERGY]
 
     maxdiff = maximum(abs.(E_cont .- E_trot))
 
@@ -200,9 +200,9 @@ pretty_header("3) TN MC+Continuous energy increase: stochastic (Kraus) trajector
                 CoolingTNS.run_cooling(prob, st0, prob.extra.coupling_params, sim_params, ham_params)
             end
             if E_start === nothing
-                E_start = res["E_list"][1]
+                E_start = res[CoolingTNS.RESULT_ENERGY][1]
             end
-            E_end[t] = res["E_list"][end]
+            E_end[t] = res[CoolingTNS.RESULT_ENERGY][end]
         end
         return E_start::Float64, E_end
     end
@@ -214,7 +214,12 @@ pretty_header("3) TN MC+Continuous energy increase: stochastic (Kraus) trajector
     @test isapprox(E_start_ed, E_start_tn; atol=1e-10, rtol=1e-10)
 
     println("Reference ED DM energy trajectory (deterministic):")
-    print_energy_table(N=N, E_list=res_ed_dm["E_list"], ov_list=res_ed_dm["GS_overlap_list"], purity_list=res_ed_dm["purity_list"])
+    print_energy_table(
+        N=N,
+        E_list=res_ed_dm[CoolingTNS.RESULT_ENERGY],
+        ov_list=res_ed_dm[CoolingTNS.RESULT_GROUND_STATE_OVERLAP],
+        purity_list=res_ed_dm[CoolingTNS.RESULT_PURITY],
+    )
 
     function summarize(name, E_start, E_end)
         μ = mean(E_end)
@@ -272,8 +277,8 @@ end
     println("g\tte\tΔ\t\tE_start/N\tE_end/N\t\tΔE/N")
     for g in (0.05, 0.10, 0.20, 0.40)
         prob, res = run_ed_dm_case(ham_params=ham_params, coupling="XX", g=g, te=1.0, steps=steps)
-        E0 = res["E_list"][1]
-        E1 = res["E_list"][end]
+        E0 = res[CoolingTNS.RESULT_ENERGY][1]
+        E1 = res[CoolingTNS.RESULT_ENERGY][end]
         @printf("%.2f\t%.1f\t%.3f\t% .6f\t% .6f\t%+.6f\n",
                 g, 1.0, prob.extra.coupling_params.delta, E0 / N, E1 / N, (E1 - E0) / N)
     end
@@ -281,8 +286,8 @@ end
     println("\nScan te at fixed g=0.2")
     for te in (0.2, 0.5, 1.0, 2.0)
         prob, res = run_ed_dm_case(ham_params=ham_params, coupling="XX", g=0.2, te=te, steps=steps)
-        E0 = res["E_list"][1]
-        E1 = res["E_list"][end]
+        E0 = res[CoolingTNS.RESULT_ENERGY][1]
+        E1 = res[CoolingTNS.RESULT_ENERGY][end]
         @printf("%.2f\t%.1f\t%.3f\t% .6f\t% .6f\t%+.6f\n",
                 0.2, te, prob.extra.coupling_params.delta, E0 / N, E1 / N, (E1 - E0) / N)
     end
@@ -292,7 +297,7 @@ end
     results_by_coupling = Dict{String,Float64}()
     for coupling in ("XX", "ZZ", "YY")
         prob, res = run_ed_dm_case(ham_params=ham_params, coupling=coupling, g=0.2, te=1.0, steps=steps)
-        E1 = res["E_list"][end]
+        E1 = res[CoolingTNS.RESULT_ENERGY][end]
         results_by_coupling[coupling] = E1
         @printf("%s\t\t%.3f\t% .6f\n", coupling, prob.extra.coupling_params.delta, E1 / N)
     end
@@ -300,7 +305,7 @@ end
     # Basic ordering check: larger g should cool at least as much as smaller g in this scan.
     prob_lo, res_lo = run_ed_dm_case(ham_params=ham_params, coupling="XX", g=0.05, te=1.0, steps=steps)
     prob_hi, res_hi = run_ed_dm_case(ham_params=ham_params, coupling="XX", g=0.40, te=1.0, steps=steps)
-    @test res_hi["E_list"][end] < res_lo["E_list"][end]
+    @test res_hi[CoolingTNS.RESULT_ENERGY][end] < res_lo[CoolingTNS.RESULT_ENERGY][end]
 
     # Coupling dependence (just check that different couplings change the result)
     @test length(unique(values(results_by_coupling))) > 1

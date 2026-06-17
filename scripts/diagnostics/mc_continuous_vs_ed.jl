@@ -62,7 +62,7 @@ for _ in 1:n_traj
         results = CoolingTNS.run_cooling(problem, state0, coupling_params, sim_params, ham_params)
         results, problem
     end
-    push!(ed_mc_E_lists, results_mc["E_list"])
+    push!(ed_mc_E_lists, results_mc[CoolingTNS.RESULT_ENERGY])
 end
 ed_mc_E_avg = mean(ed_mc_E_lists)
 ed_mc_E_stderr = [std([ed_mc_E_lists[t][s] for t in 1:n_traj]) for s in 1:n_steps+1] ./ sqrt(n_traj)
@@ -87,7 +87,7 @@ for tdvp_tau in [0.1, 0.01]
             results = CoolingTNS.run_cooling(problem, state0, coupling_params, sim_params, ham_params)
             results, problem
         end
-        push!(tn_mc_E_lists, results_mc["E_list"])
+        push!(tn_mc_E_lists, results_mc[CoolingTNS.RESULT_ENERGY])
     end
     tn_mc_E_avg = mean(tn_mc_E_lists)
     tn_mc_E_stderr = [std([tn_mc_E_lists[t][s] for t in 1:n_traj]) for s in 1:n_steps+1] ./ sqrt(n_traj)
@@ -95,7 +95,7 @@ for tdvp_tau in [0.1, 0.01]
     println(@sprintf("\n  %-6s %-12s %-12s %-12s %-12s %-12s", "Step", "ED DM E/N", "ED MC E/N", "TN MC E/N", "|ED-TN MC|", "TN stderr"))
     println("  " * "-"^66)
     for step in 1:n_steps+1
-        e_ed_dm = results_ed_dm["E_list"][step] / N
+        e_ed_dm = results_ed_dm[CoolingTNS.RESULT_ENERGY][step] / N
         e_ed_mc = ed_mc_E_avg[step] / N
         e_tn_mc = tn_mc_E_avg[step] / N
         diff = abs(e_ed_mc*N - tn_mc_E_avg[step]) / N

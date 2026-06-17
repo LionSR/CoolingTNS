@@ -40,10 +40,10 @@ function test_long_cooling()
     println("\nStep | E/N        | GS overlap | Purity")
     println("-"^55)
     for step in [1, 10, 20, 50, 100, 150, 200, 201]
-        if step <= length(results["E_list"])
-            E = results["E_list"][step]
-            ov = results["GS_overlap_list"][step]
-            p = results["purity_list"][step]
+        if step <= length(results[CoolingTNS.RESULT_ENERGY])
+            E = results[CoolingTNS.RESULT_ENERGY][step]
+            ov = results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP][step]
+            p = results[CoolingTNS.RESULT_PURITY][step]
             @printf("%4d | %10.6f | %10.6f | %10.6f\n", step-1, E/N, ov, p)
         end
     end

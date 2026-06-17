@@ -98,8 +98,8 @@ function figure1_method_consistency()
         res_mc, _ = run_sim(backend_str="ED", sim_method_str="monte_carlo",
                             evolution_method_str="continuous",
                             ham_params=HAM_PARAMS, coupling_params=cp)
-        push!(mc_E_lists, res_mc["E_list"])
-        push!(mc_ov_lists, res_mc["GS_overlap_list"])
+        push!(mc_E_lists, res_mc[CoolingTNS.RESULT_ENERGY])
+        push!(mc_ov_lists, res_mc[CoolingTNS.RESULT_GROUND_STATE_OVERLAP])
     end
     mc_E_avg = mean(mc_E_lists)
     mc_E_std = std(mc_E_lists)
@@ -112,9 +112,9 @@ function figure1_method_consistency()
 
     # Left: Energy density
     ax = axs[0]
-    ax.plot(steps_ax, res_dm_cont["E_list"] ./ N_SYS,
+    ax.plot(steps_ax, res_dm_cont[CoolingTNS.RESULT_ENERGY] ./ N_SYS,
             linewidth=2, label="DM + Continuous", color="C0")
-    ax.plot(steps_ax, res_dm_trot["E_list"] ./ N_SYS,
+    ax.plot(steps_ax, res_dm_trot[CoolingTNS.RESULT_ENERGY] ./ N_SYS,
             linewidth=2, linestyle="--", label="DM + Trotter", color="C1")
     ax.errorbar(collect(steps_ax), mc_E_avg ./ N_SYS, yerr=mc_E_std ./ (N_SYS * sqrt(n_traj)),
                 linewidth=1.5, linestyle=":", capsize=2, label="MC + Continuous", color="C2",
@@ -129,9 +129,9 @@ function figure1_method_consistency()
 
     # Right: GS overlap
     ax = axs[1]
-    ax.plot(steps_ax, res_dm_cont["GS_overlap_list"],
+    ax.plot(steps_ax, res_dm_cont[CoolingTNS.RESULT_GROUND_STATE_OVERLAP],
             linewidth=2, label="DM + Continuous", color="C0")
-    ax.plot(steps_ax, res_dm_trot["GS_overlap_list"],
+    ax.plot(steps_ax, res_dm_trot[CoolingTNS.RESULT_GROUND_STATE_OVERLAP],
             linewidth=2, linestyle="--", label="DM + Trotter", color="C1")
     ax.errorbar(collect(steps_ax), mc_ov_avg, yerr=mc_ov_std ./ sqrt(n_traj),
                 linewidth=1.5, linestyle=":", capsize=2, label="MC + Continuous", color="C2",
@@ -165,7 +165,7 @@ function figure2_trotter_convergence()
     res_ref, _ = run_sim(backend_str="ED", sim_method_str="density_matrix",
                          evolution_method_str="continuous",
                          ham_params=HAM_PARAMS, coupling_params=cp)
-    E_ref = res_ref["E_list"][end] / N_SYS
+    E_ref = res_ref[CoolingTNS.RESULT_ENERGY][end] / N_SYS
 
     E_trotter = Float64[]
     for tau in tau_values
@@ -173,7 +173,7 @@ function figure2_trotter_convergence()
         res, _ = run_sim(backend_str="ED", sim_method_str="density_matrix",
                          evolution_method_str="trotter", tau=tau,
                          ham_params=HAM_PARAMS, coupling_params=cp)
-        push!(E_trotter, res["E_list"][end] / N_SYS)
+        push!(E_trotter, res[CoolingTNS.RESULT_ENERGY][end] / N_SYS)
     end
 
     errors = abs.(E_trotter .- E_ref)
@@ -238,8 +238,8 @@ function figure3_cross_backend()
                         ham_params=ham_cross, coupling_params=cp, Dmax=100)
 
     steps_ax = 0:STEPS
-    E_ed = res_ed["E_list"] ./ N_cross
-    E_tn = res_tn["E_list"] ./ N_cross
+    E_ed = res_ed[CoolingTNS.RESULT_ENERGY] ./ N_cross
+    E_tn = res_tn[CoolingTNS.RESULT_ENERGY] ./ N_cross
     diff = abs.(E_ed .- E_tn)
 
     fig, axs = plt.subplots(1, 2, figsize=(10, 4))
@@ -287,8 +287,8 @@ function figure4_physical_invariants()
                             ham_params=HAM_PARAMS, coupling_params=cp)
 
     steps_ax = 0:STEPS
-    purity = res["purity_list"]
-    E_density = res["E_list"] ./ N_SYS
+    purity = res[CoolingTNS.RESULT_PURITY]
+    E_density = res[CoolingTNS.RESULT_ENERGY] ./ N_SYS
     E0_density = prob_inv.e₀ / N_SYS
 
     fig, axs = plt.subplots(1, 2, figsize=(10, 4))
@@ -357,9 +357,9 @@ function figure5_ising_vs_niising()
 
     # Left: Energy density
     ax = axs[0]
-    ax.plot(steps_ax, res_ising["E_list"] ./ N_SYS,
+    ax.plot(steps_ax, res_ising[CoolingTNS.RESULT_ENERGY] ./ N_SYS,
             linewidth=2, label="Ising (parity ✓)", color="C0")
-    ax.plot(steps_ax, res_niising["E_list"] ./ N_SYS,
+    ax.plot(steps_ax, res_niising[CoolingTNS.RESULT_ENERGY] ./ N_SYS,
             linewidth=2, linestyle="--", label="niIsing (parity ✗)", color="C3")
     ax.axhline(y=prob_ising.e₀ / N_SYS, linewidth=1, color="C0", linestyle=":",
                alpha=0.5, label="Ising GS")
@@ -373,9 +373,9 @@ function figure5_ising_vs_niising()
 
     # Right: GS overlap
     ax = axs[1]
-    ax.plot(steps_ax, res_ising["GS_overlap_list"],
+    ax.plot(steps_ax, res_ising[CoolingTNS.RESULT_GROUND_STATE_OVERLAP],
             linewidth=2, label="Ising (parity ✓)", color="C0")
-    ax.plot(steps_ax, res_niising["GS_overlap_list"],
+    ax.plot(steps_ax, res_niising[CoolingTNS.RESULT_GROUND_STATE_OVERLAP],
             linewidth=2, linestyle="--", label="niIsing (parity ✗)", color="C3")
     ax.set_xlabel("Cooling step", fontsize=14)
     ax.set_ylabel("GS overlap", fontsize=14)

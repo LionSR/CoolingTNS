@@ -11,7 +11,9 @@ include(joinpath(@__DIR__, "PlotUtils.jl"))
 
 # Import CoolingTNS types and functions needed by this file
 using CoolingTNS: HamiltonianParameters, CouplingParameters, UnifiedSimulationParameters,
-    CoolingBackend, parse_hamiltonian_name, create_filename, mean_last_window
+    CoolingBackend, parse_hamiltonian_name, create_filename, mean_last_window,
+    RESULT_ENERGY, RESULT_GROUND_STATE_OVERLAP, RESULT_MOMENTUM_DISTRIBUTION,
+    RESULT_K_VALUES
 
 _ham_params_with_N(template::HamiltonianParameters, N::Int) =
     HamiltonianParameters(template.model, N, template.params, template.bc)
@@ -74,8 +76,8 @@ function _read_final_metrics(filename::AbstractString, N::Int)
         "e₀",
         "Edensity_final",
         "GS_overlap_final",
-        "E_list",
-        "GS_overlap_list",
+        RESULT_ENERGY,
+        RESULT_GROUND_STATE_OVERLAP,
     )
     e0 === nothing && return nothing
 
@@ -189,8 +191,8 @@ function plot_vs_N(
             "e₀",
             "Edensity_final",
             "GS_overlap_final",
-            "E_list",
-            "GS_overlap_list",
+            RESULT_ENERGY,
+            RESULT_GROUND_STATE_OVERLAP,
         )
         e0 === nothing && continue
 
@@ -301,7 +303,9 @@ function plot_cooling_curve_noise(
         )
         full_filename === nothing && continue
 
-        e0, E_list, GS_overlap_list = safe_read_keys(full_filename, "e₀", "E_list", "GS_overlap_list")
+        e0, E_list, GS_overlap_list = safe_read_keys(
+            full_filename, "e₀", RESULT_ENERGY, RESULT_GROUND_STATE_OVERLAP
+        )
         (e0 === nothing || E_list === nothing || GS_overlap_list === nothing) && continue
 
         steps = length(E_list)
@@ -391,8 +395,8 @@ function plot_vs_N_pe_range(
                 "e₀",
                 "Edensity_final",
                 "GS_overlap_final",
-                "E_list",
-                "GS_overlap_list",
+                RESULT_ENERGY,
+                RESULT_GROUND_STATE_OVERLAP,
             )
             e0 === nothing && continue
 
@@ -460,13 +464,13 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
     data = read_h5_data(filename)
     data === nothing && return
 
-    if !haskey(data, "momentum_dist") || !haskey(data, "k_values")
+    if !haskey(data, RESULT_MOMENTUM_DISTRIBUTION) || !haskey(data, RESULT_K_VALUES)
         @warn "No k-space data found in file $filename"
         return
     end
 
-    momentum_dist = data["momentum_dist"]
-    k_values = data["k_values"]
+    momentum_dist = data[RESULT_MOMENTUM_DISTRIBUTION]
+    k_values = data[RESULT_K_VALUES]
     total_steps = size(momentum_dist, 1)
     step_indices = select_evolution_steps(total_steps; steps_to_plot=steps_to_plot)
 
@@ -514,13 +518,13 @@ function plot_momentum_distribution_heatmap(filename; save_fig=true)
     data = read_h5_data(filename)
     data === nothing && return
 
-    if !haskey(data, "momentum_dist") || !haskey(data, "k_values")
+    if !haskey(data, RESULT_MOMENTUM_DISTRIBUTION) || !haskey(data, RESULT_K_VALUES)
         @warn "No k-space data found in file $filename"
         return
     end
 
-    momentum_dist = data["momentum_dist"]
-    k_values = data["k_values"]
+    momentum_dist = data[RESULT_MOMENTUM_DISTRIBUTION]
+    k_values = data[RESULT_K_VALUES]
     total_steps = size(momentum_dist, 1)
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -558,8 +562,9 @@ end
 """
     plot_data(filename; moving_average=false, output_dir=nothing)
 
-Convenience wrapper: load `E_list`, `GS_overlap_list`, `e₀`, and `N` from an HDF5
-results file and generate the standard energy/overlap plot.
+Convenience wrapper: load the energy and ground-state-overlap result keys,
+`e₀`, and `N` from an HDF5 results file and generate the standard
+energy/overlap plot.
 
 The plot is saved next to the HDF5 file (same directory) unless `output_dir` is
 provided.
@@ -568,7 +573,7 @@ function plot_data(filename::AbstractString; moving_average::Bool=false, output_
     data = read_h5_data(filename)
     data === nothing && return nothing
 
-    for key in ("e₀", "E_list", "GS_overlap_list", "N")
+    for key in ("e₀", RESULT_ENERGY, RESULT_GROUND_STATE_OVERLAP, "N")
         if !haskey(data, key)
             @warn "Missing key \"$key\" in file $filename"
             return nothing
@@ -576,8 +581,8 @@ function plot_data(filename::AbstractString; moving_average::Bool=false, output_
     end
 
     e0 = _maybe_scalar(data["e₀"])
-    E_list = data["E_list"]
-    GS_overlap_list = data["GS_overlap_list"]
+    E_list = data[RESULT_ENERGY]
+    GS_overlap_list = data[RESULT_GROUND_STATE_OVERLAP]
     N = Int(_maybe_scalar(data["N"]))
 
     out_dir = output_dir === nothing ? dirname(filename) : output_dir

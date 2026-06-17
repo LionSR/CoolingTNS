@@ -10,6 +10,7 @@ using SparseArrays
 
 include("parameter_types.jl")      # Define parameter types first
 include("cooling_types.jl")        # CoolingProblem and QuantumState types
+include("result_keys.jl")          # Public result dictionary keys
 
 include("utils.jl")
 include("coupling_utils.jl")
@@ -27,6 +28,7 @@ include("noise.jl")
 include("ed_backend.jl")
 include("ed_backend_complex_jw.jl")  # Complex JW (notes convention) — single source of truth
 include("mode_analysis.jl")          # Parameter mapping, dispersion, k-grid
+include("tn_mode_observables.jl")    # MPS mode observables using split-string correlators
 include("multi_frequency.jl")       # Multi-frequency (multi-Δ) cooling helpers
 
 include("bath_measurements.jl")    # Dispatched bath measurement functions
@@ -62,6 +64,14 @@ export to_dict
 export setup_common_parameters, create_filename, save_results
 export get_backend, get_sim_method, get_evolution_method, mean_last_window, relative_energy
 export parse_coupling, coupling_operator_terms, get_bath_operator
+# Result dictionary keys
+export RESULT_ENERGY, RESULT_GROUND_STATE_OVERLAP, RESULT_PURITY
+export RESULT_BATH_MAGNETIZATION, RESULT_BATH_SAMPLE_MAGNETIZATION
+export RESULT_MOMENTUM_DISTRIBUTION, RESULT_K_VALUES, RESULT_MOMENTUM_GF, RESULT_MOMENTUM_GF_SOURCE
+export RESULT_MODE_GF, RESULT_MODE_HK, RESULT_MODE_NK, RESULT_MODE_K_INDICES, RESULT_MODE_ENERGIES
+export RESULT_DELTA_LIST, RESULT_TE_LIST, RESULT_DELTA_VALUES
+export RESULT_SCHEDULE, RESULT_RANDOMIZE_TIMES, RESULT_N_TRAJECTORIES
+export RESULT_KEYS
 # Dispersion relations used by plotting helpers; implementations follow mode_analysis.jl
 export generate_k_values, compute_energy_dispersion, compute_ground_state_occupation
 
@@ -70,6 +80,7 @@ export theta_from_Jh, Jh_from_theta, energy_scale
 export mode_energy, mode_energy_Jh, w_k_coefficient, r_k_coefficient
 export bogoliubov_angle, coeff_k, vacuum_energy, vacuum_energy_Jh
 export allowed_k_indices, fermionic_bc, parity_operator_code
+export mode_occupation_from_hk
 
 # Multi-frequency cooling helpers
 export uniform_delta_grid, compute_excitation_gaps, spectral_delta_values

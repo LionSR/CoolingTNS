@@ -1,18 +1,18 @@
 """
     plot_mode_cooling.jl
 
-Plot mode-resolved cooling: ⟨h_k⟩ vs cooling step for each quasiparticle mode k,
-colored by the mode energy ε_k.
+Plot mode-resolved cooling: quasiparticle occupation n_k vs cooling step for
+each Bogoliubov mode k, colored by the mode energy ε_k.
 
 Can be called standalone (loads data from HDF5) or from the diagnostic script
-via `plot_mode_cooling_from_data(...)`.
+via `plot_mode_occupation_from_data(...)`.
 
 Usage (standalone):
     julia --project=. scripts/plotting/plot_mode_cooling.jl path/to/results.h5
 
 Usage (from another script):
     include("scripts/plotting/plot_mode_cooling.jl")
-    plot_mode_cooling_from_data(mode_hk, k_indices, εk_values; delta=Δ, savepath="fig.pdf")
+    plot_mode_occupation_from_data(mode_nk, k_indices, εk_values; delta=Δ, savepath="fig.pdf")
 """
 
 # Only include PlotUtils if not already loaded
@@ -20,24 +20,61 @@ if !@isdefined(get_pyplot)
     include(joinpath(@__DIR__, "PlotUtils.jl"))
 end
 
-"""
-    plot_mode_cooling_from_data(mode_hk, k_indices, εk_values;
-                                delta=nothing, savepath=nothing, title=nothing)
+using CoolingTNS:
+    RESULT_MODE_HK,
+    RESULT_MODE_NK,
+    RESULT_MODE_K_INDICES,
+    RESULT_MODE_ENERGIES,
+    mode_occupation_from_hk
 
-Plot ⟨h_k⟩ vs cooling step for each mode.
+"""
+    _mode_occupation_from_plot_data(data)
+
+Return the physical quasiparticle occupation matrix for mode-cooling plots.
+
+New result files store `RESULT_MODE_NK` directly. Older files stored only `RESULT_MODE_HK`,
+with `h_k = 2n_k - 1`; those files are converted through
+`CoolingTNS.mode_occupation_from_hk`, which is the single source of truth for
+this convention.
+"""
+function _mode_occupation_from_plot_data(data::AbstractDict)
+    if haskey(data, RESULT_MODE_NK)
+        return Float64.(data[RESULT_MODE_NK])
+    elseif haskey(data, RESULT_MODE_HK)
+        return Float64.(mode_occupation_from_hk(data[RESULT_MODE_HK]))
+    end
+    error("Expected HDF5 dataset \"$RESULT_MODE_NK\" or legacy dataset \"$RESULT_MODE_HK\"")
+end
+
+function _occupation_ylim(mode_nk)
+    finite_values = filter(isfinite, vec(Float64.(mode_nk)))
+    isempty(finite_values) && return (-0.05, 1.05)
+    return (
+        min(-0.05, minimum(finite_values) - 0.05),
+        max(1.05, maximum(finite_values) + 0.05),
+    )
+end
+
+"""
+    plot_mode_occupation_from_data(mode_nk, k_indices, εk_values;
+                                   delta=nothing, savepath=nothing, title=nothing)
+
+Plot the physical quasiparticle occupation n_k vs cooling step for each mode.
 
 # Arguments
-- `mode_hk`: Matrix of size (n_steps, n_modes) with ⟨h_k⟩ values
+- `mode_nk`: Matrix of size (n_steps, n_modes) with occupation values n_k
 - `k_indices`: Vector of mode indices (integer or half-integer)
 - `εk_values`: Vector of mode energies ε_k in code units
 - `delta`: Bath detuning Δ (optional, used to highlight resonant mode)
 - `savepath`: Path to save figure (optional)
 - `title`: Figure title (optional)
 """
-function plot_mode_cooling_from_data(mode_hk::AbstractMatrix, k_indices, εk_values;
-                                     delta=nothing, savepath=nothing, title=nothing)
+function plot_mode_occupation_from_data(mode_nk::AbstractMatrix, k_indices, εk_values;
+                                        delta=nothing, savepath=nothing, title=nothing)
     plt = get_pyplot()
-    n_steps, n_modes = size(mode_hk)
+    n_steps, n_modes = size(mode_nk)
+    length(k_indices) == n_modes || throw(ArgumentError("k_indices length must match mode_nk columns"))
+    length(εk_values) == n_modes || throw(ArgumentError("εk_values length must match mode_nk columns"))
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 
@@ -48,33 +85,35 @@ function plot_mode_cooling_from_data(mode_hk::AbstractMatrix, k_indices, εk_val
 
     steps = 0:(n_steps - 1)
 
-    # --- Left panel: ⟨h_k⟩ vs step ---
+    # --- Left panel: n_k vs step ---
     for i in 1:n_modes
         color = cmap(norm(εk_values[i]))
         k_label = k_indices[i] isa Rational ? "$(numerator(k_indices[i]))/$(denominator(k_indices[i]))" : "$(k_indices[i])"
-        ax1.plot(steps, mode_hk[:, i], color=color, linewidth=1.5,
+        ax1.plot(steps, mode_nk[:, i], color=color, linewidth=1.5,
                  label=L"k = %$k_label" * L", \varepsilon_k = %$(round(εk_values[i], digits=3))")
     end
 
     # Reference lines
-    ax1.axhline(y=-1.0, color="black", linestyle="--", alpha=0.5, label=L"\langle h_k \rangle = -1 \; (\mathrm{GS})")
-    ax1.axhline(y=0.0, color="gray", linestyle=":", alpha=0.3)
+    ax1.axhline(y=0.0, color="black", linestyle="--", alpha=0.5, label=L"n_k = 0 \; (\mathrm{GS})")
+    ax1.axhline(y=0.5, color="gray", linestyle=":", alpha=0.3, label=L"n_k = 1/2")
+    ax1.axhline(y=1.0, color="black", linestyle=":", alpha=0.25)
 
     # Highlight resonant mode
     if delta !== nothing
         res_idx = argmin(abs.(εk_values .- abs(delta)))
         res_k = k_indices[res_idx]
         k_label = res_k isa Rational ? "$(numerator(res_k))/$(denominator(res_k))" : "$(res_k)"
-        ax1.plot(steps, mode_hk[:, res_idx], color="red", linewidth=3, alpha=0.4,
+        ax1.plot(steps, mode_nk[:, res_idx], color="red", linewidth=3, alpha=0.4,
                  label=L"resonant: k=%$k_label" * L", \Delta=%$(round(abs(delta), digits=3))")
     end
 
     ax1.set_xlabel("Cooling step")
-    ax1.set_ylabel(L"\langle h_k \rangle")
-    ax1.set_title(title !== nothing ? title : "Mode cooling evolution")
+    ax1.set_ylabel(L"\langle n_k \rangle")
+    ax1.set_title(title !== nothing ? title : "Mode occupation evolution")
     ax1.legend(fontsize=8, loc="best")
     ax1.grid(true, alpha=0.3)
-    ax1.set_ylim(-1.15, 1.15)
+    ymin, ymax = _occupation_ylim(mode_nk)
+    ax1.set_ylim(ymin, ymax)
 
     # Colorbar
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
@@ -82,15 +121,17 @@ function plot_mode_cooling_from_data(mode_hk::AbstractMatrix, k_indices, εk_val
     cbar = fig.colorbar(sm, ax=ax1, shrink=0.8)
     cbar.set_label(L"\varepsilon_k \; \mathrm{(code\;units)}")
 
-    # --- Right panel: final ⟨h_k⟩ vs ε_k ---
-    initial_hk = mode_hk[1, :]
-    final_hk = mode_hk[end, :]
+    # --- Right panel: final n_k vs ε_k ---
+    initial_nk = mode_nk[1, :]
+    final_nk = mode_nk[end, :]
 
-    ax2.scatter(εk_values, initial_hk, marker="o", s=80, color="blue", alpha=0.6,
+    ax2.scatter(εk_values, initial_nk, marker="o", s=80, color="blue", alpha=0.6,
                 label="Initial", zorder=3)
-    ax2.scatter(εk_values, final_hk, marker="s", s=80, color="red", alpha=0.6,
+    ax2.scatter(εk_values, final_nk, marker="s", s=80, color="red", alpha=0.6,
                 label="Final", zorder=3)
-    ax2.axhline(y=-1.0, color="black", linestyle="--", alpha=0.5, label=L"h_k = -1 \; (\mathrm{GS})")
+    ax2.axhline(y=0.0, color="black", linestyle="--", alpha=0.5, label=L"n_k = 0 \; (\mathrm{GS})")
+    ax2.axhline(y=0.5, color="gray", linestyle=":", alpha=0.3, label=L"n_k = 1/2")
+    ax2.axhline(y=1.0, color="black", linestyle=":", alpha=0.25)
 
     if delta !== nothing
         ax2.axvline(x=abs(delta), color="green", linestyle="--", alpha=0.7,
@@ -98,11 +139,11 @@ function plot_mode_cooling_from_data(mode_hk::AbstractMatrix, k_indices, εk_val
     end
 
     ax2.set_xlabel(L"\varepsilon_k \; \mathrm{(code\;units)}")
-    ax2.set_ylabel(L"\langle h_k \rangle")
-    ax2.set_title("Initial vs final mode occupation")
+    ax2.set_ylabel(L"\langle n_k \rangle")
+    ax2.set_title("Initial and final mode occupation")
     ax2.legend(fontsize=9)
     ax2.grid(true, alpha=0.3)
-    ax2.set_ylim(-1.15, 1.15)
+    ax2.set_ylim(ymin, ymax)
 
     fig.tight_layout()
 
@@ -115,23 +156,40 @@ function plot_mode_cooling_from_data(mode_hk::AbstractMatrix, k_indices, εk_val
 end
 
 """
+    plot_mode_cooling_from_data(mode_hk, k_indices, εk_values;
+                                delta=nothing, savepath=nothing, title=nothing)
+
+Legacy entry point accepting the Bogoliubov observable `h_k`. The plotted
+quantity is still the physical occupation `n_k`, obtained from
+`CoolingTNS.mode_occupation_from_hk`.
+"""
+function plot_mode_cooling_from_data(mode_hk::AbstractMatrix, k_indices, εk_values;
+                                     delta=nothing, savepath=nothing, title=nothing)
+    return plot_mode_occupation_from_data(mode_occupation_from_hk(mode_hk), k_indices, εk_values;
+                                          delta=delta, savepath=savepath, title=title)
+end
+
+"""
     plot_mode_cooling_from_h5(filepath::String; savepath=nothing)
 
 Load mode cooling data from an HDF5 file and plot.
-Expected datasets: "mode_hk", "mode_k_indices", "mode_ek_values", optionally "delta".
+Expected datasets are named by `CoolingTNS.RESULT_MODE_NK` or legacy
+`CoolingTNS.RESULT_MODE_HK`, together with `CoolingTNS.RESULT_MODE_K_INDICES`
+and `CoolingTNS.RESULT_MODE_ENERGIES`; the optional detuning dataset is
+`"delta"`.
 """
 function plot_mode_cooling_from_h5(filepath::String; savepath=nothing)
     data = read_h5_data(filepath)
     data === nothing && error("Could not read $filepath")
 
-    mode_hk = data["mode_hk"]
-    k_indices = data["mode_k_indices"]
-    εk_values = data["mode_ek_values"]
+    mode_nk = _mode_occupation_from_plot_data(data)
+    k_indices = data[RESULT_MODE_K_INDICES]
+    εk_values = data[RESULT_MODE_ENERGIES]
     delta = get(data, "delta", nothing)
 
-    return plot_mode_cooling_from_data(mode_hk, k_indices, εk_values;
-                                       delta=delta, savepath=savepath,
-                                       title=extract_filename_base(filepath))
+    return plot_mode_occupation_from_data(mode_nk, k_indices, εk_values;
+                                          delta=delta, savepath=savepath,
+                                          title=extract_filename_base(filepath))
 end
 
 # Standalone execution

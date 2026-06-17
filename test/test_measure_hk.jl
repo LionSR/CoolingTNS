@@ -403,10 +403,10 @@ end
 
         k_expected, nk_expected = measure_momentum_distribution_ed_clean(ρ0, ham_params)
 
-        @test results["momentum_gF"] == fermionic_bc(:periodic, 1)
-        @test results["momentum_gF_source"] == "state"
-        @test results["k_values"] ≈ k_expected atol=1e-12
-        @test results["momentum_dist"][1, :] ≈ nk_expected atol=1e-10
+        @test results[RESULT_MOMENTUM_GF] == fermionic_bc(:periodic, 1)
+        @test results[RESULT_MOMENTUM_GF_SOURCE] == "state"
+        @test results[RESULT_K_VALUES] ≈ k_expected atol=1e-12
+        @test results[RESULT_MOMENTUM_DISTRIBUTION][1, :] ≈ nk_expected atol=1e-10
 
         ρ_sb = CoolingTNS.prepare_combined_state_ed(ρ0, N, coupling_params.coupling)
         state_sb = QuantumState(EDBackend(), DensityMatrix(), ContinuousEvolution(), ρ_sb)
@@ -414,10 +414,10 @@ end
             run_cooling(problem, state_sb, coupling_params, sim_params, ham_params)
         end
 
-        @test results_sb["momentum_gF"] == fermionic_bc(:periodic, 1)
-        @test results_sb["momentum_gF_source"] == "state"
-        @test results_sb["k_values"] ≈ k_expected atol=1e-12
-        @test results_sb["momentum_dist"][1, :] ≈ nk_expected atol=1e-10
+        @test results_sb[RESULT_MOMENTUM_GF] == fermionic_bc(:periodic, 1)
+        @test results_sb[RESULT_MOMENTUM_GF_SOURCE] == "state"
+        @test results_sb[RESULT_K_VALUES] ≈ k_expected atol=1e-12
+        @test results_sb[RESULT_MOMENTUM_DISTRIBUTION][1, :] ≈ nk_expected atol=1e-10
     end
 
     @testset "Momentum grid helper fallback and cache source" begin
@@ -434,10 +434,10 @@ end
         measurements = Dict{String, Any}()
         gF = CoolingTNS._momentum_measurement_gF!(measurements, ρ_mix, ϕ₀, ham_params)
         @test gF == fermionic_bc(:periodic, 1)
-        @test measurements["momentum_gF_source"] == "ground_state"
+        @test measurements[RESULT_MOMENTUM_GF_SOURCE] == "ground_state"
 
         @test CoolingTNS._momentum_measurement_gF!(measurements, odd_state, ϕ₀, ham_params) == gF
-        @test measurements["momentum_gF_source"] == "ground_state"
+        @test measurements[RESULT_MOMENTUM_GF_SOURCE] == "ground_state"
 
         ambiguous_ϕ₀ = CoolingTNS.product_state_ed(N, 0)
         @test abs(measure_state_parity(ambiguous_ϕ₀, N)) < 1e-10
@@ -448,12 +448,12 @@ end
             ambiguous_ϕ₀,
             ham_params,
         ) == fermionic_bc(:periodic, 1)
-        @test ambiguous_measurements["momentum_gF_source"] == "ground_state"
+        @test ambiguous_measurements[RESULT_MOMENTUM_GF_SOURCE] == "ground_state"
 
-        precomputed = Dict{String, Any}("momentum_gF" => fermionic_bc(:periodic, -1))
+        precomputed = Dict{String, Any}(RESULT_MOMENTUM_GF => fermionic_bc(:periodic, -1))
         @test CoolingTNS._momentum_measurement_gF!(precomputed, ρ_mix, ϕ₀, ham_params) ==
               fermionic_bc(:periodic, -1)
-        @test precomputed["momentum_gF_source"] == "precomputed"
+        @test precomputed[RESULT_MOMENTUM_GF_SOURCE] == "precomputed"
     end
 
     @testset "h_k range and symmetry (N=$N)" for N in [4, 6]
@@ -540,6 +540,29 @@ end
         for ε in εk_vals
             @test ε > 0
         end
+    end
+
+    @testset "Mode occupations are exposed with h_k results" begin
+        @test mode_occupation_from_hk(-1.0) == 0.0
+        @test mode_occupation_from_hk(1.0) == 1.0
+        @test mode_occupation_from_hk([-1.0, 0.0, 1.0]) == [0.0, 0.5, 1.0]
+
+        N = 4
+        ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
+        coupling_params = BasicCouplingParameters("XX", 0.0, 0, 0.0, 0.5)
+        sim_params = UnifiedSimulationParameters(DensityMatrix(), ContinuousEvolution())
+
+        problem = setup_problem(EDBackend(), ham_params, coupling_params, sim_params)
+        state0 = setup_initial_state(problem, sim_params, "theta", 0.0)
+
+        results = redirect_stdout(devnull) do
+            run_cooling(problem, state0, coupling_params, sim_params, ham_params; measure_modes=true)
+        end
+
+        @test haskey(results, RESULT_MODE_HK)
+        @test haskey(results, RESULT_MODE_NK)
+        @test results[RESULT_MODE_NK] ≈ mode_occupation_from_hk(results[RESULT_MODE_HK]) atol=1e-12
+        @test all(0 .<= results[RESULT_MODE_NK] .<= 1)
     end
 
 end

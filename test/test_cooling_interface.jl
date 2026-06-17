@@ -32,6 +32,30 @@ using Random
         @test CoolingTNS.default_evolution_method(CoolingTNS.TNBackend()) isa CoolingTNS.ContinuousEvolution
     end
 
+    @testset "Result Key Constants" begin
+        @test CoolingTNS.RESULT_ENERGY == "E_list"
+        @test CoolingTNS.RESULT_GROUND_STATE_OVERLAP == "GS_overlap_list"
+        @test CoolingTNS.RESULT_PURITY == "purity_list"
+        @test CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION == "momentum_dist"
+        @test CoolingTNS.RESULT_K_VALUES == "k_values"
+        @test CoolingTNS.RESULT_MOMENTUM_GF == "momentum_gF"
+        @test CoolingTNS.RESULT_MOMENTUM_GF_SOURCE == "momentum_gF_source"
+        @test CoolingTNS.RESULT_MODE_HK == "mode_hk"
+        @test CoolingTNS.RESULT_MODE_NK == "mode_nk"
+        @test CoolingTNS.RESULT_DELTA_LIST == "delta_list"
+        @test CoolingTNS.RESULT_TE_LIST == "te_list"
+
+        @test CoolingTNS.RESULT_KEYS isa Tuple
+        @test all(key -> key isa String, CoolingTNS.RESULT_KEYS)
+        @test length(unique(CoolingTNS.RESULT_KEYS)) == length(CoolingTNS.RESULT_KEYS)
+        @test CoolingTNS.RESULT_ENERGY in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_MOMENTUM_GF in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_MOMENTUM_GF_SOURCE in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_MODE_HK in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_MODE_NK in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_DELTA_LIST in CoolingTNS.RESULT_KEYS
+    end
+
     @testset "Command-line Rydberg Parameters" begin
         parsed = CoolingTNS.parse_commandline([
             "--problem", "Rydberg",
@@ -190,14 +214,14 @@ using Random
             test_ham_params
         )
         
-        @test haskey(results, "E_list")
-        @test haskey(results, "GS_overlap_list")
-        @test length(results["E_list"]) == short_coupling_params.steps + 1
-        @test all(isfinite, results["E_list"])
-        @test all(0 .<= results["GS_overlap_list"] .<= 1)
+        @test haskey(results, CoolingTNS.RESULT_ENERGY)
+        @test haskey(results, CoolingTNS.RESULT_GROUND_STATE_OVERLAP)
+        @test length(results[CoolingTNS.RESULT_ENERGY]) == short_coupling_params.steps + 1
+        @test all(isfinite, results[CoolingTNS.RESULT_ENERGY])
+        @test all(0 .<= results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP] .<= 1)
         
         # Energy should decrease (cooling)
-        @test results["E_list"][end] <= results["E_list"][1] + 1e-10
+        @test results[CoolingTNS.RESULT_ENERGY][end] <= results[CoolingTNS.RESULT_ENERGY][1] + 1e-10
     end
 
     @testset "Odd ED Ising chains skip Fourier k-space measurements" begin
@@ -232,10 +256,10 @@ using Random
             )
         end
 
-        @test haskey(results_odd, "E_list")
-        @test haskey(results_odd, "GS_overlap_list")
-        @test !haskey(results_odd, "momentum_dist")
-        @test !haskey(results_odd, "k_values")
+        @test haskey(results_odd, CoolingTNS.RESULT_ENERGY)
+        @test haskey(results_odd, CoolingTNS.RESULT_GROUND_STATE_OVERLAP)
+        @test !haskey(results_odd, CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION)
+        @test !haskey(results_odd, CoolingTNS.RESULT_K_VALUES)
     end
 
     @testset "ED Monte Carlo Noise Dispatch" begin
@@ -274,9 +298,9 @@ using Random
             test_ham_params,
         )
 
-        @test length(results["E_list"]) == noisy_coupling_params.steps + 1
-        @test all(isfinite, results["E_list"])
-        @test all(isfinite, results["GS_overlap_list"])
+        @test length(results[CoolingTNS.RESULT_ENERGY]) == noisy_coupling_params.steps + 1
+        @test all(isfinite, results[CoolingTNS.RESULT_ENERGY])
+        @test all(isfinite, results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP])
     end
 
     # Cross-backend cooling comparisons are covered in `test_correctness.jl`.

@@ -110,11 +110,11 @@ function run_cooling_multi_freq(
     pe = sim_params.pe
 
     measurements = initialize_measurements(problem, state, steps; measure_modes=measure_modes, ham_params=ham_params)
-    measurements["delta_list"] = fill(NaN, steps + 1)
-    measurements["te_list"] = fill(NaN, steps + 1)
-    measurements["delta_values"] = copy(mf_params.delta_values)
-    measurements["schedule"] = string(mf_params.schedule)
-    measurements["randomize_times"] = mf_params.randomize_times
+    measurements[RESULT_DELTA_LIST] = fill(NaN, steps + 1)
+    measurements[RESULT_TE_LIST] = fill(NaN, steps + 1)
+    measurements[RESULT_DELTA_VALUES] = copy(mf_params.delta_values)
+    measurements[RESULT_SCHEDULE] = string(mf_params.schedule)
+    measurements[RESULT_RANDOMIZE_TIMES] = mf_params.randomize_times
 
     # Initial measurements
     perform_measurements!(measurements, 1, problem, state, ham_params)
@@ -130,8 +130,8 @@ function run_cooling_multi_freq(
         # Pick evolution time
         te_step = mf_params.randomize_times ? (rand() * 2 * mf_params.te) : mf_params.te
 
-        measurements["delta_list"][step] = delta_r
-        measurements["te_list"][step] = te_step
+        measurements[RESULT_DELTA_LIST][step] = delta_r
+        measurements[RESULT_TE_LIST][step] = te_step
 
         # Per-step coupling parameters (encodes Δ_r and possibly step-specific time)
         coupling_step = BasicCouplingParameters(mf_params.coupling, mf_params.g, steps, te_step, delta_r)
@@ -312,8 +312,8 @@ function initialize_measurements(problem::CoolingProblem, state::QuantumState, s
                                  measure_modes::Bool=false, ham_params=nothing)
     # Basic measurements available for all backends
     measurements = Dict{String, Any}(
-        "E_list" => zeros(Float64, steps + 1),
-        "GS_overlap_list" => zeros(Float64, steps + 1)
+        RESULT_ENERGY => zeros(Float64, steps + 1),
+        RESULT_GROUND_STATE_OVERLAP => zeros(Float64, steps + 1)
     )
     
     # Add backend-specific measurements
@@ -332,14 +332,14 @@ add_backend_measurements!(_, _, _, _) = nothing
 
 # TN Density matrix methods get purity
 function add_backend_measurements!(measurements, ::CoolingProblem{TNBackend}, ::QuantumState{TNBackend,DensityMatrix,E}, steps) where E
-    measurements["purity_list"] = zeros(Float64, steps + 1)
-    measurements["bath_mag_list"] = zeros(Float64, steps + 1)
+    measurements[RESULT_PURITY] = zeros(Float64, steps + 1)
+    measurements[RESULT_BATH_MAGNETIZATION] = zeros(Float64, steps + 1)
 end
 
 # ED Density matrix methods get purity + k-space measurements
 function add_backend_measurements!(measurements, problem::CoolingProblem{EDBackend}, ::QuantumState{EDBackend,DensityMatrix,E}, steps) where E
-    measurements["purity_list"] = zeros(Float64, steps + 1)
-    measurements["bath_mag_list"] = zeros(Float64, steps + 1)
+    measurements[RESULT_PURITY] = zeros(Float64, steps + 1)
+    measurements[RESULT_BATH_MAGNETIZATION] = zeros(Float64, steps + 1)
 
     # Add k-space measurements for ED with periodic/antiperiodic BC (only for Ising model)
     add_kspace_measurements!(measurements, problem, steps)
@@ -347,12 +347,12 @@ end
 
 # TN Monte Carlo methods track bath samples
 function add_backend_measurements!(measurements, ::CoolingProblem{TNBackend}, ::QuantumState{TNBackend,MonteCarloWavefunction,E}, steps) where E
-    measurements["nb_list"] = zeros(Float64, steps + 1)
+    measurements[RESULT_BATH_SAMPLE_MAGNETIZATION] = zeros(Float64, steps + 1)
 end
 
 # ED Monte Carlo tracks bath magnetization + k-space
 function add_backend_measurements!(measurements, problem::CoolingProblem{EDBackend}, ::QuantumState{EDBackend,MonteCarloWavefunction,E}, steps) where E
-    measurements["bath_mag_list"] = zeros(Float64, steps + 1)
+    measurements[RESULT_BATH_MAGNETIZATION] = zeros(Float64, steps + 1)
     add_kspace_measurements!(measurements, problem, steps)
 end
 
@@ -362,27 +362,46 @@ function add_kspace_measurements!(measurements, problem::CoolingProblem{EDBacken
         ham_params = problem.extra.ham_params
         if _supports_ising_fourier_observables(ham_params)
             N = ham_params.N
-            measurements["momentum_dist"] = zeros(Float64, steps + 1, N)
-            measurements["k_values"] = zeros(Float64, N)
+            measurements[RESULT_MOMENTUM_DISTRIBUTION] = zeros(Float64, steps + 1, N)
+            measurements[RESULT_K_VALUES] = zeros(Float64, N)
         end
     end
 end
 
-# Helper for mode energy measurements ⟨h_k⟩ (ED only, Ising PBC/APBC)
-function add_mode_measurements!(measurements, problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend}, steps, ham_params)
-    hp = ham_params !== nothing ? ham_params : (haskey(problem.extra, :ham_params) ? problem.extra.ham_params : nothing)
-    if _supports_ising_fourier_observables(hp)
-        # Determine gF from the ground state's parity sector.
-        # This ensures consistent mode measurement even for mixed states.
-        px = measure_state_parity(problem.ϕ₀, hp.N)
-        gF = _reference_fermionic_bc(hp.bc, px)
-        measurements["mode_gF"] = gF
+function _mode_measurement_ham_params(problem::CoolingProblem, ham_params)
+    return ham_params !== nothing ? ham_params : (haskey(problem.extra, :ham_params) ? problem.extra.ham_params : nothing)
+end
 
-        # Preallocate arrays (will be filled on first measurement call)
-        measurements["mode_hk"] = nothing  # allocated in perform_measurements_ed
-        measurements["mode_k_indices"] = nothing
-        measurements["mode_ek_values"] = nothing
+function _add_ising_mode_measurements!(measurements, problem::CoolingProblem, ham_params)
+    hp = _mode_measurement_ham_params(problem, ham_params)
+    _supports_ising_fourier_observables(hp) || return nothing
+
+    # Determine gF from the ground state's parity sector.
+    # This ensures consistent mode measurement even for mixed states.
+    px = measure_state_parity(problem.ϕ₀, hp.N)
+    measurements[RESULT_MODE_GF] = _reference_fermionic_bc(hp.bc, px)
+
+    # Preallocate arrays after the first measurement call, when the mode count is known.
+    measurements[RESULT_MODE_HK] = nothing
+    measurements[RESULT_MODE_NK] = nothing
+    measurements[RESULT_MODE_K_INDICES] = nothing
+    measurements[RESULT_MODE_ENERGIES] = nothing
+    return nothing
+end
+
+# Helper for mode energy measurements ⟨h_k⟩ (Ising PBC/APBC)
+function add_mode_measurements!(measurements, problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend}, steps, ham_params)
+    _add_ising_mode_measurements!(measurements, problem, ham_params)
+end
+
+function add_mode_measurements!(measurements, problem::CoolingProblem{TNBackend},
+                                state::QuantumState{TNBackend,MonteCarloWavefunction,E},
+                                steps, ham_params) where E<:EvolutionMethod
+    hp = _mode_measurement_ham_params(problem, ham_params)
+    if _supports_ising_fourier_observables(hp)
+        @warn "TN cooling Fourier-mode measurements are disabled until TN Ising Hamiltonians honor periodic/APBC boundary conditions" issue=124
     end
+    return nothing
 end
 
 # Fallback: mode measurements not supported for non-ED backends
@@ -397,14 +416,14 @@ end
 """Print cooling progress"""
 function print_cooling_status(step::Int, measurements, ham_params, state::QuantumState)
     N = ham_params.N
-    E = measurements["E_list"][step]
-    overlap = measurements["GS_overlap_list"][step]
+    E = measurements[RESULT_ENERGY][step]
+    overlap = measurements[RESULT_GROUND_STATE_OVERLAP][step]
     
     status = "Step $step: energy/N=$(E/N), overlap=$overlap"
     
     # Add method-specific info
-    if haskey(measurements, "purity_list")
-        status *= ", purity=$(measurements["purity_list"][step])"
+    if haskey(measurements, RESULT_PURITY)
+        status *= ", purity=$(measurements[RESULT_PURITY][step])"
     end
     
     println(status)
@@ -417,7 +436,7 @@ function compile_results(measurements, sim_params)
     # Add simulation metadata
     if sim_params isa UnifiedSimulationParameters{MonteCarloWavefunction, E} where E
         if sim_params.n_trajectories > 1
-            results["n_trajectories"] = sim_params.n_trajectories
+            results[RESULT_N_TRAJECTORIES] = sim_params.n_trajectories
         end
     end
     
@@ -496,16 +515,16 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     end
 
     if step == 1 || length(ψ_s) == length(H_sys)
-        measurements["E_list"][step] = real(inner(ψ_s', H_sys, ψ_s))
-        measurements["GS_overlap_list"][step] = abs2(inner(ψ_s, ϕ₀))
+        measurements[RESULT_ENERGY][step] = real(inner(ψ_s', H_sys, ψ_s))
+        measurements[RESULT_GROUND_STATE_OVERLAP][step] = abs2(inner(ψ_s, ϕ₀))
     else
         @warn "Skipping measurement due to dimension mismatch"
-        measurements["E_list"][step] = measurements["E_list"][step-1]
-        measurements["GS_overlap_list"][step] = measurements["GS_overlap_list"][step-1]
+        measurements[RESULT_ENERGY][step] = measurements[RESULT_ENERGY][step-1]
+        measurements[RESULT_GROUND_STATE_OVERLAP][step] = measurements[RESULT_GROUND_STATE_OVERLAP][step-1]
     end
 
-    if haskey(measurements, "nb_list") && bath_info !== nothing
-        measurements["nb_list"][step] = compute_bath_magnetization(problem.backend, state, bath_info, ham_params.N)
+    if haskey(measurements, RESULT_BATH_SAMPLE_MAGNETIZATION) && bath_info !== nothing
+        measurements[RESULT_BATH_SAMPLE_MAGNETIZATION][step] = compute_bath_magnetization(problem.backend, state, bath_info, ham_params.N)
     end
 end
 
@@ -652,7 +671,7 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     H_sys = problem.H_sys
     ϕ₀ = problem.ϕ₀
 
-    measurements["E_list"][step] = real(inner(ρ_s, H_sys))
-    measurements["GS_overlap_list"][step] = real(inner(ρ_s, projector_mpo(ϕ₀)))
-    measurements["purity_list"][step] = real(tr(apply(ρ_s, ρ_s)))
+    measurements[RESULT_ENERGY][step] = real(inner(ρ_s, H_sys))
+    measurements[RESULT_GROUND_STATE_OVERLAP][step] = real(inner(ρ_s, projector_mpo(ϕ₀)))
+    measurements[RESULT_PURITY][step] = real(tr(apply(ρ_s, ρ_s)))
 end
