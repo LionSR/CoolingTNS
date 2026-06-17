@@ -66,14 +66,20 @@ Select which steps to plot from an evolution.
 Default: initial, 25%, 50%, 75%, and final steps.
 """
 function select_evolution_steps(total_steps::Int; steps_to_plot=nothing)::Vector{Int}
+    total_steps >= 1 || throw(ArgumentError("total_steps must be positive; got $total_steps"))
     if steps_to_plot !== nothing
-        return steps_to_plot
+        steps = Int.(collect(steps_to_plot))
+        all(step -> 1 <= step <= total_steps, steps) || throw(ArgumentError(
+            "steps_to_plot must lie in 1:$total_steps; got $steps",
+        ))
+        return steps
     end
-    return unique([1,
-                   div(total_steps, 4),
-                   div(total_steps, 2),
-                   div(3*total_steps, 4),
-                   total_steps])
+    return unique(clamp.([1,
+                          div(total_steps, 4),
+                          div(total_steps, 2),
+                          div(3*total_steps, 4),
+                          total_steps],
+                         1, total_steps))
 end
 
 """
