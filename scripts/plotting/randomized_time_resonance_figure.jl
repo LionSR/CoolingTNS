@@ -253,7 +253,7 @@ function plot_time_randomization_resonances(;
                     schedule=schedule,
                     silence=silence,
                 )
-                push!(Ef, _energy_metric(_mean_last(res_fixed["E_list"], window_size), E0, N, metric))
+                push!(Ef, _energy_metric(_mean_last(res_fixed[CoolingTNS.RESULT_ENERGY], window_size), E0, N, metric))
             end
             E_fixed_mean[i] = mean(Ef)
             E_fixed_std[i] = std(Ef)
@@ -272,7 +272,7 @@ function plot_time_randomization_resonances(;
                 schedule=schedule,
                 silence=silence,
             )
-            E_fixed_mean[i] = _energy_metric(_mean_last(res_fixed["E_list"], window_size), E0, N, metric)
+            E_fixed_mean[i] = _energy_metric(_mean_last(res_fixed[CoolingTNS.RESULT_ENERGY], window_size), E0, N, metric)
             E_fixed_std[i] = 0.0
         end
 
@@ -296,7 +296,7 @@ function plot_time_randomization_resonances(;
                 schedule=schedule,
                 silence=silence,
             )
-            push!(Es, _energy_metric(_mean_last(res_rand["E_list"], window_size), E0, N, metric))
+            push!(Es, _energy_metric(_mean_last(res_rand[CoolingTNS.RESULT_ENERGY], window_size), E0, N, metric))
         end
 
         E_rand_mean[i] = mean(Es)
@@ -335,7 +335,7 @@ function plot_time_randomization_resonances(;
                 schedule=schedule,
                 silence=silence,
             )
-            E_series_fixed[:, j] .= [_energy_metric(E, E0, N, metric) for E in res_fixed_bad["E_list"]]
+            E_series_fixed[:, j] .= [_energy_metric(E, E0, N, metric) for E in res_fixed_bad[CoolingTNS.RESULT_ENERGY]]
         end
         E_series_fixed_mean = vec(mean(E_series_fixed; dims=2))
         E_series_fixed_std = vec(std(E_series_fixed; dims=2))
@@ -354,7 +354,7 @@ function plot_time_randomization_resonances(;
             schedule=schedule,
             silence=silence,
         )
-        E_series_fixed_mean = [_energy_metric(E, E0, N, metric) for E in res_fixed_bad["E_list"]]
+        E_series_fixed_mean = [_energy_metric(E, E0, N, metric) for E in res_fixed_bad[CoolingTNS.RESULT_ENERGY]]
         E_series_fixed_std = zeros(Float64, steps + 1)
     end
 
@@ -375,7 +375,7 @@ function plot_time_randomization_resonances(;
             schedule=schedule,
             silence=silence,
         )
-        E_series_rand[:, j] .= [_energy_metric(E, E0, N, metric) for E in res_rand_bad["E_list"]]
+        E_series_rand[:, j] .= [_energy_metric(E, E0, N, metric) for E in res_rand_bad[CoolingTNS.RESULT_ENERGY]]
     end
 
     E_series_rand_mean = vec(mean(E_series_rand; dims=2))

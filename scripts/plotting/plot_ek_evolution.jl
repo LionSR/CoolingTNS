@@ -19,13 +19,14 @@ function plot_ek_evolution(filename; steps_to_plot=nothing, save_fig=true)
     data = read_h5_data(filename)
     data === nothing && return
 
-    if !haskey(data, "momentum_dist") || !haskey(data, "k_values")
+    if !haskey(data, CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION) ||
+       !haskey(data, CoolingTNS.RESULT_K_VALUES)
         @warn "No k-space data found in file $filename"
         return
     end
 
-    momentum_dist = data["momentum_dist"]
-    k_values = data["k_values"]
+    momentum_dist = data[CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION]
+    k_values = data[CoolingTNS.RESULT_K_VALUES]
     N = data["N"]
     J = get(data, "J", 1.0)
     h = get(data, "h", 1.0)

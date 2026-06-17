@@ -87,7 +87,7 @@ E0_over_N = E0 / N
 
 st_single = setup_initial_state(prob_single, sim_params, init_type, theta)
 res_single = run_cooling(prob_single, st_single, prob_single.extra.coupling_params, sim_params, ham_params)
-E_single = res_single["E_list"]
+E_single = res_single[CoolingTNS.RESULT_ENERGY]
 E_single_over_N = E_single ./ N
 rel_single = relative_energy.(E_single, Ref(E0))
 
@@ -126,7 +126,7 @@ prob_multi = CoolingProblem(backend, prob_single.H_sys, nothing, prob_single.Ï•â
 
 st_multi = setup_initial_state(prob_multi, sim_params, init_type, theta)
 res_multi = run_cooling(prob_multi, st_multi, cp_multi, sim_params, ham_params)
-E_multi = res_multi["E_list"]
+E_multi = res_multi[CoolingTNS.RESULT_ENERGY]
 E_multi_over_N = E_multi ./ N
 rel_multi = relative_energy.(E_multi, Ref(E0))
 
