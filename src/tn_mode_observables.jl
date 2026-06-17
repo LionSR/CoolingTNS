@@ -204,6 +204,11 @@ and the corresponding code-unit mode energies.
 function measure_all_mode_energies(ψ::MPS, ham_params::HamiltonianParameters{IsingModel};
                                    gF=nothing)
     N = ham_params.N
+    length(ψ) == N || throw(ArgumentError("MPS length $(length(ψ)) does not match N=$N"))
+    ham_params.bc in (:periodic, :antiperiodic) || throw(ArgumentError(
+        "TN mode observables require spin :periodic or :antiperiodic boundary conditions; got $(ham_params.bc)"
+    ))
+
     J, h = ham_params.params.J, ham_params.params.h
     θ = theta_from_Jh(J, h)
     Λ = energy_scale(J, h)

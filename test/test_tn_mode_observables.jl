@@ -87,6 +87,7 @@ using ITensorMPS
         ψ_tn = MPS(sites, "X+")
 
         @test_throws ArgumentError measure_hk(ψ_tn, 1//2, ham_params)
+        @test_throws ArgumentError measure_all_mode_energies(ψ_tn, ham_params; gF=1)
     end
 
     @testset "TN cooling disables Fourier modes until boundary support exists" begin
