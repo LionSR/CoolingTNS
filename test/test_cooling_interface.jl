@@ -77,6 +77,76 @@ using HDF5
         @test explicit["evolution_method"] == "continuous"
     end
 
+    @testset "HDF5 Result Metadata Namespace" begin
+        mktempdir() do dir
+            cd(dir) do
+                result = Dict{String, Any}(
+                    "E_list" => [1.0, 0.5],
+                    "search_method" => "result-owned",
+                )
+                parsed_args = Dict{String, Any}(
+                    "N" => 2,
+                    "search_method" => "Random",
+                    "num_trials" => 4,
+                )
+
+                CoolingTNS.save_results(
+                    "collision_test",
+                    result,
+                    -1.0,
+                    "IsingN2bcopenJ1.0h1.0",
+                    parsed_args;
+                    is_optimization=true,
+                )
+
+                h5open(joinpath("ResultsOpt", "collision_test.h5"), "r") do file
+                    @test read(file, "E_list") == [1.0, 0.5]
+                    @test read(file, "search_method") == "result-owned"
+                    @test read(file, "N") == 2
+                    @test haskey(file, CoolingTNS.HDF5_PARSED_ARGS_GROUP)
+
+                    parsed = file[CoolingTNS.HDF5_PARSED_ARGS_GROUP]
+                    @test read(parsed, "search_method") == "Random"
+                    @test read(parsed, "num_trials") == 4
+                    @test read(parsed, "N") == 2
+                end
+            end
+        end
+    end
+
+    @testset "HDF5 parsed-argument group name is reserved" begin
+        mktempdir() do dir
+            cd(dir) do
+                CoolingTNS.save_results(
+                    "reserved_metadata_group",
+                    Dict{String, Any}("E_list" => [2.0]),
+                    -1.0,
+                    "IsingN2bcopenJ1.0h1.0",
+                    Dict{String, Any}("N" => 2),
+                )
+
+                result = Dict{String, Any}(
+                    CoolingTNS.HDF5_PARSED_ARGS_GROUP => [1.0],
+                )
+                parsed_args = Dict{String, Any}("N" => 2)
+
+                @test_throws ErrorException CoolingTNS.save_results(
+                    "reserved_metadata_group",
+                    result,
+                    -1.0,
+                    "IsingN2bcopenJ1.0h1.0",
+                    parsed_args,
+                )
+
+                h5open(joinpath("Results", "reserved_metadata_group.h5"), "r") do file
+                    @test read(file, "E_list") == [2.0]
+                    @test haskey(file, CoolingTNS.HDF5_PARSED_ARGS_GROUP)
+                    @test file[CoolingTNS.HDF5_PARSED_ARGS_GROUP] isa HDF5.Group
+                end
+            end
+        end
+    end
+
     @testset "Result Key Constants" begin
         @test CoolingTNS.RESULT_ENERGY == "E_list"
         @test CoolingTNS.RESULT_GROUND_STATE_OVERLAP == "GS_overlap_list"
