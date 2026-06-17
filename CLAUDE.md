@@ -81,7 +81,8 @@ julia optCooling.jl --search_method Bayesian --num_trials 20 --N 10 --problem ni
 - `--tau`: Time step for Trotter evolution
 - `--Dmax`: Maximum bond dimension for tensor networks
 - `--init_state`: Initial state type (product, identity, theta)
-- `--theta`: Parameterized initial state angle (in units of π)
+- `--theta`: Dimensionless theta-code parameter for the initial state
+  (-0.5 -> |0>, 0 -> |+>, 0.5 -> |1>)
 - `--n_trajectories`: Number of trajectories for Monte Carlo method
 - `--peInt`: Noise strength (×10⁻³)
 - `--bc`: Boundary conditions (open, periodic, antiperiodic). ED and TN
