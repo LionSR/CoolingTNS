@@ -145,7 +145,11 @@ function _validate_tn_mode_state(state::Union{MPS,MPO}, ham_params::HamiltonianP
     N = ham_params.N
     state_label = state isa MPS ? "MPS" : "MPO"
     length(state) == N || throw(ArgumentError("$state_label length $(length(state)) does not match N=$N"))
-    ham_params.bc in (:periodic, :antiperiodic) || throw(ArgumentError(
+    supports_ising_fourier_observables(ham_params) && return nothing
+    if !iseven(N)
+        throw(ArgumentError("TN mode observables require even N for the Fourier/Bogoliubov grid; got N=$N"))
+    end
+    throw(ArgumentError(
         "TN mode observables require spin :periodic or :antiperiodic boundary conditions; got $(ham_params.bc)"
     ))
 end
