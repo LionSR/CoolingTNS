@@ -121,6 +121,9 @@ function parse_commandline(args=ARGS)
         help = "theta code parameter for initial state: -0.5 -> |0>, 0 -> |+>, 0.5 -> |1>"
         arg_type = Float64
         default = 0.0
+        "--measure_modes"
+        help = "record Bogoliubov mode observables h_k for Ising periodic/antiperiodic k-space diagnostics"
+        action = :store_true
     end
 
     return _validate_initial_state_args(parse_args(args, s))
