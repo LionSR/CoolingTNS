@@ -118,6 +118,28 @@ function get_evolution_colors(plt, n_steps::Int)
     return pyconvert(Vector, plt.cm.viridis(range(0, 1, length=n_steps)))
 end
 
+"""
+    _momentum_distribution_modes_by_steps(values, n_modes::Int; name=RESULT_MOMENTUM_DISTRIBUTION)
+
+Return a copy of a momentum-distribution history in modes-by-steps orientation.
+
+The canonical plotting orientation is one row per momentum point and one column
+per saved cooling step. Older files may store the transpose. This helper accepts
+both layouts and rejects arrays whose shape cannot be reconciled with the
+plotted momentum grid.
+"""
+function _momentum_distribution_modes_by_steps(values::AbstractMatrix, n_modes::Int;
+                                               name::AbstractString=RESULT_MOMENTUM_DISTRIBUTION)
+    if size(values, 1) == n_modes
+        return Float64.(values)
+    elseif size(values, 2) == n_modes
+        return Float64.(transpose(values))
+    end
+    throw(DimensionMismatch(
+        "$name has size $(size(values)), but expected one dimension to match $n_modes momentum points",
+    ))
+end
+
 _detuning_label_value(δ_abs::Real) = @sprintf("%.6g", δ_abs)
 _detuning_label_value(δ_abs) = string(δ_abs)
 

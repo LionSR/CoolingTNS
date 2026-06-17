@@ -32,13 +32,8 @@ function plot_nk_evolution(filename; steps_to_plot=nothing, save_fig=true)
     h = get(data, "h", 1.0)
     bc = Symbol(get(data, "bc", "open"))
 
-    # Handle both possible orientations of momentum_dist
-    if size(momentum_dist, 1) == length(k_values)
-        total_steps = size(momentum_dist, 2)
-    else
-        momentum_dist = transpose(momentum_dist)
-        total_steps = size(momentum_dist, 2)
-    end
+    momentum_dist = _momentum_distribution_modes_by_steps(momentum_dist, length(k_values))
+    total_steps = size(momentum_dist, 2)
 
     step_indices = select_evolution_steps(total_steps; steps_to_plot=steps_to_plot)
     n_k_gs = compute_ground_state_occupation(k_values, J, h)
