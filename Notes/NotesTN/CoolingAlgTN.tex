@@ -1,6 +1,6 @@
 \documentclass[aps,pra,twocolumn,superscriptaddress,nolongbibliography,nobalancelastpage,10pt]{revtex4-2}
+% Build from this directory, for example: latexmk -pdf CoolingAlgTN.tex
 \input{preamble}
-\graphicspath{{./Figs/}}
 
 \begin{document}
 
@@ -280,7 +280,7 @@ The matrix product state simulations were performed using the ITensor.jl~\cite{F
 \section{Bayesian Optimization for Hyperparameter Tuning}
 Optimizing the performance of the cooling algorithm requires finding the optimal values for hyperparameters such as the coupling strength $g$ and the evolution time $t_e$. However, the relationship between these hyperparameters and the cooling efficiency is complex and evaluating the cooling efficiency for a given set of hyperparameters is computationally expensive. We employ Bayesian optimization, a framework for global optimization of expensive black-box functions~\cite{Frazier2018Tutorial}, to address this challenge.
 
-Bayesian optimization constructs a probabilistic surrogate model, typically a Gaussian process~\cite{Rasmussen2006Gaussian}, of the objective function (cooling efficiency) based on observed values at different hyperparameter configurations. The surrogate model's posterior distribution guides the search for optimal hyperparameters by balancing exploration and exploitation through an acquisition function, such as Expected Improvement~\cite{Mockus1978Application} or Upper Confidence Bound~\cite{Srinivas2009Gaussian}. The acquisition function determines the next point to evaluate in the hyperparameter space, aiming to maximize the expected improvement over the current best solution while considering the uncertainty in the surrogate model's predictions.
+Bayesian optimization constructs a probabilistic surrogate model, typically a Gaussian process~\cite{Rasmussen2006Gaussian}, of the objective function (cooling efficiency) based on observed values at different hyperparameter configurations. The surrogate model's posterior distribution guides the search for optimal hyperparameters by balancing exploration and exploitation through an acquisition function, such as Expected Improvement~\cite{Mockus1978Application} or Upper Confidence Bound~\cite{Srinivas2010Gaussian}. The acquisition function determines the next point to evaluate in the hyperparameter space, aiming to maximize the expected improvement over the current best solution while considering the uncertainty in the surrogate model's predictions.
 
 At each iteration, the hyperparameter configuration that maximizes the acquisition function is selected, and the objective function is evaluated at that point. The new observation is then used to update the surrogate model, and the process is repeated until a predefined budget (e.g., number of iterations or time limit) is exhausted. Bayesian optimization is particularly suitable when the objective function is expensive to evaluate, as it aims to minimize the number of function evaluations required to find the global optimum.
 
@@ -307,7 +307,7 @@ where $\ket{p(\theta)} = \cos{\theta}\ket{0} + \sin{\theta}\ket{1}$. In the ther
 
 \begin{figure}[htbp]
 	\centering
-	\includegraphics[width=0.8\linewidth]{Figs/Cooling/EnergyDensityIsinghx-1.05hz0.5.pdf}
+	\includegraphics[width=0.8\linewidth]{Figures/Cooling/EnergyDensityIsinghx-1.05hz0.5.pdf}
 	\caption{Energy density in the non-integrable Ising chain~\eqref{eq:HIsing} in the thermodynamic limit. The solid line indicates the energy density of translationally invariant real product states, while the dashed horizontal lines indicate the energy densities of the ground state (estimated numerically with MPS). The colored symbols indicate the states chosen in our numerical simulations.}
 	\label{fig:ELNI}
 \end{figure}
@@ -362,7 +362,7 @@ We simulate the cooling algorithm using MPS quantum trajectories for system size
 
 \begin{figure}
 	\centering
-	% \includegraphics[width=0.5\textwidth]{Figs/Cooling/MPS_NoisyCooling_IsingJ1.0h2.0Nmax100ratio1g0.3te1.0Steps500_versus_N_pe.pdf}
+	% \includegraphics[width=0.5\textwidth]{Figures/Cooling/MPS_NoisyCooling_IsingJ1.0h2.0Nmax100ratio1g0.3te1.0Steps500_versus_N_pe.pdf}
 	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns50Nb50_CouplingXXg0.3te2.0steps500_SimMPSDmax20.pdf}
 	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns100Nb100_CouplingXXg0.3te2.0steps500_SimMPSDmax20.pdf}
 	\caption{MPS quantum trajectory simulation results of the noisless cooling procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The initial state is the infinite temperature state, and depolarizing channels are injected after each cooling step with different error probabilities. The bond dimension is $D \leq 20$, and the time step is $\delta t = 0.1$.}
@@ -374,7 +374,7 @@ Fig.~\ref{fig:MPSCooling:noisy} shows the error in the energy density as a funct
 
 \begin{figure}
 	\centering
-	% \includegraphics[width=0.5\textwidth]{Figs/Cooling/MPS_NoisyCooling_IsingJ1.0h2.0Nmax100ratio1g0.3te1.0Steps500_versus_N_pe.pdf}
+	% \includegraphics[width=0.5\textwidth]{Figures/Cooling/MPS_NoisyCooling_IsingJ1.0h2.0Nmax100ratio1g0.3te1.0Steps500_versus_N_pe.pdf}
 	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns50Nb50_CouplingXXg0.3te2.0steps500_SimMPSDmax20pe0.01.pdf}
 	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns100Nb100_CouplingXXg0.3te2.0steps500_SimMPSDmax20pe0.01.pdf}
 	\caption{MPS quantum trajectory simulation results of the noisy cooling procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The initial state is the infinite temperature state, and depolarizing channels are injected after each cooling step with different error probabilities. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$.}
@@ -449,5 +449,5 @@ To evaluate the performance of the optimized cooling algorithm, we run the cooli
 
 
 
-\bibliography{library.bib}
+\bibliography{library}
 \end{document}
