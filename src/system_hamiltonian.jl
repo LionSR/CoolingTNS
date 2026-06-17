@@ -59,6 +59,15 @@ function rydberg_number_identity_shift(N::Int, Δ, V)
     return -N * Δ / 2 + interaction_shift
 end
 
+function require_open_rydberg_boundary(ham_params::HamiltonianParameters{RydbergModel})
+    ham_params.bc == :open && return nothing
+    throw(ArgumentError(
+        "Rydberg Hamiltonian construction currently supports only :open boundary " *
+        "conditions; got $(ham_params.bc). A periodic Rydberg model needs an " *
+        "explicit distance convention."
+    ))
+end
+
 # ============================================================================
 # Tensor Network (ITensors) Implementations
 # ============================================================================
@@ -139,6 +148,8 @@ function append_system_terms_tn(
     ham_params::HamiltonianParameters{RydbergModel},
     site_of,
 )
+    require_open_rydberg_boundary(ham_params)
+
     Ω, Δ, V = ham_params.params.Ω, ham_params.params.Δ, ham_params.params.V
     Ωx = rydberg_rabi_x_coefficient(Ω)
     N = ham_params.N
@@ -206,6 +217,8 @@ function construct_system_hamiltonian(ham_params::HamiltonianParameters{NiIsingM
 end
 
 function construct_system_hamiltonian(ham_params::HamiltonianParameters{RydbergModel}, ::EDBackend, ::Int)
+    require_open_rydberg_boundary(ham_params)
+
     Ω, Δ, V = ham_params.params.Ω, ham_params.params.Δ, ham_params.params.V
     Ωx = rydberg_rabi_x_coefficient(Ω)
     N = ham_params.N

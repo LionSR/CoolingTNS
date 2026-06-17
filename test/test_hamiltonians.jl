@@ -295,6 +295,42 @@ end
                 @test H_tn_matrix ≈ H_ed_matrix atol=1e-12
             end
         end
+
+        @testset "Rydberg non-open boundary conditions are explicit" begin
+            sites_nonopen = siteinds("S=1/2", N_rydberg)
+            sites_sb_nonopen = siteinds("S=1/2", 2 * N_rydberg)
+            coupling_nonopen = CoolingTNS.BasicCouplingParameters("XX", 0.0, 1, 0.0, 0.0)
+
+            periodic_ham = CoolingTNS.RydbergParameters(N_rydberg, Ω, Δ, V, :periodic)
+            err = try
+                CoolingTNS.construct_system_hamiltonian(
+                    periodic_ham, CoolingTNS.EDBackend(), N_rydberg
+                )
+                nothing
+            catch caught
+                caught
+            end
+            @test err isa ArgumentError
+            @test occursin("supports only :open", sprint(showerror, err))
+            @test occursin("periodic", sprint(showerror, err))
+
+            for bc in [:periodic, :antiperiodic]
+                ham_nonopen = CoolingTNS.RydbergParameters(N_rydberg, Ω, Δ, V, bc)
+
+                @test_throws ArgumentError CoolingTNS.construct_system_hamiltonian(
+                    ham_nonopen, CoolingTNS.EDBackend(), N_rydberg
+                )
+                @test_throws ArgumentError CoolingTNS.construct_system_hamiltonian(
+                    ham_nonopen, CoolingTNS.TNBackend(), sites_nonopen
+                )
+                @test_throws ArgumentError CoolingTNS.construct_system_bath_hamiltonian(
+                    ham_nonopen, CoolingTNS.EDBackend(), 2 * N_rydberg, coupling_nonopen
+                )
+                @test_throws ArgumentError CoolingTNS.construct_system_bath_hamiltonian(
+                    ham_nonopen, CoolingTNS.TNBackend(), sites_sb_nonopen, coupling_nonopen
+                )
+            end
+        end
     end
     
     
