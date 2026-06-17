@@ -5,7 +5,10 @@ Standalone plotting script. Usage:
     julia --project=. scripts/plotting/plot_energy_dispersion.jl
 """
 
-include(joinpath(@__DIR__, "PlotUtils.jl"))
+# Allow tests and notebooks to include several standalone plot scripts in one session.
+if !@isdefined(get_pyplot)
+    include(joinpath(@__DIR__, "PlotUtils.jl"))
+end
 
 """
     plot_energy_dispersion(N, J, h, bc; delta=nothing, save_fig=true, filename=nothing)
@@ -26,9 +29,7 @@ function plot_energy_dispersion(N::Int, J::Real, h::Real, bc::Symbol;
 
     ax.plot(k_sorted / pi, e_k, "b-", linewidth=2, label="epsilon_k")
 
-    if delta !== nothing && delta != 0
-        ax.axvline(x=delta/pi, color="red", linestyle="--", linewidth=2, label="delta/pi")
-    end
+    add_detuning_energy_marker!(ax, delta; alpha=1.0)
 
     ax.set_xlabel("k/pi", fontsize=14)
     ax.set_ylabel("epsilon_k", fontsize=14)

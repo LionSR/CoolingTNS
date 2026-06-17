@@ -9,9 +9,13 @@ using CoolingTNS
 using HDF5
 using PythonCall
 using LaTeXStrings
+using Printf
 
 # Re-export dispersion functions from CoolingTNS for convenience
-using CoolingTNS: generate_k_values, compute_energy_dispersion, compute_ground_state_occupation
+using CoolingTNS: bath_detuning_energy,
+                  generate_k_values,
+                  compute_energy_dispersion,
+                  compute_ground_state_occupation
 
 # Lazy pyplot access - imported once per session
 const _pyplot = Ref{Py}()
@@ -112,6 +116,33 @@ Generate a color array for evolution plots using viridis colormap.
 """
 function get_evolution_colors(plt, n_steps::Int)
     return plt.cm.viridis(range(0, 1, length=n_steps))
+end
+
+_detuning_label_value(δ_abs::Real) = @sprintf("%.6g", δ_abs)
+_detuning_label_value(δ_abs) = string(δ_abs)
+
+"""
+    add_detuning_energy_marker!(ax, delta; color="red", linestyle="--", linewidth=2, alpha=0.7,
+                                label=nothing)
+
+Draw a bath detuning as a horizontal energy marker on a dispersion axis.
+
+The transverse-field Ising dispersion is plotted as `epsilon_k` versus `k/pi`,
+so the resonant bath line belongs on the energy axis at `|delta|`, not on the
+momentum axis at `delta/pi`. Returns the plotted energy, or `nothing` when
+`delta` does not specify a single nonzero detuning. The default legend label
+includes the plotted value of `|delta|`; pass `label` to override it.
+"""
+function add_detuning_energy_marker!(ax, delta;
+                                     color="red", linestyle="--", linewidth=2, alpha=0.7,
+                                     label=nothing)
+    δ_abs = bath_detuning_energy(delta)
+    δ_abs === nothing && return nothing
+
+    line_label = label === nothing ? L"|\Delta| = %$(_detuning_label_value(δ_abs))" : label
+    ax.axhline(y=δ_abs, color=color, linestyle=linestyle, linewidth=linewidth,
+               alpha=alpha, label=line_label)
+    return δ_abs
 end
 
 """

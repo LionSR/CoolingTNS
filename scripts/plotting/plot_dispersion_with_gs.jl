@@ -5,7 +5,10 @@ Standalone plotting script. Usage:
     julia --project=. scripts/plotting/plot_dispersion_with_gs.jl
 """
 
-include(joinpath(@__DIR__, "PlotUtils.jl"))
+# Allow tests and notebooks to include several standalone plot scripts in one session.
+if !@isdefined(get_pyplot)
+    include(joinpath(@__DIR__, "PlotUtils.jl"))
+end
 
 """
     plot_dispersion_with_ground_state(N, J, h, bc; delta=nothing, save_fig=true, filename=nothing)
@@ -36,9 +39,7 @@ function plot_dispersion_with_ground_state(N::Int, J::Real, h::Real, bc::Symbol;
     ax2.tick_params(axis="y", labelcolor="g")
     ax2.set_ylim(-0.1, 1.1)
 
-    if delta !== nothing && delta != 0
-        ax1.axvline(x=delta/pi, color="red", linestyle="--", linewidth=2, label="delta/pi", alpha=0.7)
-    end
+    add_detuning_energy_marker!(ax1, delta; alpha=0.7)
 
     ax1.set_title("Energy Dispersion and Ground State Occupation\n(N=$N, J=$J, h=$h, BC=$bc)", fontsize=16)
     ax1.grid(true, alpha=0.3)
