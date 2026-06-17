@@ -51,9 +51,9 @@ function run_cooling(parsed_args)
     println("The ground state energy density is e₀/N = $(e₀/ham_params.N)")
 
     window_size = parsed_args["window_size"]
-    E_final = CoolingTNS.mean_last_window(results["E_list"], window_size)
+    E_final = CoolingTNS.mean_last_window(results[CoolingTNS.RESULT_ENERGY], window_size)
     Edensity_final = E_final / ham_params.N
-    GS_overlap_final = CoolingTNS.mean_last_window(results["GS_overlap_list"], window_size)
+    GS_overlap_final = CoolingTNS.mean_last_window(results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP], window_size)
     println("After cooling: E_final/N=$Edensity_final, GS_overlap_final=$GS_overlap_final")
 
     # Save results - add scalar values as new keys
@@ -67,11 +67,19 @@ function run_cooling(parsed_args)
     CoolingTNS.save_results(filename, save_data, e₀, ham_name, parsed_args)
     
     # Plot results
-    CoolingTNS.plot_energy_and_overlap(results["E_list"], results["GS_overlap_list"], e₀, ham_params.N, filename; moving_average=true)
+    CoolingTNS.plot_energy_and_overlap(
+        results[CoolingTNS.RESULT_ENERGY],
+        results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP],
+        e₀,
+        ham_params.N,
+        filename;
+        moving_average=true,
+    )
     
     # Generate k-space plots for ED simulations with PBC/APBC (only for Ising model)
-    if backend isa CoolingTNS.EDBackend && ham_params.bc in [:periodic, :antiperiodic] && isa(ham_params.model, CoolingTNS.IsingModel)
-        if haskey(results, "momentum_dist") && haskey(results, "k_values")
+    if backend isa CoolingTNS.EDBackend && CoolingTNS.supports_ising_fourier_observables(ham_params)
+        if haskey(results, CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION) &&
+           haskey(results, CoolingTNS.RESULT_K_VALUES)
             println("\nGenerating k-space plots...")
             full_filename = joinpath("Results", "$(filename).h5")
             try
