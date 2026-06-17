@@ -740,7 +740,7 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
     step_indices = select_evolution_steps(total_steps; steps_to_plot=steps_to_plot)
 
     fig, ax = plt.subplots(figsize=(8, 6))
-    colors = pyconvert(Vector, get_evolution_colors(plt, length(step_indices)))
+    colors = get_evolution_colors(plt, length(step_indices))
 
     for (i, step) in enumerate(step_indices)
         if step <= total_steps
