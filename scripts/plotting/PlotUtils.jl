@@ -9,6 +9,7 @@ using CoolingTNS
 using HDF5
 using PythonCall
 using LaTeXStrings
+using Printf
 
 # Re-export dispersion functions from CoolingTNS for convenience
 using CoolingTNS: bath_detuning_energy,
@@ -117,6 +118,9 @@ function get_evolution_colors(plt, n_steps::Int)
     return plt.cm.viridis(range(0, 1, length=n_steps))
 end
 
+_detuning_label_value(δ_abs::Real) = @sprintf("%.6g", δ_abs)
+_detuning_label_value(δ_abs) = string(δ_abs)
+
 """
     add_detuning_energy_marker!(ax, delta; color="red", linestyle="--", linewidth=2, alpha=0.7,
                                 label=nothing)
@@ -135,7 +139,7 @@ function add_detuning_energy_marker!(ax, delta;
     δ_abs = bath_detuning_energy(delta)
     δ_abs === nothing && return nothing
 
-    line_label = label === nothing ? L"|\Delta| = %$(δ_abs)" : label
+    line_label = label === nothing ? L"|\Delta| = %$(_detuning_label_value(δ_abs))" : label
     ax.axhline(y=δ_abs, color=color, linestyle=linestyle, linewidth=linewidth,
                alpha=alpha, label=line_label)
     return δ_abs
