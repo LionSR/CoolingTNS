@@ -395,7 +395,8 @@ function initialize_measurements(problem::CoolingProblem, state::QuantumState, s
     # Add backend-specific measurements
     add_backend_measurements!(measurements, problem, state, steps)
     
-    # Add mode energy measurements if requested (ED + Ising + PBC/APBC only)
+    # Add mode energy measurements if requested for states whose backend has a
+    # convention-matched Ising Fourier observable implementation.
     if measure_modes
         add_mode_measurements!(measurements, problem, state, steps, ham_params)
     end
@@ -487,22 +488,27 @@ function _record_ising_mode_measurements!(measurements, step::Int, state, ham_pa
     return true
 end
 
+function _copy_previous_ising_mode_measurements!(measurements, step::Int)
+    step > 1 || return false
+    hk = get(measurements, RESULT_MODE_HK, nothing)
+    nk = get(measurements, RESULT_MODE_NK, nothing)
+    (hk isa AbstractMatrix && nk isa AbstractMatrix) || return false
+    hk[step, :] .= hk[step - 1, :]
+    nk[step, :] .= nk[step - 1, :]
+    return true
+end
+
 # Helper for mode energy measurements ⟨h_k⟩ (Ising PBC/APBC)
 function add_mode_measurements!(measurements, problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend}, steps, ham_params)
     _add_ising_mode_measurement_slots!(measurements, problem, _measurement_ham_params(problem, ham_params))
 end
 
 function add_mode_measurements!(measurements, problem::CoolingProblem{TNBackend},
-                                state::QuantumState{TNBackend,MonteCarloWavefunction,E},
-                                steps, ham_params) where E<:EvolutionMethod
-    hp = _measurement_ham_params(problem, ham_params)
-    if supports_ising_fourier_observables(hp)
-        @warn "TN cooling Fourier-mode measurements are disabled until TN Ising Hamiltonians honor periodic/APBC boundary conditions" issue=124
-    end
-    return nothing
+                                state::QuantumState{TNBackend}, steps, ham_params)
+    _add_ising_mode_measurement_slots!(measurements, problem, _measurement_ham_params(problem, ham_params))
 end
 
-# Fallback: mode measurements not supported for non-ED backends
+# Fallback: mode measurements not supported for this backend/state pair.
 add_mode_measurements!(measurements, problem, state, steps, ham_params) = nothing
 
 """Perform measurements on current state"""
@@ -612,7 +618,8 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
         @warn "Dimension mismatch in measurements" MPS_length=length(ψ_s) H_sys_length=length(H_sys) phi0_length=length(ϕ₀) step=step
     end
 
-    if step == 1 || length(ψ_s) == length(H_sys)
+    system_state_is_measurable = step == 1 || length(ψ_s) == length(H_sys)
+    if system_state_is_measurable
         measurements[RESULT_ENERGY][step] = real(inner(ψ_s', H_sys, ψ_s))
         measurements[RESULT_GROUND_STATE_OVERLAP][step] = abs2(inner(ψ_s, ϕ₀))
     else
@@ -623,6 +630,12 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
 
     if haskey(measurements, RESULT_BATH_SAMPLE_MAGNETIZATION) && bath_info !== nothing
         measurements[RESULT_BATH_SAMPLE_MAGNETIZATION][step] = compute_bath_magnetization(problem.backend, state, bath_info, ham_params.N)
+    end
+
+    if system_state_is_measurable
+        _record_ising_mode_measurements!(measurements, step, ψ_s, ham_params)
+    else
+        _copy_previous_ising_mode_measurements!(measurements, step)
     end
 end
 
@@ -773,7 +786,7 @@ end
 # Unified TN+DM measurements for both Continuous and Trotter evolution
 function perform_backend_measurements!(measurements, step::Int, problem::CoolingProblem{TNBackend},
                                      state::QuantumState{TNBackend,DensityMatrix,E},
-                                     _ham_params, bath_info=nothing) where E<:EvolutionMethod
+                                     ham_params, bath_info=nothing) where E<:EvolutionMethod
     ρ_s = state.state
     H_sys = problem.H_sys
     ϕ₀ = problem.ϕ₀
@@ -784,4 +797,6 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     if haskey(measurements, RESULT_BATH_MAGNETIZATION) && bath_info !== nothing
         measurements[RESULT_BATH_MAGNETIZATION][step] = bath_info
     end
+
+    _record_ising_mode_measurements!(measurements, step, ρ_s, ham_params)
 end

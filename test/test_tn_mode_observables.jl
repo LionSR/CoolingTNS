@@ -2,6 +2,7 @@ using Test
 using CoolingTNS
 using ITensors
 using ITensorMPS
+using Random
 
 @testset "TN Mode Observables" begin
     @testset "MPS h_k agrees with ED for X+ product state" begin
@@ -145,32 +146,156 @@ using ITensorMPS
         @test_throws ArgumentError measure_hk(ρ_tn, 1//2, ham_params)
     end
 
-    @testset "TN cooling disables MPS Fourier modes until boundary support exists" begin
+    @testset "TN MCWF continuous cooling records MPS Fourier modes" begin
         N = 4
         ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
         coupling_params = BasicCouplingParameters("XX", 0.0, 0, 0.0, 0.5)
         sim_params = UnifiedSimulationParameters(MonteCarloWavefunction(), ContinuousEvolution(); maxiter=20)
 
-        problem = setup_problem(TNBackend(), ham_params, coupling_params, sim_params)
-        state0 = setup_initial_state(problem, sim_params, "theta", 0.0)
+        problem_tn = setup_problem(TNBackend(), ham_params, coupling_params, sim_params)
+        state_tn = setup_initial_state(problem_tn, sim_params, "theta", 0.0)
+        problem_ed = setup_problem(EDBackend(), ham_params, coupling_params, sim_params)
+        state_ed = setup_initial_state(problem_ed, sim_params, "theta", 0.0)
 
-        results = @test_logs (:warn, r"TN cooling Fourier-mode measurements are disabled") redirect_stdout(devnull) do
-            run_cooling(problem, state0, coupling_params, sim_params, ham_params; measure_modes=true)
+        results_tn = redirect_stdout(devnull) do
+            run_cooling(problem_tn, state_tn, coupling_params, sim_params, ham_params; measure_modes=true)
+        end
+        results_ed = redirect_stdout(devnull) do
+            run_cooling(problem_ed, state_ed, coupling_params, sim_params, ham_params; measure_modes=true)
         end
 
-        @test !haskey(results, RESULT_MODE_GF)
-        @test !haskey(results, RESULT_MODE_HK)
-        @test !haskey(results, RESULT_MODE_NK)
-        @test !haskey(results, RESULT_MODE_K_INDICES)
-        @test !haskey(results, RESULT_MODE_ENERGIES)
+        @test haskey(results_tn, RESULT_MODE_GF)
+        @test haskey(results_tn, RESULT_MODE_HK)
+        @test haskey(results_tn, RESULT_MODE_NK)
+        @test haskey(results_tn, RESULT_MODE_K_INDICES)
+        @test haskey(results_tn, RESULT_MODE_ENERGIES)
+        @test results_tn[RESULT_MODE_GF] == results_ed[RESULT_MODE_GF]
+        @test results_tn[RESULT_MODE_K_INDICES] == results_ed[RESULT_MODE_K_INDICES]
+        @test results_tn[RESULT_MODE_ENERGIES] ≈ results_ed[RESULT_MODE_ENERGIES] atol=1e-12
+        @test results_tn[RESULT_MODE_HK] ≈ results_ed[RESULT_MODE_HK] atol=1e-8
+        @test results_tn[RESULT_MODE_NK] ≈ results_ed[RESULT_MODE_NK] atol=1e-8
     end
 
-    @testset "TN density-matrix cooling modes wait for boundary support" begin
+    @testset "TN MCWF mode rows follow dimension-mismatch fallback" begin
+        N = 4
+        ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
+        coupling_params = BasicCouplingParameters("XX", 0.0, 1, 0.0, 0.5)
+        sim_params = UnifiedSimulationParameters(MonteCarloWavefunction(), ContinuousEvolution(); maxiter=20)
+
+        problem = setup_problem(TNBackend(), ham_params, coupling_params, sim_params)
+        state = setup_initial_state(problem, sim_params, "theta", 0.0)
+        measurements = CoolingTNS.initialize_measurements(
+            problem,
+            state,
+            coupling_params.steps;
+            measure_modes=true,
+            ham_params=ham_params,
+        )
+        CoolingTNS.perform_backend_measurements!(measurements, 1, problem, state, ham_params)
+
+        wrong_length_state = QuantumState(
+            problem.backend,
+            sim_params.sim_method,
+            sim_params.evolution_method,
+            MPS(problem.extra.sites, "Up"),
+        )
+        @test_logs (:warn, r"Dimension mismatch") (:warn, r"Skipping measurement") begin
+            CoolingTNS.perform_backend_measurements!(
+                measurements,
+                2,
+                problem,
+                wrong_length_state,
+                ham_params,
+            )
+        end
+
+        @test measurements[RESULT_ENERGY][2] == measurements[RESULT_ENERGY][1]
+        @test measurements[RESULT_GROUND_STATE_OVERLAP][2] ==
+            measurements[RESULT_GROUND_STATE_OVERLAP][1]
+        @test measurements[RESULT_MODE_HK][2, :] == measurements[RESULT_MODE_HK][1, :]
+        @test measurements[RESULT_MODE_NK][2, :] == measurements[RESULT_MODE_NK][1, :]
+    end
+
+    @testset "TN MCWF continuous cooling records nonzero-step mode rows" begin
+        N = 4
+        ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
+        coupling_params = BasicCouplingParameters("XX", 0.05, 2, 0.05, 0.5)
+        sim_params = UnifiedSimulationParameters(
+            MonteCarloWavefunction(),
+            ContinuousEvolution();
+            maxiter=20,
+            cutoff=1e-12,
+            Dmax=64,
+        )
+
+        problem_tn = setup_problem(TNBackend(), ham_params, coupling_params, sim_params)
+        state_tn = setup_initial_state(problem_tn, sim_params, "theta", 0.0)
+        problem_ed = setup_problem(EDBackend(), ham_params, coupling_params, sim_params)
+        state_ed = setup_initial_state(problem_ed, sim_params, "theta", 0.0)
+
+        Random.seed!(1234)
+        results_tn = redirect_stdout(devnull) do
+            run_cooling(problem_tn, state_tn, coupling_params, sim_params, ham_params; measure_modes=true)
+        end
+        Random.seed!(1234)
+        results_ed = redirect_stdout(devnull) do
+            run_cooling(problem_ed, state_ed, coupling_params, sim_params, ham_params; measure_modes=true)
+        end
+
+        n_steps_total = coupling_params.steps + 1
+        @test size(results_tn[RESULT_MODE_HK]) == (n_steps_total, N)
+        @test size(results_tn[RESULT_MODE_NK]) == (n_steps_total, N)
+        @test all(isfinite, results_tn[RESULT_MODE_HK])
+        @test all(isfinite, results_tn[RESULT_MODE_NK])
+        @test results_tn[RESULT_MODE_GF] == results_ed[RESULT_MODE_GF]
+        @test results_tn[RESULT_MODE_K_INDICES] == results_ed[RESULT_MODE_K_INDICES]
+        @test results_tn[RESULT_MODE_ENERGIES] ≈ results_ed[RESULT_MODE_ENERGIES] atol=1e-12
+        @test results_tn[RESULT_MODE_HK] ≈ results_ed[RESULT_MODE_HK] atol=1e-6
+        @test results_tn[RESULT_MODE_NK] ≈ results_ed[RESULT_MODE_NK] atol=1e-6
+        @test results_tn[RESULT_MODE_NK] ≈
+            mode_occupation_from_hk(results_tn[RESULT_MODE_HK]) atol=1e-12
+        @test all(nk -> -1e-12 <= nk <= 1 + 1e-12, results_tn[RESULT_MODE_NK])
+    end
+
+    @testset "TN density-matrix zero-step cooling records MPO Fourier modes" begin
+        N = 4
+        ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
+        coupling_params = BasicCouplingParameters("XX", 0.0, 0, 0.0, 0.5)
+        sim_params = UnifiedSimulationParameters(DensityMatrix(), ContinuousEvolution())
+
+        problem_tn = setup_problem(TNBackend(), ham_params, coupling_params, sim_params)
+        state_tn = setup_initial_state(problem_tn, sim_params, "theta", 0.0)
+        problem_ed = setup_problem(EDBackend(), ham_params, coupling_params, sim_params)
+        state_ed = setup_initial_state(problem_ed, sim_params, "theta", 0.0)
+
+        results_tn = redirect_stdout(devnull) do
+            run_cooling(problem_tn, state_tn, coupling_params, sim_params, ham_params; measure_modes=true)
+        end
+        results_ed = redirect_stdout(devnull) do
+            run_cooling(problem_ed, state_ed, coupling_params, sim_params, ham_params; measure_modes=true)
+        end
+
+        @test haskey(results_tn, RESULT_MODE_GF)
+        @test haskey(results_tn, RESULT_MODE_HK)
+        @test haskey(results_tn, RESULT_MODE_NK)
+        @test haskey(results_tn, RESULT_MODE_K_INDICES)
+        @test haskey(results_tn, RESULT_MODE_ENERGIES)
+        @test results_tn[RESULT_MODE_GF] == results_ed[RESULT_MODE_GF]
+        @test results_tn[RESULT_MODE_K_INDICES] == results_ed[RESULT_MODE_K_INDICES]
+        @test results_tn[RESULT_MODE_ENERGIES] ≈ results_ed[RESULT_MODE_ENERGIES] atol=1e-12
+        @test results_tn[RESULT_MODE_HK] ≈ results_ed[RESULT_MODE_HK] atol=1e-8
+        @test results_tn[RESULT_MODE_NK] ≈ results_ed[RESULT_MODE_NK] atol=1e-8
+    end
+
+    @testset "TN density-matrix Trotter rejects non-open Fourier cooling" begin
         N = 4
         ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
         coupling_params = BasicCouplingParameters("XX", 0.0, 0, 0.0, 0.5)
         sim_params = UnifiedSimulationParameters(DensityMatrix(), TrotterEvolution(); tau=0.1)
 
         @test_throws ArgumentError setup_problem(TNBackend(), ham_params, coupling_params, sim_params)
+
+        sim_params_mcwf = UnifiedSimulationParameters(MonteCarloWavefunction(), TrotterEvolution(); tau=0.1)
+        @test_throws ArgumentError setup_problem(TNBackend(), ham_params, coupling_params, sim_params_mcwf)
     end
 end
