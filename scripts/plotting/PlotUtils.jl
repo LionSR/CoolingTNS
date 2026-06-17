@@ -63,7 +63,9 @@ end
     select_evolution_steps(total_steps::Int; steps_to_plot=nothing) -> Vector{Int}
 
 Select which steps to plot from an evolution.
-Default: initial, 25%, 50%, 75%, and final steps.
+Default: initial, 25%, 50%, 75%, and final steps, clamped to the
+available interval `1:total_steps`. Explicit `steps_to_plot` values must also
+lie in this interval; impossible requests throw `ArgumentError`.
 """
 function select_evolution_steps(total_steps::Int; steps_to_plot=nothing)::Vector{Int}
     total_steps >= 1 || throw(ArgumentError("total_steps must be positive; got $total_steps"))
