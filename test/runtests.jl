@@ -33,6 +33,7 @@ end
         include("test_measure_hk.jl")
         include("test_tn_mode_observables.jl")
         include("test_plot_mode_cooling.jl")
+        include("test_plot_ek_evolution.jl")
     end
 
     if RUN_FULL_TESTS
