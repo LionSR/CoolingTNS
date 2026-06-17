@@ -19,7 +19,7 @@ using CoolingTNS: HamiltonianParameters, CouplingParameters, UnifiedSimulationPa
     RESULT_MOMENTUM_DISTRIBUTION, RESULT_K_VALUES, RESULT_MOMENTUM_GF,
     RESULT_MODE_GF, RESULT_MODE_K_INDICES, RESULT_MODE_ENERGIES,
     HDF5_PARSED_ARGS_GROUP, hamiltonian_name, bath_detuning_energy,
-    _nearest_energy_resonance_indices, compute_energy_dispersion
+    compute_energy_dispersion
 
 _ham_params_with_N(template::HamiltonianParameters, N::Int) =
     HamiltonianParameters(template.model, N, template.params, template.bc)
@@ -698,7 +698,7 @@ function _add_momentum_resonance_markers!(ax, k_values, εk_values, delta)
     δ_abs = bath_detuning_energy(delta)
     δ_abs === nothing && return Int[]
 
-    resonance_indices = _nearest_energy_resonance_indices(εk_values, δ_abs)
+    resonance_indices = CoolingTNS._nearest_energy_resonance_indices(εk_values, δ_abs)
     isempty(resonance_indices) && return resonance_indices
 
     line_label = L"\varepsilon_k \approx |\Delta| = %$(_detuning_label_value(δ_abs))"
