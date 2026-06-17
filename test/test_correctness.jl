@@ -164,38 +164,38 @@ if RUN_FULL_TESTS
                     evolution_method_str="continuous",
                     ham_params=ham_params, coupling_params=COUPLING_PARAMS
                 )
-                push!(mc_E_lists, results_mc["E_list"])
-                push!(mc_overlap_lists, results_mc["GS_overlap_list"])
+                push!(mc_E_lists, results_mc[RESULT_ENERGY])
+                push!(mc_overlap_lists, results_mc[RESULT_GROUND_STATE_OVERLAP])
             end
 
             mc_E_avg = mean(mc_E_lists)
             mc_overlap_avg = mean(mc_overlap_lists)
 
             println("\n  $label DM vs MCWF (avg over $n_traj trajectories):")
-            println("    DM final E/N = $(results_dm["E_list"][end]/ham_params.N)")
+            println("    DM final E/N = $(results_dm[RESULT_ENERGY][end]/ham_params.N)")
             println("    MC final E/N = $(mc_E_avg[end]/ham_params.N)")
-            println("    DM final overlap = $(results_dm["GS_overlap_list"][end])")
+            println("    DM final overlap = $(results_dm[RESULT_GROUND_STATE_OVERLAP][end])")
             println("    MC final overlap = $(mc_overlap_avg[end])")
 
             # Ground state energy must match
             @test abs(prob_dm.e₀ - prob_dm.e₀) < 1e-12  # Same problem
 
             # Both should show cooling: final energy < initial energy
-            @test results_dm["E_list"][end] < results_dm["E_list"][1] + 1e-10
+            @test results_dm[RESULT_ENERGY][end] < results_dm[RESULT_ENERGY][1] + 1e-10
             @test mc_E_avg[end] < mc_E_avg[1] + 1e-10
 
             # DM and averaged MC should agree on final energy within tolerance
             # (MC has finite-sample noise, so tolerance is looser)
             # With N=4, bath measurement outcomes are very discrete, so MC convergence
             # requires many trajectories. We use a generous tolerance here.
-            E_diff = abs(results_dm["E_list"][end] - mc_E_avg[end])
+            E_diff = abs(results_dm[RESULT_ENERGY][end] - mc_E_avg[end])
             mc_E_std = std([el[end] for el in mc_E_lists]) / sqrt(n_traj)
             println("    |E_DM - E_MC| = $E_diff (MC stderr = $mc_E_std)")
             # Check that DM result is within ~3 standard errors of MC mean, or within absolute tolerance
             @test E_diff < max(3.0 * mc_E_std, 3.0)  # Allow 3 stderr or absolute 3.0
 
             # Overlap should increase for both
-            @test results_dm["GS_overlap_list"][end] >= results_dm["GS_overlap_list"][1] - 0.05
+            @test results_dm[RESULT_GROUND_STATE_OVERLAP][end] >= results_dm[RESULT_GROUND_STATE_OVERLAP][1] - 0.05
             @test mc_overlap_avg[end] >= mc_overlap_avg[1] - 0.05
         end
     end
@@ -224,28 +224,28 @@ end # RUN_FULL_TESTS
 
             println("\n  $label Continuous vs Trotter (tau=$TEST_TAU):")
             for step in [1, div(TEST_STEPS,2)+1, TEST_STEPS+1]
-                E_cont = results_cont["E_list"][step]
-                E_trot = results_trot["E_list"][step]
+                E_cont = results_cont[RESULT_ENERGY][step]
+                E_trot = results_trot[RESULT_ENERGY][step]
                 println("    Step $step: E_cont=$(round(E_cont, digits=6)), E_trot=$(round(E_trot, digits=6)), diff=$(round(abs(E_cont-E_trot), digits=6))")
             end
 
             # Initial energies must match exactly (same initial state, no evolution yet)
-            @test abs(results_cont["E_list"][1] - results_trot["E_list"][1]) < 1e-8
+            @test abs(results_cont[RESULT_ENERGY][1] - results_trot[RESULT_ENERGY][1]) < 1e-8
 
             # With small tau, Trotter should approximate continuous evolution well
             for step in 1:TEST_STEPS+1
-                E_diff = abs(results_cont["E_list"][step] - results_trot["E_list"][step])
+                E_diff = abs(results_cont[RESULT_ENERGY][step] - results_trot[RESULT_ENERGY][step])
                 @test E_diff < 0.5  # Per-step tolerance
             end
 
             # Final energies should be close
-            final_diff = abs(results_cont["E_list"][end] - results_trot["E_list"][end])
+            final_diff = abs(results_cont[RESULT_ENERGY][end] - results_trot[RESULT_ENERGY][end])
             println("    Final energy diff: $final_diff")
             @test final_diff < 1.0
 
             # Both should show cooling
-            @test results_cont["E_list"][end] < results_cont["E_list"][1] + 1e-10
-            @test results_trot["E_list"][end] < results_trot["E_list"][1] + 1e-10
+            @test results_cont[RESULT_ENERGY][end] < results_cont[RESULT_ENERGY][1] + 1e-10
+            @test results_trot[RESULT_ENERGY][end] < results_trot[RESULT_ENERGY][1] + 1e-10
         end
     end
 end
@@ -279,23 +279,23 @@ if RUN_FULL_TESTS
             ham_params=small_ising, coupling_params=small_coupling,
             Dmax=100
         )
-        push!(tn_E_lists, results_tn_mc["E_list"])
+        push!(tn_E_lists, results_tn_mc[RESULT_ENERGY])
     end
     tn_E_avg = mean(tn_E_lists)
 
     println("\n  Cross-backend (N=$small_N, niIsing, ED DM vs TN MC avg):")
     println("    ED e₀ = $(prob_ed.e₀)")
-    println("    ED final E/N = $(results_ed["E_list"][end]/small_N)")
+    println("    ED final E/N = $(results_ed[RESULT_ENERGY][end]/small_N)")
     println("    TN MC avg final E/N = $(tn_E_avg[end]/small_N)")
 
     # Ground state energies must agree (checked in problem setup)
     @test abs(prob_ed.e₀ - prob_ed.e₀) < 1e-10  # Sanity
 
     # Initial energies should agree (same initial state type)
-    @test abs(results_ed["E_list"][1] - tn_E_avg[1]) < 0.5
+    @test abs(results_ed[RESULT_ENERGY][1] - tn_E_avg[1]) < 0.5
 
     # ED DM should show cooling (deterministic)
-    @test results_ed["E_list"][end] <= results_ed["E_list"][1] + 1e-10
+    @test results_ed[RESULT_ENERGY][end] <= results_ed[RESULT_ENERGY][1] + 1e-10
 
     # TN MC average should also show cooling trend
     @test tn_E_avg[end] <= tn_E_avg[1] + 0.5  # Looser for MC average
@@ -327,9 +327,9 @@ end
     println("    ED e₀ = $(prob_ed.e₀)")
     println("    TN e₀ = $(prob_tn.e₀)")
 
-    for step in 1:length(results_ed["E_list"])
-        E_ed = results_ed["E_list"][step]
-        E_tn = results_tn["E_list"][step]
+    for step in 1:length(results_ed[RESULT_ENERGY])
+        E_ed = results_ed[RESULT_ENERGY][step]
+        E_tn = results_tn[RESULT_ENERGY][step]
         println("    Step $step: ED E=$(round(E_ed, digits=6)), TN E=$(round(E_tn, digits=6)), diff=$(round(abs(E_ed-E_tn), digits=6))")
     end
 
@@ -337,11 +337,11 @@ end
     @test abs(prob_ed.e₀ - prob_tn.e₀) < 1e-3
 
     # Initial energies agree
-    @test abs(results_ed["E_list"][1] - results_tn["E_list"][1]) < 0.5
+    @test abs(results_ed[RESULT_ENERGY][1] - results_tn[RESULT_ENERGY][1]) < 0.5
 
     # Both should show cooling
-    @test results_ed["E_list"][end] <= results_ed["E_list"][1] + 1e-10
-    @test results_tn["E_list"][end] <= results_tn["E_list"][1] + 1e-10
+    @test results_ed[RESULT_ENERGY][end] <= results_ed[RESULT_ENERGY][1] + 1e-10
+    @test results_tn[RESULT_ENERGY][end] <= results_tn[RESULT_ENERGY][1] + 1e-10
 end
 end # RUN_FULL_TESTS
 
@@ -357,16 +357,16 @@ end # RUN_FULL_TESTS
         )
 
         # Purity must be in (0, 1]
-        for p in results_dm["purity_list"]
+        for p in results_dm[RESULT_PURITY]
             @test 0.0 - 1e-10 <= p <= 1.0 + 1e-10
         end
 
         # Initial pure state → purity = 1
-        @test abs(results_dm["purity_list"][1] - 1.0) < 1e-8
+        @test abs(results_dm[RESULT_PURITY][1] - 1.0) < 1e-8
 
         # After tracing out bath, purity should generally decrease (system becomes mixed)
         # It's OK if it stays close to 1 for weak coupling
-        println("\n  Purity evolution: $(round.(results_dm["purity_list"], digits=6))")
+        println("\n  Purity evolution: $(round.(results_dm[RESULT_PURITY], digits=6))")
     end
 
     @testset "GS overlap bounds" begin
@@ -376,7 +376,7 @@ end # RUN_FULL_TESTS
             ham_params=NI_ISING_PARAMS, coupling_params=COUPLING_PARAMS
         )
 
-        for ov in results["GS_overlap_list"]
+        for ov in results[RESULT_GROUND_STATE_OVERLAP]
             @test -1e-10 <= ov <= 1.0 + 1e-10
         end
     end
@@ -392,7 +392,7 @@ end # RUN_FULL_TESTS
             ham_params=NI_ISING_PARAMS, coupling_params=COUPLING_PARAMS
         )
 
-        for E in results["E_list"]
+        for E in results[RESULT_ENERGY]
             @test E_min - 1e-6 <= E <= E_max + 1e-6
         end
     end
@@ -417,10 +417,10 @@ end
                 ham_params=small_ham, coupling_params=cp
             )
 
-            E_init = results["E_list"][1]
-            E_final = results["E_list"][end]
-            overlap_init = results["GS_overlap_list"][1]
-            overlap_final = results["GS_overlap_list"][end]
+            E_init = results[RESULT_ENERGY][1]
+            E_final = results[RESULT_ENERGY][end]
+            overlap_init = results[RESULT_GROUND_STATE_OVERLAP][1]
+            overlap_final = results[RESULT_GROUND_STATE_OVERLAP][end]
 
             println("  $coupling_type coupling: E_init/N=$(round(E_init/small_N, digits=4)), E_final/N=$(round(E_final/small_N, digits=4)), overlap: $(round(overlap_init, digits=4)) → $(round(overlap_final, digits=4))")
 
@@ -429,8 +429,8 @@ end
             @test E_final <= E_init + 0.1
 
             # All values should be finite
-            @test all(isfinite, results["E_list"])
-            @test all(isfinite, results["GS_overlap_list"])
+            @test all(isfinite, results[RESULT_ENERGY])
+            @test all(isfinite, results[RESULT_GROUND_STATE_OVERLAP])
         end
     end
 end
@@ -450,13 +450,13 @@ end
             )
 
             # Energy must be finite and bounded
-            @test all(isfinite, results["E_list"])
-            @test all(isfinite, results["GS_overlap_list"])
+            @test all(isfinite, results[RESULT_ENERGY])
+            @test all(isfinite, results[RESULT_GROUND_STATE_OVERLAP])
 
             # Energy should decrease
-            @test results["E_list"][end] <= results["E_list"][1] + 1e-8
+            @test results[RESULT_ENERGY][end] <= results[RESULT_ENERGY][1] + 1e-8
 
-            println("  init=$init_type theta=$theta_val: E_init=$(round(results["E_list"][1], digits=4)), E_final=$(round(results["E_list"][end], digits=4))")
+            println("  init=$init_type theta=$theta_val: E_init=$(round(results[RESULT_ENERGY][1], digits=4)), E_final=$(round(results[RESULT_ENERGY][end], digits=4))")
         end
     end
 end
@@ -673,29 +673,29 @@ if RUN_FULL_TESTS
             evolution_method_str="trotter", tau=tau, Dmax=100,
             ham_params=small_ham, coupling_params=small_coupling
         )
-        push!(mc_E_lists, results_mc["E_list"])
+        push!(mc_E_lists, results_mc[RESULT_ENERGY])
     end
     mc_E_avg = mean(mc_E_lists)
     mc_E_stderr = std([el[end] for el in mc_E_lists]) / sqrt(n_traj)
 
     println("\n  TN MC+Trotter vs DM+Trotter (N=$small_N, Ising, $n_traj trajectories):")
-    println("    MPO final E/N = $(results_mpo["E_list"][end]/small_N)")
+    println("    MPO final E/N = $(results_mpo[RESULT_ENERGY][end]/small_N)")
     println("    MC  avg  E/N = $(mc_E_avg[end]/small_N) (stderr=$(mc_E_stderr/small_N))")
     for step in 1:n_steps+1
-        E_mpo = results_mpo["E_list"][step]
+        E_mpo = results_mpo[RESULT_ENERGY][step]
         E_mc = mc_E_avg[step]
         println("    Step $(step-1): MPO=$(round(E_mpo/small_N, digits=6)), MC=$(round(E_mc/small_N, digits=6)), diff=$(round(abs(E_mpo-E_mc)/small_N, digits=6))")
     end
 
     # Initial energies must match exactly (same initial state)
-    @test abs(results_mpo["E_list"][1] - mc_E_avg[1]) < 0.5
+    @test abs(results_mpo[RESULT_ENERGY][1] - mc_E_avg[1]) < 0.5
 
     # Both should show cooling
-    @test results_mpo["E_list"][end] <= results_mpo["E_list"][1] + 1e-10
+    @test results_mpo[RESULT_ENERGY][end] <= results_mpo[RESULT_ENERGY][1] + 1e-10
     @test mc_E_avg[end] <= mc_E_avg[1] + 0.5
 
     # MC average should agree with MPO within statistical error
-    E_diff = abs(results_mpo["E_list"][end] - mc_E_avg[end])
+    E_diff = abs(results_mpo[RESULT_ENERGY][end] - mc_E_avg[end])
     @test E_diff < max(4.0 * mc_E_stderr, 1.5)
 end
 
@@ -724,30 +724,30 @@ end
             evolution_method_str="continuous", Dmax=100,
             ham_params=small_ham, coupling_params=small_coupling
         )
-        push!(mc_E_lists, results_mc["E_list"])
+        push!(mc_E_lists, results_mc[RESULT_ENERGY])
     end
     mc_E_avg = mean(mc_E_lists)
     mc_E_stderr = std([el[end] for el in mc_E_lists]) / sqrt(n_traj)
 
     println("\n  TN MC+Continuous vs DM+Trotter (N=$small_N, Ising, $n_traj trajectories):")
-    println("    MPO final E/N = $(results_mpo["E_list"][end]/small_N)")
+    println("    MPO final E/N = $(results_mpo[RESULT_ENERGY][end]/small_N)")
     println("    MC  avg  E/N = $(mc_E_avg[end]/small_N) (stderr=$(mc_E_stderr/small_N))")
     for step in 1:n_steps+1
-        E_mpo = results_mpo["E_list"][step]
+        E_mpo = results_mpo[RESULT_ENERGY][step]
         E_mc = mc_E_avg[step]
         println("    Step $(step-1): MPO=$(round(E_mpo/small_N, digits=6)), MC=$(round(E_mc/small_N, digits=6)), diff=$(round(abs(E_mpo-E_mc)/small_N, digits=6))")
     end
 
     # Initial energies should agree
-    @test abs(results_mpo["E_list"][1] - mc_E_avg[1]) < 0.5
+    @test abs(results_mpo[RESULT_ENERGY][1] - mc_E_avg[1]) < 0.5
 
     # Both should show cooling
-    @test results_mpo["E_list"][end] <= results_mpo["E_list"][1] + 1e-10
+    @test results_mpo[RESULT_ENERGY][end] <= results_mpo[RESULT_ENERGY][1] + 1e-10
     @test mc_E_avg[end] <= mc_E_avg[1] + 0.1
 
     # MC+Continuous should approximately agree with DM+Trotter
     # (difference includes Trotter error + MC noise)
-    E_diff = abs(results_mpo["E_list"][end] - mc_E_avg[end])
+    E_diff = abs(results_mpo[RESULT_ENERGY][end] - mc_E_avg[end])
     @test E_diff < max(4.0 * mc_E_stderr, 0.5)
 end
 end # RUN_FULL_TESTS
