@@ -29,7 +29,9 @@ const G_COUPLING = 0.3 # Coupling strength
 const TE = 2.0         # Evolution time per step
 const STEPS = 50       # Number of cooling steps
 const INIT_TYPE = "theta"
-const INIT_THETA = π / 4
+const INIT_PRODUCT_ANGLE = pi / 4
+const INIT_THETA_CODE =
+    CoolingTNS.theta_code_from_initial_product_angle(INIT_PRODUCT_ANGLE)
 
 _mode_index_label(k) = k isa Rational ? "$(numerator(k))/$(denominator(k))" : "$(k)"
 
@@ -95,8 +97,11 @@ function run_diagnostic(; do_plot::Bool=false)
     println()
 
     # Setup initial state and run cooling
-    println("Setting up initial state ($INIT_TYPE, θ=$(round(INIT_THETA, digits=4)))...")
-    state0 = CoolingTNS.setup_initial_state(problem, sim_params, INIT_TYPE, INIT_THETA)
+    println(
+        "Setting up initial state ($INIT_TYPE, alpha=$(round(INIT_PRODUCT_ANGLE, digits=4)), " *
+        "theta_code=$(round(INIT_THETA_CODE, digits=4)))..."
+    )
+    state0 = CoolingTNS.setup_initial_state(problem, sim_params, INIT_TYPE, INIT_THETA_CODE)
     px_init = CoolingTNS.measure_state_parity(state0.state, N)
     @printf("Initial state parity ⟨Px⟩ = %.6f\n", px_init)
     println()
