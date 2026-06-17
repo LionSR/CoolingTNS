@@ -95,6 +95,20 @@ using Random
         @test parsed_coupling.te == 1.5
     end
 
+    @testset "Command-line initial-state validation" begin
+        parsed = CoolingTNS.parse_commandline([
+            "--sim_method", "density_matrix",
+            "--init_state", "identity",
+        ])
+        @test parsed["sim_method"] == "density_matrix"
+        @test parsed["init_state"] == "identity"
+
+        @test_throws ArgumentError CoolingTNS.parse_commandline([
+            "--sim_method", "monte_carlo",
+            "--init_state", "identity",
+        ])
+    end
+
     @testset "Common parameter boundary conditions" begin
         base_args = Dict{String,Any}(
             "N" => 4,
@@ -190,7 +204,7 @@ using Random
             backend, ham_params, coupling_params, sim_params
         )
         
-        init_types = ["product", "identity", "theta"]
+        init_types = ["product", "theta"]
         theta_values = [0.0, -0.5, 0.5]
         
         for init_type in init_types
@@ -208,6 +222,10 @@ using Random
                 @test !isnothing(initial_state.state)
             end
         end
+
+        @test_throws ArgumentError CoolingTNS.setup_initial_state(
+            problem_setup, sim_params, "identity", 0.0
+        )
     end
 
     @testset "Full Cooling Simulation" begin

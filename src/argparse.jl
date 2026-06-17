@@ -1,5 +1,21 @@
 using ArgParse
 
+function _validate_initial_state_args(parsed_args)
+    init_state = get(parsed_args, "init_state", "product")
+    sim_method = get(parsed_args, "sim_method", "monte_carlo")
+
+    if init_state == "identity" && sim_method == "monte_carlo"
+        throw(ArgumentError(
+            "--init_state identity denotes the maximally mixed density matrix " *
+            "and requires --sim_method density_matrix. For Monte Carlo " *
+            "wavefunction simulations, choose a pure initial state such as " *
+            "product or theta."
+        ))
+    end
+
+    return parsed_args
+end
+
 function parse_commandline(args=ARGS)
     s = ArgParseSettings()
     @add_arg_table! s begin
@@ -98,7 +114,7 @@ function parse_commandline(args=ARGS)
         arg_type = String
         default = "XX"
         "--init_state"
-        help = "initial state type: 'product' (default), 'identity' (maximally mixed), 'theta' (use --theta value)"
+        help = "initial state type: 'product' (default), 'identity' (maximally mixed; density matrix only), 'theta' (use --theta value)"
         arg_type = String
         default = "product"
         "--theta"
@@ -106,5 +122,6 @@ function parse_commandline(args=ARGS)
         arg_type = Float64
         default = 0.0
     end
-    return parse_args(args, s)
+
+    return _validate_initial_state_args(parse_args(args, s))
 end
