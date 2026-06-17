@@ -128,8 +128,8 @@ h5open(outfile, "w") do f
     write(f, "R", R)
     write(f, "Δ_gap", Float64(Δ_gap))
     write(f, RESULT_DELTA_VALUES, Float64.(Δ_values))
-    write(f, "schedule", String(schedule))
-    write(f, "randomize_times", randomize_times)
+    write(f, RESULT_SCHEDULE, String(schedule))
+    write(f, RESULT_RANDOMIZE_TIMES, randomize_times)
 
     if haskey(res_multi, RESULT_DELTA_LIST)
         write(f, RESULT_DELTA_LIST, Float64.(res_multi[RESULT_DELTA_LIST]))
