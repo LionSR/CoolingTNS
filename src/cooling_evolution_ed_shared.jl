@@ -175,9 +175,9 @@ all cooling steps share the same momentum axis.
 """
 function _momentum_measurement_gF!(measurements, state::Union{EDStateVector, EDDensityMatrix},
                                    ϕ₀::EDStateVector, ham_params)
-    if haskey(measurements, "momentum_gF")
-        get!(measurements, "momentum_gF_source", "precomputed")
-        return measurements["momentum_gF"]
+    if haskey(measurements, RESULT_MOMENTUM_GF)
+        get!(measurements, RESULT_MOMENTUM_GF_SOURCE, "precomputed")
+        return measurements[RESULT_MOMENTUM_GF]
     end
 
     N = ham_params.N
@@ -186,17 +186,17 @@ function _momentum_measurement_gF!(measurements, state::Union{EDStateVector, EDD
 
     if abs(px - parity) <= 0.1 && abs(parity) == 1
         gF = fermionic_bc(ham_params.bc, parity)
-        measurements["momentum_gF_source"] = "state"
+        measurements[RESULT_MOMENTUM_GF_SOURCE] = "state"
     else
         # A mixed-parity state has no unique fermionic boundary condition.
         # Use the ground-state sector as a fixed reference grid for diagnostics,
         # following the convention used for mode-resolved h_k measurements.
         px0 = measure_state_parity(ϕ₀, N)
         gF = _reference_fermionic_bc(ham_params.bc, px0)
-        measurements["momentum_gF_source"] = "ground_state"
+        measurements[RESULT_MOMENTUM_GF_SOURCE] = "ground_state"
     end
 
-    measurements["momentum_gF"] = gF
+    measurements[RESULT_MOMENTUM_GF] = gF
     return gF
 end
 
