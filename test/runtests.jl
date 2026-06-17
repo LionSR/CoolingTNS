@@ -15,6 +15,7 @@ end
         include("test_hamiltonians.jl")
         include("test_initial_states.jl")
         include("test_bath_measurements.jl")
+        include("test_noise.jl")
         include("test_result_structs.jl")
         include("test_cooling_interface.jl")
         include("test_optimization_lookup.jl")
