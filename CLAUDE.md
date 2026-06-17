@@ -371,8 +371,10 @@ struct EDBackend <: CoolingBackend end
 
 2. **Citing Specific Results**: When referring to equations from the notes in code comments:
    ```julia
-   # From Eq. \ref{eq:mode_energy} in MapToSpin.tex
-   ε_k = sqrt(1 + sin(2θ) * cos(2π*k/N))
+   # From the BdG block near Eq. \ref{eq:bdg_block} in MapToSpin.tex,
+   # converted to code units
+   # with θ = atan(h, J)
+   ε_k = 2sqrt(J^2+h^2) * sqrt(1 - sin(2θ) * cos(2π*k/N))
    
    # NOT: From equation (260) in the notes
    ```
@@ -380,7 +382,8 @@ struct EDBackend <: CoolingBackend end
 3. **Label Conventions**: Use descriptive labels that won't change if equations are reordered:
    - `\label{eq:spin_hamiltonian}` for the spin Hamiltonian
    - `\label{eq:JW_transformation}` for Jordan-Wigner transformation
-   - `\label{eq:mode_energy}` for mode energies
+   - `\label{eq:bdg_block}` for the BdG block
+   - `\label{eq:hk_final}` for the spin-correlator expression of mode observables
    
 4. **Cross-referencing**: When implementing formulas from the notes, always include the LaTeX label:
    ```julia
