@@ -196,6 +196,38 @@ end
 evolve_cooling_step_dynamic(::CoolingProblem, _, ::BasicCouplingParameters, _, _, _) =
     error("evolve_cooling_step_dynamic not implemented for this backend/method combination")
 
+function _interleaved_step_gates_builder(
+    problem::CoolingProblem{TNBackend},
+    ham_params,
+    sim_params::UnifiedSimulationParameters,
+    sites,
+    coupling_params::CouplingParameters,
+    cache_key_prefix=nothing,
+)
+    cache = get(problem.extra, :trotter_step_gates_cache, nothing)
+    return function (dt::Float64)
+        key = cache_key_prefix === nothing ? dt : (cache_key_prefix, dt)
+        if cache isa AbstractDict
+            return get!(cache, key) do
+                build_trotter_circuit_interleaved(
+                    ham_params,
+                    problem.backend,
+                    sites,
+                    coupling_params,
+                    with_trotter_tau(sim_params, dt),
+                )
+            end
+        end
+        return build_trotter_circuit_interleaved(
+            ham_params,
+            problem.backend,
+            sites,
+            coupling_params,
+            with_trotter_tau(sim_params, dt),
+        )
+    end
+end
+
 function evolve_cooling_step_dynamic(
     problem::CoolingProblem{TNBackend},
     ψ_sb::MPS,
@@ -245,9 +277,7 @@ function evolve_cooling_step_dynamic(
     else
         build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_step, sim_params)
     end
-    step_gates = dt -> build_trotter_circuit_interleaved(
-        ham_params, problem.backend, sites, coupling_step, with_trotter_tau(sim_params, dt)
-    )
+    step_gates = _interleaved_step_gates_builder(problem, ham_params, sim_params, sites, coupling_step, δ)
 
     return evolve_state(ham_params, sim_params, problem.backend, gates, ψ_sb, te_step, sites;
                         gates=gates, step_gates=step_gates)
@@ -275,9 +305,7 @@ function evolve_cooling_step_dynamic(
     else
         build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_step, sim_params)
     end
-    step_gates = dt -> build_trotter_circuit_interleaved(
-        ham_params, problem.backend, sites, coupling_step, with_trotter_tau(sim_params, dt)
-    )
+    step_gates = _interleaved_step_gates_builder(problem, ham_params, sim_params, sites, coupling_step, δ)
 
     ρ_evolved = evolve_state(ham_params, sim_params, problem.backend, gates, ρ_sb, te_step, sites;
                              step_gates=step_gates)
@@ -608,17 +636,14 @@ function evolve_cooling_step(problem::CoolingProblem{TNBackend}, ψ_sb::MPS, te:
                            sim_params::UnifiedSimulationParameters{MonteCarloWavefunction,TrotterEvolution},
                            ham_params)
     sites = problem.extra.sites
+    coupling_params = problem.extra.coupling_params
 
     # Use interleaved gates (same circuit as DM+Trotter for consistency)
     interleaved_gates = get(problem.extra, :interleaved_gates, nothing)
     if interleaved_gates === nothing
-        coupling_params = problem.extra.coupling_params
         interleaved_gates = build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_params, sim_params)
     end
-    coupling_params = problem.extra.coupling_params
-    step_gates = dt -> build_trotter_circuit_interleaved(
-        ham_params, problem.backend, sites, coupling_params, with_trotter_tau(sim_params, dt)
-    )
+    step_gates = _interleaved_step_gates_builder(problem, ham_params, sim_params, sites, coupling_params)
 
     return evolve_state(ham_params, sim_params, problem.backend, problem.H_sys_bath, ψ_sb, te, sites;
                         gates=interleaved_gates, step_gates=step_gates)
@@ -646,17 +671,14 @@ function evolve_cooling_step(problem::CoolingProblem{TNBackend}, ρ_sb::MPO, te:
                            sim_params::UnifiedSimulationParameters{DensityMatrix,TrotterEvolution},
                            ham_params)
     sites = problem.extra.sites
+    coupling_params = problem.extra.coupling_params
 
     # Get or create interleaved Trotter gates (all act on adjacent sites)
     interleaved_gates = get(problem.extra, :interleaved_gates, nothing)
     if interleaved_gates === nothing
-        coupling_params = problem.extra.coupling_params
         interleaved_gates = build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_params, sim_params)
     end
-    coupling_params = problem.extra.coupling_params
-    step_gates = dt -> build_trotter_circuit_interleaved(
-        ham_params, problem.backend, sites, coupling_params, with_trotter_tau(sim_params, dt)
-    )
+    step_gates = _interleaved_step_gates_builder(problem, ham_params, sim_params, sites, coupling_params)
 
     # Delegate to evolve_state (shared Trotter evolution logic)
     ρ_evolved = evolve_state(ham_params, sim_params, problem.backend, interleaved_gates, ρ_sb, te, sites;

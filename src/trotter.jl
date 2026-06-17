@@ -15,9 +15,11 @@ using ITensors
 
 Choose a Trotter time grid whose total duration is exactly `t`.
 
-The rule matches the ED Trotter path: use `ceil(t / tau)` slices, but set the
-actual slice time to `dt = t / nsteps`. Thus `tau` is an upper bound on the
-slice size, not a value to which the physical evolution time is rounded.
+The rule matches the ED Trotter path: use `ceil(t / tau)` slices up to a small
+roundoff guard that avoids an artificial extra slice at exact multiples of
+`tau`, but set the actual slice time to `dt = t / nsteps`. Thus `tau` is an
+upper bound on the slice size, not a value to which the physical evolution time
+is rounded.
 """
 function trotter_time_slices(t::Float64, tau::Float64)
     t < 0 && throw(ArgumentError("Trotter evolution time must be nonnegative; got t=$t."))

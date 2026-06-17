@@ -80,6 +80,7 @@ function setup_problem(
                 gap=Δ_dmrg,
                 ham_params=ham_params,
                 gates_cache=Dict{Float64, Any}(),
+                trotter_step_gates_cache=Dict{Any, Any}(),
             )
         else
             (
@@ -158,7 +159,8 @@ function setup_tn_specific(backend::TNBackend, ::DensityMatrix, ::TrotterEvoluti
     interleaved_gates = build_trotter_circuit_interleaved(ham_params, backend, sites, coupling_params, sim_params)
     return CoolingProblem(backend, H_sys, nothing, ϕ₀, e₀,
                          (interleaved_gates=interleaved_gates, coupling_params=coupling_params,
-                          coupling=coupling_params.coupling, g=coupling_params.g, sites=sites))
+                          coupling=coupling_params.coupling, g=coupling_params.g, sites=sites,
+                          trotter_step_gates_cache=Dict{Any, Any}()))
 end
 
 # Monte Carlo + Trotter Evolution - Direct substance
@@ -169,7 +171,8 @@ function setup_tn_specific(backend::TNBackend, ::MonteCarloWavefunction, ::Trott
     H_total = construct_system_bath_hamiltonian(ham_params, backend, sites, coupling_params)
     return CoolingProblem(backend, H_sys, H_total, ϕ₀, e₀,
                          (interleaved_gates=interleaved_gates, H_sys_bath=H_total, ham_param_struct=ham_params, coupling_params=coupling_params,
-                          coupling=coupling_params.coupling, g=coupling_params.g, sites=sites))
+                          coupling=coupling_params.coupling, g=coupling_params.g, sites=sites,
+                          trotter_step_gates_cache=Dict{Any, Any}()))
 end
 
 # Density Matrix + Continuous Evolution (less common) - Direct substance
