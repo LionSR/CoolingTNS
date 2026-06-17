@@ -398,9 +398,9 @@ end
 # Utility Functions
 # ============================================================================
 
-# All to_dict functions now handled by generic reflection-based implementation above
-
-# Removed specific results functions - use generic to_dict from above
+# Result structs have explicit serializers because they are part of the public
+# cooling-output interface. The dictionary keys for shared observables should
+# agree with `run_cooling`, not with incidental struct field names.
 
 # ============================================================================
 # Generic Reflection-Based Conversion Functions  
@@ -429,6 +429,56 @@ function to_dict(obj::T) where T
             result[dict_key] = value
         end
     end
+    return result
+end
+
+"""
+    to_dict(results::DensityMatrixResults)
+
+Serialize density-matrix result containers with the public cooling result keys.
+"""
+function to_dict(results::DensityMatrixResults)
+    return Dict{String,Any}(
+        RESULT_ENERGY => results.E_list,
+        RESULT_GROUND_STATE_OVERLAP => results.GS_overlap_list,
+        RESULT_PURITY => results.purity_list,
+    )
+end
+
+"""
+    to_dict(results::MonteCarloResults)
+
+Serialize Monte-Carlo result containers with the public cooling result keys.
+"""
+function to_dict(results::MonteCarloResults)
+    return Dict{String,Any}(
+        RESULT_ENERGY => results.E_list,
+        RESULT_GROUND_STATE_OVERLAP => results.GS_overlap_list,
+        RESULT_PURITY => results.purity_list,
+        RESULT_N_TRAJECTORIES => results.n_trajectories,
+        RESULT_ENERGY_TRAJECTORIES => results.E_trajectories,
+        RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES => results.GS_trajectories,
+        RESULT_ENERGY_STD => results.E_std,
+        RESULT_GROUND_STATE_OVERLAP_STD => results.GS_std,
+    )
+end
+
+"""
+    to_dict(results::TensorNetworkResults)
+
+Serialize tensor-network result containers with the public cooling result keys.
+"""
+function to_dict(results::TensorNetworkResults)
+    result = Dict{String,Any}(
+        RESULT_ENERGY => results.energy_list,
+        RESULT_GROUND_STATE_OVERLAP => results.gs_overlap_list,
+        RESULT_PURITY => results.purity_list,
+        RESULT_BATH_MAGNETIZATION => results.bath_magnetization_list,
+        RESULT_BOND_DIMS => results.bond_dims,
+        RESULT_TRUNCATION_ERRORS => results.truncation_errors,
+        RESULT_RENYI_ENTROPY => results.renyi_entropy,
+    )
+    results.final_state !== nothing && (result[RESULT_FINAL_STATE] = results.final_state)
     return result
 end
 
