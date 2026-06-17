@@ -96,6 +96,14 @@ The returned results dictionary includes:
   (with `delta_list[1]=NaN` for the initial measurement).
 - `te_list[step]`: evolution time used at that step (similarly `NaN` at step 1).
 - `delta_values`: the set of Δ values used in the protocol.
+
+If `step_observer` is supplied, it is called once after the initial measurement
+with `stage=:initial`, once after each system-bath evolution with
+`stage=:evolved`, and once after each updated-system measurement with
+`stage=:updated`. The callback receives a named tuple containing `stage`, `step`,
+`state`, `evolved_state`, `measurements`, `delta`, `te`, and `bath_info`. This is
+intended for diagnostics that need transient data, such as system-bath bond
+dimensions, without duplicating the cooling loop.
 """
 function run_cooling_multi_freq(
     problem::CoolingProblem{B},
@@ -104,6 +112,7 @@ function run_cooling_multi_freq(
     sim_params,
     ham_params;
     measure_modes::Bool=false,
+    step_observer=nothing,
 ) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
 
     steps = mf_params.steps
@@ -118,6 +127,11 @@ function run_cooling_multi_freq(
 
     # Initial measurements
     perform_measurements!(measurements, 1, problem, state, ham_params)
+    notify_step_observer(
+        step_observer,
+        (stage=:initial, step=1, state=state, evolved_state=nothing, measurements=measurements,
+         delta=NaN, te=NaN, bath_info=nothing),
+    )
     print_cooling_status(1, measurements, ham_params, state)
 
     R = length(mf_params.delta_values)
@@ -145,6 +159,11 @@ function run_cooling_multi_freq(
         else
             evolve_cooling_step_dynamic(problem, combined_state, coupling_step, te_step, sim_params, ham_params)
         end
+        notify_step_observer(
+            step_observer,
+            (stage=:evolved, step=step, state=state, evolved_state=evolved_state,
+             measurements=measurements, delta=delta_r, te=te_step, bath_info=nothing),
+        )
 
         # Apply noise if requested
         if pe > 0
@@ -162,6 +181,11 @@ function run_cooling_multi_freq(
 
         # Perform measurements
         perform_measurements!(measurements, step, problem, state, ham_params, bath_info)
+        notify_step_observer(
+            step_observer,
+            (stage=:updated, step=step, state=state, evolved_state=nothing, measurements=measurements,
+             delta=delta_r, te=te_step, bath_info=bath_info),
+        )
 
         # Print progress
         if step % 10 == 0 || step == steps + 1
@@ -173,6 +197,13 @@ function run_cooling_multi_freq(
     return compile_results(measurements, sim_params)
 end
 
+notify_step_observer(::Nothing, _) = nothing
+
+function notify_step_observer(step_observer, info)
+    step_observer(info)
+    return nothing
+end
+
 # Dispatch hook: allow run_cooling(..., mf_params::MultiFrequencyCouplingParameters, ...) to work.
 function run_cooling(
     problem::CoolingProblem{B},
@@ -181,8 +212,17 @@ function run_cooling(
     sim_params,
     ham_params;
     measure_modes::Bool=false,
+    step_observer=nothing,
 ) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
-    return run_cooling_multi_freq(problem, state, coupling_params, sim_params, ham_params; measure_modes=measure_modes)
+    return run_cooling_multi_freq(
+        problem,
+        state,
+        coupling_params,
+        sim_params,
+        ham_params;
+        measure_modes=measure_modes,
+        step_observer=step_observer,
+    )
 end
 
 # Internal helper: pick which Δ index to use at this step.

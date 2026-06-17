@@ -35,6 +35,15 @@ using Random
     initial_state = CoolingTNS.setup_initial_state(problem_mf, sim_params, "product", 0.0)
 
     results = CoolingTNS.run_cooling(problem_mf, initial_state, mf_params, sim_params, ham_params)
+    initial_state_explicit_nothing = CoolingTNS.setup_initial_state(problem_mf, sim_params, "product", 0.0)
+    results_explicit_nothing = CoolingTNS.run_cooling(
+        problem_mf,
+        initial_state_explicit_nothing,
+        mf_params,
+        sim_params,
+        ham_params;
+        step_observer=nothing,
+    )
 
     @test haskey(results, CoolingTNS.RESULT_ENERGY)
     @test haskey(results, CoolingTNS.RESULT_GROUND_STATE_OVERLAP)
@@ -50,6 +59,17 @@ using Random
 
     # Cooling should reduce the system energy on average
     @test results[CoolingTNS.RESULT_ENERGY][end] <= results[CoolingTNS.RESULT_ENERGY][1] + 1e-10
+    @test results_explicit_nothing[CoolingTNS.RESULT_ENERGY] == results[CoolingTNS.RESULT_ENERGY]
+    @test isequal(
+        results_explicit_nothing[CoolingTNS.RESULT_DELTA_LIST],
+        results[CoolingTNS.RESULT_DELTA_LIST],
+    )
+    @test isequal(
+        results_explicit_nothing[CoolingTNS.RESULT_TE_LIST],
+        results[CoolingTNS.RESULT_TE_LIST],
+    )
+    @test results_explicit_nothing[CoolingTNS.RESULT_GROUND_STATE_OVERLAP] ==
+          results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP]
 
     @testset "Spectral detunings respect finite ED spectra" begin
         spectral_values = CoolingTNS.spectral_delta_values(
@@ -129,5 +149,81 @@ using Random
         @test haskey(results_tn, CoolingTNS.RESULT_TE_LIST)
         @test length(results_tn[CoolingTNS.RESULT_ENERGY]) == mf_params_tn.steps + 1
         @test all(isfinite, results_tn[CoolingTNS.RESULT_ENERGY])
+    end
+
+    @testset "step observer sees evolved TN state before bath processing" begin
+        for (label, sim_method) in (
+            ("MCWF", CoolingTNS.MonteCarloWavefunction()),
+            ("MPO", CoolingTNS.DensityMatrix()),
+        )
+            @testset "$label observer contract" begin
+                Random.seed!(2)
+
+                backend_tn = CoolingTNS.TNBackend()
+                N_tn = 4
+                ham_params_tn = CoolingTNS.NiIsingParameters(N_tn, 1.0, -1.05, 0.5)
+
+                sim_params_tn = CoolingTNS.UnifiedSimulationParameters(
+                    sim_method,
+                    CoolingTNS.TrotterEvolution();
+                    Dmax=6,
+                    cutoff=1e-6,
+                    tau=0.2,
+                    pe=0.0,
+                )
+
+                coupling_basic_tn = CoolingTNS.BasicCouplingParameters("XX", 0.1, 1, 0.5, nothing)
+                problem_basic_tn = CoolingTNS.setup_problem(
+                    backend_tn,
+                    ham_params_tn,
+                    coupling_basic_tn,
+                    sim_params_tn,
+                )
+                gap_tn = problem_basic_tn.extra.coupling_params.delta
+
+                mf_params_tn = CoolingTNS.MultiFrequencyCouplingParameters(
+                    "XX",
+                    0.1,
+                    1,
+                    0.5,
+                    [gap_tn];
+                    randomize_times=false,
+                    schedule=:round_robin,
+                )
+
+                problem_mf_tn = CoolingTNS.setup_problem(backend_tn, ham_params_tn, mf_params_tn, sim_params_tn)
+                state_tn = CoolingTNS.setup_initial_state(problem_mf_tn, sim_params_tn, "product", 0.0)
+
+                observed = NamedTuple[]
+                observer = info -> push!(
+                    observed,
+                    (
+                        stage=info.stage,
+                        step=info.step,
+                        state_length=length(info.state.state),
+                        evolved_length=info.evolved_state === nothing ? 0 : length(info.evolved_state),
+                    ),
+                )
+
+                results_tn = CoolingTNS.run_cooling(
+                    problem_mf_tn,
+                    state_tn,
+                    mf_params_tn,
+                    sim_params_tn,
+                    ham_params_tn;
+                    step_observer=observer,
+                )
+
+                @test haskey(results_tn, CoolingTNS.RESULT_ENERGY)
+                @test [x.stage for x in observed] == [:initial, :evolved, :updated]
+                @test [x.step for x in observed] == [1, 2, 2]
+                @test observed[1].state_length == N_tn
+                @test observed[1].evolved_length == 0
+                @test observed[2].state_length == N_tn
+                @test observed[2].evolved_length == 2N_tn
+                @test observed[3].state_length == N_tn
+                @test observed[3].evolved_length == 0
+            end
+        end
     end
 end
