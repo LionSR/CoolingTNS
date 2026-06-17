@@ -4,6 +4,19 @@ end
 
 using CoolingTNS
 
+function plot_energy_and_overlap end
+function plot_momentum_distribution end
+
+const _COOLING_PLOTTING_LOADED = Ref(false)
+
+function load_cooling_plotting_utilities!()
+    if !_COOLING_PLOTTING_LOADED[]
+        include(joinpath(@__DIR__, "scripts", "plotting", "plotting.jl"))
+        _COOLING_PLOTTING_LOADED[] = true
+    end
+    return nothing
+end
+
 # Helper function to create simulation parameters from new argument structure
 function create_sim_params_new(parsed_args)
     backend = CoolingTNS.get_backend(parsed_args["backend"])
@@ -67,7 +80,10 @@ function run_cooling(parsed_args)
     CoolingTNS.save_results(filename, save_data, e₀, ham_name, parsed_args)
     
     # Plot results
-    CoolingTNS.plot_energy_and_overlap(
+    load_cooling_plotting_utilities!()
+    plot_energy = getfield(@__MODULE__, :plot_energy_and_overlap)
+    Base.invokelatest(
+        plot_energy,
         results[CoolingTNS.RESULT_ENERGY],
         results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP],
         e₀,
@@ -83,7 +99,8 @@ function run_cooling(parsed_args)
             println("\nGenerating k-space plots...")
             full_filename = joinpath("Results", "$(filename).h5")
             try
-                CoolingTNS.plot_momentum_distribution(full_filename; save_fig=true)
+                plot_momentum = getfield(@__MODULE__, :plot_momentum_distribution)
+                Base.invokelatest(plot_momentum, full_filename; save_fig=true)
                 println("K-space line plot saved.")
             catch e
                 println("Warning: Could not generate k-space plots: $e")

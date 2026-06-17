@@ -4,6 +4,18 @@ end
 using Random, Statistics, HDF5
 using CoolingTNS
 
+function plot_energy_and_overlap end
+
+const _OPT_COOLING_PLOTTING_LOADED = Ref(false)
+
+function load_optimization_plotting_utilities!()
+    if !_OPT_COOLING_PLOTTING_LOADED[]
+        include(joinpath(@__DIR__, "scripts", "plotting", "plotting.jl"))
+        _OPT_COOLING_PLOTTING_LOADED[] = true
+    end
+    return nothing
+end
+
 # Helper function to convert old optimization arguments to new dispatch format
 function setup_optimization_params(parsed_args)
     # Set backend - for optimization we'll default to TN (tensor networks)
@@ -94,7 +106,7 @@ function run_optimization(parsed_args)
             ham_params
         )
         
-        Efinal_density_avg = CoolingTNS.mean_last_window(results["E_list"], window_size) / ham_params.N
+        Efinal_density_avg = CoolingTNS.mean_last_window(results[CoolingTNS.RESULT_ENERGY], window_size) / ham_params.N
         return Efinal_density_avg
     end
 
@@ -154,9 +166,9 @@ function run_optimization(parsed_args)
         ham_params
     )
 
-    E_final = CoolingTNS.mean_last_window(results["E_list"], window_size)
+    E_final = CoolingTNS.mean_last_window(results[CoolingTNS.RESULT_ENERGY], window_size)
     Edensity_final = E_final / ham_params.N
-    GS_overlap_final = CoolingTNS.mean_last_window(results["GS_overlap_list"], window_size)
+    GS_overlap_final = CoolingTNS.mean_last_window(results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP], window_size)
     println("Final energy density: ", Edensity_final)
     println("Final ground state overlap: ", GS_overlap_final)
 
@@ -166,11 +178,20 @@ function run_optimization(parsed_args)
     results["GS_overlap_final"] = GS_overlap_final
     results["best_g"] = best_coupling_params["g"]
     results["best_te"] = best_coupling_params["te"]
-    results["search_method"] = search_method
-    results["num_trials"] = num_trials
     
     CoolingTNS.save_results(filename, results, cooling_problem.e₀, ham_name, parsed_args; is_optimization=true)
-    CoolingTNS.plot_energy_and_overlap(results["E_list"], results["GS_overlap_list"], cooling_problem.e₀, ham_params.N, filename; moving_average=true, output_dir="ResultsOpt")
+    load_optimization_plotting_utilities!()
+    plot_energy = getfield(@__MODULE__, :plot_energy_and_overlap)
+    Base.invokelatest(
+        plot_energy,
+        results[CoolingTNS.RESULT_ENERGY],
+        results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP],
+        cooling_problem.e₀,
+        ham_params.N,
+        filename;
+        moving_average=true,
+        output_dir="ResultsOpt",
+    )
 end
 
 # Parse command line arguments and run the optimization

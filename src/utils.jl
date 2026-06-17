@@ -82,6 +82,7 @@ end
 
 function save_results(filename, result, e₀, ham_name, parsed_args; is_optimization=false)
     directory = is_optimization ? "ResultsOpt" : "Results"
+    mkpath(directory)
     h5open(joinpath(directory, "$(filename).h5"), "w") do file
         write(file, "e₀", e₀)
         for (key, value) in result
@@ -89,7 +90,9 @@ function save_results(filename, result, e₀, ham_name, parsed_args; is_optimiza
         end
         write(file, "ham_name", ham_name)
         for (key, value) in parsed_args
-            write(file, string(key), value)
+            key_string = string(key)
+            haskey(file, key_string) && continue
+            write(file, key_string, value)
         end
     end
     println("Data saved to $(filename) with Hamiltonian information and argparse variables")
