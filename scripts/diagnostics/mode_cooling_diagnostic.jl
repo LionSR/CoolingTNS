@@ -31,6 +31,8 @@ const STEPS = 50       # Number of cooling steps
 const INIT_TYPE = "theta"
 const INIT_THETA = π / 4
 
+_mode_index_label(k) = k isa Rational ? "$(numerator(k))/$(denominator(k))" : "$(k)"
+
 # ============================================================================
 # Setup
 # ============================================================================
@@ -80,15 +82,15 @@ function run_diagnostic(; do_plot::Bool=false)
     @printf("  %-8s  %-12s  %-12s  %-12s  %-8s\n", "k", "φ_k", "ε_k(code)", "ε_k(notes)", "|ε_k - Δ|")
     println("  " * "─" ^ 56)
     εk_all = [Λ * CoolingTNS.mode_energy(Float64(ki), θ, N) for ki in ks]
-    res_disp_idx = argmin(abs.(εk_all .- abs(Δ)))
+    res_disp_indices = Set(CoolingTNS.nearest_bath_resonance_indices(εk_all, Δ))
     for (idx, k) in enumerate(ks)
         εk_notes = CoolingTNS.mode_energy(Float64(k), θ, N)
         εk_code = Λ * εk_notes
         φk = 2π * Float64(k) / N
-        k_str = k isa Rational ? "$(numerator(k))/$(denominator(k))" : "$k"
+        k_str = _mode_index_label(k)
         @printf("  %-8s  %12.6f  %12.6f  %12.6f  %8.4f%s\n",
                 k_str, φk, εk_code, εk_notes, abs(εk_code - abs(Δ)),
-                idx == res_disp_idx ? "  ← resonant" : "")
+                idx in res_disp_indices ? "  ← resonant" : "")
     end
     println()
 
@@ -124,17 +126,17 @@ function run_diagnostic(; do_plot::Bool=false)
     n_steps_total = size(mode_hk, 1)
     n_modes = size(mode_hk, 2)
 
-    # Find resonant mode
-    res_idx = argmin(abs.(εk_values .- abs(Δ)))
+    # Find every mode closest to the bath detuning.
+    res_indices = Set(CoolingTNS.nearest_bath_resonance_indices(εk_values, Δ))
 
     println("=" ^ 80)
     println("  Cooling Summary Table: physical occupations n_k")
     println("=" ^ 80)
-    println("  Table entries are quasiparticle occupations n_k; the resonant mode is marked by *.")
+    println("  Table entries are quasiparticle occupations n_k; resonant modes are marked by *.")
     println()
 
     # Header
-    k_headers = [k isa Rational ? "k=$(numerator(k))/$(denominator(k))" : "k=$k" for k in k_indices]
+    k_headers = ["k=$(_mode_index_label(k))" for k in k_indices]
     @printf("  %-6s  %-10s  %-8s", "Step", "E/N", "Overlap")
     for kh in k_headers
         @printf("  %-10s", kh)
@@ -156,13 +158,13 @@ function run_diagnostic(; do_plot::Bool=false)
         end
         @printf("  %-6d  %10.6f  %8.5f", step - 1, E_list[step] / N, overlap_list[step])
         for i in 1:n_modes
-            marker = i == res_idx ? "*" : " "
+            marker = i in res_indices ? "*" : " "
             @printf("  %9.5f%s", mode_nk[step, i], marker)
         end
         println()
     end
     println()
-    println("  * = resonant mode (closest to Δ = $(round(abs(Δ), digits=4)))")
+    println("  * = resonant modes (closest to Δ = $(round(abs(Δ), digits=4)))")
     println()
 
     # ========================================================================
@@ -211,10 +213,10 @@ function run_diagnostic(; do_plot::Bool=false)
 
     for i in 1:n_modes
         k = k_indices[i]
-        k_str = k isa Rational ? "$(numerator(k))/$(denominator(k))" : "$k"
+        k_str = _mode_index_label(k)
         nk_init = mode_nk[1, i]
         nk_final = mode_nk[end, i]
-        marker = i == res_idx ? "  ← resonant" : ""
+        marker = i in res_indices ? "  ← resonant" : ""
         @printf("  %-10s  %10.4f  %12.6f  %12.6f  %10.6f  %10.4f%s\n",
                 k_str, εk_values[i], nk_init, nk_final, nk_final - nk_init,
                 abs(εk_values[i] - abs(Δ)), marker)

@@ -18,3 +18,16 @@ include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
 
     @test_throws ErrorException _mode_occupation_from_plot_data(Dict{String, Any}())
 end
+
+@testset "Mode cooling resonance convention" begin
+    εk_values = [0.8, 1.2, 1.2, 1.7]
+
+    @test bath_detuning_energy([-1.2]) == 1.2
+    @test bath_detuning_energy([1.0, 1.2]) === nothing
+    @test bath_detuning_energy(Float64[]) === nothing
+    @test bath_detuning_energy("1.2") === nothing
+    @test nearest_bath_resonance_indices(εk_values, -1.2) == [2, 3]
+    @test nearest_bath_resonance_indices(εk_values, nothing) == Int[]
+    @test nearest_bath_resonance_indices(εk_values, 0.0) == Int[]
+    @test nearest_bath_resonance_indices([1.0, 1.0 + 5e-13, 1.5], 1.0) == [1, 2]
+end

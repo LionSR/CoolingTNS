@@ -73,6 +73,47 @@ number ``n_k``. This accepts either a scalar or an array.
 mode_occupation_from_hk(hk) = (hk .+ 1) ./ 2
 
 """
+    bath_detuning_energy(delta)
+
+Return the positive energy `|delta|` associated with a bath detuning. A value
+of `nothing`, zero, a non-number, or a detuning array whose length is not one
+denotes the absence of a single resonant bath line.
+"""
+function bath_detuning_energy(delta)
+    if delta === nothing
+        return nothing
+    end
+    δ = if delta isa AbstractArray
+        length(delta) == 1 || return nothing
+        only(delta)
+    else
+        delta
+    end
+    δ isa Number || return nothing
+    δ == 0 && return nothing
+    return abs(δ)
+end
+
+"""
+    nearest_bath_resonance_indices(εk_values, delta; atol=1e-12)
+
+Return every mode index whose quasiparticle energy is closest to `|delta|`.
+This implements the resonance condition `ε_k ≈ |Δ|` without assuming that the
+nearest mode is unique.
+"""
+function nearest_bath_resonance_indices(εk_values, delta; atol=1e-12)
+    δ_abs = bath_detuning_energy(delta)
+    if δ_abs === nothing
+        return Int[]
+    end
+    isempty(εk_values) && return Int[]
+
+    distances = abs.(εk_values .- δ_abs)
+    dmin = minimum(distances)
+    return findall(d -> isapprox(d, dmin; atol=atol, rtol=sqrt(eps(Float64))), distances)
+end
+
+"""
     theta_from_Jh(J, h) -> θ
 
 Map the code's Ising parameters ``(J, h)`` to the notes' angular parameter ``θ``.
