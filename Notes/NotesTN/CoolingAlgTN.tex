@@ -275,7 +275,7 @@ The purity of the density matrix $\rho_S^k$ is not the average of the trajectory
 	\tr[(\rho_S^k)^2] \approx \frac{1}{N_\text{QT}^2} \sum_{i,i'=1}^{N_\text{QT}} \left|\braket{\Psi_S^{k,(i)}|\Psi_S^{k,(i')}}\right|^2.
 \end{equation}
 
-The matrix product state simulations were performed using the ITensor.jl~\cite{Fishman2022ITensor} library. The initial state in the MPS simulations is set to be a product state with alternating up and down spins, i.e., $\ket{\Psi_S^1} = \ket{\uparrow\downarrow\uparrow\downarrow\cdots}$. The bond dimension is truncated to a maximum value of $D \leq 40$ with a cutoff of $10^{-5}$, and the time step is set to $\delta t = 0.1$. The Hamiltonian parameters are the same as in the MPO simulations. The coupling strength between the system and the bath is set to $g=0.3$, and the total evolution time is $t_e=2.0$. The number of cooling steps is varied from 100 to 500.
+The matrix product state simulations were performed using the ITensor.jl~\cite{Fishman2022ITensor} library. Since an MPS quantum trajectory is a pure state simulation, its initial condition is a specified pure product state rather than the maximally mixed density matrix used in the MPO simulations. In the current simulation scripts, \texttt{init\_type="product"} denotes a uniform computational-basis product state, while \texttt{init\_type="theta"} denotes the product-state family in \eqref{eq:code-theta-map}. The identity state is therefore reserved for density-matrix simulations unless an explicit pure-state ensemble or purification is introduced. The bond dimension is truncated to a maximum value of $D \leq 40$ with a cutoff of $10^{-5}$, and the time step is set to $\delta t = 0.1$. The Hamiltonian parameters are the same as in the MPO simulations. The coupling strength between the system and the bath is set to $g=0.3$, and the total evolution time is $t_e=2.0$. The number of cooling steps is varied from 100 to 500.
 
 \section{Bayesian Optimization for Hyperparameter Tuning}
 Optimizing the performance of the cooling algorithm requires finding the optimal values for hyperparameters such as the coupling strength $g$ and the evolution time $t_e$. However, the relationship between these hyperparameters and the cooling efficiency is complex and evaluating the cooling efficiency for a given set of hyperparameters is computationally expensive. We employ Bayesian optimization, a framework for global optimization of expensive black-box functions~\cite{Frazier2018Tutorial}, to address this challenge.
@@ -298,12 +298,46 @@ where $J$ is the coupling strength between neighboring spins, $h_z$ and $h_x$ ar
 This ZZXZ Hamiltonian is in general non-integrable, except in the limits $h_z = 0$ (classical) and $h_x = 0$ (transverse field Ising model). We focus on a non-integrable point $J = 1,h_z = 0.5,h_x = -1.05$, the same as used in Ref.~\citep{Lu2021Algorithms}.
 
 \subsection{Initial states}
-As in Ref.~\citep{Lu2021Algorithms}, we consider real translationally invariant product states that can be parametrized as
+As in Ref.~\citep{Lu2021Algorithms}, we consider real translationally invariant product states. It is useful to distinguish the physical product-state angle from the parameter used in the simulation scripts. We write the physical angle as $\alpha$ and define
 \begin{equation}
-	\ket{\Psi(\theta)} = \ket{p(\theta)}^{\otimes N},
+	\ket{\Psi(\alpha)} = \ket{p(\alpha)}^{\otimes N},
 	\label{eq:PS}
 \end{equation}
-where $\ket{p(\theta)} = \cos{\theta}\ket{0} + \sin{\theta}\ket{1}$. In the thermodynamic limit, these states have energy density $E/N = J\cos^2(2\theta) + h_z \cos(2\theta) + h_x \sin(2\theta)$, ranging over most of the energy band (see Fig.~\ref{fig:ELNI}). For the initial states, we choose three values of $\theta$ corresponding to states in the lower part of the energy band, namely $\theta_1 = \pi/4$, for which $E_1/N = h_x = -1.05$, $\theta_2 = \pi/3$, for which $E_2/N = -0.909$, and $\theta_3 = \pi/6$, with $E_3/N = -0.409$. These product states already have rather low energies, and to gain quantum advantage, the quantum cooling algorithm must obtain lower energy in the presence of noise. In the following numerical experiments, we will test the performance of the cooling algorithm starting from these three translationally invariant product states.
+where
+\begin{equation}
+	\ket{p(\alpha)} = \cos\alpha\,\ket{0} + \sin\alpha\,\ket{1}.
+\end{equation}
+In the thermodynamic limit, these states have energy density
+\begin{equation}
+	\frac{E(\alpha)}{N}
+	= J\cos^2(2\alpha) + h_z \cos(2\alpha) + h_x \sin(2\alpha),
+	\label{eq:product-state-energy-alpha}
+\end{equation}
+ranging over most of the energy band (see Fig.~\ref{fig:ELNI}).
+
+The code path \texttt{init\_type="theta"} uses a dimensionless input parameter, denoted here by $\vartheta$, rather than the physical angle $\alpha$ itself. The convention is
+\begin{equation}
+	\begin{aligned}
+		\alpha(\vartheta)
+		&= \frac{\pi}{2}\left(\vartheta + \frac{1}{2}\right),\\
+		\ket{p(\vartheta)}
+		&= \cos\alpha(\vartheta)\ket{0}
+		+ \sin\alpha(\vartheta)\ket{1}.
+	\end{aligned}
+	\label{eq:code-theta-map}
+\end{equation}
+Thus $\vartheta=-1/2,0,1/2$ give respectively $\ket{0}$, $\ket{+}$, and $\ket{1}$. Equivalently,
+\begin{equation}
+	\begin{aligned}
+		\frac{E(\vartheta)}{N}
+		&= J\cos^2\!\left[\pi\left(\vartheta+\frac{1}{2}\right)\right]\\
+		&\quad + h_z\cos\!\left[\pi\left(\vartheta+\frac{1}{2}\right)\right]\\
+		&\quad + h_x\sin\!\left[\pi\left(\vartheta+\frac{1}{2}\right)\right].
+	\end{aligned}
+	\label{eq:product-state-energy-code-theta}
+\end{equation}
+
+For the initial states, we choose three physical angles in the lower part of the energy band, namely $\alpha_1 = \pi/4$, for which $E_1/N = h_x = -1.05$, $\alpha_2 = \pi/3$, for which $E_2/N = -0.909$, and $\alpha_3 = \pi/6$, with $E_3/N = -0.409$. In the code convention these correspond to $\vartheta_1=0$, $\vartheta_2=1/6$, and $\vartheta_3=-1/6$. These product states already have rather low energies, and to gain quantum advantage, the quantum cooling algorithm must obtain lower energy in the presence of noise. In the following numerical experiments, we will test the performance of the cooling algorithm starting from these three translationally invariant product states.
 
 \begin{figure}[htbp]
 	\centering
@@ -365,7 +399,7 @@ We simulate the cooling algorithm using MPS quantum trajectories for system size
 	% \includegraphics[width=0.5\textwidth]{Figures/Cooling/MPS_NoisyCooling_IsingJ1.0h2.0Nmax100ratio1g0.3te1.0Steps500_versus_N_pe.pdf}
 	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns50Nb50_CouplingXXg0.3te2.0steps500_SimMPSDmax20.pdf}
 	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns100Nb100_CouplingXXg0.3te2.0steps500_SimMPSDmax20.pdf}
-	\caption{MPS quantum trajectory simulation results of the noisless cooling procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The initial state is the infinite temperature state, and depolarizing channels are injected after each cooling step with different error probabilities. The bond dimension is $D \leq 20$, and the time step is $\delta t = 0.1$.}
+	\caption{MPS quantum trajectory simulation results of the noiseless cooling procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The initial condition is a pure product state, not the infinite-temperature density matrix. No depolarizing channel is applied in this noiseless run. The bond dimension is $D \leq 20$, and the time step is $\delta t = 0.1$.}
 	\label{fig:MPSCooling:noiseless}
 \end{figure}
 
@@ -377,7 +411,7 @@ Fig.~\ref{fig:MPSCooling:noisy} shows the error in the energy density as a funct
 	% \includegraphics[width=0.5\textwidth]{Figures/Cooling/MPS_NoisyCooling_IsingJ1.0h2.0Nmax100ratio1g0.3te1.0Steps500_versus_N_pe.pdf}
 	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns50Nb50_CouplingXXg0.3te2.0steps500_SimMPSDmax20pe0.01.pdf}
 	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns100Nb100_CouplingXXg0.3te2.0steps500_SimMPSDmax20pe0.01.pdf}
-	\caption{MPS quantum trajectory simulation results of the noisy cooling procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The initial state is the infinite temperature state, and depolarizing channels are injected after each cooling step with different error probabilities. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$.}
+	\caption{MPS quantum trajectory simulation results of the noisy cooling procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. Each trajectory starts from the same pure product state, and stochastic Pauli errors are sampled after each cooling step. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$.}
 	\label{fig:MPSCooling:noisy}
 \end{figure}
 
@@ -391,8 +425,8 @@ To optimize the performance of the cooling algorithm, we employ Bayesian optimiz
 	\centering
 	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5Ns50Nb50_ParamsSteps200_SimMPSDmax40peInt0_SearchBayesiantrials20.pdf}
 	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5Ns100Nb100_ParamsSteps200_SimMPSDmax40peInt0_SearchBayesiantrials20.pdf}
-	\caption{(Optimized)MPS quantum trajectory simulation results of the noiseless cooling procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The initial state is the infinite temperature state, and depolarizing channels are injected after each cooling step with different error probabilities. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$.}
-	\label{fig:MPSCooling:Bayesian:noisless}
+	\caption{Optimized MPS quantum trajectory simulation results of the noiseless cooling procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. Each trajectory starts from a pure product state, and no depolarizing channel is applied in this noiseless run. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$.}
+	\label{fig:MPSCooling:Bayesian:noiseless}
 \end{figure}
 
 
@@ -400,7 +434,7 @@ To optimize the performance of the cooling algorithm, we employ Bayesian optimiz
 	\centering
 	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5Ns50Nb50_ParamsSteps200_SimMPSDmax40peInt10_SearchBayesiantrials20.pdf}
 	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5Ns100Nb100_ParamsSteps200_SimMPSDmax40peInt10_SearchBayesiantrials20.pdf}
-	\caption{(Optimized)MPS quantum trajectory simulation results of the noisy cooling procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The initial state is the infinite temperature state, and depolarizing channels are injected after each cooling step with different error probabilities. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$.}
+	\caption{Optimized MPS quantum trajectory simulation results of the noisy cooling procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. Each trajectory starts from a pure product state, and stochastic Pauli errors are sampled after each cooling step. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$.}
 	\label{fig:MPSCooling:Bayesian:noisy}
 \end{figure}
 
@@ -408,14 +442,14 @@ To optimize the performance of the cooling algorithm, we employ Bayesian optimiz
 	\centering
 	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5_CouplingXXg0.3te2.0steps200_SimMPSDmax40peInt0_SearchBayesiantrials20_energy_and_overlap_vs_N.pdf}
 	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5_CouplingXXg0.3te2.0steps200_SimMPSDmax40peInt9_SearchBayesiantrials20_energy_and_overlap_vs_N.pdf}
-	\caption{Optimized cooling simulation results. The steady-state energy density and ground state overlap are plotted as a function of the system size. The optimal hyperparameters are obtained from the Bayesian optimization procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The initial state is the infinite temperature state, and depolarizing channels are injected after each cooling step with different error probabilities. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$. The energy of the steady state is estimated by averaging the last 100 steps.}
+	\caption{Optimized cooling simulation results. The steady-state energy density and ground state overlap are plotted as a function of the system size. The optimal hyperparameters are obtained from the Bayesian optimization procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The MPS trajectories start from pure product states; noisy runs sample stochastic Pauli errors after each cooling step. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$. The energy of the steady state is estimated by averaging the last 100 steps.}
 	\label{fig:OptimizedCooling}
 \end{figure}
 
 \begin{figure}
 	\centering
 	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5_CouplingXXg0.3te2.0steps200_SimMPSDmax40peInt9_SearchBaytrials20_Eerror_and_F_vs_N_multipe.pdf}
-	\caption{Optimized cooling simulation results for different noise rates. The error in the energy density and the ground state overlap are plotted as a function of the system size for different noise rates. The optimal hyperparameters are obtained from the Bayesian optimization procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The initial state is the infinite temperature state, and depolarizing channels are injected after each cooling step with different error probabilities. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$. The energy of the steady state is estimated by averaging the last 100 steps.}
+	\caption{Optimized cooling simulation results for different noise rates. The error in the energy density and the ground state overlap are plotted as a function of the system size for different noise rates. The optimal hyperparameters are obtained from the Bayesian optimization procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The MPS trajectories start from pure product states, and stochastic Pauli errors are sampled after each cooling step in the noisy runs. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$. The energy of the steady state is estimated by averaging the last 100 steps.}
 	\label{fig:OptimizedCooling:pe}
 \end{figure}
 
