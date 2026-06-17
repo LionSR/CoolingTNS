@@ -15,6 +15,108 @@ end
 # Multi-frequency (multi-Δ) cooling setup
 # ---------------------------------------------------------------------------
 
+_assert_supported_tn_multifrequency(sim_params::UnifiedSimulationParameters) =
+    _assert_supported_tn_multifrequency(sim_params.sim_method, sim_params.evolution_method)
+
+_assert_supported_tn_multifrequency(::MonteCarloWavefunction, ::ContinuousEvolution) = nothing
+_assert_supported_tn_multifrequency(::MonteCarloWavefunction, ::TrotterEvolution) = nothing
+_assert_supported_tn_multifrequency(::DensityMatrix, ::TrotterEvolution) = nothing
+
+function _assert_supported_tn_multifrequency(
+    sim_method::SimulationMethod,
+    evolution_method::EvolutionMethod,
+)
+    error(
+        "Multi-frequency cooling for TN is currently implemented for either " *
+        "(1) MonteCarloWavefunction + ContinuousEvolution (MPS + TDVP), " *
+        "(2) MonteCarloWavefunction + TrotterEvolution (MPS + Trotter), or " *
+        "(3) DensityMatrix + TrotterEvolution (MPO + Trotter). " *
+        "Got sim_method=$(typeof(sim_method)), evolution_method=$(typeof(evolution_method)).",
+    )
+end
+
+function _tn_multifrequency_extra(
+    ::TrotterEvolution,
+    ham_params::HamiltonianParameters,
+    coupling_params::MultiFrequencyCouplingParameters,
+    sites::Vector{<:Index},
+    gap::Real,
+)
+    return (
+        coupling_params=coupling_params,
+        coupling=coupling_params.coupling,
+        g=coupling_params.g,
+        sites=sites,
+        # Diagnostic/default-grid metadata only. The multi-frequency evolution
+        # uses the per-step `coupling_params.delta_values`, not this field.
+        gap=Float64(gap),
+        ham_params=ham_params,
+        gates_cache=Dict{Float64, Any}(),
+        trotter_step_gates_cache=Dict{Any, Any}(),
+    )
+end
+
+function _tn_multifrequency_extra(
+    ::ContinuousEvolution,
+    ham_params::HamiltonianParameters,
+    coupling_params::MultiFrequencyCouplingParameters,
+    sites::Vector{<:Index},
+    gap::Real,
+)
+    return (
+        coupling_params=coupling_params,
+        coupling=coupling_params.coupling,
+        g=coupling_params.g,
+        sites=sites,
+        # Diagnostic/default-grid metadata only. The multi-frequency evolution
+        # uses the per-step `coupling_params.delta_values`, not this field.
+        gap=Float64(gap),
+        ham_params=ham_params,
+        # Cache step Hamiltonians H_SB(Δ) for multi-frequency MCWF+TDVP runs.
+        # Keyed by the bath detuning Δ (Float64).
+        H_cache=Dict{Float64, Any}(),
+    )
+end
+
+"""
+    setup_tn_multifrequency_problem_from_system(
+        backend, ham_params, coupling_params, sim_params, sites, H_sys, gap, e₀, ϕ₀
+    )
+
+Build a tensor-network multi-frequency cooling problem from an already computed
+system solve. This preserves the same method-specific `extra` fields as
+`setup_problem(::TNBackend, ::HamiltonianParameters, ::MultiFrequencyCouplingParameters, ...)`,
+but avoids recomputing the system DMRG ground state when only the detuning grid
+changes.
+"""
+function setup_tn_multifrequency_problem_from_system(
+    backend::TNBackend,
+    ham_params::HamiltonianParameters,
+    coupling_params::MultiFrequencyCouplingParameters,
+    sim_params::UnifiedSimulationParameters,
+    sites::Vector{<:Index},
+    H_sys,
+    gap::Real,
+    e₀::Real,
+    ϕ₀,
+)
+    _assert_supported_tn_multifrequency(sim_params)
+    expected_sites = interleaved_total_sites(ham_params.N)
+    length(sites) == expected_sites || throw(ArgumentError(
+        "TN multi-frequency setup requires interleaved system-bath sites with " *
+        "length $expected_sites for N=$(ham_params.N); got length $(length(sites)).",
+    ))
+    extra = _tn_multifrequency_extra(
+        sim_params.evolution_method,
+        ham_params,
+        coupling_params,
+        sites,
+        gap,
+    )
+
+    return CoolingProblem(backend, H_sys, nothing, ϕ₀, Float64(e₀), extra)
+end
+
 function setup_problem(
     backend::EDBackend,
     ham_params::HamiltonianParameters,
@@ -49,54 +151,23 @@ function setup_problem(
     coupling_params::MultiFrequencyCouplingParameters,
     sim_params::UnifiedSimulationParameters,
 )
-    supported =
-        (sim_params.sim_method isa MonteCarloWavefunction && sim_params.evolution_method isa ContinuousEvolution) ||
-        (sim_params.sim_method isa MonteCarloWavefunction && sim_params.evolution_method isa TrotterEvolution) ||
-        (sim_params.sim_method isa DensityMatrix && sim_params.evolution_method isa TrotterEvolution)
-
-    if !supported
-        error(
-            "Multi-frequency cooling for TN is currently implemented for either " *
-            "(1) MonteCarloWavefunction + ContinuousEvolution (MPS + TDVP), " *
-            "(2) MonteCarloWavefunction + TrotterEvolution (MPS + Trotter), or " *
-            "(3) DensityMatrix + TrotterEvolution (MPO + Trotter). " *
-            "Got sim_method=$(typeof(sim_params.sim_method)), evolution_method=$(typeof(sim_params.evolution_method)).",
-        )
-    end
-
     N = ham_params.N
     sites = siteinds("S=1/2", interleaved_total_sites(N))
     sites_sys = interleaved_system_indices(sites, N)
 
     H_sys, Δ_dmrg, e₀, ϕ₀ = setup_system(ham_params, backend, sites_sys)
 
-    extra =
-        if sim_params.evolution_method isa TrotterEvolution
-            (
-                coupling_params=coupling_params,
-                coupling=coupling_params.coupling,
-                g=coupling_params.g,
-                sites=sites,
-                gap=Δ_dmrg,
-                ham_params=ham_params,
-                gates_cache=Dict{Float64, Any}(),
-                trotter_step_gates_cache=Dict{Any, Any}(),
-            )
-        else
-            (
-                coupling_params=coupling_params,
-                coupling=coupling_params.coupling,
-                g=coupling_params.g,
-                sites=sites,
-                gap=Δ_dmrg,
-                ham_params=ham_params,
-                # Cache step Hamiltonians H_SB(Δ) for multi-frequency MCWF+TDVP runs.
-                # Keyed by the bath detuning Δ (Float64).
-                H_cache=Dict{Float64, Any}(),
-            )
-        end
-
-    return CoolingProblem(backend, H_sys, nothing, ϕ₀, e₀, extra)
+    return setup_tn_multifrequency_problem_from_system(
+        backend,
+        ham_params,
+        coupling_params,
+        sim_params,
+        sites,
+        H_sys,
+        Δ_dmrg,
+        e₀,
+        ϕ₀,
+    )
 end
 
 # ED Backend - Direct implementation with substance
