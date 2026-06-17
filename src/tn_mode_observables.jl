@@ -124,17 +124,10 @@ function measure_state_parity(ψ::MPS, N::Int)
 end
 
 """
-    measure_hk(ψ::MPS, k, ham_params) -> Float64
+    _measure_hk_from_correlators(correlators, k, ham_params) -> Float64
 
-Measure the Bogoliubov mode observable ``⟨h_k⟩`` from an MPS for the transverse
-field Ising model. The implementation evaluates the split-string correlator
-formula from `Notes/NotesED/MapToSpin.tex`, using the same conventions as the
-ED routine `measure_hk`.
-
-The returned quantity matches the ED convention used in this package: for each
-allowed momentum index it is the individual-mode observable
-``2\\hat a_k^†\\hat a_k - 1``. The energy decomposition then sums over the full
-fermionic grid with the prefactor already used by `measure_all_mode_energies`.
+Evaluate the Bogoliubov mode observable from precomputed split-string
+correlators.
 """
 function _measure_hk_from_correlators(correlators, k, ham_params::HamiltonianParameters{IsingModel})
     N = ham_params.N
@@ -178,6 +171,19 @@ function _measure_hk_from_correlators(correlators, k, ham_params::HamiltonianPar
     return real(hk)
 end
 
+"""
+    measure_hk(ψ::MPS, k, ham_params) -> Float64
+
+Measure the Bogoliubov mode observable ``⟨h_k⟩`` from an MPS for the transverse
+field Ising model. The implementation evaluates the split-string correlator
+formula from `Notes/NotesED/MapToSpin.tex`, using the same conventions as the
+ED routine `measure_hk`.
+
+The returned quantity matches the ED convention used in this package: for each
+allowed momentum index it is the individual-mode observable
+``2\\hat a_k^†\\hat a_k - 1``. The energy decomposition then sums over the full
+fermionic grid with the prefactor already used by `measure_all_mode_energies`.
+"""
 function measure_hk(ψ::MPS, k, ham_params::HamiltonianParameters{IsingModel})
     N = ham_params.N
     length(ψ) == N || throw(ArgumentError("MPS length $(length(ψ)) does not match N=$N"))
