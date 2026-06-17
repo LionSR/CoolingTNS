@@ -105,9 +105,9 @@ using ITensorMPS
 
     @testset "TN density-matrix bath trace is measured" begin
         N = 2
-        sites_sb = siteinds("S=1/2", 2N)
-        sites_sys = sites_sb[1:2:2N-1]
-        sites_bath = sites_sb[2:2:2N]
+        sites_sb = siteinds("S=1/2", CoolingTNS.interleaved_total_sites(N))
+        sites_sys = CoolingTNS.interleaved_system_indices(sites_sb, N)
+        sites_bath = CoolingTNS.interleaved_bath_indices(sites_sb, N)
 
         ρ_sys = MPO(sites_sys, "Id") / 2.0^N
         ρ_sb = CoolingTNS.appendzeros_MPO(ρ_sys, sites_sb, "XX")
