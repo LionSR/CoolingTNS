@@ -102,6 +102,21 @@ end
         canonical_energies = CoolingTNS.compute_energy_dispersion(canonical_k_values, J, h)
         target_index = argmin(abs.(canonical_energies .- canonical_energies[2]))
 
+        ham_name_file = _write_momentum_distribution_file(
+            joinpath(dir, "ham_name_ising.h5");
+            k_values=canonical_k_values,
+            momentum_dist=repeat(reshape(collect(range(0.1, 0.4; length=N)), 1, :), 4, 1),
+            delta=canonical_energies[2],
+            ham_name=CoolingTNS.hamiltonian_name(CoolingTNS.IsingParameters(N, J, h, bc)),
+        )
+
+        fig_from_ham_name = plot_momentum_distribution(ham_name_file; save_fig=false)
+        ax_from_ham_name = fig_from_ham_name.axes[0]
+        @test length(pyconvert(Vector, fig_from_ham_name.axes)) == 1
+        @test _momentum_has_vertical_line_at(ax_from_ham_name, canonical_k_values[target_index])
+        @test !_momentum_has_horizontal_line_at(ax_from_ham_name, canonical_energies[2])
+        plt.close(fig_from_ham_name)
+
         parsed_args_file = _write_momentum_distribution_file(
             joinpath(dir, "parsed_args_ising.h5");
             k_values=canonical_k_values,
