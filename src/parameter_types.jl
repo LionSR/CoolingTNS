@@ -432,6 +432,11 @@ function to_dict(obj::T) where T
     return result
 end
 
+"""
+    to_dict(results::DensityMatrixResults)
+
+Serialize density-matrix result containers with the public cooling result keys.
+"""
 function to_dict(results::DensityMatrixResults)
     return Dict{String,Any}(
         RESULT_ENERGY => results.E_list,
@@ -440,6 +445,11 @@ function to_dict(results::DensityMatrixResults)
     )
 end
 
+"""
+    to_dict(results::MonteCarloResults)
+
+Serialize Monte-Carlo result containers with the public cooling result keys.
+"""
 function to_dict(results::MonteCarloResults)
     return Dict{String,Any}(
         RESULT_ENERGY => results.E_list,
@@ -453,6 +463,11 @@ function to_dict(results::MonteCarloResults)
     )
 end
 
+"""
+    to_dict(results::TensorNetworkResults)
+
+Serialize tensor-network result containers with the public cooling result keys.
+"""
 function to_dict(results::TensorNetworkResults)
     result = Dict{String,Any}(
         RESULT_ENERGY => results.energy_list,
