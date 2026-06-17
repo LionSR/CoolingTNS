@@ -1,139 +1,89 @@
 #!/usr/bin/env julia
 
 """
-Test script for ED backend with periodic/antiperiodic boundary conditions and k-space measurements.
+Smoke example for ED k-space measurements with periodic and antiperiodic
+boundary conditions.
+
+The k-space observables are defined only for the integrable transverse-field
+Ising chain.  This file therefore uses `IsingParameters`, not the
+nonintegrable Ising model.
 """
 
 using CoolingTNS
-using LinearAlgebra
-using HDF5
 using Printf
 
-function test_ed_kspace()
-    println("Testing ED backend with k-space measurements...")
-    
-    # Test parameters
-    N = 6  # Small system for ED
-    
-    # Test both periodic and antiperiodic BC
-    for bc in [:periodic, :antiperiodic]
-        println("\n=== Testing with $bc boundary conditions ===")
-        
-        # Create Hamiltonian parameters
-        ham_params = CoolingTNS.NiIsingParameters(N, 1.0, -1.05, 0.5; bc=bc)
-        
-        # Coupling parameters
-        coupling_params = CoolingTNS.BasicCouplingParameters(
-            "XX",     # coupling type
-            0.3,      # g
-            20,       # steps
-            2.0,      # te
-            nothing   # delta (will be computed)
-        )
-        
-        # Simulation parameters for ED with Monte Carlo
-        sim_params = CoolingTNS.UnifiedSimulationParameters(
-            CoolingTNS.MonteCarloWavefunction(),
-            CoolingTNS.ContinuousEvolution();
-            pe=0.0,  # No noise for this test
-            n_trajectories=1
-        )
-        
-        # Setup problem
-        backend = CoolingTNS.EDBackend()
-        problem = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params)
-        
-        # Initial state - product state
-        state = CoolingTNS.setup_initial_state(
-            backend, 
-            problem,
-            sim_params,
-            "product",  # init_state_type
-            Dict{String, Any}()  # No special parameters
-        )
-        
-        # Run cooling
-        println("Running cooling simulation...")
-        results = CoolingTNS.run_cooling(problem, state, coupling_params, sim_params, ham_params)
-        
-        # Check if k-space data was collected
-        if haskey(results, "momentum_dist") && haskey(results, "k_values")
-            k_values = results["k_values"]
-            momentum_dist = results["momentum_dist"]
-            
-            println("K-space measurement successful!")
-            println("Number of k points: $(length(k_values))")
-            println("K values: $k_values")
-            
-            # Print initial and final momentum distributions
-            println("\nInitial momentum distribution:")
-            for (k, n_k) in zip(k_values, momentum_dist[1, :])
-                @printf("k = %3d: n_k = %.4f\n", k, n_k)
-            end
-            
-            println("\nFinal momentum distribution:")
-            for (k, n_k) in zip(k_values, momentum_dist[end, :])
-                @printf("k = %3d: n_k = %.4f\n", k, n_k)
-            end
-            
-            # Save results for plotting
-            filename = "test_ed_kspace_$(bc)_N$(N).h5"
-            h5open(filename, "w") do file
-                for (key, value) in results
-                    write(file, string(key), value)
-                end
-                write(file, "ham_params_bc", string(bc))
-                write(file, "delta", problem.extra.coupling_params.delta)
-            end
-            println("\nResults saved to $filename")
-            
-            # Test plotting functions if available
-            try
-                CoolingTNS.plot_momentum_distribution(filename; save_fig=false)
-                CoolingTNS.plot_momentum_distribution_heatmap(filename; save_fig=false)
-                println("Plotting functions work correctly!")
-            catch e
-                println("Plotting error (might be due to missing display): $e")
-            end
-            
-        else
-            println("WARNING: No k-space data found in results!")
-        end
-        
-        # Also test with density matrix method
-        println("\n--- Testing with density matrix method ---")
-        sim_params_dm = CoolingTNS.UnifiedSimulationParameters(
-            CoolingTNS.DensityMatrix(),
-            CoolingTNS.ContinuousEvolution();
-            pe=0.0
-        )
-        
-        problem_dm = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params_dm)
-        state_dm = CoolingTNS.setup_initial_state(
-            backend, 
-            problem_dm,
-            sim_params_dm,
-            "identity",  # Start from maximally mixed
-            Dict{String, Any}()
-        )
-        
-        # Run short cooling
-        coupling_params_short = CoolingTNS.BasicCouplingParameters(
-            "XX", 0.3, 5, 2.0, problem_dm.extra.coupling_params.delta
-        )
-        results_dm = CoolingTNS.run_cooling(problem_dm, state_dm, coupling_params_short, sim_params_dm, ham_params)
-        
-        if haskey(results_dm, "momentum_dist")
-            println("Density matrix k-space measurement also successful!")
-        else
-            println("WARNING: No k-space data for density matrix method!")
-        end
+function _print_momentum_row(k_values, n_values; label)
+    println(label)
+    for (φ, n_k) in zip(k_values, n_values)
+        @printf("  φ/π = %+8.5f  (φ = %+9.6f):  n_k = %.6f\n", φ / π, φ, n_k)
     end
-    
-    println("\n=== All tests completed ===")
 end
 
-# Run the test
+function run_ed_kspace_case(; bc::Symbol, sim_method, init_state::String, steps::Int=4)
+    N = 6
+    J = 1.0
+    h = 2.0
+    backend = CoolingTNS.EDBackend()
+    ham_params = CoolingTNS.IsingParameters(N, J, h, bc)
+    coupling_params = CoolingTNS.BasicCouplingParameters("XX", 0.3, steps, 2.0, nothing)
+    sim_params = CoolingTNS.UnifiedSimulationParameters(
+        sim_method,
+        CoolingTNS.ContinuousEvolution();
+        pe=0.0,
+        n_trajectories=1,
+    )
+
+    problem = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params)
+    state = CoolingTNS.setup_initial_state(problem, sim_params, init_state, 0.0)
+    results = CoolingTNS.run_cooling(
+        problem,
+        state,
+        coupling_params,
+        sim_params,
+        ham_params;
+        measure_modes=true,
+    )
+
+    haskey(results, CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION) || error("missing momentum distribution")
+    haskey(results, CoolingTNS.RESULT_K_VALUES) || error("missing k-grid")
+
+    k_values = results[CoolingTNS.RESULT_K_VALUES]
+    momentum_dist = results[CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION]
+
+    println("\n$(typeof(sim_method)) with $bc spin boundary conditions")
+    println("Number of momentum points: $(length(k_values))")
+    _print_momentum_row(k_values, momentum_dist[1, :]; label="Initial Fourier occupations:")
+    _print_momentum_row(k_values, momentum_dist[end, :]; label="Final Fourier occupations:")
+
+    if haskey(results, CoolingTNS.RESULT_MODE_NK)
+        mode_nk = results[CoolingTNS.RESULT_MODE_NK]
+        mode_k_indices = results[CoolingTNS.RESULT_MODE_K_INDICES]
+        mode_momenta = [2π * Float64(k) / N for k in mode_k_indices]
+        _print_momentum_row(mode_momenta, mode_nk[end, :]; label="Final Bogoliubov occupations:")
+    end
+
+    return results
+end
+
+function test_ed_kspace()
+    println("Testing ED k-space measurements for the integrable Ising chain.")
+
+    for bc in (:periodic, :antiperiodic)
+        run_ed_kspace_case(
+            bc=bc,
+            sim_method=CoolingTNS.MonteCarloWavefunction(),
+            init_state="product",
+        )
+        run_ed_kspace_case(
+            bc=bc,
+            sim_method=CoolingTNS.DensityMatrix(),
+            init_state="identity",
+        )
+    end
+
+    println("\nAll ED k-space smoke checks completed.")
+end
+
 if abspath(PROGRAM_FILE) == @__FILE__
     test_ed_kspace()
 end
