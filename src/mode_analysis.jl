@@ -128,6 +128,10 @@ function nearest_bath_resonance_indices(εk_values, delta; atol=1e-12)
     if δ_abs === nothing
         return Int[]
     end
+    return _nearest_energy_resonance_indices(εk_values, δ_abs; atol=atol)
+end
+
+function _nearest_energy_resonance_indices(εk_values, δ_abs::Real; atol=1e-12)
     isempty(εk_values) && return Int[]
 
     distances = abs.(εk_values .- δ_abs)
