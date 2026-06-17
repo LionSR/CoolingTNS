@@ -44,7 +44,8 @@ function run_cooling(parsed_args)
         initial_state,
         coupling_params,
         sim_params,
-        ham_params  # Only used by TrotterMPS
+        ham_params;
+        measure_modes=get(parsed_args, "measure_modes", false),
     )
     
     # Post-processing (same for all methods)

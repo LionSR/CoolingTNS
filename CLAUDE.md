@@ -90,6 +90,9 @@ julia optCooling.jl --search_method Bayesian --num_trials 20 --N 10 --problem ni
   supports open boundaries only and rejects non-open boundaries. Rydberg
   dynamics should use open boundaries until a non-open Rydberg convention is
   specified.
+- `--measure_modes`: Record Bogoliubov mode observables `h_k` and occupations
+  for integrable Ising k-space diagnostics with periodic or antiperiodic
+  boundary conditions.
 - `--J`: Ising coupling strength (default 1.0)
 - `--h`: Transverse field strength (default 1.0)
 
