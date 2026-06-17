@@ -11,11 +11,6 @@ function setup_common_parameters(parsed_args)
     bc_str = get(parsed_args, "bc", "open")
     bc = Symbol(bc_str)
     
-    # For TN backend, always use open BC
-    if get(parsed_args, "backend", "TN") == "TN"
-        bc = :open
-    end
-    
     if problem == "Ising"
         ham_params = IsingParameters(N, parsed_args["J"], parsed_args["h"], bc)
     elseif problem == "niIsing"
@@ -252,4 +247,3 @@ function create_filename(
 
     return create_filename(ham_params, coupling, sim, backend)
 end
-

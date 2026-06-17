@@ -63,49 +63,104 @@ end
 # Tensor Network (ITensors) Implementations
 # ============================================================================
 
-function construct_system_hamiltonian(ham_params::HamiltonianParameters{IsingModel}, ::TNBackend, sites::Vector{<:Index})
+"""
+    append_system_terms_tn(terms::OpSum, ham_params, site_of) -> OpSum
+
+Append the tensor-network system Hamiltonian terms to `terms`.
+
+The function `site_of(i)` gives the site number at which the system spin `i`
+is embedded.  For an isolated system this is `i`; for the interleaved
+system-bath chain it is `2i-1`.  This keeps the model-dependent Hamiltonian
+terms in one place.
+"""
+function append_system_terms_tn(terms::OpSum, ham_params::HamiltonianParameters, site_of)
+    error("TN system terms not implemented for model $(typeof(ham_params.model))")
+end
+
+"""
+    spin_boundary_bond_sign(bc::Symbol) -> Int
+
+Return the coefficient sign of the closing Ising spin bond `Z_N Z_1`.
+The values are `0` for an open chain, `+1` for a periodic chain, and `-1`
+for an antiperiodic chain.
+"""
+function spin_boundary_bond_sign(bc::Symbol)
+    bc == :open && return 0
+    bc == :periodic && return 1
+    bc == :antiperiodic && return -1
+    throw(ArgumentError("Unsupported boundary condition: $bc"))
+end
+
+"""Append Ising ZZ chain terms with the requested spin boundary condition."""
+function append_zz_chain_terms_tn(terms::OpSum, J::Real, N::Int, bc::Symbol, site_of)
+    for i in 1:N-1
+        terms += J, "Z", site_of(i), "Z", site_of(i+1)
+    end
+    boundary_sign = spin_boundary_bond_sign(bc)
+    if boundary_sign != 0
+        terms += boundary_sign * J, "Z", site_of(N), "Z", site_of(1)
+    end
+    return terms
+end
+
+function append_system_terms_tn(
+    terms::OpSum,
+    ham_params::HamiltonianParameters{IsingModel},
+    site_of,
+)
     J, h = ham_params.params.J, ham_params.params.h
-    N = ham_params.N
+    N, bc = ham_params.N, ham_params.bc
 
-    terms = OpSum()
-    for i in 1:N-1
-        terms += J, "Z", i, "Z", i+1
-    end
+    terms = append_zz_chain_terms_tn(terms, J, N, bc, site_of)
     for i in 1:N
-        terms += h, "X", i
+        terms += h, "X", site_of(i)
     end
-    return MPO(terms, sites)
+    return terms
 end
 
-function construct_system_hamiltonian(ham_params::HamiltonianParameters{NiIsingModel}, ::TNBackend, sites::Vector{<:Index})
+function append_system_terms_tn(
+    terms::OpSum,
+    ham_params::HamiltonianParameters{NiIsingModel},
+    site_of,
+)
     J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
-    N = ham_params.N
+    N, bc = ham_params.N, ham_params.bc
 
-    terms = OpSum()
-    for i in 1:N-1
-        terms += J, "Z", i, "Z", i+1
-    end
+    terms = append_zz_chain_terms_tn(terms, J, N, bc, site_of)
     for i in 1:N
-        terms += hx, "X", i
-        terms += hz, "Z", i
+        terms += hx, "X", site_of(i)
+        terms += hz, "Z", site_of(i)
     end
-    return MPO(terms, sites)
+    return terms
 end
 
-function construct_system_hamiltonian(ham_params::HamiltonianParameters{RydbergModel}, ::TNBackend, sites::Vector{<:Index})
+function append_system_terms_tn(
+    terms::OpSum,
+    ham_params::HamiltonianParameters{RydbergModel},
+    site_of,
+)
     Ω, Δ, V = ham_params.params.Ω, ham_params.params.Δ, ham_params.params.V
     Ωx = rydberg_rabi_x_coefficient(Ω)
     N = ham_params.N
 
-    terms = OpSum()
     for i in 1:N
-        terms += Ωx, "S+", i
-        terms += Ωx, "S-", i
-        terms += -Δ, "ProjUp", i
+        terms += Ωx, "S+", site_of(i)
+        terms += Ωx, "S-", site_of(i)
+        terms += -Δ, "ProjUp", site_of(i)
     end
     for i in 1:N-1, j in i+1:N
-        terms += rydberg_interaction_coefficient(V, i, j), "ProjUp", i, "ProjUp", j
+        terms += rydberg_interaction_coefficient(V, i, j),
+            "ProjUp", site_of(i), "ProjUp", site_of(j)
     end
+    return terms
+end
+
+function construct_system_hamiltonian(
+    ham_params::HamiltonianParameters,
+    ::TNBackend,
+    sites::Vector{<:Index},
+)
+    terms = append_system_terms_tn(OpSum(), ham_params, identity)
     return MPO(terms, sites)
 end
 
@@ -118,8 +173,8 @@ function add_zz_chain_ed!(H::SparseMatrixCSC, J::Float64, N::Int, bc::Symbol)
     for i in 1:N-1
         H .+= J * pauli_zz(i, i+1, N)
     end
-    bc == :periodic && (H .+= J * pauli_zz(N, 1, N))
-    bc == :antiperiodic && (H .-= J * pauli_zz(N, 1, N))
+    boundary_sign = spin_boundary_bond_sign(bc)
+    boundary_sign != 0 && (H .+= boundary_sign * J * pauli_zz(N, 1, N))
     return H
 end
 

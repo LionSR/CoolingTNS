@@ -95,6 +95,39 @@ using Random
         @test parsed_coupling.te == 1.5
     end
 
+    @testset "Common parameter boundary conditions" begin
+        base_args = Dict{String,Any}(
+            "N" => 4,
+            "problem" => "Ising",
+            "J" => 1.0,
+            "h" => 0.5,
+            "coupling" => "XX",
+            "g" => 0.1,
+            "steps" => 2,
+            "te" => 1.0,
+        )
+
+        for (backend, bc) in [("TN", "periodic"), ("ED", "antiperiodic")]
+            args = copy(base_args)
+            args["backend"] = backend
+            args["bc"] = bc
+
+            parsed_problem, parsed_ham, ham_name, parsed_coupling =
+                CoolingTNS.setup_common_parameters(args)
+
+            @test parsed_problem == "Ising"
+            @test parsed_ham.bc == Symbol(bc)
+            @test occursin("bc$(bc)", ham_name)
+            @test parsed_coupling.coupling == "XX"
+        end
+
+        default_args = copy(base_args)
+        default_args["backend"] = "TN"
+        _, default_ham, default_name, _ = CoolingTNS.setup_common_parameters(default_args)
+        @test default_ham.bc == :open
+        @test occursin("bcopen", default_name)
+    end
+
     @testset "Problem Setup for Different Backends" begin
         # Create simulation parameters for each backend/method combination
         sim_params_ed = CoolingTNS.UnifiedSimulationParameters(
@@ -301,6 +334,26 @@ using Random
         @test length(results[CoolingTNS.RESULT_ENERGY]) == noisy_coupling_params.steps + 1
         @test all(isfinite, results[CoolingTNS.RESULT_ENERGY])
         @test all(isfinite, results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP])
+    end
+
+    @testset "Rydberg TN continuous setup" begin
+        backend = CoolingTNS.TNBackend()
+        test_ham_params = CoolingTNS.RydbergParameters(2, 1.0, 0.3, 0.2)
+        test_coupling_params = CoolingTNS.BasicCouplingParameters("XX", 0.1, 1, 0.2, 0.5)
+        sim_params = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.MonteCarloWavefunction(),
+            CoolingTNS.ContinuousEvolution();
+            Dmax=8, cutoff=1e-8, tau=0.1, pe=0.0, n_trajectories=1
+        )
+
+        problem_setup = CoolingTNS.setup_problem(
+            backend, test_ham_params, test_coupling_params, sim_params
+        )
+
+        @test problem_setup isa CoolingTNS.CoolingProblem
+        @test !isnothing(problem_setup.H_sys_bath)
+        @test haskey(problem_setup.extra, :sites)
+        @test length(problem_setup.extra.sites) == 2 * test_ham_params.N
     end
 
     # Cross-backend cooling comparisons are covered in `test_correctness.jl`.

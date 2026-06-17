@@ -29,43 +29,20 @@ end
 
 # Note: OpSum uses immutable operations (+=), so bath/coupling terms are inlined in each constructor
 
-function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{IsingModel},
-                                         ::TNBackend, sites::Vector{<:Index}, coupling_params::CouplingParameters)
-    J, h = ham_params.params.J, ham_params.params.h
+function construct_system_bath_hamiltonian(
+    ham_params::HamiltonianParameters,
+    ::TNBackend,
+    sites::Vector{<:Index},
+    coupling_params::CouplingParameters,
+)
     N = ham_params.N
-    g, Δ, coupling = coupling_params.g, coupling_params.delta, coupling_params.coupling
+    g, bath_detuning, coupling =
+        coupling_params.g, coupling_params.delta, coupling_params.coupling
     bath_op = get_bath_operator(coupling)
 
-    terms = OpSum()
-    for i in 1:N-1
-        terms += J, "Z", 2i-1, "Z", 2(i+1)-1
-    end
+    terms = append_system_terms_tn(OpSum(), ham_params, i -> 2i - 1)
     for i in 1:N
-        terms += h, "X", 2i-1
-        terms += Δ/2, bath_op, 2i             # Bath site - operator depends on coupling
-        for (sys_op, bath_coupling_op) in coupling_operator_terms(coupling)
-            terms += g, sys_op, 2i-1, bath_coupling_op, 2i
-        end
-    end
-
-    return MPO(terms, sites)
-end
-
-function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters{NiIsingModel},
-                                         ::TNBackend, sites::Vector{<:Index}, coupling_params::CouplingParameters)
-    J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
-    N = ham_params.N
-    g, Δ, coupling = coupling_params.g, coupling_params.delta, coupling_params.coupling
-    bath_op = get_bath_operator(coupling)
-
-    terms = OpSum()
-    for i in 1:N-1
-        terms += J, "Z", 2i-1, "Z", 2(i+1)-1
-    end
-    for i in 1:N
-        terms += hx, "X", 2i-1
-        terms += hz, "Z", 2i-1
-        terms += Δ/2, bath_op, 2i             # Bath site - operator depends on coupling
+        terms += bath_detuning/2, bath_op, 2i # Bath site - operator depends on coupling
         for (sys_op, bath_coupling_op) in coupling_operator_terms(coupling)
             terms += g, sys_op, 2i-1, bath_coupling_op, 2i
         end
