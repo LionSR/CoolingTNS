@@ -36,6 +36,7 @@ function _has_line_label_containing(ax, text)
 end
 
 @testset "Dispersion detuning markers use energy axis" begin
+    plt = get_pyplot()
     delta = -0.7
     δ_abs = abs(delta)
 
@@ -44,6 +45,7 @@ end
     @test _has_horizontal_line_at(ax, δ_abs)
     @test !_has_vertical_line_at(ax, delta / pi)
     @test _has_line_label_containing(ax, "0.7")
+    plt.close(fig)
 
     fig_gs = plot_dispersion_with_ground_state(4, 1.0, 0.5, :periodic; delta=delta, save_fig=false)
     energy_ax = fig_gs.axes[0]
@@ -52,4 +54,18 @@ end
     @test !_has_vertical_line_at(energy_ax, delta / pi)
     @test _has_line_label_containing(energy_ax, "0.7")
     @test !_has_horizontal_line_at(occupation_ax, δ_abs)
+    plt.close(fig_gs)
+
+    fig_array_delta = plot_energy_dispersion(4, 1.0, 0.5, :periodic; delta=[δ_abs], save_fig=false)
+    @test _has_horizontal_line_at(fig_array_delta.axes[0], δ_abs)
+    plt.close(fig_array_delta)
+
+    fig_no_delta = plot_energy_dispersion(4, 1.0, 0.5, :periodic; delta=nothing, save_fig=false)
+    @test !_has_line_label_containing(fig_no_delta.axes[0], "Delta")
+    @test !_has_line_label_containing(fig_no_delta.axes[0], "0.7")
+    plt.close(fig_no_delta)
+
+    fig_zero_delta = plot_energy_dispersion(4, 1.0, 0.5, :periodic; delta=0.0, save_fig=false)
+    @test !_has_line_label_containing(fig_zero_delta.axes[0], "Delta")
+    plt.close(fig_zero_delta)
 end
