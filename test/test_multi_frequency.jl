@@ -140,15 +140,138 @@ using Random
         )
 
         problem_mf_tn = CoolingTNS.setup_problem(backend_tn, ham_params_tn, mf_params_tn, sim_params_tn)
-        state_tn = CoolingTNS.setup_initial_state(problem_mf_tn, sim_params_tn, "product", 0.0)
+        @test problem_mf_tn.extra.coupling_params === mf_params_tn
+        @test haskey(problem_mf_tn.extra, :gates_cache)
+        @test haskey(problem_mf_tn.extra, :trotter_step_gates_cache)
 
-        results_tn = CoolingTNS.run_cooling(problem_mf_tn, state_tn, mf_params_tn, sim_params_tn, ham_params_tn)
+        problem_mf_tn_reused = CoolingTNS.setup_tn_multifrequency_problem_from_system(
+            backend_tn,
+            ham_params_tn,
+            mf_params_tn,
+            sim_params_tn,
+            problem_basic_tn.extra.sites,
+            problem_basic_tn.H_sys,
+            gap_tn,
+            problem_basic_tn.e₀,
+            problem_basic_tn.ϕ₀,
+        )
+        problem_mf_tn_reused_ref = CoolingTNS.setup_tn_multifrequency_problem_from_system(
+            backend_tn,
+            ham_params_tn,
+            mf_params_tn,
+            sim_params_tn,
+            problem_basic_tn.extra.sites,
+            problem_basic_tn.H_sys,
+            gap_tn,
+            problem_basic_tn.e₀,
+            problem_basic_tn.ϕ₀,
+        )
+        @test problem_mf_tn_reused.H_sys === problem_basic_tn.H_sys
+        @test problem_mf_tn_reused.ϕ₀ === problem_basic_tn.ϕ₀
+        @test problem_mf_tn_reused.extra.sites === problem_basic_tn.extra.sites
+        @test problem_mf_tn_reused.e₀ == problem_basic_tn.e₀
+        @test problem_mf_tn_reused.extra.gap == gap_tn
+        @test problem_mf_tn_reused.extra.coupling_params === mf_params_tn
+        @test problem_mf_tn_reused_ref.extra.gates_cache !== problem_mf_tn_reused.extra.gates_cache
+        @test problem_mf_tn_reused_ref.extra.trotter_step_gates_cache !==
+            problem_mf_tn_reused.extra.trotter_step_gates_cache
+
+        state_tn = CoolingTNS.setup_initial_state(problem_mf_tn_reused_ref, sim_params_tn, "product", 0.0)
+        state_tn_reused = CoolingTNS.setup_initial_state(problem_mf_tn_reused, sim_params_tn, "product", 0.0)
+
+        Random.seed!(3)
+        results_tn = CoolingTNS.run_cooling(
+            problem_mf_tn_reused_ref,
+            state_tn,
+            mf_params_tn,
+            sim_params_tn,
+            ham_params_tn,
+        )
+        Random.seed!(3)
+        results_tn_reused = CoolingTNS.run_cooling(
+            problem_mf_tn_reused,
+            state_tn_reused,
+            mf_params_tn,
+            sim_params_tn,
+            ham_params_tn,
+        )
 
         @test haskey(results_tn, CoolingTNS.RESULT_ENERGY)
         @test haskey(results_tn, CoolingTNS.RESULT_DELTA_LIST)
         @test haskey(results_tn, CoolingTNS.RESULT_TE_LIST)
         @test length(results_tn[CoolingTNS.RESULT_ENERGY]) == mf_params_tn.steps + 1
         @test all(isfinite, results_tn[CoolingTNS.RESULT_ENERGY])
+        @test isapprox(
+            results_tn_reused[CoolingTNS.RESULT_ENERGY],
+            results_tn[CoolingTNS.RESULT_ENERGY];
+            rtol=1e-10,
+            atol=1e-10,
+        )
+        @test isapprox(
+            results_tn_reused[CoolingTNS.RESULT_GROUND_STATE_OVERLAP],
+            results_tn[CoolingTNS.RESULT_GROUND_STATE_OVERLAP];
+            rtol=1e-8,
+            atol=1e-8,
+        )
+        @test isequal(
+            results_tn_reused[CoolingTNS.RESULT_DELTA_LIST],
+            results_tn[CoolingTNS.RESULT_DELTA_LIST],
+        )
+        @test isequal(
+            results_tn_reused[CoolingTNS.RESULT_TE_LIST],
+            results_tn[CoolingTNS.RESULT_TE_LIST],
+        )
+
+        # The TDVP branch is checked structurally here. A trajectory comparison
+        # would make this small multi-frequency unit test substantially slower;
+        # the helper contract needed by the validation driver is that it reuses
+        # the same system objects and installs the H_cache form of `extra`.
+        sim_params_tdvp_tn = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.MonteCarloWavefunction(),
+            CoolingTNS.ContinuousEvolution();
+            Dmax=6,
+            cutoff=1e-6,
+            tau=0.2,
+            pe=0.0,
+        )
+        mf_params_tdvp_tn = CoolingTNS.MultiFrequencyCouplingParameters(
+            "XX",
+            0.1,
+            1,
+            0.5,
+            [gap_tn];
+            randomize_times=false,
+            schedule=:round_robin,
+        )
+        problem_mf_tdvp_reused = CoolingTNS.setup_tn_multifrequency_problem_from_system(
+            backend_tn,
+            ham_params_tn,
+            mf_params_tdvp_tn,
+            sim_params_tdvp_tn,
+            problem_basic_tn.extra.sites,
+            problem_basic_tn.H_sys,
+            gap_tn,
+            problem_basic_tn.e₀,
+            problem_basic_tn.ϕ₀,
+        )
+        @test problem_mf_tdvp_reused.H_sys === problem_basic_tn.H_sys
+        @test problem_mf_tdvp_reused.ϕ₀ === problem_basic_tn.ϕ₀
+        @test haskey(problem_mf_tdvp_reused.extra, :H_cache)
+        @test !haskey(problem_mf_tdvp_reused.extra, :gates_cache)
+        @test problem_mf_tdvp_reused.extra.coupling_params === mf_params_tdvp_tn
+
+        sites_sys = CoolingTNS.interleaved_system_indices(problem_basic_tn.extra.sites, N_tn)
+        @test_throws ArgumentError CoolingTNS.setup_tn_multifrequency_problem_from_system(
+            backend_tn,
+            ham_params_tn,
+            mf_params_tdvp_tn,
+            sim_params_tdvp_tn,
+            sites_sys,
+            problem_basic_tn.H_sys,
+            gap_tn,
+            problem_basic_tn.e₀,
+            problem_basic_tn.ϕ₀,
+        )
     end
 
     @testset "step observer sees evolved TN state before bath processing" begin

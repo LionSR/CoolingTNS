@@ -50,6 +50,7 @@ include("setup.jl")                 # setup_problem implementations
 
 
 export setup_problem, run_cooling, run_cooling_multi_freq, setup_initial_state
+export setup_tn_multifrequency_problem_from_system
 export initial_product_angle
 export theta_code_from_initial_product_angle, theta_site_amplitudes
 export CoolingProblem, QuantumState

@@ -355,11 +355,12 @@ function run_campaign(cfg)
                 base_problem = setup_problem(backend, ham_params, cp_base, sim_params)
                 gap = Float64(base_problem.extra.coupling_params.delta)
                 E0 = Float64(base_problem.e₀)
-                @printf("  E0/N=%.10f, gap=%.8f\n", E0 / N, gap)
+                @printf("  E0/N=%.10f, gap=%.8f (reused across R)\n", E0 / N, gap)
 
                 gm = create_group(gn, method)
                 write(gm, "E0", E0)
                 write(gm, "gap", gap)
+                write(gm, "system_solve_reused_across_R", true)
 
                 M = method == "mcwf" ? cfg["M_mcwf"] : cfg["M_mpo"]
                 for R in cfg["R_values"]
@@ -373,11 +374,17 @@ function run_campaign(cfg)
                         randomize_times=false,
                         schedule=cfg["schedule_symbol"],
                     )
-                    # Use the package setup path for the actual protocol. The
-                    # reference `base_problem` above supplies the gap used to
-                    # define default detuning grids.
-                    Random.seed!(cfg["seed"] + 1000 * N)
-                    problem = setup_problem(backend, ham_params, cp_multi, sim_params)
+                    problem = CoolingTNS.setup_tn_multifrequency_problem_from_system(
+                        backend,
+                        ham_params,
+                        cp_multi,
+                        sim_params,
+                        base_problem.extra.sites,
+                        base_problem.H_sys,
+                        gap,
+                        base_problem.e₀,
+                        base_problem.ϕ₀,
+                    )
                     @printf("N=%d method=%s R=%d M=%d delta=[%.6g, %.6g]\n",
                             N, method, R, M, minimum(delta_values), maximum(delta_values))
 
