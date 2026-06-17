@@ -153,7 +153,6 @@ The codebase uses a clean multiple dispatch architecture:
 - `src/trotter.jl`: Trotter evolution support
 - `src/evolution.jl`: Evolution utilities
 - `src/setup_system.jl`: System setup utilities
-- `src/hamiltonian.jl`: General Hamiltonian utilities
 
 ### Physical Models
 
