@@ -1,7 +1,9 @@
 using Test
 using CoolingTNS
+using HDF5
 
 include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_ek_evolution.jl"))
+include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_nk_evolution.jl"))
 
 @testset "Mode energy plot convention" begin
     N = 4
@@ -80,5 +82,49 @@ end
     @test !_has_mode_energy_data(data)
     @test_logs (:warn, r"Not plotting epsilon_k\*n_k as an energy") begin
         _warn_missing_mode_energy_data("example.h5", data)
+    end
+end
+
+@testset "K-space evolution plot colors use Julia indexing" begin
+    mktempdir() do dir
+        filename = joinpath(dir, "two_step_modes.h5")
+        N = 4
+        J = 1.0
+        h = 0.5
+        k_values = collect(range(0.0, 2π; length=N))
+        k_indices = allowed_k_indices(N, -1)
+        coeffs = _mode_energy_coefficients(k_indices, N, J, h)
+        mode_hk = [
+            -1.0 -0.5  0.0  0.5
+            -0.8 -0.4  0.1  0.6
+        ]
+
+        h5open(filename, "w") do file
+            write(file, RESULT_MOMENTUM_DISTRIBUTION, [
+                0.10 0.20
+                0.30 0.40
+                0.50 0.60
+                0.70 0.80
+            ])
+            write(file, RESULT_K_VALUES, k_values)
+            write(file, RESULT_MODE_HK, mode_hk)
+            write(file, RESULT_MODE_K_INDICES, Float64.(k_indices))
+            write(file, RESULT_MODE_ENERGIES, abs.(2 .* coeffs))
+            write(file, RESULT_ENERGY, [-1.0, -0.8])
+            write(file, "N", N)
+            write(file, "J", J)
+            write(file, "h", h)
+            write(file, "bc", "periodic")
+        end
+
+        fig_nk = plot_nk_evolution(filename; steps_to_plot=[1, 2], save_fig=false)
+        fig_ek = plot_ek_evolution(filename; steps_to_plot=[1, 2], save_fig=false)
+
+        @test fig_nk !== nothing
+        @test fig_ek !== nothing
+
+        plt = get_pyplot()
+        plt.close(fig_nk)
+        plt.close(fig_ek)
     end
 end

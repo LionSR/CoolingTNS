@@ -112,10 +112,10 @@ end
 """
     get_evolution_colors(plt, n_steps::Int)
 
-Generate a color array for evolution plots using viridis colormap.
+Generate a Julia-indexed color vector for evolution plots using the viridis colormap.
 """
 function get_evolution_colors(plt, n_steps::Int)
-    return plt.cm.viridis(range(0, 1, length=n_steps))
+    return pyconvert(Vector, plt.cm.viridis(range(0, 1, length=n_steps)))
 end
 
 _detuning_label_value(δ_abs::Real) = @sprintf("%.6g", δ_abs)
