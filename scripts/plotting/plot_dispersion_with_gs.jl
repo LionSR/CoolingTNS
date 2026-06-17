@@ -5,7 +5,9 @@ Standalone plotting script. Usage:
     julia --project=. scripts/plotting/plot_dispersion_with_gs.jl
 """
 
-include(joinpath(@__DIR__, "PlotUtils.jl"))
+if !@isdefined(get_pyplot)
+    include(joinpath(@__DIR__, "PlotUtils.jl"))
+end
 
 """
     plot_dispersion_with_ground_state(N, J, h, bc; delta=nothing, save_fig=true, filename=nothing)

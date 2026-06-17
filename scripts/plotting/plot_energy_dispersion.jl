@@ -5,7 +5,9 @@ Standalone plotting script. Usage:
     julia --project=. scripts/plotting/plot_energy_dispersion.jl
 """
 
-include(joinpath(@__DIR__, "PlotUtils.jl"))
+if !@isdefined(get_pyplot)
+    include(joinpath(@__DIR__, "PlotUtils.jl"))
+end
 
 """
     plot_energy_dispersion(N, J, h, bc; delta=nothing, save_fig=true, filename=nothing)

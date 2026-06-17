@@ -118,22 +118,26 @@ function get_evolution_colors(plt, n_steps::Int)
 end
 
 """
-    add_detuning_energy_marker!(ax, delta; color="red", linestyle="--", linewidth=2, alpha=0.7)
+    add_detuning_energy_marker!(ax, delta; color="red", linestyle="--", linewidth=2, alpha=0.7,
+                                label=nothing)
 
 Draw a bath detuning as a horizontal energy marker on a dispersion axis.
 
 The transverse-field Ising dispersion is plotted as `epsilon_k` versus `k/pi`,
 so the resonant bath line belongs on the energy axis at `|delta|`, not on the
 momentum axis at `delta/pi`. Returns the plotted energy, or `nothing` when
-`delta` does not specify a single nonzero detuning.
+`delta` does not specify a single nonzero detuning. The default legend label
+includes the plotted value of `|delta|`; pass `label` to override it.
 """
 function add_detuning_energy_marker!(ax, delta;
-                                     color="red", linestyle="--", linewidth=2, alpha=0.7)
+                                     color="red", linestyle="--", linewidth=2, alpha=0.7,
+                                     label=nothing)
     δ_abs = bath_detuning_energy(delta)
     δ_abs === nothing && return nothing
 
+    line_label = label === nothing ? L"|\Delta| = %$(round(δ_abs, digits=3))" : label
     ax.axhline(y=δ_abs, color=color, linestyle=linestyle, linewidth=linewidth,
-               alpha=alpha, label=L"|\Delta|")
+               alpha=alpha, label=line_label)
     return δ_abs
 end
 
