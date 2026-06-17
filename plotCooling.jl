@@ -9,16 +9,7 @@ problem, ham_params, ham_name, coupling_params = CoolingTNS.setup_common_paramet
 
 # Backend + simulation parameters
 backend = CoolingTNS.get_backend(parsed_args["backend"])
-sim_params = CoolingTNS.create_sim_params(
-    backend;
-    sim_method=CoolingTNS.get_sim_method(parsed_args["sim_method"]),
-    evolution_method=CoolingTNS.get_evolution_method(parsed_args["evolution_method"]),
-    Dmax=parsed_args["Dmax"],
-    cutoff=parsed_args["cutoff"],
-    tau=parsed_args["tau"],
-    pe=parsed_args["peInt"] * 1e-3,
-    n_trajectories=parsed_args["n_trajectories"],
-)
+sim_params = CoolingTNS.create_sim_params_from_args(parsed_args)
 
 # System sizes for scaling plots
 N_values = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]

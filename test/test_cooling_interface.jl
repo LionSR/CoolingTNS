@@ -33,6 +33,50 @@ using HDF5
         @test CoolingTNS.default_evolution_method(CoolingTNS.TNBackend()) isa CoolingTNS.ContinuousEvolution
     end
 
+    @testset "Command-Line Parameter Helpers" begin
+        parsed_args = Dict{String, Any}(
+            "backend" => "ED",
+            "sim_method" => "density_matrix",
+            "evolution_method" => "trotter",
+            "Dmax" => 40,
+            "cutoff" => 1e-7,
+            "tau" => 0.2,
+            "peInt" => 3,
+            "n_trajectories" => 5,
+        )
+
+        sim_params = CoolingTNS.create_sim_params_from_args(parsed_args)
+        @test sim_params.sim_method isa CoolingTNS.DensityMatrix
+        @test sim_params.evolution_method isa CoolingTNS.TrotterEvolution
+        @test sim_params.Dmax == 40
+        @test sim_params.cutoff == 1e-7
+        @test sim_params.tau == 0.2
+        @test sim_params.pe == 0.003
+        @test sim_params.n_trajectories == 5
+
+        legacy_mps = Dict{String, Any}("method" => "MPS")
+        CoolingTNS.normalize_optimization_args!(legacy_mps)
+        @test legacy_mps["backend"] == "TN"
+        @test legacy_mps["sim_method"] == "monte_carlo"
+        @test legacy_mps["evolution_method"] == "continuous"
+
+        legacy_mpo = Dict{String, Any}("method" => "MPO")
+        CoolingTNS.normalize_optimization_args!(legacy_mpo)
+        @test legacy_mpo["backend"] == "TN"
+        @test legacy_mpo["sim_method"] == "density_matrix"
+        @test legacy_mpo["evolution_method"] == "trotter"
+
+        explicit = Dict{String, Any}(
+            "backend" => "ED",
+            "sim_method" => "density_matrix",
+            "evolution_method" => "continuous",
+        )
+        CoolingTNS.normalize_optimization_args!(explicit)
+        @test explicit["backend"] == "ED"
+        @test explicit["sim_method"] == "density_matrix"
+        @test explicit["evolution_method"] == "continuous"
+    end
+
     @testset "Result Key Constants" begin
         @test CoolingTNS.RESULT_ENERGY == "E_list"
         @test CoolingTNS.RESULT_GROUND_STATE_OVERLAP == "GS_overlap_list"

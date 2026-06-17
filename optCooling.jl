@@ -16,28 +16,9 @@ function load_optimization_plotting_utilities!()
     return nothing
 end
 
-# Helper function to convert old optimization arguments to new dispatch format
-function setup_optimization_params(parsed_args)
-    # Set backend - for optimization we'll default to TN (tensor networks)
-    parsed_args["backend"] = get(parsed_args, "backend", "TN")
-    
-    # Set simulation method based on old method if it exists
-    if haskey(parsed_args, "method")
-        if parsed_args["method"] == "MPS"
-            parsed_args["sim_method"] = "monte_carlo"
-            parsed_args["evolution_method"] = "continuous"
-        elseif parsed_args["method"] == "MPO"
-            parsed_args["sim_method"] = "density_matrix"
-            parsed_args["evolution_method"] = "trotter"
-        end
-    end
-    
-    return parsed_args
-end
-
 function run_optimization(parsed_args)
     # Convert old arguments to new dispatch format
-    parsed_args = setup_optimization_params(parsed_args)
+    parsed_args = CoolingTNS.normalize_optimization_args!(parsed_args)
     println(parsed_args)
 
     # Setup common parameters using new dispatch architecture
@@ -45,28 +26,7 @@ function run_optimization(parsed_args)
     
     # Get backend and create simulation parameters
     backend = CoolingTNS.get_backend(parsed_args["backend"])
-    
-    # Convert method strings to types
-    sim_method = if parsed_args["sim_method"] == "density_matrix"
-        CoolingTNS.DensityMatrix()
-    else
-        CoolingTNS.MonteCarloWavefunction()
-    end
-    
-    evolution_method = if parsed_args["evolution_method"] == "trotter"
-        CoolingTNS.TrotterEvolution()
-    else
-        CoolingTNS.ContinuousEvolution()
-    end
-    
-    sim_params = CoolingTNS.create_sim_params(backend; 
-        sim_method=sim_method, 
-        evolution_method=evolution_method,
-        Dmax=parsed_args["Dmax"], 
-        cutoff=parsed_args["cutoff"], 
-        tau=parsed_args["tau"], 
-        pe=parsed_args["peInt"]*1e-3,
-        n_trajectories=parsed_args["n_trajectories"])
+    sim_params = CoolingTNS.create_sim_params_from_args(parsed_args)
     
     # Additional parameters specific to optimization
     num_trials = parsed_args["num_trials"]
