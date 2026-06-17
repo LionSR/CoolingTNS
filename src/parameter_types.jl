@@ -446,10 +446,10 @@ function to_dict(results::MonteCarloResults)
         RESULT_GROUND_STATE_OVERLAP => results.GS_overlap_list,
         RESULT_PURITY => results.purity_list,
         RESULT_N_TRAJECTORIES => results.n_trajectories,
-        "E_trajectories" => results.E_trajectories,
-        "GS_trajectories" => results.GS_trajectories,
-        "E_std" => results.E_std,
-        "GS_std" => results.GS_std,
+        RESULT_ENERGY_TRAJECTORIES => results.E_trajectories,
+        RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES => results.GS_trajectories,
+        RESULT_ENERGY_STD => results.E_std,
+        RESULT_GROUND_STATE_OVERLAP_STD => results.GS_std,
     )
 end
 
@@ -459,11 +459,11 @@ function to_dict(results::TensorNetworkResults)
         RESULT_GROUND_STATE_OVERLAP => results.gs_overlap_list,
         RESULT_PURITY => results.purity_list,
         RESULT_BATH_MAGNETIZATION => results.bath_magnetization_list,
-        "bond_dims" => results.bond_dims,
-        "truncation_errors" => results.truncation_errors,
-        "renyi_entropy" => results.renyi_entropy,
+        RESULT_BOND_DIMS => results.bond_dims,
+        RESULT_TRUNCATION_ERRORS => results.truncation_errors,
+        RESULT_RENYI_ENTROPY => results.renyi_entropy,
     )
-    results.final_state !== nothing && (result["final_state"] = results.final_state)
+    results.final_state !== nothing && (result[RESULT_FINAL_STATE] = results.final_state)
     return result
 end
 

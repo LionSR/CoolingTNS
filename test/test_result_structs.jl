@@ -38,10 +38,10 @@ using CoolingTNS
         @test data[CoolingTNS.RESULT_GROUND_STATE_OVERLAP] === overlap
         @test data[CoolingTNS.RESULT_PURITY] === purity
         @test data[CoolingTNS.RESULT_N_TRAJECTORIES] == 2
-        @test data["E_trajectories"] === E_traj
-        @test data["GS_trajectories"] === overlap_traj
-        @test data["E_std"] === E_std
-        @test data["GS_std"] === overlap_std
+        @test data[CoolingTNS.RESULT_ENERGY_TRAJECTORIES] === E_traj
+        @test data[CoolingTNS.RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES] === overlap_traj
+        @test data[CoolingTNS.RESULT_ENERGY_STD] === E_std
+        @test data[CoolingTNS.RESULT_GROUND_STATE_OVERLAP_STD] === overlap_std
     end
 
     @testset "TensorNetworkResults" begin
@@ -74,9 +74,24 @@ using CoolingTNS
         )
         full_data = CoolingTNS.to_dict(full_results)
 
-        @test full_data["bond_dims"] === bond_dims
-        @test full_data["truncation_errors"] === truncation_errors
-        @test full_data["renyi_entropy"] === renyi_entropy
-        @test full_data["final_state"] === final_state
+        @test full_data[CoolingTNS.RESULT_BOND_DIMS] === bond_dims
+        @test full_data[CoolingTNS.RESULT_TRUNCATION_ERRORS] === truncation_errors
+        @test full_data[CoolingTNS.RESULT_RENYI_ENTROPY] === renyi_entropy
+        @test full_data[CoolingTNS.RESULT_FINAL_STATE] === final_state
+    end
+
+    @testset "Result schema constants include diagnostics" begin
+        for key in (
+            CoolingTNS.RESULT_ENERGY_TRAJECTORIES,
+            CoolingTNS.RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES,
+            CoolingTNS.RESULT_ENERGY_STD,
+            CoolingTNS.RESULT_GROUND_STATE_OVERLAP_STD,
+            CoolingTNS.RESULT_BOND_DIMS,
+            CoolingTNS.RESULT_TRUNCATION_ERRORS,
+            CoolingTNS.RESULT_RENYI_ENTROPY,
+            CoolingTNS.RESULT_FINAL_STATE,
+        )
+            @test key in CoolingTNS.RESULT_KEYS
+        end
     end
 end
