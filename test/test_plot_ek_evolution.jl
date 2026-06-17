@@ -85,6 +85,24 @@ end
     end
 end
 
+@testset "Momentum distribution orientation helper" begin
+    modes_by_steps = [
+        0.10 0.20
+        0.30 0.40
+        0.50 0.60
+    ]
+    steps_by_modes = permutedims(modes_by_steps)
+    square_steps_by_modes = [
+        0.1 0.2
+        0.3 0.4
+    ]
+
+    @test _momentum_distribution_modes_by_steps(modes_by_steps, 3) == modes_by_steps
+    @test _momentum_distribution_modes_by_steps(steps_by_modes, 3) == modes_by_steps
+    @test _momentum_distribution_modes_by_steps(square_steps_by_modes, 2) == permutedims(square_steps_by_modes)
+    @test_throws DimensionMismatch _momentum_distribution_modes_by_steps(ones(2, 2), 3)
+end
+
 @testset "K-space evolution plot colors use Julia indexing" begin
     mktempdir() do dir
         filename = joinpath(dir, "two_step_modes.h5")
