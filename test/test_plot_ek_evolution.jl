@@ -92,9 +92,14 @@ end
         0.50 0.60
     ]
     steps_by_modes = permutedims(modes_by_steps)
+    square_steps_by_modes = [
+        0.1 0.2
+        0.3 0.4
+    ]
 
     @test _momentum_distribution_modes_by_steps(modes_by_steps, 3) == modes_by_steps
     @test _momentum_distribution_modes_by_steps(steps_by_modes, 3) == modes_by_steps
+    @test _momentum_distribution_modes_by_steps(square_steps_by_modes, 2) == permutedims(square_steps_by_modes)
     @test_throws DimensionMismatch _momentum_distribution_modes_by_steps(ones(2, 2), 3)
 end
 
