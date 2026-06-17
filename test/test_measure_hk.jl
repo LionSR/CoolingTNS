@@ -424,6 +424,64 @@ end
         @test results_sb[RESULT_MOMENTUM_DISTRIBUTION][1, :] ≈ nk_expected atol=1e-10
     end
 
+    @testset "Momentum storage follows measured grid length" begin
+        measurements = Dict{String, Any}(
+            RESULT_ENERGY => zeros(3),
+            RESULT_MOMENTUM_DISTRIBUTION => nothing,
+            RESULT_K_VALUES => nothing,
+        )
+        k_values = 2π .* [-2.5, -1.5, -0.5, 0.5, 1.5] ./ 6
+        n_k = collect(range(0.1, 0.5; length=length(k_values)))
+
+        CoolingTNS._ensure_momentum_storage!(measurements, k_values, n_k)
+
+        @test size(measurements[RESULT_MOMENTUM_DISTRIBUTION]) == (3, length(k_values))
+        @test measurements[RESULT_K_VALUES] == k_values
+
+        @test_throws DimensionMismatch CoolingTNS._ensure_momentum_storage!(
+            measurements,
+            vcat(k_values, 2π * 2.5 / 6),
+            vcat(n_k, 0.6),
+        )
+        @test_throws DimensionMismatch CoolingTNS._ensure_momentum_storage!(
+            measurements,
+            k_values .+ 0.1,
+            n_k,
+        )
+        @test_throws DimensionMismatch CoolingTNS._ensure_momentum_storage!(
+            measurements,
+            k_values,
+            n_k[1:end-1],
+        )
+    end
+
+    @testset "Antiperiodic ED cooling stores consistent k-space axes" begin
+        N = 6; J = 1.0; h = -0.7
+        ham_params = IsingParameters(N, J, h, :antiperiodic)
+        coupling_params = BasicCouplingParameters("XX", 0.0, 0, 0.0, nothing)
+        sim_params = UnifiedSimulationParameters(DensityMatrix(), ContinuousEvolution())
+
+        problem = setup_problem(EDBackend(), ham_params, coupling_params, sim_params)
+        ρ0 = state_to_density_ed(problem.ϕ₀)
+        state0 = QuantumState(EDBackend(), DensityMatrix(), ContinuousEvolution(), ρ0)
+
+        results = redirect_stdout(devnull) do
+            run_cooling(problem, state0, coupling_params, sim_params, ham_params)
+        end
+
+        @test haskey(results, RESULT_MOMENTUM_DISTRIBUTION)
+        @test haskey(results, RESULT_K_VALUES)
+        # The current even-chain Fourier grids have N modes in both fermionic
+        # sectors. This end-to-end test checks axis consistency; the synthetic
+        # storage test above covers defensive non-N grids.
+        @test size(results[RESULT_MOMENTUM_DISTRIBUTION], 2) == length(results[RESULT_K_VALUES])
+
+        gF = results[RESULT_MOMENTUM_GF]
+        k_expected, nk_expected = measure_momentum_distribution_ed_clean(ρ0, ham_params; gF=gF)
+        @test results[RESULT_K_VALUES] ≈ k_expected atol=1e-12
+        @test results[RESULT_MOMENTUM_DISTRIBUTION][1, :] ≈ nk_expected atol=1e-10
+    end
+
     @testset "Momentum grid helper fallback and cache source" begin
         N = 4; J = 1.0; h = 0.5
         ham_params = IsingParameters(N, J, h, :periodic)

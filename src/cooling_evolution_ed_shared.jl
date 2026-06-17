@@ -200,6 +200,47 @@ function _system_state_for_measurement(ρ::EDDensityMatrix, N_sys::Int)
 end
 
 """
+    _ensure_momentum_storage!(measurements, k_values, n_k)
+
+Allocate ED momentum-distribution storage from the measured k-grid on the first
+call, and assert on later calls that both the grid length and grid values are
+unchanged.
+"""
+function _ensure_momentum_storage!(measurements, k_values, n_k)
+    n_modes = length(k_values)
+    length(n_k) == n_modes || throw(DimensionMismatch(
+        "Momentum measurement returned $(length(n_k)) occupations for $n_modes k-values."
+    ))
+
+    if get(measurements, RESULT_MOMENTUM_DISTRIBUTION, nothing) === nothing ||
+       get(measurements, RESULT_K_VALUES, nothing) === nothing
+        n_steps_total = size(measurements[RESULT_ENERGY], 1)
+        measurements[RESULT_MOMENTUM_DISTRIBUTION] = fill(NaN, n_steps_total, n_modes)
+        measurements[RESULT_K_VALUES] = collect(k_values)
+    end
+
+    if length(measurements[RESULT_K_VALUES]) != n_modes
+        throw(DimensionMismatch(
+            "Stored k-grid has $(length(measurements[RESULT_K_VALUES])) entries, " *
+            "but the momentum measurement returned $n_modes entries."
+        ))
+    end
+    if measurements[RESULT_K_VALUES] != k_values
+        throw(DimensionMismatch(
+            "Stored k-grid values differ from the current momentum measurement."
+        ))
+    end
+    if size(measurements[RESULT_MOMENTUM_DISTRIBUTION], 2) != n_modes
+        throw(DimensionMismatch(
+            "Stored momentum distribution has $(size(measurements[RESULT_MOMENTUM_DISTRIBUTION], 2)) mode columns, " *
+            "but the momentum measurement returned $n_modes entries."
+        ))
+    end
+
+    return nothing
+end
+
+"""
     perform_measurements_ed!(measurements, step::Int, problem::CoolingProblem{EDBackend},
                             state::Union{EDStateVector, EDDensityMatrix}, is_monte_carlo::Bool,
                             ham_params, bath_info=nothing)
@@ -261,9 +302,7 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
     if haskey(measurements, RESULT_MOMENTUM_DISTRIBUTION) && supports_ising_fourier_observables(ham_params)
         gF = _momentum_measurement_gF!(measurements, sys_state, ϕ₀, ham_params)
         k_values, n_k = measure_momentum_distribution_ed_clean(sys_state, ham_params; gF=gF)
-        if step == 1
-            measurements[RESULT_K_VALUES][:] = k_values
-        end
+        _ensure_momentum_storage!(measurements, k_values, n_k)
         measurements[RESULT_MOMENTUM_DISTRIBUTION][step, :] .= n_k
     end
 
