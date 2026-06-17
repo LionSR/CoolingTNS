@@ -13,8 +13,8 @@ include("cooling_types.jl")        # CoolingProblem and QuantumState types
 include("result_keys.jl")          # Public result dictionary keys
 
 include("utils.jl")
-include("utils_mps.jl")
 include("coupling_utils.jl")
+include("utils_mps.jl")
 include("utils_mpo.jl")
 
 # Analytical dispersion relations (pure math, no plotting deps)
@@ -63,6 +63,7 @@ export create_coupling_params, create_sim_params, create_results
 export to_dict
 export setup_common_parameters, create_filename, save_results
 export get_backend, get_sim_method, get_evolution_method, mean_last_window, relative_energy
+export parse_coupling, coupling_operator_terms, get_bath_operator
 # Result dictionary keys
 export RESULT_ENERGY, RESULT_GROUND_STATE_OVERLAP, RESULT_PURITY
 export RESULT_BATH_MAGNETIZATION, RESULT_BATH_SAMPLE_MAGNETIZATION
@@ -71,7 +72,7 @@ export RESULT_MODE_GF, RESULT_MODE_HK, RESULT_MODE_NK, RESULT_MODE_K_INDICES, RE
 export RESULT_DELTA_LIST, RESULT_TE_LIST, RESULT_DELTA_VALUES
 export RESULT_SCHEDULE, RESULT_RANDOMIZE_TIMES, RESULT_N_TRAJECTORIES
 export RESULT_KEYS
-# Dispersion relations (pure math, legacy — see mode_analysis.jl for canonical versions)
+# Dispersion relations used by plotting helpers; implementations follow mode_analysis.jl
 export generate_k_values, compute_energy_dispersion, compute_ground_state_occupation
 
 # Mode analysis (canonical parameter bridge and dispersion)

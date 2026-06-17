@@ -15,21 +15,32 @@ using LinearAlgebra
 # ============================================================================
 
 """
-    append_bath(backend::CoolingBackend, system_state, bath_state)
+    append_bath(backend::CoolingBackend, system_state, bath_spec[, coupling])
 
-Append fresh bath qubits to system state using dispatch.
+Append fresh bath qubits to a system state using dispatch.
+
+For ED backends, `bath_spec` is the number of bath qubits. The bath is prepared
+by `prepare_combined_state_ed`, including the coupling-dependent bath ground
+state and the interleaved layout `[S_1, B_1, S_2, B_2, ...]`.
+
+For TN backends, `bath_spec` is the full interleaved site vector passed to the
+MPS/MPO append helpers.
 """
 # TN Backend
-append_bath(::TNBackend, ψ_s::MPS, sites::Vector{<:Index}) = appendzeros_MPS(ψ_s, sites)
-append_bath(::TNBackend, ρ_s::MPO, sites::Vector{<:Index}) = appendzeros_MPO(ρ_s, sites)
+append_bath(::TNBackend, ψ_s::MPS, sites::Vector{<:Index}, coupling::String="XX") =
+    appendzeros_MPS(ψ_s, sites, coupling)
+append_bath(::TNBackend, ρ_s::MPO, sites::Vector{<:Index}, coupling::String="XX") =
+    appendzeros_MPO(ρ_s, sites, coupling)
 
 # ED Backend
-append_bath(::EDBackend, ψ_s::EDStateVector, N_bath::Int) = kron_states_ed(ψ_s, zero_state_ed(N_bath))
-append_bath(::EDBackend, ρ_s::EDDensityMatrix, N_bath::Int) = kron_density_ed(ρ_s, state_to_density_ed(zero_state_ed(N_bath)))
+append_bath(::EDBackend, ψ_s::EDStateVector, N_bath::Int, coupling::String="XX") =
+    prepare_combined_state_ed(ψ_s, N_bath, coupling)
+append_bath(::EDBackend, ρ_s::EDDensityMatrix, N_bath::Int, coupling::String="XX") =
+    prepare_combined_state_ed(ρ_s, N_bath, coupling)
 
-function append_bath(::EDBackend, ρ_s::Matrix, N_bath::Int)
+function append_bath(::EDBackend, ρ_s::Matrix, N_bath::Int, coupling::String="XX")
     N_sys = Int(log2(size(ρ_s, 1)))
-    return append_bath(EDBackend(), EDDensityMatrix(ρ_s, N_sys), N_bath).data
+    return append_bath(EDBackend(), EDDensityMatrix(Matrix{ComplexF64}(ρ_s), N_sys), N_bath, coupling).data
 end
 
 # ============================================================================
@@ -80,7 +91,7 @@ end
 # Matrix support for backward compatibility
 function trace_out_bath(::EDBackend, ρ::Matrix, N_sys::Int, _N_bath::Int)
     N_total = Int(log2(size(ρ, 1)))
-    return trace_out_bath_ed(EDDensityMatrix(real(ρ), N_total), N_sys).data
+    return trace_out_bath_ed(EDDensityMatrix(Matrix{ComplexF64}(ρ), N_total), N_sys).data
 end
 
 # ============================================================================
