@@ -95,6 +95,20 @@ using Random
         @test parsed_coupling.te == 1.5
     end
 
+    @testset "Command-line initial-state validation" begin
+        parsed = CoolingTNS.parse_commandline([
+            "--sim_method", "density_matrix",
+            "--init_state", "identity",
+        ])
+        @test parsed["sim_method"] == "density_matrix"
+        @test parsed["init_state"] == "identity"
+
+        @test_throws ArgumentError CoolingTNS.parse_commandline([
+            "--sim_method", "monte_carlo",
+            "--init_state", "identity",
+        ])
+    end
+
     @testset "Common parameter boundary conditions" begin
         base_args = Dict{String,Any}(
             "N" => 4,

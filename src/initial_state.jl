@@ -29,7 +29,7 @@ function setup_initial_state(problem::CoolingProblem{B}, sim_params::UnifiedSimu
 end
 
 # ============================================================================
-# ED Backend Helper: Create theta-parameterized state vector
+# Shared Initial-State Validation
 # ============================================================================
 
 function _reject_identity_for_mcwf(init_type::String)
@@ -41,6 +41,10 @@ function _reject_identity_for_mcwf(init_type::String)
         ))
     end
 end
+
+# ============================================================================
+# ED Backend Helper: Create theta-parameterized state vector
+# ============================================================================
 
 """
     initial_product_angle(theta_code::Real)
@@ -107,6 +111,9 @@ end
 Create an ED state vector based on `init_type` and the code-level theta
 parameter. For `init_type == "theta"`, the code convention is
 `theta = -0.5, 0, 0.5` giving `|0>`, `|+>`, and `|1>` on each site.
+The value `init_type == "identity"` is rejected because this constructor
+returns pure state vectors, while the identity initial state denotes the
+maximally mixed density matrix.
 """
 function create_theta_state_ed(N::Int, init_type::String, theta::Float64)::EDStateVector
     if init_type == "identity"
