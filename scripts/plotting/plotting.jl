@@ -13,22 +13,148 @@ include(joinpath(@__DIR__, "PlotUtils.jl"))
 using CoolingTNS: HamiltonianParameters, CouplingParameters, UnifiedSimulationParameters,
     CoolingBackend, parse_hamiltonian_name, create_filename, mean_last_window,
     create_search_name_part, RESULT_ENERGY, RESULT_GROUND_STATE_OVERLAP,
-    RESULT_MOMENTUM_DISTRIBUTION, RESULT_K_VALUES
+    RESULT_MOMENTUM_DISTRIBUTION, RESULT_K_VALUES, HDF5_PARSED_ARGS_GROUP,
+    hamiltonian_name
 
 _ham_params_with_N(template::HamiltonianParameters, N::Int) =
     HamiltonianParameters(template.model, N, template.params, template.bc)
+
+_backend_arg_value(::CoolingTNS.EDBackend) = "ED"
+_backend_arg_value(::CoolingTNS.TNBackend) = "TN"
+
+_simulation_method_arg_value(::CoolingTNS.DensityMatrix) = "density_matrix"
+_simulation_method_arg_value(::CoolingTNS.MonteCarloWavefunction) = "monte_carlo"
+
+_evolution_method_arg_value(::CoolingTNS.ContinuousEvolution) = "continuous"
+_evolution_method_arg_value(::CoolingTNS.TrotterEvolution) = "trotter"
+
+_lookup_numerical_controls(::CoolingTNS.EDBackend, sim_params) = Dict{String, Any}()
+_lookup_numerical_controls(::CoolingTNS.TNBackend, sim_params) = Dict{String, Any}(
+    "Dmax" => sim_params.Dmax,
+    "cutoff" => sim_params.cutoff,
+)
+
+_lookup_evolution_controls(::CoolingTNS.ContinuousEvolution, sim_params) = Dict{String, Any}()
+_lookup_evolution_controls(::CoolingTNS.TrotterEvolution, sim_params) = Dict{String, Any}(
+    "tau" => sim_params.tau,
+)
+
+function _optimization_lookup_metadata(
+    ham_params::HamiltonianParameters,
+    coupling_params::CouplingParameters,
+    sim_params::UnifiedSimulationParameters,
+    backend::CoolingBackend,
+)
+    metadata = Dict{String, Any}(
+        "ham_name" => hamiltonian_name(ham_params),
+        "N" => ham_params.N,
+        "bc" => string(ham_params.bc),
+        "coupling" => coupling_params.coupling,
+        "g" => coupling_params.g,
+        "steps" => coupling_params.steps,
+        "te" => coupling_params.te,
+        "backend" => _backend_arg_value(backend),
+        "sim_method" => _simulation_method_arg_value(sim_params.sim_method),
+        "evolution_method" => _evolution_method_arg_value(sim_params.evolution_method),
+        "peInt" => Int(round(sim_params.pe * 1000)),
+        "n_trajectories" => sim_params.n_trajectories,
+    )
+
+    return merge(
+        metadata,
+        _lookup_numerical_controls(backend, sim_params),
+        _lookup_evolution_controls(sim_params.evolution_method, sim_params),
+    )
+end
+
+function _metadata_value(file, key::AbstractString)
+    if key == "ham_name"
+        return key in keys(file) ? _maybe_scalar(read(file, key)) : missing
+    end
+
+    if HDF5_PARSED_ARGS_GROUP in keys(file)
+        group = file[HDF5_PARSED_ARGS_GROUP]
+        try
+            if key in keys(group)
+                return _maybe_scalar(read(group, key))
+            end
+        finally
+            close(group)
+        end
+    end
+
+    if key in keys(file)
+        object = file[key]
+        try
+            object isa HDF5.Group && return missing
+            return _maybe_scalar(read(object))
+        finally
+            close(object)
+        end
+    end
+
+    return missing
+end
+
+function _metadata_values_match(actual, expected)
+    actual === missing && return false
+    if actual isa Real && expected isa Real
+        return isapprox(Float64(actual), Float64(expected); rtol=1e-12, atol=1e-12)
+    end
+    return string(actual) == string(expected)
+end
+
+function _hdf5_matches_metadata(path::AbstractString, expected_metadata)
+    try
+        h5open(path, "r") do file
+            return all(
+                key -> _metadata_values_match(
+                    _metadata_value(file, key),
+                    expected_metadata[key],
+                ),
+                keys(expected_metadata),
+            )
+        end
+    catch e
+        @warn "Skipping unreadable optimization result $path" exception=(e, catch_backtrace())
+        return false
+    end
+end
+
+function _optimization_candidate_paths(directory::AbstractString, search_params)
+    suffix = search_params === nothing ? ".h5" : "_" * create_search_name_part(search_params) * ".h5"
+    candidates = filter(
+        f -> startswith(f, "Optimize") && endswith(f, suffix),
+        readdir(directory),
+    )
+    return joinpath.(Ref(directory), candidates)
+end
+
+function _latest_metadata_match(paths, metadata_filter)
+    matches = filter(path -> _hdf5_matches_metadata(path, metadata_filter), paths)
+    isempty(matches) && return nothing
+
+    if length(matches) > 1
+        @warn "Multiple optimization result files match requested metadata; using the most recently modified file." matches
+    end
+
+    mtimes = map(p -> stat(p).mtime, matches)
+    return matches[argmax(mtimes)]
+end
 
 # Resolve the actual HDF5 file to read.
 #
 # - Standard runs: `Results/<filename_prefix>.h5`
 # - Optimization runs: `ResultsOpt/<filename_prefix>_<search_name_part>.h5`
 #   If `search_params` is not provided, try to infer by picking the most recently
-#   modified match with the right prefix.
+#   modified match with the right prefix. If optimized parameters changed the
+#   coupling filename, fall back to the canonical `/parsed_args` metadata.
 function _results_h5_path(
     directory::AbstractString,
     filename_prefix::AbstractString;
     is_optimization::Bool=false,
     search_params=nothing,
+    metadata_filter=nothing,
 )
     isdir(directory) || return nothing
 
@@ -40,7 +166,20 @@ function _results_h5_path(
     if search_params !== nothing
         filename = filename_prefix * "_" * create_search_name_part(search_params)
         path = joinpath(directory, filename * ".h5")
-        return isfile(path) ? path : nothing
+        isfile(path) && return path
+
+        if metadata_filter !== nothing
+            paths = _optimization_candidate_paths(directory, search_params)
+            return _latest_metadata_match(paths, metadata_filter)
+        end
+
+        return nothing
+    end
+
+    if metadata_filter !== nothing
+        paths = _optimization_candidate_paths(directory, search_params)
+        match = _latest_metadata_match(paths, metadata_filter)
+        match !== nothing && return match
     end
 
     candidates = filter(
@@ -183,6 +322,9 @@ function plot_vs_N(
             filename_prefix;
             is_optimization=is_optimization,
             search_params=search_params,
+            metadata_filter=is_optimization ?
+                _optimization_lookup_metadata(ham_params, coupling_params, sim_params, backend) :
+                nothing,
         )
         full_filename === nothing && continue
 
@@ -300,6 +442,9 @@ function plot_cooling_curve_noise(
             filename_prefix;
             is_optimization=is_optimization,
             search_params=search_params,
+            metadata_filter=is_optimization ?
+                _optimization_lookup_metadata(ham_params, coupling_params, sim_pe, backend) :
+                nothing,
         )
         full_filename === nothing && continue
 
@@ -387,6 +532,9 @@ function plot_vs_N_pe_range(
                 filename_prefix;
                 is_optimization=is_optimization,
                 search_params=search_params,
+                metadata_filter=is_optimization ?
+                    _optimization_lookup_metadata(ham_params, coupling_params, sim_pe, backend) :
+                    nothing,
             )
             full_filename === nothing && continue
 

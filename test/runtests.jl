@@ -17,6 +17,7 @@ end
         include("test_bath_measurements.jl")
         include("test_result_structs.jl")
         include("test_cooling_interface.jl")
+        include("test_optimization_lookup.jl")
         include("test_multi_frequency.jl")
     end
 
