@@ -5,6 +5,8 @@ using CoolingTNS
     E = [1.0, 0.5]
     overlap = [0.2, 0.7]
     purity = [1.0, 0.9]
+    bath_mag = [0.0, -1.0]
+    bath_sample_mag = [-1.0, 0.0]
 
     @testset "DensityMatrixResults" begin
         results = CoolingTNS.DensityMatrixResults(E, overlap, purity)
@@ -13,8 +15,20 @@ using CoolingTNS
         @test data[CoolingTNS.RESULT_ENERGY] === E
         @test data[CoolingTNS.RESULT_GROUND_STATE_OVERLAP] === overlap
         @test data[CoolingTNS.RESULT_PURITY] === purity
+        @test !haskey(data, CoolingTNS.RESULT_BATH_MAGNETIZATION)
         @test !haskey(data, "energy_list")
         @test !haskey(data, "gs_overlap_list")
+
+        results_with_bath = CoolingTNS.DensityMatrixResults(
+            E,
+            overlap,
+            purity;
+            bath_magnetization_list=bath_mag,
+        )
+        data_with_bath = CoolingTNS.to_dict(results_with_bath)
+
+        @test data_with_bath[CoolingTNS.RESULT_BATH_MAGNETIZATION] === bath_mag
+        @test !haskey(data_with_bath, "bath_magnetization_list")
     end
 
     @testset "MonteCarloResults" begin
@@ -42,10 +56,30 @@ using CoolingTNS
         @test data[CoolingTNS.RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES] === overlap_traj
         @test data[CoolingTNS.RESULT_ENERGY_STD] === E_std
         @test data[CoolingTNS.RESULT_GROUND_STATE_OVERLAP_STD] === overlap_std
+        @test !haskey(data, CoolingTNS.RESULT_BATH_MAGNETIZATION)
+        @test !haskey(data, CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION)
+
+        results_with_bath = CoolingTNS.MonteCarloResults(
+            E,
+            overlap,
+            purity,
+            E_traj,
+            overlap_traj,
+            2,
+            E_std,
+            overlap_std;
+            bath_magnetization_list=bath_mag,
+            bath_sample_magnetization_list=bath_sample_mag,
+        )
+        data_with_bath = CoolingTNS.to_dict(results_with_bath)
+
+        @test data_with_bath[CoolingTNS.RESULT_BATH_MAGNETIZATION] === bath_mag
+        @test data_with_bath[CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION] === bath_sample_mag
+        @test !haskey(data_with_bath, "bath_magnetization_list")
+        @test !haskey(data_with_bath, "bath_sample_magnetization_list")
     end
 
     @testset "TensorNetworkResults" begin
-        bath_mag = [1.0, -1.0]
         results = CoolingTNS.TensorNetworkResults(E, overlap, bath_mag, nothing)
         data = CoolingTNS.to_dict(results)
 
@@ -80,8 +114,44 @@ using CoolingTNS
         @test full_data[CoolingTNS.RESULT_FINAL_STATE] === final_state
     end
 
+    @testset "Live density-matrix bath schema is representable" begin
+        backend = CoolingTNS.EDBackend()
+        ham_params = CoolingTNS.IsingParameters(2, 1.0, -2.0)
+        coupling_params = CoolingTNS.BasicCouplingParameters("XX", 0.0, 1, 0.2, 1.0)
+        sim_params = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.DensityMatrix(),
+            CoolingTNS.ContinuousEvolution();
+            pe=0.0,
+        )
+
+        problem = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params)
+        state0 = CoolingTNS.setup_initial_state(problem, sim_params, "product", 0.0)
+        live_data = CoolingTNS.run_cooling(problem, state0, coupling_params, sim_params, ham_params)
+
+        @test haskey(live_data, CoolingTNS.RESULT_BATH_MAGNETIZATION)
+
+        struct_data = CoolingTNS.to_dict(CoolingTNS.DensityMatrixResults(
+            Float64.(live_data[CoolingTNS.RESULT_ENERGY]),
+            Float64.(live_data[CoolingTNS.RESULT_GROUND_STATE_OVERLAP]),
+            Float64.(live_data[CoolingTNS.RESULT_PURITY]);
+            bath_magnetization_list=Float64.(live_data[CoolingTNS.RESULT_BATH_MAGNETIZATION]),
+        ))
+
+        for key in (
+            CoolingTNS.RESULT_ENERGY,
+            CoolingTNS.RESULT_GROUND_STATE_OVERLAP,
+            CoolingTNS.RESULT_PURITY,
+            CoolingTNS.RESULT_BATH_MAGNETIZATION,
+        )
+            @test haskey(struct_data, key)
+            @test struct_data[key] == live_data[key]
+        end
+    end
+
     @testset "Result schema constants include diagnostics" begin
         for key in (
+            CoolingTNS.RESULT_BATH_MAGNETIZATION,
+            CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION,
             CoolingTNS.RESULT_ENERGY_TRAJECTORIES,
             CoolingTNS.RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES,
             CoolingTNS.RESULT_ENERGY_STD,
