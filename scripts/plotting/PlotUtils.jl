@@ -98,6 +98,18 @@ function save_figure(fig, base_dir::String, fig_name::String)
 end
 
 """
+    _maybe_show_figure(plt, show_fig::Bool) -> Bool
+
+Display matplotlib figures only when explicitly requested. Returns whether
+display was requested.
+"""
+function _maybe_show_figure(plt, show_fig::Bool)::Bool
+    show_fig || return false
+    plt.show()
+    return true
+end
+
+"""
     extract_filename_base(filepath::String) -> String
 
 Extract the base filename without extension from a file path.
