@@ -16,7 +16,8 @@ end
 using CoolingTNS: HamiltonianParameters, CouplingParameters, UnifiedSimulationParameters,
     CoolingBackend, parse_hamiltonian_name, create_filename, mean_last_window,
     create_search_name_part, RESULT_ENERGY, RESULT_GROUND_STATE_OVERLAP,
-    RESULT_MOMENTUM_DISTRIBUTION, RESULT_K_VALUES, RESULT_MODE_ENERGIES,
+    RESULT_MOMENTUM_DISTRIBUTION, RESULT_K_VALUES, RESULT_MOMENTUM_GF,
+    RESULT_MODE_GF, RESULT_MODE_K_INDICES, RESULT_MODE_ENERGIES,
     HDF5_PARSED_ARGS_GROUP, hamiltonian_name, bath_detuning_energy,
     nearest_bath_resonance_indices, compute_energy_dispersion
 
@@ -601,6 +602,36 @@ function plot_vs_N_pe_range(
     fig.savefig(joinpath(directory, "Figs", filename_saveto), dpi=300)
 end
 
+function _stored_mode_k_indices_match_k_values(data::AbstractDict, k_values)
+    haskey(data, RESULT_MODE_K_INDICES) || return nothing
+
+    mode_k_indices = vec(Float64.(data[RESULT_MODE_K_INDICES]))
+    length(mode_k_indices) == length(k_values) || return false
+
+    N = length(k_values)
+    mode_k_values = 2pi .* mode_k_indices ./ N
+    return isapprox(mode_k_values, Float64.(k_values); rtol=1e-12, atol=1e-12)
+end
+
+function _stored_mode_gF_matches_momentum_gF(data::AbstractDict)
+    (haskey(data, RESULT_MOMENTUM_GF) && haskey(data, RESULT_MODE_GF)) || return nothing
+
+    momentum_gF = _maybe_scalar(data[RESULT_MOMENTUM_GF])
+    mode_gF = _maybe_scalar(data[RESULT_MODE_GF])
+    (momentum_gF isa Real && mode_gF isa Real) || return false
+    return Int(round(momentum_gF)) == Int(round(mode_gF))
+end
+
+function _stored_mode_grid_matches_k_values(data::AbstractDict, k_values)
+    k_index_match = _stored_mode_k_indices_match_k_values(data, k_values)
+    k_index_match !== nothing && return k_index_match
+
+    gF_match = _stored_mode_gF_matches_momentum_gF(data)
+    gF_match !== nothing && return gF_match
+
+    return false
+end
+
 function _stored_mode_energies_for_k_grid(data::AbstractDict, k_values, filename)
     haskey(data, RESULT_MODE_ENERGIES) || return nothing
 
@@ -608,6 +639,12 @@ function _stored_mode_energies_for_k_grid(data::AbstractDict, k_values, filename
     if length(εk_values) != length(k_values)
         @warn "$(RESULT_MODE_ENERGIES) in $filename has length $(length(εk_values)), " *
               "but $(RESULT_K_VALUES) has length $(length(k_values)); ignoring stored mode energies."
+        return nothing
+    end
+
+    if !_stored_mode_grid_matches_k_values(data, k_values)
+        @warn "$(RESULT_MODE_ENERGIES) in $filename is not on the plotted k-grid; " *
+              "ignoring stored mode energies."
         return nothing
     end
 

@@ -12,6 +12,9 @@ function _write_momentum_distribution_file(
     momentum_dist,
     delta=nothing,
     mode_energies=nothing,
+    momentum_gF=nothing,
+    mode_gF=nothing,
+    mode_k_indices=nothing,
     ham_name=nothing,
     parsed_args=nothing,
 )
@@ -20,6 +23,9 @@ function _write_momentum_distribution_file(
         write(file, RESULT_K_VALUES, k_values)
         delta !== nothing && write(file, "delta", delta)
         mode_energies !== nothing && write(file, RESULT_MODE_ENERGIES, mode_energies)
+        momentum_gF !== nothing && write(file, RESULT_MOMENTUM_GF, momentum_gF)
+        mode_gF !== nothing && write(file, RESULT_MODE_GF, mode_gF)
+        mode_k_indices !== nothing && write(file, RESULT_MODE_K_INDICES, mode_k_indices)
         ham_name !== nothing && write(file, "ham_name", ham_name)
 
         if parsed_args !== nothing
@@ -83,6 +89,9 @@ end
             momentum_dist=momentum_dist,
             delta=delta,
             mode_energies=[0.8, 1.2, 1.2, 1.7],
+            momentum_gF=1,
+            mode_gF=1,
+            mode_k_indices=[-1.0, 0.0, 1.0, 2.0],
         )
 
         fig = plot_momentum_distribution(stored_energy_file; save_fig=false)
@@ -93,6 +102,37 @@ end
         @test !_momentum_has_horizontal_line_at(ax, delta)
         @test _momentum_has_label_containing(ax, "1.2")
         plt.close(fig)
+
+        mismatch_k_values = CoolingTNS.generate_k_values(4, 1)
+        mismatch_energies = CoolingTNS.compute_energy_dispersion(mismatch_k_values, 1.0, 0.5)
+        mismatch_delta = mismatch_energies[1]
+        fallback_indices = findall(
+            d -> isapprox(d, minimum(abs.(mismatch_energies .- mismatch_delta));
+                          rtol=sqrt(eps(Float64)), atol=1e-12),
+            abs.(mismatch_energies .- mismatch_delta),
+        )
+        decoy_index = first(setdiff(eachindex(mismatch_k_values), fallback_indices))
+        decoy_mode_energies = fill(maximum(mismatch_energies) + 10.0, length(mismatch_k_values))
+        decoy_mode_energies[decoy_index] = mismatch_delta
+
+        mismatched_grid_file = _write_momentum_distribution_file(
+            joinpath(dir, "mismatched_mode_grid.h5");
+            k_values=mismatch_k_values,
+            momentum_dist=momentum_dist,
+            delta=mismatch_delta,
+            mode_energies=decoy_mode_energies,
+            momentum_gF=1,
+            mode_gF=-1,
+            mode_k_indices=Float64.(CoolingTNS.allowed_k_indices(4, -1)),
+            ham_name=CoolingTNS.hamiltonian_name(CoolingTNS.IsingParameters(4, 1.0, 0.5, :periodic)),
+        )
+
+        fig_mismatched = plot_momentum_distribution(mismatched_grid_file; save_fig=false)
+        ax_mismatched = fig_mismatched.axes[0]
+        @test all(idx -> _momentum_has_vertical_line_at(ax_mismatched, mismatch_k_values[idx]),
+                  fallback_indices)
+        @test !_momentum_has_vertical_line_at(ax_mismatched, mismatch_k_values[decoy_index])
+        plt.close(fig_mismatched)
 
         N = 4
         J = 1.0
