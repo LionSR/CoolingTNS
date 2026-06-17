@@ -402,6 +402,27 @@ struct DensityMatrixResults <: CoolingResults
     E_list::Vector{Float64}           # Energy evolution
     GS_overlap_list::Vector{Float64}  # Ground state overlap evolution
     purity_list::Vector{Float64}      # Purity evolution
+    bath_magnetization_list::Union{Vector{Float64}, Nothing}  # Bath magnetization, when measured
+end
+
+"""
+    DensityMatrixResults(E_list, GS_overlap_list, purity_list; bath_magnetization_list=nothing)
+
+Backward-compatible constructor for density-matrix results.  The optional bath
+magnetization vector is serialized only when it is supplied.
+"""
+function DensityMatrixResults(
+    E_list::Vector{Float64},
+    GS_overlap_list::Vector{Float64},
+    purity_list::Vector{Float64};
+    bath_magnetization_list=nothing,
+)
+    return DensityMatrixResults(
+        E_list,
+        GS_overlap_list,
+        purity_list,
+        bath_magnetization_list,
+    )
 end
 
 """
@@ -420,7 +441,42 @@ struct MonteCarloResults <: CoolingResults
     # Statistical measures
     E_std::Vector{Float64}            # Standard deviation of energy
     GS_std::Vector{Float64}           # Standard deviation of overlap
-    # todo: add bath magnetization
+    bath_magnetization_list::Union{Vector{Float64}, Nothing}         # Bath magnetization, when averaged directly
+    bath_sample_magnetization_list::Union{Vector{Float64}, Nothing}  # Sampled bath magnetization, when recorded
+end
+
+"""
+    MonteCarloResults(E_list, GS_overlap_list, purity_list, E_trajectories,
+        GS_trajectories, n_trajectories, E_std, GS_std;
+        bath_magnetization_list=nothing, bath_sample_magnetization_list=nothing)
+
+Backward-compatible constructor for Monte-Carlo results.  Optional bath
+observables are serialized only when supplied.
+"""
+function MonteCarloResults(
+    E_list::Vector{Float64},
+    GS_overlap_list::Vector{Float64},
+    purity_list::Vector{Float64},
+    E_trajectories::Matrix{Float64},
+    GS_trajectories::Matrix{Float64},
+    n_trajectories::Int,
+    E_std::Vector{Float64},
+    GS_std::Vector{Float64};
+    bath_magnetization_list=nothing,
+    bath_sample_magnetization_list=nothing,
+)
+    return MonteCarloResults(
+        E_list,
+        GS_overlap_list,
+        purity_list,
+        E_trajectories,
+        GS_trajectories,
+        n_trajectories,
+        E_std,
+        GS_std,
+        bath_magnetization_list,
+        bath_sample_magnetization_list,
+    )
 end
 
 """
@@ -508,15 +564,31 @@ function to_dict(obj::T) where T
 end
 
 """
+    _add_optional_result!(result, key, value)
+
+Store `value` under the canonical result `key` only when the optional observable
+was measured, represented here by `value !== nothing`.
+"""
+function _add_optional_result!(result::Dict{String,Any}, key::String, value)
+    value === nothing || (result[key] = value)
+    return result
+end
+
+"""
     to_dict(results::DensityMatrixResults)
 
 Serialize density-matrix result containers with the public cooling result keys.
 """
 function to_dict(results::DensityMatrixResults)
-    return Dict{String,Any}(
+    result = Dict{String,Any}(
         RESULT_ENERGY => results.E_list,
         RESULT_GROUND_STATE_OVERLAP => results.GS_overlap_list,
         RESULT_PURITY => results.purity_list,
+    )
+    return _add_optional_result!(
+        result,
+        RESULT_BATH_MAGNETIZATION,
+        results.bath_magnetization_list,
     )
 end
 
@@ -526,7 +598,7 @@ end
 Serialize Monte-Carlo result containers with the public cooling result keys.
 """
 function to_dict(results::MonteCarloResults)
-    return Dict{String,Any}(
+    result = Dict{String,Any}(
         RESULT_ENERGY => results.E_list,
         RESULT_GROUND_STATE_OVERLAP => results.GS_overlap_list,
         RESULT_PURITY => results.purity_list,
@@ -535,6 +607,16 @@ function to_dict(results::MonteCarloResults)
         RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES => results.GS_trajectories,
         RESULT_ENERGY_STD => results.E_std,
         RESULT_GROUND_STATE_OVERLAP_STD => results.GS_std,
+    )
+    _add_optional_result!(
+        result,
+        RESULT_BATH_MAGNETIZATION,
+        results.bath_magnetization_list,
+    )
+    return _add_optional_result!(
+        result,
+        RESULT_BATH_SAMPLE_MAGNETIZATION,
+        results.bath_sample_magnetization_list,
     )
 end
 
