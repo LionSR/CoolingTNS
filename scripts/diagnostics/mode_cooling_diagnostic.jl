@@ -31,6 +31,8 @@ const STEPS = 50       # Number of cooling steps
 const INIT_TYPE = "theta"
 const INIT_THETA = π / 4
 
+_mode_index_label(k) = k isa Rational ? "$(numerator(k))/$(denominator(k))" : "$(k)"
+
 # ============================================================================
 # Setup
 # ============================================================================
@@ -85,7 +87,7 @@ function run_diagnostic(; do_plot::Bool=false)
         εk_notes = CoolingTNS.mode_energy(Float64(k), θ, N)
         εk_code = Λ * εk_notes
         φk = 2π * Float64(k) / N
-        k_str = k isa Rational ? "$(numerator(k))/$(denominator(k))" : "$k"
+        k_str = _mode_index_label(k)
         @printf("  %-8s  %12.6f  %12.6f  %12.6f  %8.4f%s\n",
                 k_str, φk, εk_code, εk_notes, abs(εk_code - abs(Δ)),
                 idx in res_disp_indices ? "  ← resonant" : "")
@@ -134,7 +136,7 @@ function run_diagnostic(; do_plot::Bool=false)
     println()
 
     # Header
-    k_headers = [k isa Rational ? "k=$(numerator(k))/$(denominator(k))" : "k=$k" for k in k_indices]
+    k_headers = ["k=$(_mode_index_label(k))" for k in k_indices]
     @printf("  %-6s  %-10s  %-8s", "Step", "E/N", "Overlap")
     for kh in k_headers
         @printf("  %-10s", kh)
@@ -211,7 +213,7 @@ function run_diagnostic(; do_plot::Bool=false)
 
     for i in 1:n_modes
         k = k_indices[i]
-        k_str = k isa Rational ? "$(numerator(k))/$(denominator(k))" : "$k"
+        k_str = _mode_index_label(k)
         nk_init = mode_nk[1, i]
         nk_final = mode_nk[end, i]
         marker = i in res_indices ? "  ← resonant" : ""

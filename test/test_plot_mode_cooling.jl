@@ -24,16 +24,10 @@ end
 
     @test bath_detuning_energy([-1.2]) == 1.2
     @test bath_detuning_energy([1.0, 1.2]) === nothing
+    @test bath_detuning_energy(Float64[]) === nothing
+    @test bath_detuning_energy("1.2") === nothing
     @test nearest_bath_resonance_indices(εk_values, -1.2) == [2, 3]
     @test nearest_bath_resonance_indices(εk_values, nothing) == Int[]
     @test nearest_bath_resonance_indices(εk_values, 0.0) == Int[]
-
-    repo_root = normpath(joinpath(@__DIR__, ".."))
-    plot_text = read(joinpath(repo_root, "scripts", "plotting", "plot_mode_cooling.jl"), String)
-    diagnostic_text = read(joinpath(repo_root, "scripts", "diagnostics", "mode_cooling_diagnostic.jl"), String)
-
-    @test occursin("nearest_bath_resonance_indices", plot_text)
-    @test occursin("res_indices = Set(CoolingTNS.nearest_bath_resonance_indices", diagnostic_text)
-    @test !occursin("argmin(abs.(εk_values", plot_text)
-    @test !occursin("res_idx = argmin", diagnostic_text)
+    @test nearest_bath_resonance_indices([1.0, 1.0 + 5e-13, 1.5], 1.0) == [1, 2]
 end

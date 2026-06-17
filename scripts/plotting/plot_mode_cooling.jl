@@ -105,7 +105,7 @@ function plot_mode_occupation_from_data(mode_nk::AbstractMatrix, k_indices, εk_
     # Highlight all resonant modes closest to the bath detuning.
     δ_abs = bath_detuning_energy(delta)
     if δ_abs !== nothing
-        for res_idx in nearest_bath_resonance_indices(εk_values, δ_abs)
+        for res_idx in nearest_bath_resonance_indices(εk_values, delta)
             k_label = _mode_index_label(k_indices[res_idx])
             ax1.plot(steps, mode_nk[:, res_idx], color="red", linewidth=3, alpha=0.4,
                      label=L"resonant: k=%$k_label" * L", \Delta=%$(round(δ_abs, digits=3))")

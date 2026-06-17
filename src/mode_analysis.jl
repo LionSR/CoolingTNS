@@ -75,8 +75,9 @@ mode_occupation_from_hk(hk) = (hk .+ 1) ./ 2
 """
     bath_detuning_energy(delta)
 
-Return the positive energy `|delta|` associated with a bath detuning.  A value
-of `nothing` or zero denotes the absence of a resonant bath line.
+Return the positive energy `|delta|` associated with a bath detuning. A value
+of `nothing`, zero, a non-number, or a detuning array whose length is not one
+denotes the absence of a single resonant bath line.
 """
 function bath_detuning_energy(delta)
     if delta === nothing
