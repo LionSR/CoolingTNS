@@ -194,9 +194,8 @@ function run_diagnostic(; do_plot::Bool=false)
             continue
         end
         E_direct = E_list[step]
-        E_modes = (Λ / 2) * sum(
-            CoolingTNS.coeff_k(k, θ, N) * mode_hk[step, i]
-            for (i, k) in enumerate(k_indices)
+        E_modes = CoolingTNS.ising_energy_from_mode_hk(
+            k_indices, view(mode_hk, step, :), ham_params
         )
         abs_err = abs(E_direct - E_modes)
         rel_err = abs(E_direct) > 1e-10 ? abs_err / abs(E_direct) : abs_err
