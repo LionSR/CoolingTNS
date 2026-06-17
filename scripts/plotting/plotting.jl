@@ -7,14 +7,18 @@ or:
     include("scripts/plotting/plotting.jl")
 """
 
-include(joinpath(@__DIR__, "PlotUtils.jl"))
+# Allow tests and notebooks to include several standalone plot scripts in one session.
+if !@isdefined(get_pyplot)
+    include(joinpath(@__DIR__, "PlotUtils.jl"))
+end
 
 # Import CoolingTNS types and functions needed by this file
 using CoolingTNS: HamiltonianParameters, CouplingParameters, UnifiedSimulationParameters,
     CoolingBackend, parse_hamiltonian_name, create_filename, mean_last_window,
     create_search_name_part, RESULT_ENERGY, RESULT_GROUND_STATE_OVERLAP,
-    RESULT_MOMENTUM_DISTRIBUTION, RESULT_K_VALUES, HDF5_PARSED_ARGS_GROUP,
-    hamiltonian_name
+    RESULT_MOMENTUM_DISTRIBUTION, RESULT_K_VALUES, RESULT_MODE_ENERGIES,
+    HDF5_PARSED_ARGS_GROUP, hamiltonian_name, bath_detuning_energy,
+    nearest_bath_resonance_indices, compute_energy_dispersion
 
 _ham_params_with_N(template::HamiltonianParameters, N::Int) =
     HamiltonianParameters(template.model, N, template.params, template.bc)
@@ -597,14 +601,87 @@ function plot_vs_N_pe_range(
     fig.savefig(joinpath(directory, "Figs", filename_saveto), dpi=300)
 end
 
+function _stored_mode_energies_for_k_grid(data::AbstractDict, k_values, filename)
+    haskey(data, RESULT_MODE_ENERGIES) || return nothing
+
+    εk_values = vec(Float64.(data[RESULT_MODE_ENERGIES]))
+    if length(εk_values) != length(k_values)
+        @warn "$(RESULT_MODE_ENERGIES) in $filename has length $(length(εk_values)), " *
+              "but $(RESULT_K_VALUES) has length $(length(k_values)); ignoring stored mode energies."
+        return nothing
+    end
+
+    return εk_values
+end
+
+function _ising_Jh_from_metadata(filename::AbstractString)
+    isfile(filename) || return nothing
+
+    try
+        return h5open(filename, "r") do file
+            ham_name = _metadata_value(file, "ham_name")
+            if ham_name !== missing
+                ham_name_str = string(ham_name)
+                startswith(ham_name_str, "Ising") || return nothing
+
+                ham_params = parse_hamiltonian_name(ham_name_str)
+                return (Float64(ham_params.params.J), Float64(ham_params.params.h))
+            end
+
+            problem = _metadata_value(file, "problem")
+            if problem !== missing && lowercase(string(problem)) != "ising"
+                return nothing
+            end
+
+            J = _metadata_value(file, "J")
+            h = _metadata_value(file, "h")
+            (J === missing || h === missing) && return nothing
+            return (Float64(J), Float64(h))
+        end
+    catch e
+        @warn "Could not derive Ising dispersion metadata from $filename" exception=(e, catch_backtrace())
+        return nothing
+    end
+end
+
+function _mode_energies_for_momentum_plot(data::AbstractDict, filename::AbstractString, k_values)
+    εk_values = _stored_mode_energies_for_k_grid(data, k_values, filename)
+    εk_values !== nothing && return εk_values
+
+    ising_params = _ising_Jh_from_metadata(filename)
+    ising_params === nothing && return nothing
+
+    J, h = ising_params
+    return compute_energy_dispersion(k_values, J, h)
+end
+
+function _add_momentum_resonance_markers!(ax, k_values, εk_values, delta)
+    εk_values === nothing && return Int[]
+    resonance_indices = nearest_bath_resonance_indices(εk_values, delta)
+    isempty(resonance_indices) && return resonance_indices
+
+    δ_abs = bath_detuning_energy(delta)
+    line_label = L"\varepsilon_k \approx |\Delta| = %$(_detuning_label_value(δ_abs))"
+    for (i, idx) in enumerate(resonance_indices)
+        label = i == 1 ? line_label : "_nolegend_"
+        ax.axvline(x=k_values[idx], color="red", linestyle="--",
+                   linewidth=1.5, alpha=0.55, label=label)
+    end
+
+    return resonance_indices
+end
 
 """
     plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true)
 
 Plot the momentum distribution n_k vs k at a subset of cooling steps.
 
-If the file contains a scalar `delta`, it is drawn as a horizontal line on a
-secondary y-axis (to indicate the resonant bath frequency).
+If the file contains a scalar `delta`, the plot marks the momentum values whose
+mode energies are closest to `|delta|`. The mode energies are read from
+`RESULT_MODE_ENERGIES` when they match `RESULT_K_VALUES`; otherwise, for Ising
+data with `J` and `h` metadata, they are reconstructed from the canonical
+dispersion helper. No marker is drawn when no mode-energy convention is
+available.
 """
 function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true)
     plt = get_pyplot()
@@ -623,7 +700,7 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
     step_indices = select_evolution_steps(total_steps; steps_to_plot=steps_to_plot)
 
     fig, ax = plt.subplots(figsize=(8, 6))
-    colors = get_evolution_colors(plt, length(step_indices))
+    colors = pyconvert(Vector, get_evolution_colors(plt, length(step_indices)))
 
     for (i, step) in enumerate(step_indices)
         if step <= total_steps
@@ -633,12 +710,8 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
         end
     end
 
-    if haskey(data, "delta") && data["delta"] !== nothing
-        ax2 = ax.twinx()
-        ax2.axhline(y=data["delta"], color="red", linestyle="--", alpha=0.7, label="Bath freq delta")
-        ax2.set_ylabel("Energy", color="red")
-        ax2.tick_params(axis="y", labelcolor="red")
-    end
+    εk_values = _mode_energies_for_momentum_plot(data, filename, k_values)
+    _add_momentum_resonance_markers!(ax, k_values, εk_values, get(data, "delta", nothing))
 
     ax.set_xlabel(L"Momentum $k$")
     ax.set_ylabel(L"Occupation $n_k$")
@@ -653,6 +726,7 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
     end
 
     plt.show()
+    return fig
 end
 
 """

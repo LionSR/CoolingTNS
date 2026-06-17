@@ -35,6 +35,7 @@ end
         include("test_plot_mode_cooling.jl")
         include("test_plot_ek_evolution.jl")
         include("test_dispersion_detuning_markers.jl")
+        include("test_plot_momentum_distribution.jl")
     end
 
     if RUN_FULL_TESTS
