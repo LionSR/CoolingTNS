@@ -86,15 +86,88 @@ struct HamiltonianParameters{M<:HamiltonianModel}
     bc::Symbol  # Boundary conditions: :open, :periodic, :antiperiodic
 end
 
-# Convenience constructors with default open BC
-IsingParameters(N::Int, J, h) = HamiltonianParameters(IsingModel(), N, (J=J, h=h), :open)
-NiIsingParameters(N::Int, J, hx, hz) = HamiltonianParameters(NiIsingModel(), N, (J=J, hx=hx, hz=hz), :open)
-RydbergParameters(N::Int, Ω, Δ, V) = HamiltonianParameters(RydbergModel(), N, (Ω=Ω, Δ=Δ, V=V), :open)
+const HAMILTONIAN_BOUNDARY_CONDITIONS = (:open, :periodic, :antiperiodic)
 
-# Versions with explicit BC
-IsingParameters(N::Int, J, h, bc::Symbol) = HamiltonianParameters(IsingModel(), N, (J=J, h=h), bc)
-NiIsingParameters(N::Int, J, hx, hz, bc::Symbol) = HamiltonianParameters(NiIsingModel(), N, (J=J, hx=hx, hz=hz), bc)
-RydbergParameters(N::Int, Ω, Δ, V, bc::Symbol) = HamiltonianParameters(RydbergModel(), N, (Ω=Ω, Δ=Δ, V=V), bc)
+function validate_hamiltonian_bc(bc::Symbol)
+    bc in HAMILTONIAN_BOUNDARY_CONDITIONS && return bc
+    throw(ArgumentError(
+        "Unsupported Hamiltonian boundary condition: $bc. " *
+        "Use one of $(HAMILTONIAN_BOUNDARY_CONDITIONS).",
+    ))
+end
+
+# Convenience constructors. The keyword form is the source of truth; the
+# positional `bc` methods are kept for existing scripts and parsed filenames.
+"""
+    IsingParameters(N, J, h; bc=:open)
+
+Construct transverse-field Ising Hamiltonian parameters.
+
+The boundary condition `bc` must be one of `:open`, `:periodic`, or
+`:antiperiodic`. Tensor-network Hamiltonian construction currently uses open
+boundaries; periodic and antiperiodic boundary conditions are meaningful for
+exact-diagonalization workflows and TN mode-observable analysis.
+"""
+IsingParameters(N::Int, J, h; bc::Symbol=:open) =
+    HamiltonianParameters(
+        IsingModel(), N, (J=J, h=h), validate_hamiltonian_bc(bc)
+    )
+
+"""
+    NiIsingParameters(N, J, hx, hz; bc=:open)
+
+Construct non-integrable Ising Hamiltonian parameters with transverse and
+longitudinal fields.
+
+The boundary condition `bc` must be one of `:open`, `:periodic`, or
+`:antiperiodic`. Tensor-network Hamiltonian construction currently uses open
+boundaries; periodic and antiperiodic boundary conditions are meaningful for
+exact-diagonalization workflows and TN mode-observable analysis.
+"""
+NiIsingParameters(N::Int, J, hx, hz; bc::Symbol=:open) =
+    HamiltonianParameters(
+        NiIsingModel(), N, (J=J, hx=hx, hz=hz), validate_hamiltonian_bc(bc)
+    )
+
+"""
+    RydbergParameters(N, Ω, Δ, V; bc=:open)
+
+Construct Rydberg-chain Hamiltonian parameters.
+
+The boundary condition `bc` must be one of `:open`, `:periodic`, or
+`:antiperiodic`. Tensor-network Hamiltonian construction currently uses open
+boundaries; periodic and antiperiodic boundary conditions are meaningful for
+exact-diagonalization workflows and TN mode-observable analysis.
+"""
+RydbergParameters(N::Int, Ω, Δ, V; bc::Symbol=:open) =
+    HamiltonianParameters(
+        RydbergModel(), N, (Ω=Ω, Δ=Δ, V=V), validate_hamiltonian_bc(bc)
+    )
+
+"""
+    IsingParameters(N, J, h, bc)
+
+Backward-compatible positional boundary-condition wrapper for
+[`IsingParameters(N, J, h; bc)`](@ref).
+"""
+IsingParameters(N::Int, J, h, bc::Symbol) = IsingParameters(N, J, h; bc=bc)
+
+"""
+    NiIsingParameters(N, J, hx, hz, bc)
+
+Backward-compatible positional boundary-condition wrapper for
+[`NiIsingParameters(N, J, hx, hz; bc)`](@ref).
+"""
+NiIsingParameters(N::Int, J, hx, hz, bc::Symbol) =
+    NiIsingParameters(N, J, hx, hz; bc=bc)
+
+"""
+    RydbergParameters(N, Ω, Δ, V, bc)
+
+Backward-compatible positional boundary-condition wrapper for
+[`RydbergParameters(N, Ω, Δ, V; bc)`](@ref).
+"""
+RydbergParameters(N::Int, Ω, Δ, V, bc::Symbol) = RydbergParameters(N, Ω, Δ, V; bc=bc)
 
 # Generate name for HamiltonianParameters
 function hamiltonian_name(ham_params::HamiltonianParameters{IsingModel})
