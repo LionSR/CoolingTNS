@@ -11,7 +11,10 @@ using PythonCall
 using LaTeXStrings
 
 # Re-export dispersion functions from CoolingTNS for convenience
-using CoolingTNS: generate_k_values, compute_energy_dispersion, compute_ground_state_occupation
+using CoolingTNS: bath_detuning_energy,
+                  generate_k_values,
+                  compute_energy_dispersion,
+                  compute_ground_state_occupation
 
 # Lazy pyplot access - imported once per session
 const _pyplot = Ref{Py}()
@@ -112,6 +115,26 @@ Generate a color array for evolution plots using viridis colormap.
 """
 function get_evolution_colors(plt, n_steps::Int)
     return plt.cm.viridis(range(0, 1, length=n_steps))
+end
+
+"""
+    add_detuning_energy_marker!(ax, delta; color="red", linestyle="--", linewidth=2, alpha=0.7)
+
+Draw a bath detuning as a horizontal energy marker on a dispersion axis.
+
+The transverse-field Ising dispersion is plotted as `epsilon_k` versus `k/pi`,
+so the resonant bath line belongs on the energy axis at `|delta|`, not on the
+momentum axis at `delta/pi`. Returns the plotted energy, or `nothing` when
+`delta` does not specify a single nonzero detuning.
+"""
+function add_detuning_energy_marker!(ax, delta;
+                                     color="red", linestyle="--", linewidth=2, alpha=0.7)
+    δ_abs = bath_detuning_energy(delta)
+    δ_abs === nothing && return nothing
+
+    ax.axhline(y=δ_abs, color=color, linestyle=linestyle, linewidth=linewidth,
+               alpha=alpha, label=L"|\Delta|")
+    return δ_abs
 end
 
 """
