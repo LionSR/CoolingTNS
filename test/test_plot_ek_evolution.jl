@@ -85,6 +85,18 @@ end
     end
 end
 
+@testset "Evolution step selection stays in bounds" begin
+    @test select_evolution_steps(1) == [1]
+    @test select_evolution_steps(2) == [1, 2]
+    @test select_evolution_steps(4) == [1, 2, 3, 4]
+    @test select_evolution_steps(8) == [1, 2, 4, 6, 8]
+
+    @test select_evolution_steps(3; steps_to_plot=[3, 1]) == [3, 1]
+    @test_throws ArgumentError select_evolution_steps(0)
+    @test_throws ArgumentError select_evolution_steps(3; steps_to_plot=[0, 1])
+    @test_throws ArgumentError select_evolution_steps(3; steps_to_plot=[1, 4])
+end
+
 @testset "Momentum distribution orientation helper" begin
     modes_by_steps = [
         0.10 0.20
