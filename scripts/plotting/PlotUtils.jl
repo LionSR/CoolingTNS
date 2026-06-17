@@ -135,7 +135,7 @@ function add_detuning_energy_marker!(ax, delta;
     δ_abs = bath_detuning_energy(delta)
     δ_abs === nothing && return nothing
 
-    line_label = label === nothing ? L"|\Delta| = %$(round(δ_abs, digits=3))" : label
+    line_label = label === nothing ? L"|\Delta| = %$(δ_abs)" : label
     ax.axhline(y=δ_abs, color=color, linestyle=linestyle, linewidth=linewidth,
                alpha=alpha, label=line_label)
     return δ_abs

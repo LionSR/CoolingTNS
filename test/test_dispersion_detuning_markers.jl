@@ -1,6 +1,8 @@
 using Test
 using PythonCall
 
+pyimport("matplotlib").use("Agg"; force=true)
+
 include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_energy_dispersion.jl"))
 include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_dispersion_with_gs.jl"))
 

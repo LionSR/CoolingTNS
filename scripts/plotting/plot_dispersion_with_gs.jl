@@ -5,6 +5,7 @@ Standalone plotting script. Usage:
     julia --project=. scripts/plotting/plot_dispersion_with_gs.jl
 """
 
+# Allow tests and notebooks to include several standalone plot scripts in one session.
 if !@isdefined(get_pyplot)
     include(joinpath(@__DIR__, "PlotUtils.jl"))
 end
