@@ -127,6 +127,9 @@ function relative_energy(E, E_GS)
     return abs((E - E_GS) / E_GS)
 end
 
+"""
+Top-level HDF5 group containing the canonical parsed command-line arguments.
+"""
 const HDF5_PARSED_ARGS_GROUP = "parsed_args"
 
 function _write_hdf5_dataset_unless_present(parent, key::AbstractString, value)
@@ -137,14 +140,25 @@ function _write_hdf5_dataset_unless_present(parent, key::AbstractString, value)
     return true
 end
 
-function _create_hdf5_group_unless_present(file, group_name::AbstractString)
+function _create_hdf5_group_or_error(file, group_name::AbstractString)
     if group_name in keys(file)
         error("Cannot write parsed command-line metadata group '$group_name'; a result dataset already uses that top-level name.")
     end
     return create_group(file, group_name)
 end
 
+function _assert_hdf5_result_keys_available(result)
+    for key in keys(result)
+        if string(key) == HDF5_PARSED_ARGS_GROUP
+            error("Cannot write result dataset '$(HDF5_PARSED_ARGS_GROUP)'; that top-level HDF5 name is reserved for parsed command-line metadata.")
+        end
+    end
+    return nothing
+end
+
 function save_results(filename, result, e₀, ham_name, parsed_args; is_optimization=false)
+    _assert_hdf5_result_keys_available(result)
+
     directory = is_optimization ? "ResultsOpt" : "Results"
     mkpath(directory)
     h5open(joinpath(directory, "$(filename).h5"), "w") do file
@@ -156,7 +170,7 @@ function save_results(filename, result, e₀, ham_name, parsed_args; is_optimiza
 
         # /parsed_args is the canonical configuration namespace. Top-level
         # mirrors are kept only for legacy readers and skipped on collisions.
-        parsed_args_group = _create_hdf5_group_unless_present(file, HDF5_PARSED_ARGS_GROUP)
+        parsed_args_group = _create_hdf5_group_or_error(file, HDF5_PARSED_ARGS_GROUP)
         for (key, value) in parsed_args
             arg_key = string(key)
             write(parsed_args_group, arg_key, value)

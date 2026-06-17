@@ -117,6 +117,14 @@ using HDF5
     @testset "HDF5 parsed-argument group name is reserved" begin
         mktempdir() do dir
             cd(dir) do
+                CoolingTNS.save_results(
+                    "reserved_metadata_group",
+                    Dict{String, Any}("E_list" => [2.0]),
+                    -1.0,
+                    "IsingN2bcopenJ1.0h1.0",
+                    Dict{String, Any}("N" => 2),
+                )
+
                 result = Dict{String, Any}(
                     CoolingTNS.HDF5_PARSED_ARGS_GROUP => [1.0],
                 )
@@ -129,6 +137,12 @@ using HDF5
                     "IsingN2bcopenJ1.0h1.0",
                     parsed_args,
                 )
+
+                h5open(joinpath("Results", "reserved_metadata_group.h5"), "r") do file
+                    @test read(file, "E_list") == [2.0]
+                    @test haskey(file, CoolingTNS.HDF5_PARSED_ARGS_GROUP)
+                    @test file[CoolingTNS.HDF5_PARSED_ARGS_GROUP] isa HDF5.Group
+                end
             end
         end
     end
