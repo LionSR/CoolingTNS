@@ -389,6 +389,14 @@ function _add_ising_mode_measurements!(measurements, problem::CoolingProblem, ha
     return nothing
 end
 
+function _supports_tn_cooling_fourier_observables(ham_params)
+    _supports_ising_fourier_observables(ham_params) || return false
+    # Current TN Ising Hamiltonian and Trotter builders omit the periodic/APBC
+    # boundary bond, so automatic TN cooling mode diagnostics would mix an
+    # open-chain evolved state with a periodic Fourier grid. See issue #124.
+    return false
+end
+
 # Helper for mode energy measurements ⟨h_k⟩ (Ising PBC/APBC)
 function add_mode_measurements!(measurements, problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend}, steps, ham_params)
     _add_ising_mode_measurements!(measurements, problem, ham_params)
@@ -397,7 +405,11 @@ end
 function add_mode_measurements!(measurements, problem::CoolingProblem{TNBackend},
                                 state::QuantumState{TNBackend,MonteCarloWavefunction,E},
                                 steps, ham_params) where E<:EvolutionMethod
-    _add_ising_mode_measurements!(measurements, problem, ham_params)
+    hp = _mode_measurement_ham_params(problem, ham_params)
+    if _supports_ising_fourier_observables(hp)
+        @warn "TN cooling Fourier-mode measurements are disabled until TN Ising Hamiltonians honor periodic/APBC boundary conditions" issue=124
+    end
+    return nothing
 end
 
 # Fallback: mode measurements not supported for non-ED backends
@@ -523,7 +535,7 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
         measurements[RESULT_BATH_SAMPLE_MAGNETIZATION][step] = compute_bath_magnetization(problem.backend, state, bath_info, ham_params.N)
     end
 
-    if haskey(measurements, RESULT_MODE_HK) && _supports_ising_fourier_observables(ham_params)
+    if haskey(measurements, RESULT_MODE_HK) && _supports_tn_cooling_fourier_observables(ham_params)
         if length(ψ_s) == ham_params.N
             gF_kwarg = haskey(measurements, RESULT_MODE_GF) ? measurements[RESULT_MODE_GF] : nothing
             k_indices, hk_values, εk_values = measure_all_mode_energies(ψ_s, ham_params; gF=gF_kwarg)
