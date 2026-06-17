@@ -611,9 +611,9 @@ function evolve_cooling_step(problem::CoolingProblem{EDBackend}, ρ_total::EDDen
 end
 
 function apply_noise(ρ::EDDensityMatrix, ::CoolingProblem{EDBackend}, pe::Float64)
-    dim = 2^ρ.n_qubits
-    ρ_noisy_data = (1 - pe) * ρ.data + pe * Matrix{Float64}(I, dim, dim) / dim
-    return EDDensityMatrix(ρ_noisy_data, ρ.n_qubits)
+    # Canonical cooling noise: independent local Pauli depolarization on every
+    # system-bath qubit, matching the ED and TN Monte Carlo wavefunction paths.
+    return apply_depolarizing_ed(ρ, pe, 1:ρ.n_qubits)
 end
 
 function apply_noise(ψ::EDStateVector, ::CoolingProblem{EDBackend}, pe::Float64)

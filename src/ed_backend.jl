@@ -503,7 +503,9 @@ end
 """
     apply_depolarizing_ed(ψ::EDStateVector, p::Float64, qubits::Vector{Int}) -> EDStateVector
 
-Apply depolarizing noise with probability p to specified qubits.
+Apply local depolarizing noise to a pure state by sampling independent Pauli
+errors on the specified qubits.  Each qubit receives no error with probability
+`1-p`, and receives `X`, `Y`, or `Z` with probability `p/3` each.
 """
 # Pauli operator selectors for random sampling
 const PAULI_OPERATORS = (pauli_x, pauli_y, pauli_z)
@@ -522,13 +524,29 @@ function apply_depolarizing_ed(ψ::EDStateVector, p::Float64, qubits::Vector{Int
 end
 
 """
-    apply_depolarizing_ed(ρ::EDDensityMatrix, p::Float64) -> EDDensityMatrix
+    apply_depolarizing_ed(ρ::EDDensityMatrix, p::Float64, qubits=1:ρ.n_qubits) -> EDDensityMatrix
 
-Apply global depolarizing noise to density matrix.
+Apply the deterministic density-matrix average of the local Pauli channel used
+by `apply_depolarizing_ed(::EDStateVector, ...)`.  On each specified qubit the
+channel is
+
+```
+ρ ↦ (1-p)ρ + (p/3)(XρX† + YρY† + ZρZ†).
+```
+
+The channels are applied independently across qubits.
 """
-function apply_depolarizing_ed(ρ::EDDensityMatrix, p::Float64)
-    ρ_noise = maximally_mixed_ed(ρ.n_qubits)
-    return EDDensityMatrix((1 - p) * ρ.data + p * ρ_noise.data, ρ.n_qubits)
+function apply_depolarizing_ed(ρ::EDDensityMatrix, p::Float64, qubits=1:ρ.n_qubits)
+    ρ_noisy_data = copy(ρ.data)
+    for q in qubits
+        pauli_average = zero(ρ_noisy_data)
+        for pauli in PAULI_OPERATORS
+            op = pauli(q, ρ.n_qubits)
+            pauli_average .+= op * ρ_noisy_data * op'
+        end
+        ρ_noisy_data = (1 - p) * ρ_noisy_data + (p / 3) * pauli_average
+    end
+    return EDDensityMatrix(Matrix{ComplexF64}(ρ_noisy_data), ρ.n_qubits)
 end
 
 # ============================================================================
