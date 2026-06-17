@@ -397,9 +397,10 @@ function add_kspace_measurements!(measurements, problem::CoolingProblem{EDBacken
     if haskey(problem.extra, :ham_params)
         ham_params = problem.extra.ham_params
         if supports_ising_fourier_observables(ham_params)
-            N = ham_params.N
-            measurements[RESULT_MOMENTUM_DISTRIBUTION] = zeros(Float64, steps + 1, N)
-            measurements[RESULT_K_VALUES] = zeros(Float64, N)
+            # The step-1 measurement materializes these placeholders before
+            # results are compiled or saved.
+            measurements[RESULT_MOMENTUM_DISTRIBUTION] = nothing
+            measurements[RESULT_K_VALUES] = nothing
         end
     end
 end
