@@ -37,6 +37,8 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
         @test row.threshold == 12
         @test row.final_e_over_n == 1.0
         @test row.relative_energy == 2.0
+        @test row.system_effective_bond == ">=12"
+        @test row.evolved_effective_bond == ">=14"
         @test row.final_system_max == 12
         @test row.final_system_mean == 6.5
         @test row.peak_evolved_max == 14
