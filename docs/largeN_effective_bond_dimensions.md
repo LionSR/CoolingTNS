@@ -229,3 +229,57 @@ The energies, however, remain positive and far above the DMRG reference
 `E0/N = -1.3246328892`.  The next meaningful TDVP test is therefore a longer
 run with the progress CSV enabled, so that one can examine whether the expected
 low-entanglement fixed point appears after the high-energy transient regime.
+
+## Five-Cycle MCWF+TDVP Low-Cap Sweep Diagnostic
+
+After adding sweep-level TDVP diagnostics, a deliberately low-cap five-cycle
+run was performed for all four frequency counts:
+
+```bash
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 1,2,5,10 --methods mcwf \
+  --evolution-method continuous --steps 5 --Dmax 32 \
+  --cutoff 1e-6 --tau 0.2 --M-mcwf 1 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --outdir /tmp/coolingtns_tdvp_sweep_N64_R1-2-5-10_D32_steps5_20260618 \
+  --progress-csv /tmp/coolingtns_tdvp_sweep_N64_R1-2-5-10_D32_steps5_20260618/progress.csv \
+  --tdvp-sweep-progress --tdvp-outputlevel 1 --verbose
+```
+
+This run is a stress test, not a converged calculation.  Its purpose is to
+check whether a five-cycle TDVP trace can be recorded at `N = 64` and to locate
+the onset of the bond-dimension bottleneck.
+
+| R | final E/N | relE | Dsys_eff | Dsb_eff | bond_status | final sys max | peak evolved max | sys sat | evolved sat | elapsed |
+|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|
+| 1 | 1.44660215 | 2.09208 | >=32 | >=32 | not_converged_system_and_evolved_cap | 32 | 32 | 2 | 2 | 714.6 s |
+| 2 | 0.93477793 | 1.70569 | >=32 | >=32 | not_converged_system_and_evolved_cap | 32 | 32 | 2 | 2 | 759.2 s |
+| 5 | 0.71627699 | 1.54074 | >=32 | >=32 | not_converged_system_and_evolved_cap | 32 | 32 | 2 | 2 | 852.7 s |
+| 10 | 1.25928111 | 1.95066 | >=32 | >=32 | not_converged_system_and_evolved_cap | 32 | 32 | 2 | 2 | 889.9 s |
+
+The per-cycle energy trace from the progress CSV was
+
+| R | cycle 1 | cycle 2 | cycle 3 | cycle 4 | cycle 5 |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 1.48954935 | 1.45535389 | 1.50680281 | 1.49513020 | 1.44660215 |
+| 2 | 1.35534537 | 1.00731535 | 0.98177652 | 0.95837994 | 0.93477793 |
+| 5 | 1.50268855 | 1.50795671 | 1.39331737 | 1.05050253 | 0.71627699 |
+| 10 | 1.43490779 | 1.38308413 | 1.28262081 | 1.29877448 | 1.25928111 |
+
+The sweep-level trace shows that the transient system-bath state reaches the
+`Dmax = 32` cap early in every case:
+
+| R | first transient cap hit | largest sweep increment from CSV |
+|---:|---|---:|
+| 1 | cycle 2, sweep 7 | 48.7 s |
+| 2 | cycle 2, sweep 7 | 110.4 s |
+| 5 | cycle 2, sweep 7 | 190.0 s |
+| 10 | cycle 2, sweep 7 | 173.9 s |
+
+The low-cap trajectory therefore does not support a physical cooling claim.
+It does show that the sweep-progress rows are sufficient to diagnose both
+rapid cap saturation and large sweep-to-sweep runtime variability.  A
+meaningful next TDVP calculation should focus on `R = 2` and/or `R = 5` at a
+larger cap, with the same sweep diagnostics enabled, and should stop early if
+the cap is reached before a controlled third or fourth cycle is obtained.
