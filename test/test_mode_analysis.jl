@@ -270,6 +270,25 @@ end
         @test fermionic_bc(:antiperiodic, -1) == -1
     end
 
+    @testset "Reference parity sector for automatic Fourier grids" begin
+        @test CoolingTNS._reference_parity_sector(1.0) == 1
+        @test CoolingTNS._reference_parity_sector(0.95) == 1
+        @test CoolingTNS._reference_parity_sector(-1.0) == -1
+        @test CoolingTNS._reference_parity_sector(-0.95) == -1
+
+        @test CoolingTNS._reference_parity_sector(0.0) == 1
+        @test CoolingTNS._reference_parity_sector(0.5) == 1
+        @test CoolingTNS._reference_parity_sector(-0.5) == 1
+        @test CoolingTNS._reference_parity_sector(0.0; default=-1) == -1
+
+        @test CoolingTNS._reference_fermionic_bc(:periodic, 0.0) ==
+              fermionic_bc(:periodic, 1)
+        @test CoolingTNS._reference_fermionic_bc(:antiperiodic, -0.95) ==
+              fermionic_bc(:antiperiodic, -1)
+
+        @test_throws AssertionError CoolingTNS._reference_parity_sector(0.0; default=0)
+    end
+
     @testset "Allowed k-indices" begin
         # gF=+1 (fermionic PBC): integer k
         ks_pbc = allowed_k_indices(4, 1)

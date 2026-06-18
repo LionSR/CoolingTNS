@@ -99,7 +99,7 @@ function _measure_momentum_distribution_ed_clean(state, ham_params; gF=nothing)
             @warn "measure_momentum_distribution: state has no definite P_x parity " *
                   "(⟨P_x⟩ = $px); using the P_x = $parity reference grid"
         end
-        gF = _reference_fermionic_bc(ham_params.bc, px)
+        gF = fermionic_bc(ham_params.bc, parity)
     end
 
     k_indices = allowed_k_indices(N, gF)
@@ -480,7 +480,7 @@ function measure_all_mode_energies(state::Union{EDStateVector, EDDensityMatrix},
             @warn "measure_all_mode_energies: state has no definite P_x parity " *
                   "(⟨P_x⟩ = $px); using the P_x = $parity reference grid"
         end
-        gF = _reference_fermionic_bc(ham_params.bc, px)
+        gF = fermionic_bc(ham_params.bc, parity)
     end
 
     ks = allowed_k_indices(N, gF)

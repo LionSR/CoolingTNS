@@ -281,7 +281,7 @@ function _measure_all_mode_energies_tn(state::Union{MPS,MPO}, ham_params::Hamilt
             @warn "measure_all_mode_energies: state has no definite P_x parity " *
                   "(⟨P_x⟩ = $px); using the P_x = $parity reference grid"
         end
-        gF = _reference_fermionic_bc(ham_params.bc, px)
+        gF = fermionic_bc(ham_params.bc, parity)
     end
 
     correlators = _split_string_correlators(state)
