@@ -388,29 +388,70 @@ For the special modes $k=0$ and $k=N/2$ (present only for fermionic PBC, $g_F=+1
 \end{align}
 with $w_0=\sin\theta-\cos\theta$ and $w_{N/2}=\sin\theta+\cos\theta$. The corresponding excitation energies are $\epsilon_0=|w_0|$ and $\epsilon_{N/2}=|w_{N/2}|$.
 
-Collecting all modes, the diagonalized Hamiltonian is
+Collecting all modes, define the Bogoliubov number operator
 \begin{align}
-    H_{\mathrm{spin}}^{g_F=1} &= \sum_{k=1}^{N/2-1} \epsilon_k h_k + \frac{w_0}{2} h_0 + \frac{w_{N/2}}{2} h_{N/2},\\
-    H_{\mathrm{spin}}^{g_F=-1} &= \sum_{k=1/2}^{(N-1)/2} \epsilon_k h_k,
+    \hat n_k \equiv \hat a_k^\dag \hat a_k,\qquad
+    h_k \equiv 2\hat n_k-1.
+    \label{eq:hk_individual_def}
 \end{align}
-with the mode operators defined as
+For a generic paired block, \cref{eq:H_pair_form} becomes
 \begin{align}
-    h_k &\equiv \hat{a}_k^\dag \hat{a}_k - \hat{a}_{-k}\hat{a}_{-k}^\dag \qquad (k\neq 0,N/2),\\
-    h_k &\equiv \hat{a}_k^\dag \hat{a}_k - \hat{a}_{k}\hat{a}_{k}^\dag = 2\hat{a}_k^\dag \hat{a}_k - 1 \qquad (k=0,N/2).
+    \tal_k^\dag \tH_k \tal_k
+    = \epsilon_k(\hat n_k+\hat n_{-k}-1)
+    = \frac{\epsilon_k}{2}(h_k+h_{-k}).
 \end{align}
-For numerical mode diagnostics it is often convenient to use the equivalent symmetrized form
+For a special mode $q\in\{0,N/2\}$, present only when $g_F=+1$, the contribution is instead
 \begin{align}
-    H_{\mathrm{spin}}^{g_F} = \frac{1}{2}\sum_{k} \mathrm{coeff}_k\, h_k,
+    H_q=\frac{w_q}{2}h_q,
 \end{align}
-where the sum runs over the full allowed $k$ grid (including both $\pm k$), $\mathrm{coeff}_k=\epsilon_k$ for generic modes, and $\mathrm{coeff}_k=w_k$ (signed) for the special modes.
+with the signed coefficient $w_q$ rather than $|w_q|$.
+Thus the full-grid form used by the numerical diagnostics is
+\begin{align}
+    H_{\mathrm{spin}}^{g_F}
+    = \frac{1}{2}\sum_{k\in\mathrm{grid}(g_F)} \operatorname{coeff}_k\,h_k,
+    \label{eq:H_full_grid_hk}
+\end{align}
+where
+\begin{align}
+    \operatorname{coeff}_k =
+    \begin{cases}
+        \epsilon_k, & \sin\phi_k\neq 0,\\
+        w_k,        & \sin\phi_k=0.
+    \end{cases}
+\end{align}
+In the code parametrization
+$H_{\mathrm{code}}=J\sum_j\sigma^z_j\sigma^z_{j+1}+h\sum_j\sigma^x_j$,
+related to this note by the global rotation $R_y(\pi/2)^{\otimes N}$, the energy scale is
+$\Lambda=2\sqrt{J^2+h^2}$ with $\theta=\operatorname{atan}(h,J)$, and the reconstructed energy is
+\begin{align}
+    \langle H_{\mathrm{code}}\rangle
+    = \frac{\Lambda}{2}\sum_{k\in\mathrm{grid}(g_F)}
+      \operatorname{coeff}_k\,\langle h_k\rangle.
+    \label{eq:code_energy_from_hk}
+\end{align}
+The Bogoliubov quasiparticle occupation reported in the cooling diagnostics is therefore
+\begin{align}
+    n_k^{\mathrm{Bog}} = \langle \hat n_k\rangle
+    = \frac{1+\langle h_k\rangle}{2}.
+    \label{eq:bog_occupation_from_hk}
+\end{align}
+This occupation should not be confused with the raw momentum occupation
+$\tilde n_k=\langle \ta_k^\dag\ta_k\rangle$; in the Bogoliubov vacuum,
+$\tilde n_k=\sin^2\varphi_k$ for generic modes, whereas
+$n_k^{\mathrm{Bog}}=0$ and $\langle h_k\rangle=-1$.
 
 \subsection{Going back to the spin operators}
 
-To track the cooling of specific modes in the spin model, we measure the expectation value of the mode operators $h_k$. Our goal is to express these operators in terms of the original Pauli operators, which involves tracing back through the sequence of transformations (Bogoliubov, Fourier, JW). The operators are defined as $h_k = \hat{a}_k^\dag \hat{a}_k - \hat{a}_{-k}\hat{a}_{-k}^\dag$ for $k \neq 0, N/2$ and $h_k = \hat{a}_k^\dag \hat{a}_k - \hat{a}_k\hat{a}_k^\dag$ for $k = 0, N/2$.
+To track the cooling of specific modes in the spin model, the ED and tensor-network diagnostics measure the expectation value of the individual mode operators $h_k$ in \cref{eq:hk_individual_def}. Our goal is to express these operators in terms of the original Pauli operators, which involves tracing back through the sequence of transformations (Bogoliubov, Fourier, JW).
 
 \subsubsection{Generic modes ($k \neq 0, N/2$)}
 
-We start by expressing $h_k$ in terms of the momentum-space fermion operators $\ta_k, \ta_k^\dag$ using the Bogoliubov transformation. Writing
+It is useful first to record the paired-block observable
+\begin{align}
+    \mathfrak h_{k,-k}\equiv \frac{h_k+h_{-k}}{2}
+    =\hat n_k+\hat n_{-k}-1.
+\end{align}
+Writing
 \begin{align}
     \begin{pmatrix}
         \hat{a}_k\\
@@ -428,10 +469,25 @@ We start by expressing $h_k$ in terms of the momentum-space fermion operators $\
         i\sin\varphi_k & \cos\varphi_k
     \end{pmatrix},
 \end{align}
-and using the fermionic anticommutation relations, one obtains the symmetric form
+and using the fermionic anticommutation relations, one obtains the symmetric paired-block form
 \begin{align}
-    h_k = \cos(2\varphi_k)(\ta_k^\dag\ta_k + \ta_{-k}^\dag\ta_{-k} - 1) + \sin(2\varphi_k)\, i(\ta_k^\dag\ta_{-k}^\dag - \ta_{-k}\ta_k).
+    \mathfrak h_{k,-k}
+    &= \cos(2\varphi_k)(\ta_k^\dag\ta_k + \ta_{-k}^\dag\ta_{-k} - 1)\nn\\
+    &\quad
+      + \sin(2\varphi_k)\,
+        i(\ta_k^\dag\ta_{-k}^\dag - \ta_{-k}\ta_k).
     \label{eq:hk_bogo_symmetric}
+\end{align}
+The individual diagnostic stored by the code is instead
+\begin{align}
+    h_k
+    &=2\hat a_k^\dag\hat a_k-1\nn\\
+    &=2\cos^2\varphi_k\,\ta_k^\dag\ta_k
+      +2\sin^2\varphi_k\,(1-\ta_{-k}^\dag\ta_{-k})\nn\\
+    &\quad
+      +2\sin\varphi_k\cos\varphi_k\,
+       i(\ta_k^\dag\ta_{-k}^\dag-\ta_{-k}\ta_k)-1.
+    \label{eq:hk_individual_momentum}
 \end{align}
 Now, we substitute the Fourier transforms to express $h_k$ in terms of real-space operators $a_n$:
 \begin{align}
@@ -466,19 +522,21 @@ For compactness in what follows, we denote the split-string two-point spin corre
     C^{\alpha\beta}_{nm} \equiv \big\langle S_n \sigma_{n,\alpha} S_m \sigma_{m,\beta} \big\rangle , \qquad \alpha,\beta\in\{x,y\}.
 \end{align}
 
-Third, we compute the expectation value $\langle h_k\rangle$ by combining density and pairing sectors. To this end, define
+Third, we compute the individual diagnostic $\langle h_k\rangle$ by combining density and pairing sectors. To this end, define
 \begin{align}
-    c \equiv \cos(2\varphi_k) = \frac{w_k}{\epsilon_k} , \qquad s \equiv \sin(2\varphi_k) = \frac{r_k}{\epsilon_k}.
+    u \equiv \cos\varphi_k,\qquad v\equiv\sin\varphi_k.
 \end{align}
-From \cref{eq:hk_bogo_symmetric}, we have
+From \cref{eq:hk_individual_momentum}, we have
 \begin{align}
     \langle h_k\rangle
-    &= c\,\Big\langle \ta_k^\dag\ta_k + \ta_{-k}^\dag\ta_{-k} - 1 \Big\rangle
-    + s\,\Big\langle i(\ta_k^\dag\ta_{-k}^\dag - \ta_{-k}\ta_k) \Big\rangle.
+    &= 2u^2\langle\ta_k^\dag\ta_k\rangle
+    +2v^2\Big(1-\langle\ta_{-k}^\dag\ta_{-k}\rangle\Big)\nn\\
+    &\quad
+    +2uv\Big\langle i(\ta_k^\dag\ta_{-k}^\dag-\ta_{-k}\ta_k)\Big\rangle-1.
     \label{eq:hk_expect_split}
 \end{align}
 
-We now evaluate the two expectation values in \cref{eq:hk_expect_split} explicitly.
+We now evaluate the three expectation values in \cref{eq:hk_expect_split} explicitly.
 Introduce the shorthand $\theta_{nm}=(n-m)\phi_k$.
 
 \paragraph{Density sector.}
@@ -489,12 +547,7 @@ Using the Fourier relations in \cref{eq:fourier_def_ann,eq:fourier_def_cre}, we 
     \ta_{-k}^\dag\ta_{-k}
     &= \frac{1}{N}\sum_{n,m=1}^N e^{-i\theta_{nm}}\,a_n^\dag a_m.
 \end{align}
-Therefore,
-\begin{align}
-    \Big\langle \ta_k^\dag\ta_k + \ta_{-k}^\dag\ta_{-k} \Big\rangle
-    &= \frac{1}{N}\sum_{n,m=1}^N (e^{i\theta_{nm}}+e^{-i\theta_{nm}})\,\langle a_n^\dag a_m\rangle
-    = \frac{2}{N}\sum_{n,m=1}^N \cos\theta_{nm}\,\langle a_n^\dag a_m\rangle.
-\end{align}
+These two terms must be kept separately for the individual observable $h_k$; only the paired-block observable $\mathfrak h_{k,-k}$ combines them into a cosine.
 
 \paragraph{Pairing sector.}
 Similarly,
@@ -530,12 +583,19 @@ Combining these identities yields the explicit result
 \begin{widetext}
     \begin{align}
         \langle h_k \rangle
-        &= \frac{c}{2N}\sum_{n,m=1}^N \cos\theta_{nm}\,\left(C^{xx}_{nm}+C^{yy}_{nm}+ i\,[C^{yx}_{nm}-C^{xy}_{nm}]\right)
-        - \frac{s}{2N}\sum_{n,m=1}^N e^{i\theta_{nm}}\,\left(C^{xy}_{nm}+C^{yx}_{nm}\right) - c.
+        &= \frac{u^2}{2N}\sum_{n,m=1}^N e^{i\theta_{nm}}\,
+           \left(C^{xx}_{nm}+C^{yy}_{nm}+ i\,[C^{yx}_{nm}-C^{xy}_{nm}]\right)\nn\\
+        &\quad
+        - \frac{v^2}{2N}\sum_{n,m=1}^N e^{-i\theta_{nm}}\,
+           \left(C^{xx}_{nm}+C^{yy}_{nm}+ i\,[C^{yx}_{nm}-C^{xy}_{nm}]\right)\nn\\
+        &\quad
+        - \frac{uv}{N}\sum_{n,m=1}^N e^{i\theta_{nm}}\,
+           \left(C^{xy}_{nm}+C^{yx}_{nm}\right)
+        +2v^2-1.
         \label{eq:hk_final}
     \end{align}
 \end{widetext}
-The right-hand side is real, since $h_k$ is Hermitian. Any nonzero imaginary part provides a useful numerical check of correlator conventions and implementations. Note that the mixed correlators $C^{xy}$ and $C^{yx}$ are generally non-Hermitian, so they must be evaluated with the split-string order as written for each pair $(n,m)$ (do not fill them by conjugate mirroring unless one also swaps operators appropriately).
+The right-hand side is real, since $h_k$ is Hermitian. Any nonzero imaginary part provides a useful numerical check of correlator conventions and implementations. Note that the mixed correlators $C^{xy}$ and $C^{yx}$ are generally non-Hermitian, so they must be evaluated with the split-string order as written for each pair $(n,m)$ (do not fill them by conjugate mirroring unless one also swaps operators appropriately). The ED implementation uses the opposite Fourier sign for the intermediate operator $\ta_k$, which is the relabeling $k\mapsto -k$; the tensor-network implementation uses the same relabeled phases and the same individual observable \cref{eq:hk_individual_def}.
 
 \subsubsection{Special modes ($k=0, N/2$)}
 
@@ -546,13 +606,17 @@ The Hamiltonian contribution is
     H_k = \frac{w_k}{2}\,h_k,\qquad h_k = 2\ta_k^\dag \ta_k - 1,
 \end{align}
 with $w_0=\sin\theta-\cos\theta$ and $w_{N/2}=\sin\theta+\cos\theta$ and excitation energies $\epsilon_k=|w_k|$.
-In a fixed fermion-parity sector, the special-mode occupations are constrained. In particular, in the even-parity sector used for the ED mode diagnostics in this repo, the special modes remain unoccupied so $\langle h_k\rangle=-1$ even when $w_0$ changes sign at $\theta=\pi/4$; the sign change is carried by the \emph{signed} coefficient $w_k$ (a constant shift within that sector), not by a flip of $h_k$.
+In a fixed fermion-parity sector, the special-mode occupations are constrained. In any sector where a single special-mode occupation is forbidden, that mode can remain at $\langle h_k\rangle=-1$ even when $w_0$ changes sign at $\theta=\pi/4$; the sign change is then carried by the \emph{signed} coefficient $w_k$ in \cref{eq:H_full_grid_hk}, not by replacing $w_k$ with $|w_k|$.
 
-In terms of split-string correlators, one may obtain $\langle h_k\rangle$ by taking $s=0$ in \cref{eq:hk_final}.
+In terms of split-string correlators, one may obtain $\langle h_k\rangle$ by taking $v=0$ in \cref{eq:hk_final}.
 Since $e^{i\theta_{nm}}=\cos\theta_{nm}$ for $\phi_k\in\{0,\pi\}$, this reduces to
 \begin{align}
     \langle h_k\rangle
-    = \frac{1}{2N}\sum_{n,m=1}^N \cos\theta_{nm}\,\left(C^{xx}_{nm}+C^{yy}_{nm}+ i\,[C^{yx}_{nm}-C^{xy}_{nm}]\right) - 1,
+    &= \frac{1}{2N}\sum_{n,m=1}^N
+       \cos\theta_{nm}\left(C^{xx}_{nm}+C^{yy}_{nm}\right)\nn\\
+    &\quad
+      + \frac{i}{2N}\sum_{n,m=1}^N
+        \cos\theta_{nm}\left(C^{yx}_{nm}-C^{xy}_{nm}\right) - 1,
 \end{align}
 where $\theta_{nm}=(n-m)\phi_k$.
 
@@ -560,27 +624,27 @@ where $\theta_{nm}=(n-m)\phi_k$.
 
 The parity operator $P = \prod_{j=1}^{N} \sigma_{j,z}$ commutes with $H_{\mathrm{spin}}$, splitting the Hilbert space into even ($P = +1$) and odd ($P = -1$) sectors. From the mapping $g_F = -g_I \cdot P$, the spin PBC ($g_I = 1$) yields fermionic APBC ($g_F = -1$) in the even sector and fermionic PBC ($g_F = +1$) in the odd sector.
 
-More generally, in a fixed parity sector $P=\pm 1$ the fermionic boundary condition is $g_F=-g_I P$ (equivalently, $g_F=-g_I$ in the even sector and $g_F=+g_I$ in the odd sector), which fixes the allowed momentum grid. In each such sector the Hamiltonian can be written in the symmetrized form
+More generally, in a fixed parity sector $P=\pm 1$ the fermionic boundary condition is $g_F=-g_I P$ (equivalently, $g_F=-g_I$ in the even sector and $g_F=+g_I$ in the odd sector), which fixes the allowed momentum grid. In each such sector the Hamiltonian can be written in the full-grid form
 \begin{align}
-    H_{\mathrm{spin}}^{g_F} = \frac{1}{2}\sum_{k\in\mathrm{grid}(g_F)} \mathrm{coeff}_k\, h_k,
+    H_{\mathrm{spin}}^{g_F} = \frac{1}{2}\sum_{k\in\mathrm{grid}(g_F)} \operatorname{coeff}_k\, h_k,
 \end{align}
-with $\mathrm{coeff}_k=\epsilon_k$ for generic modes and $\mathrm{coeff}_k=w_k$ (signed) for the special modes (when present). The Bogoliubov vacuum, defined by
+with $\operatorname{coeff}_k=\epsilon_k$ for generic modes and $\operatorname{coeff}_k=w_k$ (signed) for the special modes (when present). The Bogoliubov vacuum, defined by
 \begin{align}
     \hat{a}_k\ket{0} = 0 \quad \text{for all } k,
 \end{align}
 has $\langle h_k\rangle=-1$ for all modes (with the special modes unoccupied), and therefore its energy is
 \begin{align}
-    E_{\mathrm{vac}}^{g_F} = -\frac{1}{2}\sum_{k\in\mathrm{grid}(g_F)} \mathrm{coeff}_k.
+    E_{\mathrm{vac}}^{g_F} = -\frac{1}{2}\sum_{k\in\mathrm{grid}(g_F)} \operatorname{coeff}_k.
 \end{align}
-For $g_F=-1$ (half-integer $k$ grid) there are no special modes and this reduces to $E_{\mathrm{vac}}^{g_F=-1}=-\sum_{k=1/2}^{(N-1)/2}\epsilon_k$. For $g_F=+1$ (integer $k$ grid) the special modes contribute $\mathrm{coeff}_0=w_0$ and $\mathrm{coeff}_{N/2}=w_{N/2}$ (signed). In a fixed parity sector the true sector ground state can differ from the vacuum when special-mode occupations are constrained; for the even-parity mode diagnostics used in this repo, the vacuum formula above matches ED and is the quantity reported as \texttt{gs\_energy\_modes}.
+For $g_F=-1$ (half-integer $k$ grid) there are no special modes and this reduces to $E_{\mathrm{vac}}^{g_F=-1}=-\sum_{k=1/2}^{(N-1)/2}\epsilon_k$. For $g_F=+1$ (integer $k$ grid) the special modes contribute $\operatorname{coeff}_0=w_0$ and $\operatorname{coeff}_{N/2}=w_{N/2}$ (signed). In a fixed parity sector the true sector ground state can differ from the Bogoliubov vacuum when the allowed fermion parity requires occupying one or more modes; this distinction is tested against exact diagonalization in the code.
 
 Let $E_0^{\mathrm{even}}$ and $E_0^{\mathrm{odd}}$ denote the lowest energies in the even and odd parity sectors, respectively.
 There are two distinct energy gaps:
 \begin{align}
-    \Delta_{\mathrm{intra}} &= 2\epsilon_{\min} \quad \text{(parity-preserving excitation within a sector)}\\
-    \Delta_{\mathrm{inter}} &= |E_0^{\mathrm{odd}} - E_0^{\mathrm{even}}| \quad \text{(parity-changing excitation)}
+    \Delta_{\mathrm{intra}} &= 2\epsilon_{\min},\\
+    \Delta_{\mathrm{inter}} &= |E_0^{\mathrm{odd}} - E_0^{\mathrm{even}}|.
 \end{align}
-where $\epsilon_{\min}$ is the smallest generic mode energy $\epsilon_k$ on the corresponding momentum grid.
+Here $\Delta_{\mathrm{intra}}$ is the parity-preserving excitation gap within a sector, $\Delta_{\mathrm{inter}}$ is the parity-changing gap, and $\epsilon_{\min}$ is the smallest generic mode energy $\epsilon_k$ on the corresponding momentum grid.
 
 The hierarchy $\Delta_{\mathrm{inter}} < \Delta_{\mathrm{intra}}$ arises when the energy difference between filled modes in different parity sectors is smaller than creating a particle-hole pair within a sector. For parity-preserving dynamics, excitations are confined within sectors, making $\Delta_{\mathrm{intra}}$ the relevant energy scale.
 
