@@ -7,12 +7,29 @@ using Random
 function _ed_state_vector_to_mps(ψ_ed::CoolingTNS.EDStateVector, sites)
     N = length(sites)
     @assert ψ_ed.n_qubits == N
-    ψ_tn = MPS(reshape(ψ_ed.data, ntuple(_ -> 2, N)), sites; cutoff=1e-14)
+    # ED stores site 1 as the least significant bit. Julia column-major
+    # reshape makes the first tensor index fastest varying, so it matches
+    # the ITensor site order without reversing the axes.
+    ψ_tensor = ITensor(reshape(ψ_ed.data, ntuple(_ -> 2, N)), sites...)
+    ψ_tn = MPS(ψ_tensor, sites; cutoff=1e-14)
     normalize!(ψ_tn)
     return ψ_tn
 end
 
 @testset "TN Mode Observables" begin
+    @testset "ED-to-MPS helper preserves site order" begin
+        N = 4
+        sites = siteinds("S=1/2", N)
+
+        ψ_ed = CoolingTNS.product_state_ed(N, 1)
+        ψ_tn = _ed_state_vector_to_mps(ψ_ed, sites)
+
+        site_1_down = MPS(sites, ["Dn", "Up", "Up", "Up"])
+        site_4_down = MPS(sites, ["Up", "Up", "Up", "Dn"])
+        @test abs(inner(site_1_down, ψ_tn)) ≈ 1.0 atol=1e-12
+        @test abs(inner(site_4_down, ψ_tn)) ≈ 0.0 atol=1e-12
+    end
+
     @testset "MPS h_k agrees with ED for X+ product state" begin
         N = 4
         J, h = 1.0, 0.5
