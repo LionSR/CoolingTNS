@@ -187,6 +187,7 @@ function sim_params_for(method::AbstractString, cfg)
     if sim_method isa DensityMatrix && evolution_method isa ContinuousEvolution
         error("MPO density-matrix evolution is supported only with TrotterEvolution")
     end
+    n_trajectories = method == "mcwf" ? cfg["M_mcwf"] : cfg["M_mpo"]
     return UnifiedSimulationParameters(
         sim_method,
         evolution_method;
@@ -194,7 +195,7 @@ function sim_params_for(method::AbstractString, cfg)
         cutoff=cfg["cutoff"],
         tau=cfg["tau"],
         pe=0.0,
-        n_trajectories=1,
+        n_trajectories=n_trajectories,
     )
 end
 
@@ -424,7 +425,7 @@ function run_campaign(cfg)
                 write_largeN_detuning_protocol(gm, detuning_protocol)
 
                 M = method == "mcwf" ? cfg["M_mcwf"] : cfg["M_mpo"]
-                saturation_threshold = CoolingTNS.tn_trotter_maxdim(
+                saturation_threshold = CoolingTNS.tn_method_maxdim(
                     sim_params.sim_method, cfg["Dmax"]
                 )
                 write(gm, "bond_saturation_threshold", saturation_threshold)

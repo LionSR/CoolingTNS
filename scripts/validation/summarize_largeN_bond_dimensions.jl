@@ -103,7 +103,7 @@ energy_tail_start(nsteps::Integer) = max(1, nsteps - ENERGY_TAIL_WINDOW + 1)
 
 function method_from_name(method_name::AbstractString)
     # HDF5 stores method names as strings; the cap itself is still determined
-    # by the library dispatch rule in `tn_trotter_maxdim`.
+    # by the library dispatch rule in `tn_method_maxdim`.
     method_name == "mcwf" && return MonteCarloWavefunction()
     method_name == "mpo" && return DensityMatrix()
     error("unknown method '$method_name' in campaign file")
@@ -114,7 +114,7 @@ function saturation_threshold_for(root, method_group, run_group, method_name::Ab
         return Int(read(run_group["bond_saturation_threshold"]))
     haskey(method_group, "bond_saturation_threshold") &&
         return Int(read(method_group["bond_saturation_threshold"]))
-    return tn_trotter_maxdim(method_from_name(method_name), Int(read(root["Dmax"])))
+    return tn_method_maxdim(method_from_name(method_name), Int(read(root["Dmax"])))
 end
 
 function final_link_dimensions(run_group)
