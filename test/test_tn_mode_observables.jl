@@ -262,6 +262,38 @@ end
         @test results_tn[RESULT_MODE_NK] ≈ results_ed[RESULT_MODE_NK] atol=1e-8
     end
 
+    @testset "TN and ED cooling record reference source for mixed-parity mode grid" begin
+        N = 4
+        ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
+        coupling_params = BasicCouplingParameters("XX", 0.0, 0, 0.0, 0.5)
+        sim_params = UnifiedSimulationParameters(MonteCarloWavefunction(), ContinuousEvolution(); maxiter=20)
+
+        problem_tn = setup_problem(TNBackend(), ham_params, coupling_params, sim_params)
+        state_tn = setup_initial_state(problem_tn, sim_params, "product", 0.0)
+        problem_ed = setup_problem(EDBackend(), ham_params, coupling_params, sim_params)
+        state_ed = setup_initial_state(problem_ed, sim_params, "product", 0.0)
+
+        @test abs(measure_state_parity(state_tn.state, N)) < 1e-10
+        @test abs(measure_state_parity(state_ed.state, N)) < 1e-10
+
+        results_tn = redirect_stdout(devnull) do
+            run_cooling(problem_tn, state_tn, coupling_params, sim_params, ham_params; measure_modes=true)
+        end
+        results_ed = redirect_stdout(devnull) do
+            run_cooling(problem_ed, state_ed, coupling_params, sim_params, ham_params; measure_modes=true)
+        end
+
+        expected_gF = fermionic_bc(:periodic, 1)
+        @test results_tn[RESULT_MODE_GF_SOURCE] == "reference"
+        @test results_ed[RESULT_MODE_GF_SOURCE] == "reference"
+        @test results_tn[RESULT_MODE_GF] == expected_gF
+        @test results_ed[RESULT_MODE_GF] == expected_gF
+        @test results_tn[RESULT_MODE_K_INDICES] == results_ed[RESULT_MODE_K_INDICES]
+        @test results_tn[RESULT_MODE_ENERGIES] ≈ results_ed[RESULT_MODE_ENERGIES] atol=1e-12
+        @test results_tn[RESULT_MODE_HK] ≈ results_ed[RESULT_MODE_HK] atol=1e-8
+        @test results_tn[RESULT_MODE_NK] ≈ results_ed[RESULT_MODE_NK] atol=1e-8
+    end
+
     @testset "TN MCWF mode rows follow dimension-mismatch fallback" begin
         N = 4
         ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
