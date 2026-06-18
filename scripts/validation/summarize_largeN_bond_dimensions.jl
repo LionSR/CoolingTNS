@@ -25,6 +25,7 @@ include(joinpath(@__DIR__, "largeN_scaling_helpers.jl"))
 
 const LINK_QUANTILE_PROBABILITIES = [0.50, 0.75, 0.90, 0.95]
 const LINK_THRESHOLD_FRACTIONS = [0.50, 0.75, 0.90]
+const ENERGY_TAIL_WINDOW = 10
 
 function usage()
     println(
@@ -97,6 +98,8 @@ function detuning_protocol_summary(method_group, run_group)
         delta_factor=detuning_factor_label(source, factor),
     )
 end
+
+energy_tail_start(nsteps::Integer) = max(1, nsteps - ENERGY_TAIL_WINDOW + 1)
 
 function method_from_name(method_name::AbstractString)
     # HDF5 stores method names as strings; the cap itself is still determined
@@ -174,6 +177,12 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
 
     final_e_over_n = energy_mean[end] / N
     final_relative_energy = relative_energy_mean[end]
+    best_e_over_n = minimum(energy_mean) / N
+    best_relative_energy = minimum(relative_energy_mean)
+    tail_start = energy_tail_start(length(energy_mean))
+    tail_count = length(energy_mean) - tail_start + 1
+    tail_e_over_n = mean(energy_mean[tail_start:end]) / N
+    tail_relative_energy = mean(relative_energy_mean[tail_start:end])
     final_system_max = final_system_max_bond(system_max_bond)
     final_system_mean = final_system_mean_bond(system_mean_bond)
     peak_evolved_max = peak_evolved_max_bond(evolved_max_bond)
@@ -210,6 +219,11 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         threshold=threshold,
         final_e_over_n=final_e_over_n,
         relative_energy=final_relative_energy,
+        best_e_over_n=best_e_over_n,
+        best_relative_energy=best_relative_energy,
+        tail_e_over_n=tail_e_over_n,
+        tail_relative_energy=tail_relative_energy,
+        tail_count=tail_count,
         system_effective_bond=system_effective_bond,
         evolved_effective_bond=evolved_effective_bond,
         bond_status=bond_status,
@@ -256,8 +270,8 @@ function summarize_file(path::AbstractString)
 end
 
 function print_markdown(rows)
-    println("| file | N | method | R | M | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | bond_status | final E/N | relE | final sys max | final sys mean | peak evolved max | peak evolved mean | sys sat | evolved sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
-    println("|---|---:|---|---:|---:|---|---|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|")
+    println("| file | N | method | R | M | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | final sys max | final sys mean | peak evolved max | peak evolved mean | sys sat | evolved sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("|---|---:|---|---:|---:|---|---|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for row in sort(rows; by=row -> (row.N, row.method, row.R, row.file))
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.R) | $(row.M) | " *
@@ -265,6 +279,9 @@ function print_markdown(rows)
             "$(row.threshold) | " *
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | $(row.bond_status) | " *
             "$(format_float(row.final_e_over_n, 8)) | $(format_float(row.relative_energy, 5)) | " *
+            "$(format_float(row.best_e_over_n, 8)) | $(format_float(row.best_relative_energy, 5)) | " *
+            "$(format_float(row.tail_e_over_n, 8)) | $(format_float(row.tail_relative_energy, 5)) | " *
+            "$(row.tail_count) | " *
             "$(row.final_system_max) | $(format_float(row.final_system_mean, 2)) | " *
             "$(row.peak_evolved_max) | $(format_float(row.peak_evolved_mean, 2)) | " *
             "$(saturation_cycle_label(row.system_saturation_cycle)) | " *

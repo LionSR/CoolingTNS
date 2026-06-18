@@ -71,6 +71,16 @@ A `no_cap_hit` entry does not by itself imply ground-state cooling or
 trajectory convergence; it only means that the imposed bond cap was not reached
 in the recorded run.
 
+For long-cycle diagnostics, the summary script reports three energy readouts.
+`final E/N` is the last recorded energy density, `best E/N` is the lowest
+recorded energy density, and `tail E/N` is the average over the last ten
+recorded rows, or over the whole trace if fewer than ten rows are present.
+`best relE` is the smallest recorded relative energy; this is kept as a
+separate column because a severely truncated trajectory could in principle
+undershoot the ground-state reference in raw energy.  These fields separate
+monotone cooling, transient low-energy excursions, and late-time plateaus
+without assuming that a finite trajectory has reached a fixed point.
+
 ## Reproduction commands
 
 The four-cycle Dmax ladder was generated with
