@@ -451,13 +451,16 @@ function _measurement_ham_params(problem::CoolingProblem, ham_params)
     return haskey(problem.extra, :ham_params) ? problem.extra.ham_params : nothing
 end
 
-function _add_ising_mode_measurement_slots!(measurements, problem::CoolingProblem, ham_params)
+function _add_ising_mode_measurement_slots!(measurements, ::CoolingProblem,
+                                            state::QuantumState, ham_params)
     supports_ising_fourier_observables(ham_params) || return false
 
-    # The ground-state parity fixes the fermionic boundary condition used for
-    # density matrices, where the instantaneous parity expectation need not be
-    # close to one parity sector.
-    px = measure_state_parity(problem.ϕ₀, ham_params.N)
+    # Use the state parity when it selects a definite fermionic sector.  If the
+    # state is mixed between parity sectors, `_reference_fermionic_bc` falls
+    # back to the even-parity reference grid.  This avoids using the approximate
+    # TN DMRG ground state, whose parity need not be exact at finite bond
+    # dimension.
+    px = measure_state_parity(state.state, ham_params.N)
     measurements[RESULT_MODE_GF] = _reference_fermionic_bc(ham_params.bc, px)
 
     measurements[RESULT_MODE_HK] = nothing
@@ -500,12 +503,22 @@ end
 
 # Helper for mode energy measurements ⟨h_k⟩ (Ising PBC/APBC)
 function add_mode_measurements!(measurements, problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend}, steps, ham_params)
-    _add_ising_mode_measurement_slots!(measurements, problem, _measurement_ham_params(problem, ham_params))
+    _add_ising_mode_measurement_slots!(
+        measurements,
+        problem,
+        state,
+        _measurement_ham_params(problem, ham_params),
+    )
 end
 
 function add_mode_measurements!(measurements, problem::CoolingProblem{TNBackend},
                                 state::QuantumState{TNBackend}, steps, ham_params)
-    _add_ising_mode_measurement_slots!(measurements, problem, _measurement_ham_params(problem, ham_params))
+    _add_ising_mode_measurement_slots!(
+        measurements,
+        problem,
+        state,
+        _measurement_ham_params(problem, ham_params),
+    )
 end
 
 # Fallback: mode measurements not supported for this backend/state pair.

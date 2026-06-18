@@ -6,7 +6,11 @@ using Random
 
 function _ed_state_vector_to_mps(ψ_ed::CoolingTNS.EDStateVector, sites)
     N = length(sites)
-    @assert ψ_ed.n_qubits == N
+    if ψ_ed.n_qubits != N
+        throw(ArgumentError(
+            "ED state has $(ψ_ed.n_qubits) qubits but $(N) ITensor sites were provided"
+        ))
+    end
     # ED stores site 1 as the least significant bit. Julia column-major
     # reshape makes the first tensor index fastest varying, so it matches
     # the ITensor site order without reversing the axes.
