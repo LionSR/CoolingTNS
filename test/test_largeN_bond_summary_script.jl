@@ -45,6 +45,11 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
         @test row.threshold == 12
         @test row.final_e_over_n == 1.0
         @test row.relative_energy == 2.0
+        @test row.best_e_over_n == -0.25
+        @test row.best_relative_energy == 0.0
+        @test row.tail_e_over_n ≈ 5 / 12
+        @test row.tail_relative_energy == 1.0
+        @test row.tail_count == 3
         @test row.system_effective_bond == ">=12"
         @test row.evolved_effective_bond == ">=14"
         @test row.bond_status == "not_converged_system_and_evolved_cap"
@@ -74,10 +79,12 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
             "| file | N | method | R | M | delta_protocol | delta_range | delta_factor | Dcap |",
             output,
         )
+        @test occursin("| final E/N | relE | best E/N | best relE | tail E/N |", output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | 2 | 2 | fixed_range | " *
             "[0.50000000,3.00000000] | n/a | 12 | >=12 | >=14 | " *
-            "not_converged_system_and_evolved_cap |",
+            "not_converged_system_and_evolved_cap | 1.00000000 | 2.00000 | " *
+            "-0.25000000 | 0.00000 | 0.41666667 | 1.00000 | 3 |",
             output,
         )
     finally
