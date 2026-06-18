@@ -19,6 +19,7 @@ end
         include("test_result_structs.jl")
         include("test_cooling_interface.jl")
         include("test_optimization_lookup.jl")
+        include("test_plotting_include_guards.jl")
         include("test_multi_frequency.jl")
         include("test_largeN_scaling_helpers.jl")
         include("test_largeN_bond_summary_script.jl")

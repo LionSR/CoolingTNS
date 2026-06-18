@@ -17,6 +17,9 @@ using CoolingTNS: bath_detuning_energy,
                   compute_energy_dispersion,
                   compute_ground_state_occupation
 
+if !isdefined(@__MODULE__, :_COOLINGTNS_PLOTUTILS_INCLUDED)
+const _COOLINGTNS_PLOTUTILS_INCLUDED = true
+
 # Lazy pyplot access - imported once per session
 const _pyplot = Ref{Py}()
 
@@ -231,3 +234,5 @@ Backward-compatible helper returning `(e₀, E_list, GS_overlap_list, Edensity_f
 """
 safe_read_data(filename::AbstractString) =
     safe_read_keys(filename, "e₀", RESULT_ENERGY, RESULT_GROUND_STATE_OVERLAP, "Edensity_final")
+
+end
