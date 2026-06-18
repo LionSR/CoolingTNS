@@ -132,6 +132,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     evolved_effective_bond = effective_bond_dimension_label(
         peak_evolved_max, evolved_saturation_cycle, threshold
     )
+    bond_status = bond_cap_status(system_saturation_cycle, evolved_saturation_cycle)
 
     link_dims = final_link_dimensions(run_group)
     quantiles = mean_link_quantiles(link_dims)
@@ -148,6 +149,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         relative_energy=final_relative_energy,
         system_effective_bond=system_effective_bond,
         evolved_effective_bond=evolved_effective_bond,
+        bond_status=bond_status,
         final_system_max=final_system_max,
         final_system_mean=final_system_mean,
         peak_evolved_max=peak_evolved_max,
@@ -191,12 +193,12 @@ function summarize_file(path::AbstractString)
 end
 
 function print_markdown(rows)
-    println("| file | N | method | R | M | Dcap | Dsys_eff | Dsb_eff | final E/N | relE | final sys max | final sys mean | peak evolved max | peak evolved mean | sys sat | evolved sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
-    println("|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|")
+    println("| file | N | method | R | M | Dcap | Dsys_eff | Dsb_eff | bond_status | final E/N | relE | final sys max | final sys mean | peak evolved max | peak evolved mean | sys sat | evolved sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("|---|---:|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for row in sort(rows; by=row -> (row.N, row.method, row.R, row.file))
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.R) | $(row.M) | $(row.threshold) | " *
-            "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
+            "$(row.system_effective_bond) | $(row.evolved_effective_bond) | $(row.bond_status) | " *
             "$(format_float(row.final_e_over_n, 8)) | $(format_float(row.relative_energy, 5)) | " *
             "$(row.final_system_max) | $(format_float(row.final_system_mean, 2)) | " *
             "$(row.peak_evolved_max) | $(format_float(row.peak_evolved_mean, 2)) | " *

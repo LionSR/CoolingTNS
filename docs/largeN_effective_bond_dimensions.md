@@ -57,6 +57,20 @@ observed maximum is only a lower bound on the bond dimension required by the
 untruncated trajectory.  In that case the summary script writes a label such as
 `>=640`.  Otherwise it writes the largest observed link dimension.
 
+The summary script also reports a machine-readable `bond_status` column.  The
+status is only a bond-dimension diagnostic:
+
+- `no_cap_hit`: neither the retained system state nor the transient
+  system-bath state reached the cap during the recorded run.
+- `not_converged_system_cap`: the retained system state reached the cap.
+- `not_converged_evolved_cap`: the transient system-bath state reached the
+  cap.
+- `not_converged_system_and_evolved_cap`: both histories reached the cap.
+
+A `no_cap_hit` entry does not by itself imply ground-state cooling or
+trajectory convergence; it only means that the imposed bond cap was not reached
+in the recorded run.
+
 ## Reproduction commands
 
 The four-cycle Dmax ladder was generated with
@@ -81,16 +95,16 @@ julia --project=. scripts/validation/summarize_largeN_bond_dimensions.jl \
 
 The strongest current four-cycle estimate is
 
-| R | Dcap | Dsys_eff | Dsb_eff | final E/N | relE | final sys max | peak evolved max | evolved sat |
-|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| 1 | 320 | 288 | >=320 | 1.53349398 | 2.15767 | 288 | 320 | 4 |
-| 1 | 640 | 309 | 394 | 1.53349335 | 2.15767 | 309 | 394 | none |
-| 2 | 320 | 318 | >=320 | 0.98416142 | 1.74297 | 318 | 320 | 4 |
-| 2 | 640 | 588 | >=640 | 0.98420719 | 1.74300 | 588 | 640 | 4 |
-| 5 | 320 | 308 | >=320 | 1.04795663 | 1.79113 | 308 | 320 | 4 |
-| 5 | 640 | 399 | 518 | 1.04794454 | 1.79112 | 399 | 518 | none |
-| 10 | 320 | 310 | >=320 | 1.29587871 | 1.97829 | 310 | 320 | 4 |
-| 10 | 640 | 488 | >=640 | 1.29572949 | 1.97818 | 488 | 640 | 4 |
+| R | Dcap | Dsys_eff | Dsb_eff | bond_status | final E/N | relE | final sys max | peak evolved max | evolved sat |
+|---:|---:|---:|---:|---|---:|---:|---:|---:|---|
+| 1 | 320 | 288 | >=320 | not_converged_evolved_cap | 1.53349398 | 2.15767 | 288 | 320 | 4 |
+| 1 | 640 | 309 | 394 | no_cap_hit | 1.53349335 | 2.15767 | 309 | 394 | none |
+| 2 | 320 | 318 | >=320 | not_converged_evolved_cap | 0.98416142 | 1.74297 | 318 | 320 | 4 |
+| 2 | 640 | 588 | >=640 | not_converged_evolved_cap | 0.98420719 | 1.74300 | 588 | 640 | 4 |
+| 5 | 320 | 308 | >=320 | not_converged_evolved_cap | 1.04795663 | 1.79113 | 308 | 320 | 4 |
+| 5 | 640 | 399 | 518 | no_cap_hit | 1.04794454 | 1.79112 | 399 | 518 | none |
+| 10 | 320 | 310 | >=320 | not_converged_evolved_cap | 1.29587871 | 1.97829 | 310 | 320 | 4 |
+| 10 | 640 | 488 | >=640 | not_converged_evolved_cap | 1.29572949 | 1.97818 | 488 | 640 | 4 |
 
 Thus `Dmax = 320` is not a converged cap by the fourth cooling cycle for any
 of `R = 1,2,5,10`: the transient system-bath state reaches the cap in all four

@@ -24,6 +24,23 @@ end
 saturation_cycle_label(cycle::Integer) = cycle == 0 ? "none" : string(cycle)
 
 """
+    bond_cap_status(system_saturation_cycle, evolved_saturation_cycle)
+
+Return a machine-readable bond-cap diagnostic for a large-N cooling run.  This
+status is only a bond-dimension statement: `no_cap_hit` does not imply energy
+or trajectory convergence.
+"""
+function bond_cap_status(system_saturation_cycle::Integer,
+                         evolved_saturation_cycle::Integer)
+    system_hit = system_saturation_cycle > 0
+    evolved_hit = evolved_saturation_cycle > 0
+    system_hit && evolved_hit && return "not_converged_system_and_evolved_cap"
+    system_hit && return "not_converged_system_cap"
+    evolved_hit && return "not_converged_evolved_cap"
+    return "no_cap_hit"
+end
+
+"""
     effective_bond_dimension_label(observed_max, saturation_cycle, saturation_threshold)
 
 Return a conservative effective-bond-dimension label.  If the run reached the

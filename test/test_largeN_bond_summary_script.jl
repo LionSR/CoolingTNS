@@ -39,6 +39,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
         @test row.relative_energy == 2.0
         @test row.system_effective_bond == ">=12"
         @test row.evolved_effective_bond == ">=14"
+        @test row.bond_status == "not_converged_system_and_evolved_cap"
         @test row.final_system_max == 12
         @test row.final_system_mean == 6.5
         @test row.peak_evolved_max == 14
@@ -61,8 +62,15 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
             end
             read(output_path, String)
         end
-        @test occursin("| file | N | method | R | M | Dcap | Dsys_eff | Dsb_eff |", output)
-        @test occursin("| $(basename(path)) | 4 | mcwf | 2 | 2 | 12 | >=12 | >=14 |", output)
+        @test occursin(
+            "| file | N | method | R | M | Dcap | Dsys_eff | Dsb_eff | bond_status |",
+            output,
+        )
+        @test occursin(
+            "| $(basename(path)) | 4 | mcwf | 2 | 2 | 12 | >=12 | >=14 | " *
+            "not_converged_system_and_evolved_cap |",
+            output,
+        )
     finally
         rm(path; force=true)
     end
