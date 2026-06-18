@@ -516,6 +516,21 @@ function fermionic_bc(spin_bc::Symbol, parity::Int)
 end
 
 """
+    _reference_parity_sector_with_source(px; atol=0.1, default=1)
+
+Return `(parity, source)` for an automatic Fourier-grid choice from a measured
+value of ``⟨P_x⟩``.  The source is `:state` when ``⟨P_x⟩`` selects a definite
+parity sector within `atol`, and `:reference` when the deterministic fallback
+sector is used.
+"""
+function _reference_parity_sector_with_source(px::Real; atol=0.1, default::Int=1)
+    @assert default == 1 || default == -1 "default must be +1 or -1"
+    abs(px - 1) <= atol && return (parity=1, source=:state)
+    abs(px + 1) <= atol && return (parity=-1, source=:state)
+    return (parity=default, source=:reference)
+end
+
+"""
     _reference_parity_sector(px; atol=0.1, default=1) -> Int
 
 Return the parity sector used when an automatic Fourier grid must be chosen
@@ -528,10 +543,7 @@ even sector by default.  This is a diagnostic convention, not a projection of
 the state onto that sector.
 """
 function _reference_parity_sector(px::Real; atol=0.1, default::Int=1)
-    @assert default == 1 || default == -1 "default must be +1 or -1"
-    abs(px - 1) <= atol && return 1
-    abs(px + 1) <= atol && return -1
-    return default
+    return _reference_parity_sector_with_source(px; atol=atol, default=default).parity
 end
 
 """
@@ -546,7 +558,7 @@ share the same grid convention.
 function _reference_fermionic_bc(spin_bc::Symbol, px::Real; atol=0.1, default_parity::Int=1)
     return fermionic_bc(
         spin_bc,
-        _reference_parity_sector(px; atol=atol, default=default_parity),
+        _reference_parity_sector_with_source(px; atol=atol, default=default_parity).parity,
     )
 end
 

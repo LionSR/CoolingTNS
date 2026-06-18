@@ -276,8 +276,9 @@ function _measure_all_mode_energies_tn(state::Union{MPS,MPO}, ham_params::Hamilt
 
     if isnothing(gF)
         px = measure_state_parity(state, N)
-        parity = _reference_parity_sector(px)
-        if abs(px - parity) > 0.1
+        sector = _reference_parity_sector_with_source(px)
+        parity = sector.parity
+        if sector.source === :reference
             @warn "measure_all_mode_energies: state has no definite P_x parity " *
                   "(⟨P_x⟩ = $px); using the P_x = $parity reference grid"
         end

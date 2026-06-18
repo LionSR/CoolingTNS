@@ -281,6 +281,16 @@ end
         @test CoolingTNS._reference_parity_sector(-0.5) == 1
         @test CoolingTNS._reference_parity_sector(0.0; default=-1) == -1
 
+        even_sector = CoolingTNS._reference_parity_sector_with_source(0.95)
+        @test even_sector.parity == 1
+        @test even_sector.source === :state
+        mixed_sector = CoolingTNS._reference_parity_sector_with_source(0.0)
+        @test mixed_sector.parity == 1
+        @test mixed_sector.source === :reference
+        odd_reference = CoolingTNS._reference_parity_sector_with_source(0.0; default=-1)
+        @test odd_reference.parity == -1
+        @test odd_reference.source === :reference
+
         @test CoolingTNS._reference_fermionic_bc(:periodic, 0.0) ==
               fermionic_bc(:periodic, 1)
         @test CoolingTNS._reference_fermionic_bc(:antiperiodic, -0.95) ==
