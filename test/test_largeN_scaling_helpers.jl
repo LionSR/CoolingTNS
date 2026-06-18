@@ -30,6 +30,8 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test_throws ArgumentError largeN_detuning_protocol(0.5; delta_min=1.0, delta_max=0.5)
     @test_throws ArgumentError largeN_delta_values(fixed_protocol, 0)
 
+    @test tn_method_maxdim(MonteCarloWavefunction(), 12) == 12
+    @test tn_method_maxdim(DensityMatrix(), 12) == 48
     @test tn_trotter_maxdim(MonteCarloWavefunction(), 12) == 12
     @test tn_trotter_maxdim(DensityMatrix(), 12) == 48
 

@@ -16,6 +16,8 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
         "--outdir", tempdir(),
     ])
 
+    @test cfg["evolution_method"] == "trotter"
+    @test sim_params_for("mcwf", cfg).evolution_method isa CoolingTNS.TrotterEvolution
     @test campaign_dmax_values(cfg) == [160, 320, 640]
     cfgs = campaign_dmax_configs(cfg)
     @test [c["Dmax"] for c in cfgs] == [160, 320, 640]
@@ -30,6 +32,22 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     single_cfg = parse_args(["--Dmax", "80"])
     @test campaign_dmax_values(single_cfg) == [80]
 
+    continuous_cfg = parse_args([
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--M-mcwf", "3",
+        "--outdir", tempdir(),
+    ])
+    sim_params_continuous = sim_params_for("mcwf", continuous_cfg)
+    @test sim_params_continuous.evolution_method isa CoolingTNS.ContinuousEvolution
+    @test sim_params_continuous.n_trajectories == 3
+    @test occursin("mcwf_continuous_steps", output_path(continuous_cfg))
+
+    @test_throws ErrorException parse_args(["--evolution-method", "bad"])
+    @test_throws ErrorException parse_args([
+        "--methods", "mpo",
+        "--evolution-method", "continuous",
+    ])
     @test_throws ErrorException parse_args(["--Dmax-values", "160,0"])
     @test_throws ErrorException parse_args(["--Dmax-values", "320,320"])
     @test_throws ErrorException parse_args(["--Dmax-values", "160,320"])
@@ -88,4 +106,55 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     finally
         rm(path; force=true)
     end
+end
+
+@testset "Large-N campaign driver TDVP setup path" begin
+    cfg = parse_args([
+        "--Ns", "4",
+        "--R-values", "1",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--steps", "1",
+        "--Dmax", "6",
+        "--cutoff", "1e-6",
+        "--tau", "0.2",
+        "--delta-min", "0.5",
+        "--delta-max", "0.5",
+        "--outdir", tempdir(),
+    ])
+
+    backend = CoolingTNS.TNBackend()
+    ham_params = CoolingTNS.NiIsingParameters(4, cfg["J"], cfg["hx"], cfg["hz"])
+    sim_params = sim_params_for("mcwf", cfg)
+    cp_base = CoolingTNS.BasicCouplingParameters(cfg["coupling"], cfg["g"], 1, cfg["te"], nothing)
+    base_problem = CoolingTNS.setup_problem(backend, ham_params, cp_base, sim_params)
+    gap = Float64(base_problem.extra.coupling_params.delta)
+
+    detuning_protocol = largeN_detuning_protocol(gap, cfg)
+    mf_params = CoolingTNS.MultiFrequencyCouplingParameters(
+        cfg["coupling"],
+        cfg["g"],
+        cfg["steps"],
+        cfg["te"],
+        largeN_delta_values(detuning_protocol, 1);
+        randomize_times=false,
+        schedule=cfg["schedule_symbol"],
+    )
+    problem = CoolingTNS.setup_tn_multifrequency_problem_from_system(
+        backend,
+        ham_params,
+        mf_params,
+        sim_params,
+        base_problem.extra.sites,
+        base_problem.H_sys,
+        gap,
+        base_problem.e₀,
+        base_problem.ϕ₀,
+    )
+
+    @test problem.H_sys === base_problem.H_sys
+    @test problem.ϕ₀ === base_problem.ϕ₀
+    @test haskey(problem.extra, :H_cache)
+    @test !haskey(problem.extra, :gates_cache)
+    @test problem.extra.coupling_params === mf_params
 end

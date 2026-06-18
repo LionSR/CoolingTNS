@@ -103,7 +103,7 @@ energy_tail_start(nsteps::Integer) = max(1, nsteps - ENERGY_TAIL_WINDOW + 1)
 
 function method_from_name(method_name::AbstractString)
     # HDF5 stores method names as strings; the cap itself is still determined
-    # by the library dispatch rule in `tn_trotter_maxdim`.
+    # by the library dispatch rule in `tn_method_maxdim`.
     method_name == "mcwf" && return MonteCarloWavefunction()
     method_name == "mpo" && return DensityMatrix()
     error("unknown method '$method_name' in campaign file")
@@ -114,7 +114,7 @@ function saturation_threshold_for(root, method_group, run_group, method_name::Ab
         return Int(read(run_group["bond_saturation_threshold"]))
     haskey(method_group, "bond_saturation_threshold") &&
         return Int(read(method_group["bond_saturation_threshold"]))
-    return tn_trotter_maxdim(method_from_name(method_name), Int(read(root["Dmax"])))
+    return tn_method_maxdim(method_from_name(method_name), Int(read(root["Dmax"])))
 end
 
 function final_link_dimensions(run_group)
@@ -166,6 +166,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     N = Int(read(root[n_group_name]["N"]))
     R = parse(Int, r_group_name[2:end])
     M = Int(read(run_group["M"]))
+    evolution = String(read_group_value(method_group, root, "evolution_method", "unknown"))
     threshold = saturation_threshold_for(root, method_group, run_group, method_name)
 
     energy_mean = read(run_group["E_mean"])
@@ -211,6 +212,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         file=basename(file_name),
         N=N,
         method=method_name,
+        evolution=evolution,
         R=R,
         M=M,
         delta_protocol=detuning.delta_protocol,
@@ -270,11 +272,11 @@ function summarize_file(path::AbstractString)
 end
 
 function print_markdown(rows)
-    println("| file | N | method | R | M | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | final sys max | final sys mean | peak evolved max | peak evolved mean | sys sat | evolved sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
-    println("|---|---:|---|---:|---:|---|---|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|")
-    for row in sort(rows; by=row -> (row.N, row.method, row.R, row.file))
+    println("| file | N | method | evolution | R | M | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | final sys max | final sys mean | peak evolved max | peak evolved mean | sys sat | evolved sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("|---|---:|---|---|---:|---:|---|---|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|")
+    for row in sort(rows; by=row -> (row.N, row.method, row.evolution, row.R, row.file))
         println(
-            "| $(row.file) | $(row.N) | $(row.method) | $(row.R) | $(row.M) | " *
+            "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | $(row.R) | $(row.M) | " *
             "$(row.delta_protocol) | $(row.delta_range) | $(row.delta_factor) | " *
             "$(row.threshold) | " *
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | $(row.bond_status) | " *
