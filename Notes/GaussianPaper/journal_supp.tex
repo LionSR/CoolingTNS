@@ -78,6 +78,24 @@ the opposite Fourier phase, $\exp(+in\phi_q)$ rather than the
 one further sign on the off-diagonal coefficient $r_q$. This convention changes
 the sign of the off-diagonal entry, but not the physical spectrum
 $\epsilon_q=\sqrt{w_q^2+r_q^2}$.
+There is also a harmless Nambu-gauge difference. The real block in
+\cref{eq:Hk_2x2_matrix} uses the vector
+$(\tilde{a}_k,\tilde{a}_{-k}^\dagger)^\mathsf{T}$. With
+$\bar{a}_{-k}^\dagger\equiv -i\tilde{a}_{-k}^\dagger$ and
+$G_k=\mathrm{diag}(1,i)$, the same quadratic form is written as
+\begin{equation}
+    G_k^\dagger \tilde{H}_k G_k =
+    \begin{pmatrix}
+        w_k   & i r_k\\
+        -i r_k& -w_k
+    \end{pmatrix}.
+    \label{eq:bdg_gauge_map}
+\end{equation}
+This is the phase-explicit BdG form used in
+\texttt{Notes/NotesED/MapToSpin.tex} and by the ED/TN mode-observable code.
+Thus the real rotation used below is the same canonical transformation as
+$\hat{a}_k=\cos(\varphi_k)\tilde{a}_k
++i\sin(\varphi_k)\bar{a}_{-k}^\dagger$ in the phase-explicit gauge.
 Moreover, since terms such as $\tilde{a}_0^\dagger \tilde{a}_{-0}^\dagger$ vanish due to the fermionic anticommutation relation, we obtain only diagonal terms for both $H_{k=0,N/2}$. In particular, we have
 \begin{align}
     H_{k=0}
@@ -118,7 +136,10 @@ We now diagonalize each block Hamiltonian via a Bogoliubov transformation. We fo
 
 \subsubsection{Diagonalizing the \texorpdfstring{$2\times 2$}{2 by 2} block for generic \texorpdfstring{$k$}{k}}
 
-Because each $2\times 2$ matrix $\tilde{H}_k$ (\cref{eq:Hk_2x2_matrix}) is real and symmetric, it is diagonalizable through a real orthogonal transformation. The eigenvalues are $\pm \epsilon_k$ with
+Because each $2\times 2$ matrix $\tilde{H}_k$ (\cref{eq:Hk_2x2_matrix}) is
+real and symmetric in the real Nambu gauge of \cref{eq:Hk_2x2_matrix}, it is
+diagonalizable through a real orthogonal transformation. The eigenvalues are
+$\pm \epsilon_k$ with
 
 \begin{equation}
     \epsilon_k = \sqrt{w_k^2 + r_k^2}=\sqrt{1 + \sin2\theta \cos\frac{2\pi k}{N}},
@@ -164,7 +185,8 @@ Moreover, we can obtain a more explicit final result for $\tan(2\varphi_k)$ by a
 
 \subsubsection{Mapping to Bogoliubov quasiparticles}
 
-This diagonalization at the matrix level defines a canonical transformation on the fermionic operators. Recall that
+This diagonalization at the matrix level defines a canonical transformation on
+the fermionic operators in the real gauge. Recall that
 \begin{align}
     \tilde{\alpha}_k = \begin{pmatrix}
                            \tilde{a}_k\\
