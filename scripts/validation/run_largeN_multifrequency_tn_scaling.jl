@@ -145,6 +145,8 @@ function campaign_dmax_values(cfg)
     values = cfg["Dmax_values"]
     values === nothing && return [cfg["Dmax"]]
     isempty(values) && error("--Dmax-values must contain at least one integer")
+    length(unique(values)) == length(values) ||
+        error("--Dmax-values must not repeat a cap; repeated caps would overwrite output files")
     return values
 end
 

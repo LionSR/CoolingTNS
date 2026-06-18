@@ -30,6 +30,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     @test campaign_dmax_values(single_cfg) == [80]
 
     @test_throws ErrorException parse_args(["--Dmax-values", "160,0"])
+    @test_throws ErrorException parse_args(["--Dmax-values", "320,320"])
     @test_throws ErrorException parse_args([
         "--Dmax-values", "160,320",
         "--output", joinpath(tempdir(), "one_file.h5"),
