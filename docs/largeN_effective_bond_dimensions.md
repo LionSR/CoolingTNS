@@ -83,12 +83,25 @@ julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
   --outdir /tmp/coolingtns_largeN_dmax_ladder_steps4_20260618 --verbose
 ```
 
+The saturated `R = 2` and `R = 10` schedules were then extended to `Dmax = 960`
+with
+
+```bash
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 2,10 --methods mcwf --steps 4 \
+  --Dmax-values 960 --cutoff 1e-7 --tau 0.2 --M-mcwf 1 \
+  --delta-min 0.5051167496264384 --delta-max 3.0307004977586303 \
+  --outdir /tmp/coolingtns_largeN_dmax960_R2_R10_steps4_20260618 \
+  --verbose
+```
+
 The HDF5 files were summarized with
 
 ```bash
 julia --project=. scripts/validation/summarize_largeN_bond_dimensions.jl \
   /tmp/coolingtns_largeN_dmax_ladder_steps4_20260618/largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_steps4_Dmax320_tau0.2_seed20260617.h5 \
-  /tmp/coolingtns_largeN_dmax_ladder_steps4_20260618/largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_steps4_Dmax640_tau0.2_seed20260617.h5
+  /tmp/coolingtns_largeN_dmax_ladder_steps4_20260618/largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_steps4_Dmax640_tau0.2_seed20260617.h5 \
+  /tmp/coolingtns_largeN_dmax960_R2_R10_steps4_20260618/largeN_multifrequency_tn_N64_R2-10_mcwf_steps4_Dmax960_tau0.2_seed20260617.h5
 ```
 
 ## Current N=64 evidence
@@ -101,31 +114,37 @@ The strongest current four-cycle estimate is
 | 1 | 640 | 309 | 394 | no_cap_hit | 1.53349335 | 2.15767 | 309 | 394 | none |
 | 2 | 320 | 318 | >=320 | not_converged_evolved_cap | 0.98416142 | 1.74297 | 318 | 320 | 4 |
 | 2 | 640 | 588 | >=640 | not_converged_evolved_cap | 0.98420719 | 1.74300 | 588 | 640 | 4 |
+| 2 | 960 | 637 | 862 | no_cap_hit | 0.98420691 | 1.74300 | 637 | 862 | none |
 | 5 | 320 | 308 | >=320 | not_converged_evolved_cap | 1.04795663 | 1.79113 | 308 | 320 | 4 |
 | 5 | 640 | 399 | 518 | no_cap_hit | 1.04794454 | 1.79112 | 399 | 518 | none |
 | 10 | 320 | 310 | >=320 | not_converged_evolved_cap | 1.29587871 | 1.97829 | 310 | 320 | 4 |
 | 10 | 640 | 488 | >=640 | not_converged_evolved_cap | 1.29572949 | 1.97818 | 488 | 640 | 4 |
+| 10 | 960 | 489 | 737 | no_cap_hit | 1.29572864 | 1.97818 | 489 | 737 | none |
 
 Thus `Dmax = 320` is not a converged cap by the fourth cooling cycle for any
 of `R = 1,2,5,10`: the transient system-bath state reaches the cap in all four
 cases.  At `Dmax = 640`, the `R = 1` and `R = 5` trajectories are below cap
-with observed transient dimensions 394 and 518, respectively.  The `R = 2` and
-`R = 10` trajectories still reach the cap by the fourth cycle, so their
-transient effective dimensions are only lower bounds: `Dsb_eff >= 640`.
+with observed transient dimensions 394 and 518, respectively, while `R = 2`
+and `R = 10` still reach the cap by the fourth cycle.  The focused
+`Dmax = 960` follow-up resolves those two lower bounds for this four-cycle
+diagnostic: `Dsb_eff = 862` for `R = 2` and `Dsb_eff = 737` for `R = 10`.
 
-The post-measurement system state also grows substantially at `Dmax = 640`:
+The strongest currently bounded post-measurement system-state dimensions are:
 
 ```text
-R =  1: Dsys_eff = 309
-R =  2: Dsys_eff = 588
-R =  5: Dsys_eff = 399
-R = 10: Dsys_eff = 488
+R =  1: Dsys_eff = 309, Dsb_eff = 394
+R =  2: Dsys_eff = 637, Dsb_eff = 862
+R =  5: Dsys_eff = 399, Dsb_eff = 518
+R = 10: Dsys_eff = 489, Dsb_eff = 737
 ```
 
 These values are far larger than the bond caps used in earlier exploratory
 large-N curves.  In particular, `Dmax = 40`, `Dmax = 80`, and four-cycle
 `Dmax = 320` runs should be read as truncation diagnostics rather than as
-converged large-N cooling trajectories.
+converged large-N cooling trajectories.  The `Dmax = 960` follow-up also took
+production-scale time for the final high-bond steps, so future ladders should
+write step-level checkpoints or be run as scheduled jobs rather than as
+interactive smoke tests.
 
 ## Physical interpretation
 
@@ -137,8 +156,8 @@ limited conclusion:
 
 ```text
 For N = 64, MCWF/MPS Trotter cooling with this fixed detuning interval already
-requires Dsys of several hundred and Dsb of at least 640 for some four-cycle
-schedules.  These runs diagnose entanglement growth and truncation pressure;
+requires Dsys of several hundred and Dsb up to 862 in the four-cycle schedules
+tested here.  These runs diagnose entanglement growth and truncation pressure;
 they do not yet establish scalable ground-state cooling.
 ```
 
