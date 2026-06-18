@@ -6,9 +6,12 @@ Standalone plotting script. Usage:
 """
 
 # Allow tests and notebooks to include several standalone plot scripts in one session.
-if !@isdefined(get_pyplot)
-    include(joinpath(@__DIR__, "PlotUtils.jl"))
+if !isdefined(@__MODULE__, :get_pyplot)
+    Base.include(@__MODULE__, joinpath(@__DIR__, "PlotUtils.jl"))
 end
+
+if !isdefined(@__MODULE__, :_COOLINGTNS_PLOT_DISPERSION_WITH_GS_INCLUDED)
+const _COOLINGTNS_PLOT_DISPERSION_WITH_GS_INCLUDED = true
 
 """
     plot_dispersion_with_ground_state(N, J, h, bc; delta=nothing, save_fig=true, filename=nothing)
@@ -56,4 +59,6 @@ function plot_dispersion_with_ground_state(N::Int, J::Real, h::Real, bc::Symbol;
     end
 
     return fig
+end
+
 end

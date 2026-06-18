@@ -16,8 +16,8 @@ Usage (from another script):
 """
 
 # Only include PlotUtils if not already loaded
-if !@isdefined(get_pyplot)
-    include(joinpath(@__DIR__, "PlotUtils.jl"))
+if !isdefined(@__MODULE__, :get_pyplot)
+    Base.include(@__MODULE__, joinpath(@__DIR__, "PlotUtils.jl"))
 end
 
 using CoolingTNS:
@@ -28,6 +28,9 @@ using CoolingTNS:
     mode_occupation_from_hk,
     bath_detuning_energy,
     nearest_bath_resonance_indices
+
+if !isdefined(@__MODULE__, :_COOLINGTNS_PLOT_MODE_COOLING_INCLUDED)
+const _COOLINGTNS_PLOT_MODE_COOLING_INCLUDED = true
 
 """
     _mode_occupation_from_plot_data(data)
@@ -195,6 +198,8 @@ function plot_mode_cooling_from_h5(filepath::String; savepath=nothing)
     return plot_mode_occupation_from_data(mode_nk, k_indices, εk_values;
                                           delta=delta, savepath=savepath,
                                           title=extract_filename_base(filepath))
+end
+
 end
 
 # Standalone execution
