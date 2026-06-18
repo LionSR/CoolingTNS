@@ -252,6 +252,14 @@ end
     finally
         rm(path; force=true)
     end
+
+    stale_path = tempname() * ".csv"
+    try
+        write(stale_path, "timestamp,N\nold,4\n")
+        @test_throws ArgumentError append_progress_csv_row(stale_path, row)
+    finally
+        rm(stale_path; force=true)
+    end
 end
 
 @testset "Large-N campaign driver TDVP setup path" begin

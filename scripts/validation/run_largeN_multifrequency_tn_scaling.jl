@@ -277,9 +277,19 @@ end
 """Append one flushed progress row, creating the header when the file is new."""
 function append_progress_csv_row(path::AbstractString, row)
     mkpath(dirname(path))
+    expected_header = join(PROGRESS_CSV_COLUMNS, ",")
     needs_header = !isfile(path) || filesize(path) == 0
+    if !needs_header
+        existing_header = open(readline, path)
+        if existing_header != expected_header
+            throw(ArgumentError(
+                "Progress CSV header in $path does not match the current schema. " *
+                "Use a new --progress-csv path or remove the stale file before appending."
+            ))
+        end
+    end
     open(path, "a") do io
-        needs_header && println(io, join(PROGRESS_CSV_COLUMNS, ","))
+        needs_header && println(io, expected_header)
         println(io, join((csv_cell(get(row, col, "")) for col in PROGRESS_CSV_COLUMNS), ","))
         flush(io)
     end
@@ -295,10 +305,10 @@ system has been measured. For `:prepared` and `:evolved`, these columns are
 `NaN`; the `system_*_bond` columns describe the pre-update system state, while
 `evolved_*_bond` describes the current transient system-bath state.
 """
-function progress_row(context, info, ham_params, E0, sys_bs, evolved_bs, elapsed)
-    has_energy = info.stage === :initial || info.stage === :updated
-    E = has_energy ? info.measurements[RESULT_ENERGY][info.step] : NaN
-    overlap = has_energy ? info.measurements[RESULT_GROUND_STATE_OVERLAP][info.step] : NaN
+function progress_base_row(context, ham_params; stage, step, cycle, delta, te,
+                           energy_per_site, relative_energy_value, overlap,
+                           sys_bs, evolved_bs, tdvp_sweep=NaN, tdvp_time=NaN,
+                           elapsed)
     return Dict{String,Any}(
         "timestamp" => Dates.format(now(), Dates.ISODateTimeFormat),
         "N" => ham_params.N,
@@ -310,21 +320,41 @@ function progress_row(context, info, ham_params, E0, sys_bs, evolved_bs, elapsed
         "Dmax" => context.Dmax,
         "cutoff" => context.cutoff,
         "tau" => context.tau,
-        "stage" => string(info.stage),
-        "step" => info.step,
-        "cycle" => info.step - 1,
-        "delta" => info.delta,
-        "te" => info.te,
-        "energy_per_site" => has_energy ? E / ham_params.N : NaN,
-        "relative_energy" => has_energy ? relative_energy(E, E0) : NaN,
+        "stage" => stage,
+        "step" => step,
+        "cycle" => cycle,
+        "delta" => delta,
+        "te" => te,
+        "energy_per_site" => energy_per_site,
+        "relative_energy" => relative_energy_value,
         "overlap" => overlap,
         "system_max_bond" => sys_bs.max,
         "system_mean_bond" => sys_bs.mean,
         "evolved_max_bond" => evolved_bs.max,
         "evolved_mean_bond" => evolved_bs.mean,
-        "tdvp_sweep" => NaN,
-        "tdvp_time" => NaN,
+        "tdvp_sweep" => tdvp_sweep,
+        "tdvp_time" => tdvp_time,
         "elapsed_seconds" => elapsed,
+    )
+end
+
+function progress_row(context, info, ham_params, E0, sys_bs, evolved_bs, elapsed)
+    has_energy = info.stage === :initial || info.stage === :updated
+    E = has_energy ? info.measurements[RESULT_ENERGY][info.step] : NaN
+    overlap = has_energy ? info.measurements[RESULT_GROUND_STATE_OVERLAP][info.step] : NaN
+    return progress_base_row(
+        context, ham_params;
+        stage=string(info.stage),
+        step=info.step,
+        cycle=info.step - 1,
+        delta=info.delta,
+        te=info.te,
+        energy_per_site=has_energy ? E / ham_params.N : NaN,
+        relative_energy_value=has_energy ? relative_energy(E, E0) : NaN,
+        overlap=overlap,
+        sys_bs=sys_bs,
+        evolved_bs=evolved_bs,
+        elapsed=elapsed,
     )
 end
 
@@ -333,32 +363,21 @@ tdvp_physical_time(t::Complex) = -Float64(imag(t))
 
 function tdvp_sweep_progress_row(context, tdvp_context, sweep, current_time,
                                  ham_params, evolved_bs, elapsed)
-    return Dict{String,Any}(
-        "timestamp" => Dates.format(now(), Dates.ISODateTimeFormat),
-        "N" => ham_params.N,
-        "method" => context.method,
-        "evolution" => context.evolution,
-        "R" => context.R,
-        "trajectory" => context.trajectory,
-        "seed" => context.seed,
-        "Dmax" => context.Dmax,
-        "cutoff" => context.cutoff,
-        "tau" => context.tau,
-        "stage" => "tdvp_sweep",
-        "step" => tdvp_context.step,
-        "cycle" => tdvp_context.step - 1,
-        "delta" => tdvp_context.delta,
-        "te" => tdvp_context.te,
-        "energy_per_site" => NaN,
-        "relative_energy" => NaN,
-        "overlap" => NaN,
-        "system_max_bond" => tdvp_context.sys_bs.max,
-        "system_mean_bond" => tdvp_context.sys_bs.mean,
-        "evolved_max_bond" => evolved_bs.max,
-        "evolved_mean_bond" => evolved_bs.mean,
-        "tdvp_sweep" => sweep,
-        "tdvp_time" => tdvp_physical_time(current_time),
-        "elapsed_seconds" => elapsed,
+    return progress_base_row(
+        context, ham_params;
+        stage="tdvp_sweep",
+        step=tdvp_context.step,
+        cycle=tdvp_context.step - 1,
+        delta=tdvp_context.delta,
+        te=tdvp_context.te,
+        energy_per_site=NaN,
+        relative_energy_value=NaN,
+        overlap=NaN,
+        sys_bs=tdvp_context.sys_bs,
+        evolved_bs=evolved_bs,
+        tdvp_sweep=sweep,
+        tdvp_time=tdvp_physical_time(current_time),
+        elapsed=elapsed,
     )
 end
 
@@ -388,20 +407,25 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
     )
     start_time = time()
     tdvp_context = Ref{Any}(nothing)
+    records_tdvp_sweeps = cfg["tdvp_sweep_progress"] && progress_csv !== nothing &&
+                          cfg["evolution_method"] == "continuous" && method == "mcwf"
 
     step_observer = info -> begin
         step = info.step
         elapsed = time() - start_time
         if info.stage === :prepared || info.stage === :evolved
-            evolved_bs = bond_summary(info.evolved_state)
-            sys_bs = bond_summary(info.state.state)
+            evolved_bs = (info.stage === :evolved || progress_csv !== nothing) ?
+                bond_summary(info.evolved_state) : nothing
+            sys_bs = progress_csv !== nothing ? bond_summary(info.state.state) : nothing
             if info.stage === :prepared
-                tdvp_context[] = (
-                    step=step,
-                    delta=info.delta,
-                    te=info.te,
-                    sys_bs=sys_bs,
-                )
+                if records_tdvp_sweeps
+                    tdvp_context[] = (
+                        step=step,
+                        delta=info.delta,
+                        te=info.te,
+                        sys_bs=sys_bs,
+                    )
+                end
             end
             if info.stage === :evolved
                 evolved_maxbond[step] = evolved_bs.max
@@ -443,8 +467,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         end
     end
 
-    tdvp_observer = if cfg["tdvp_sweep_progress"] && progress_csv !== nothing &&
-                       cfg["evolution_method"] == "continuous" && method == "mcwf"
+    tdvp_observer = if records_tdvp_sweeps
         tdvp_sweep_observer((; state, sweep, current_time, kwargs...) -> begin
             ctx = tdvp_context[]
             ctx === nothing && return nothing

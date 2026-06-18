@@ -55,16 +55,18 @@ function _tdvp_step_count(t::Float64, tau::Float64)
     return Int(ceil(t / tau))
 end
 
-"""
-    TDVPSweepObserver(callback)
-
-Small adapter for ITensorMPS TDVP observers. The callback is called with the
-keyword payload emitted by ITensorMPS after each TDVP sweep/substep.
-"""
 struct TDVPSweepObserver{F}
     callback::F
 end
 
+"""
+    tdvp_sweep_observer(callback)
+
+Return an ITensorMPS-compatible TDVP observer adapter. When passed as
+`tdvp_sweep_observer!`, the callback is called after each TDVP sweep with the
+keyword payload emitted by ITensorMPS, including `state`, `sweep`, and
+`current_time`.
+"""
 tdvp_sweep_observer(callback) = TDVPSweepObserver(callback)
 
 function ITensorMPS.update_observer!(observer::TDVPSweepObserver; kwargs...)
@@ -75,9 +77,12 @@ end
 function evolve_state(::HamiltonianParameters, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, ContinuousEvolution},
                      ::TNBackend, H_total, ψ, t::Float64, ::Vector{<:Index};
                      tdvp_outputlevel::Integer=0,
-                     tdvp_step_observer! = nothing,
                      tdvp_sweep_observer! = nothing,
                      kwargs...)
+    if !isempty(kwargs)
+        unknown = join(string.(keys(kwargs)), ", ")
+        throw(ArgumentError("Unsupported MCWF+TDVP evolution keyword(s): $unknown."))
+    end
     Dmax, cutoff, tau = sim_params.Dmax, sim_params.cutoff, sim_params.tau
 
     # Pick an integer number of TDVP steps so arbitrary `t` works even when `t/tau`
@@ -100,9 +105,6 @@ function evolve_state(::HamiltonianParameters, sim_params::UnifiedSimulationPara
         cutoff=cutoff,
         outputlevel=tdvp_outputlevel,
     )
-    if tdvp_step_observer! !== nothing
-        tdvp_kwargs = merge(tdvp_kwargs, (step_observer! = tdvp_step_observer!,))
-    end
     if tdvp_sweep_observer! !== nothing
         tdvp_kwargs = merge(tdvp_kwargs, (sweep_observer! = tdvp_sweep_observer!,))
     end

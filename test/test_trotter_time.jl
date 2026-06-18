@@ -32,7 +32,7 @@ end
     sweeps = Int[]
     times = Float64[]
     maxdims = Int[]
-    observer = CoolingTNS.tdvp_sweep_observer((; state, sweep, current_time, kwargs...) -> begin
+    sweep_observer = CoolingTNS.tdvp_sweep_observer((; state, sweep, current_time, kwargs...) -> begin
         push!(sweeps, sweep)
         push!(times, -imag(current_time))
         push!(maxdims, maxlinkdim(state))
@@ -41,13 +41,18 @@ end
 
     ψ_evolved = CoolingTNS.evolve_state(
         ham_params, sim_tdvp, CoolingTNS.TNBackend(), H, ψ0, 0.2, sites;
-        tdvp_sweep_observer! = observer,
+        tdvp_sweep_observer! = sweep_observer,
     )
 
     @test length(ψ_evolved) == 2
     @test sweeps == [1, 2]
     @test times ≈ [0.1, 0.2] atol=1e-12
     @test all(>=(1), maxdims)
+
+    @test_throws ArgumentError CoolingTNS.evolve_state(
+        ham_params, sim_tdvp, CoolingTNS.TNBackend(), H, ψ0, 0.2, sites;
+        tdvp_step_observer! = sweep_observer,
+    )
 end
 
 function _x_gate(site, dt)
