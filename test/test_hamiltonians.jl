@@ -179,7 +179,7 @@ end
             
             # Check energy scale is reasonable
             # Create a random state and compute energy
-            ψ = randomMPS(sites, linkdims=4)
+            ψ = random_mps(sites, linkdims=4)
             normalize!(ψ)
             E = real(inner(ψ', H, ψ))
             @test abs(E) < N * (abs(J) + abs(h))  # Energy should be bounded

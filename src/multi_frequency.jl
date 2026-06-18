@@ -108,7 +108,7 @@ function compute_excitation_gaps(
     H_sys = construct_system_hamiltonian(ham_params, backend, sites)
 
     # Ground state
-    ψ_init = randomMPS(sites, linkdims=init_linkdims)
+    ψ_init = random_mps(sites, linkdims=init_linkdims)
     sweeps0 = Sweeps(nsweeps_ground)
     setmaxdim!(sweeps0, maxdim_ground...)
     setcutoff!(sweeps0, cutoff)
@@ -120,7 +120,7 @@ function compute_excitation_gaps(
     setcutoff!(sweeps1, cutoff)
 
     prev_states = MPS[ϕ0]
-    ψ_guess = randomMPS(sites, linkdims=init_linkdims)
+    ψ_guess = random_mps(sites, linkdims=init_linkdims)
 
     gaps = Vector{Float64}(undef, num_excitations)
     for n in 1:num_excitations

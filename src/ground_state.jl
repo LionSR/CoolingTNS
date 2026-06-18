@@ -35,7 +35,7 @@ Find ground state and energy gap using DMRG for tensor network backends.
 """
 function find_ground_state(H_sys::MPO, backend::TNBackend, sites::Vector{<:Index})
     # Find ground state using DMRG
-    ψ₀ = randomMPS(sites, linkdims=10)
+    ψ₀ = random_mps(sites, linkdims=10)
     sweeps = Sweeps(5)
     setmaxdim!(sweeps, 10, 20, 100, 100, 200)
     setcutoff!(sweeps, 1E-10)
