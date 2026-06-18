@@ -191,6 +191,97 @@ where $N$ is the length of the chain, the sum runs over $i_j,j_k = 1,\ldots,d$ w
 \paragraph{Couplings}
 In our numerical simulations, we consider cooling with an extensive number of ancillas, i.e., $N_B = N_S$. The couplings between the system and the bath are taken to be $\sigma_X \otimes \sigma_X$ interactions, locally connected from ancillas to the system particles, as shown in Fig.~\ref{fig:SysBath}.
 
+\subsection{Mode Diagnostics for the Integrable Ising Benchmarks}
+\label{sec:TNModeDiagnostics}
+
+For the transverse-field Ising benchmarks, the tensor-network diagnostics use the
+same Jordan--Wigner convention and fermionic boundary-condition convention as
+the exact-diagonalization diagnostics in \texttt{NotesED/MapToSpin.tex}.  The
+Hamiltonian implemented in the code is
+\begin{equation}
+	H_{\mathrm{code}}=J\sum_j\sigma^z_j\sigma^z_{j+1}+h\sum_j\sigma^x_j.
+\end{equation}
+It is related to the notes-basis Hamiltonian
+\begin{equation}
+	H_{\mathrm{notes}}=\frac{\cos\theta}{2}\sum_j\sigma^x_j\sigma^x_{j+1}
+	+\frac{\sin\theta}{2}\sum_j\sigma^z_j
+\end{equation}
+by a global $R_y(\pi/2)^{\otimes N}$ rotation and the scale
+\begin{align}
+	\theta&=\operatorname{atan}(h,J),&
+	\Lambda&=2\sqrt{J^2+h^2},\\
+	U&=R_y(\pi/2)^{\otimes N},&
+	H_{\mathrm{code}}
+	&=\Lambda\,U H_{\mathrm{notes}}U^\dagger .
+\end{align}
+Consequently the conserved parity used to choose the Fourier grid is
+$P_x=\prod_j\sigma^x_j$ in the code basis.  If the spin boundary condition is
+$g_I=+1$ for periodic boundary conditions and $g_I=-1$ for anti-periodic
+boundary conditions, then
+\begin{equation}
+	g_F=-g_I P_x.
+\end{equation}
+Thus, for spin PBC, the $P_x=+1$ sector uses fermionic APBC and half-integer
+momenta, while the $P_x=-1$ sector uses fermionic PBC and integer momenta; for
+spin APBC these assignments are interchanged.
+
+Within a fixed sector, the derivation uses the full allowed fermionic grid
+$\phi_k=2\pi k/N$ and the notes Fourier convention
+\begin{equation}
+	\tilde a_k=\frac{1}{\sqrt N}\sum_{n=1}^{N}e^{-in\phi_k}a_n .
+\end{equation}
+The Bogoliubov block for a generic pair $(k,-k)$ is
+\begin{equation}
+	\tilde H_k=
+	\begin{pmatrix}
+		w_k & i r_k\\
+		-i r_k & -w_k
+	\end{pmatrix}.
+\end{equation}
+Here
+\begin{equation}
+	w_k=\sin\theta-\cos\theta\cos\phi_k,\qquad
+	r_k=-\cos\theta\sin\phi_k.
+\end{equation}
+The ED and tensor-network implementations evaluate the same diagnostics after
+the relabeling $k\mapsto -k$:
+\begin{align}
+	\tilde a^{\mathrm{code}}_k
+	=\tilde a^{\mathrm{notes}}_{-k}
+	&=\frac{1}{\sqrt N}\sum_{n=1}^{N}e^{+in\phi_k}a_n,\\
+	r^{\mathrm{code}}_k&=+\cos\theta\sin\phi_k.
+\end{align}
+The mode energy, coefficient, and occupation formulas below are invariant under
+this relabeling.  With either convention,
+\begin{equation}
+	\epsilon_k=\sqrt{w_k^2+r_k^2}
+	=\sqrt{1-\sin(2\theta)\cos\phi_k}.
+\end{equation}
+The code-unit quasiparticle energy is $\Lambda\epsilon_k$.  The ED, MPS, and MPO
+routines store the individual Bogoliubov mode observable
+\begin{equation}
+	h_k=2\hat a_k^\dagger\hat a_k-1,\qquad
+	n_k^{\mathrm{Bog}}=\frac{1+\langle h_k\rangle}{2}.
+\end{equation}
+This $n_k^{\mathrm{Bog}}$ is the quasiparticle occupation; it is not the raw
+momentum occupation $\langle\tilde a_k^\dagger\tilde a_k\rangle$, which equals
+$\sin^2\varphi_k$ in the Bogoliubov vacuum for generic modes.  The exact energy
+reconstruction used to compare ED and tensor-network results is
+\begin{align}
+	\langle H_{\mathrm{code}}\rangle
+	&=\frac{\Lambda}{2}\sum_{k\in\mathrm{grid}(g_F)}
+	\operatorname{coeff}_k\,\langle h_k\rangle ,
+	\label{eq:TNModeEnergyReconstruction}\\
+	\operatorname{coeff}_k=
+	\begin{cases}
+		\epsilon_k, & \sin\phi_k\neq 0,\\
+		w_k, & \sin\phi_k=0.
+	\end{cases}
+\end{align}
+The signed special-mode coefficient $w_k$ is essential.  Replacing it by
+$|w_k|$, or writing a mode contribution as $\epsilon_k n_k$ without specifying
+which occupation is meant, gives a different quantity.
+
 \subsection{Matrix Product Operator Simulation}
 \label{sec:MPOCooling}
 
