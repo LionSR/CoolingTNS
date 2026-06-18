@@ -183,7 +183,7 @@ Systematic runs for the paper:
 The current `N=64` MCWF/MPS Trotter diagnostics show substantial transient
 system-bath bond growth before the cooling trajectory approaches the ground
 state.  The repository-level summary is
-[`docs/largeN_effective_bond_dimensions.md`](largeN_effective_bond_dimensions.md).
+[`largeN_effective_bond_dimensions.md`](largeN_effective_bond_dimensions.md).
 In particular, four-cycle fixed-detuning runs with `R = 1,2,5,10` already show
 that `Dmax = 320` is not a converged cap, and some `Dmax = 640` schedules still
 saturate the transient system-bath bond dimension.
