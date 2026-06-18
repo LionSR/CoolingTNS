@@ -16,7 +16,11 @@ path, Trotter system-bath evolution, `N = 64`, `g = 0.3`, `tau = 0.2`,
 `cutoff = 1e-7`, one trajectory, and the fixed detuning interval
 `[0.5051167496264384, 3.0307004977586303]`.  The same detuning interval is used
 for every value of the number of frequencies `R`, so changes in the bond cap do
-not also change the physical protocol through a different gap estimate.
+not also change the physical protocol through a different gap estimate.  The
+interval is the DMRG gap estimate
+`Delta_min = 0.5051167496264384` together with
+`Delta_max = 6 Delta_min`, matching the driver's default `delta_max_factor`
+heuristic but holding the numerical interval fixed across the Dmax ladder.
 
 ## Definitions
 
@@ -112,9 +116,10 @@ converged large-N cooling trajectories.
 ## Physical interpretation
 
 The relative energies in the table are still of order one and lie far above
-the DMRG ground-state reference.  Increasing the number of detunings alone does
-not overcome the bond-dimension bottleneck in this protocol by the fourth
-cycle.  The present data therefore support the following limited conclusion:
+the DMRG ground-state reference `E0/N = -1.3246328892`.  Increasing the number
+of detunings alone does not overcome the bond-dimension bottleneck in this
+protocol by the fourth cycle.  The present data therefore support the following
+limited conclusion:
 
 ```text
 For N = 64, MCWF/MPS Trotter cooling with this fixed detuning interval already
