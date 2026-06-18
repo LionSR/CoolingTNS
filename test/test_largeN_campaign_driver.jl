@@ -153,6 +153,38 @@ end
     @test row["system_max_bond"] == 8
     @test row["evolved_max_bond"] == 13
 
+    initial_info = merge(info, (stage=:initial, step=1, delta=NaN, te=NaN))
+    initial_row = progress_row(
+        context,
+        initial_info,
+        ham_params,
+        -4.0,
+        (max=1, mean=1.0),
+        (max=NaN, mean=NaN),
+        0.1,
+    )
+    @test initial_row["cycle"] == 0
+    @test initial_row["energy_per_site"] == -1.0
+    @test isnan(initial_row["delta"])
+    @test isnan(initial_row["evolved_max_bond"])
+
+    evolved_info = merge(info, (stage=:evolved,))
+    evolved_row = progress_row(
+        context,
+        evolved_info,
+        ham_params,
+        -4.0,
+        (max=8, mean=6.5),
+        (max=13, mean=9.25),
+        2.5,
+    )
+    @test evolved_row["cycle"] == 1
+    @test isnan(evolved_row["energy_per_site"])
+    @test isnan(evolved_row["relative_energy"])
+    @test isnan(evolved_row["overlap"])
+    @test evolved_row["system_max_bond"] == 8
+    @test evolved_row["evolved_max_bond"] == 13
+
     path = tempname() * ".csv"
     try
         append_progress_csv_row(path, row)

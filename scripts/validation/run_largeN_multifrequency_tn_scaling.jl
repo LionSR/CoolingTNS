@@ -247,6 +247,7 @@ const PROGRESS_CSV_COLUMNS = (
     "elapsed_seconds",
 )
 
+"""Return a single RFC-4180-compatible CSV cell for scalar progress data."""
 function csv_cell(x)
     x === nothing && return ""
     s = x isa AbstractFloat && isnan(x) ? "NaN" : string(x)
@@ -256,6 +257,7 @@ function csv_cell(x)
     return s
 end
 
+"""Append one flushed progress row, creating the header when the file is new."""
 function append_progress_csv_row(path::AbstractString, row)
     mkpath(dirname(path))
     needs_header = !isfile(path) || filesize(path) == 0
@@ -267,6 +269,15 @@ function append_progress_csv_row(path::AbstractString, row)
     return nothing
 end
 
+"""
+    progress_row(context, info, ham_params, E0, sys_bs, evolved_bs, elapsed)
+
+Build one progress CSV row from a `run_cooling_multi_freq` observer event.
+Energy and overlap are defined only for `:initial` and `:updated`, where the
+system has been measured. For `:evolved`, these columns are `NaN`; the
+`system_*_bond` columns describe the pre-update system state, while
+`evolved_*_bond` describes the current transient system-bath state.
+"""
 function progress_row(context, info, ham_params, E0, sys_bs, evolved_bs, elapsed)
     has_energy = info.stage === :initial || info.stage === :updated
     E = has_energy ? info.measurements[RESULT_ENERGY][info.step] : NaN
@@ -284,7 +295,7 @@ function progress_row(context, info, ham_params, E0, sys_bs, evolved_bs, elapsed
         "tau" => context.tau,
         "stage" => string(info.stage),
         "step" => info.step,
-        "cycle" => max(info.step - 1, 0),
+        "cycle" => info.step - 1,
         "delta" => info.delta,
         "te" => info.te,
         "energy_per_site" => has_energy ? E / ham_params.N : NaN,
@@ -347,12 +358,13 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         sys_meanbond[step] = bs.mean
         final_dims[] = bs.dims
         if progress_csv !== nothing
+            evolved_bs = step == 1 ?
+                (max=NaN, mean=NaN) :
+                (max=evolved_maxbond[step], mean=evolved_meanbond[step])
             append_progress_csv_row(
                 progress_csv,
                 progress_row(
-                    progress_context, info, ham_params, E0, bs,
-                    (max=evolved_maxbond[step], mean=evolved_meanbond[step]),
-                    elapsed,
+                    progress_context, info, ham_params, E0, bs, evolved_bs, elapsed,
                 ),
             )
         end
