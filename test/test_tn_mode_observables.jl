@@ -111,6 +111,33 @@ end
         end
     end
 
+    @testset "Automatic mixed-parity MPS grid uses ED reference sector" begin
+        N = 4
+        ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
+        sites = siteinds("S=1/2", N)
+
+        ψ_tn = MPS(sites, "Up")
+        ψ_ed = CoolingTNS.product_state_ed(N, 0)
+
+        @test abs(measure_state_parity(ψ_tn, N)) < 1e-10
+        @test abs(measure_state_parity(ψ_ed, N)) < 1e-10
+
+        expected_gF = fermionic_bc(:periodic, 1)
+        expected_ks = allowed_k_indices(N, expected_gF)
+
+        ks_tn, hk_tn, εk_tn = @test_logs (:warn, r"no definite P_x parity") begin
+            measure_all_mode_energies(ψ_tn, ham_params)
+        end
+        ks_ed, hk_ed, εk_ed = @test_logs (:warn, r"no definite P_x parity") begin
+            measure_all_mode_energies(ψ_ed, ham_params)
+        end
+
+        @test ks_tn == expected_ks
+        @test ks_tn == ks_ed
+        @test εk_tn ≈ εk_ed atol=1e-12
+        @test hk_tn ≈ hk_ed atol=1e-10
+    end
+
     @testset "MPS h_k agrees with ED for the exact ground state" begin
         N = 4
         J, h = 1.0, 0.5
@@ -126,7 +153,7 @@ end
         @test abs(abs(px_ed) - 1) < 1e-10
         @test px_tn ≈ px_ed atol=1e-10
 
-        gF = fermionic_bc(:periodic, round(Int, px_ed))
+        gF = fermionic_bc(:periodic, CoolingTNS._reference_parity_sector(px_ed))
         ks_tn, hk_tn, εk_tn = measure_all_mode_energies(ψ_tn, ham_params; gF=gF)
         ks_ed, hk_ed, εk_ed = measure_all_mode_energies(ψ_ed, ham_params; gF=gF)
 

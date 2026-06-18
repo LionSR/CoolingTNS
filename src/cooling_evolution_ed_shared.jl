@@ -8,20 +8,6 @@ Shared functions for ED backend cooling evolution to follow DRY principles.
 # Shared ED Backend Functions
 # ============================================================================
 
-function _reference_parity_sector(px::Real; atol=0.1, default::Int=1)
-    @assert default == 1 || default == -1 "default must be +1 or -1"
-    abs(px - 1) <= atol && return 1
-    abs(px + 1) <= atol && return -1
-    return default
-end
-
-function _reference_fermionic_bc(spin_bc::Symbol, px::Real; atol=0.1, default_parity::Int=1)
-    return fermionic_bc(
-        spin_bc,
-        _reference_parity_sector(px; atol=atol, default=default_parity),
-    )
-end
-
 """
     get_bath_ground_state_ed(N_bath::Int, coupling::String) -> EDStateVector
 
@@ -160,16 +146,16 @@ function _momentum_measurement_gF!(measurements,
 
     N = ham_params.N
     px = measure_state_parity(state, N)
-    parity = round(Int, px)
+    parity = _reference_parity_sector(px)
 
-    if abs(px - parity) <= 0.1 && abs(parity) == 1
+    if abs(px - parity) <= 0.1
         gF = fermionic_bc(ham_params.bc, parity)
         measurements[RESULT_MOMENTUM_GF_SOURCE] = "state"
     else
         # A mixed-parity state has no unique fermionic boundary condition.
         # Use the deterministic reference grid shared with mode-resolved h_k
         # measurements rather than a backend-dependent ground-state estimate.
-        gF = _reference_fermionic_bc(ham_params.bc, px)
+        gF = fermionic_bc(ham_params.bc, parity)
         measurements[RESULT_MOMENTUM_GF_SOURCE] = "reference"
     end
 

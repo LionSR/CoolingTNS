@@ -28,8 +28,8 @@ include("noise.jl")
 
 # Include ED backend
 include("ed_backend.jl")
-include("ed_backend_complex_jw.jl")  # Complex JW (notes convention) — single source of truth
 include("mode_analysis.jl")          # Parameter mapping, dispersion, k-grid
+include("ed_backend_complex_jw.jl")  # Complex JW (notes convention) — single source of truth
 include("tn_mode_observables.jl")    # MPS mode observables using split-string correlators
 include("multi_frequency.jl")       # Multi-frequency (multi-Δ) cooling helpers
 

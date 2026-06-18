@@ -276,10 +276,10 @@ function _measure_all_mode_energies_tn(state::Union{MPS,MPO}, ham_params::Hamilt
 
     if isnothing(gF)
         px = measure_state_parity(state, N)
-        parity = round(Int, px)
+        parity = _reference_parity_sector(px)
         if abs(px - parity) > 0.1
-            @warn "State parity ⟨Px⟩ = $px is not close to ±1; " *
-                  "using rounded value $parity for BC determination"
+            @warn "measure_all_mode_energies: state has no definite P_x parity " *
+                  "(⟨P_x⟩ = $px); using the P_x = $parity reference grid"
         end
         gF = fermionic_bc(ham_params.bc, parity)
     end

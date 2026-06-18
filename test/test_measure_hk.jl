@@ -526,6 +526,31 @@ end
             ham_params,
         )
         @test mode_measurements[RESULT_MODE_GF] == gF
+
+        expected_gF = fermionic_bc(:periodic, 1)
+        expected_ks = allowed_k_indices(N, expected_gF)
+        expected_k_values = [2π * Float64(k) / N for k in expected_ks]
+
+        k_auto, nk_auto = @test_logs (:warn, r"no definite P_x parity") begin
+            measure_momentum_distribution_ed_clean(ρ_mix, ham_params)
+        end
+        k_ref, nk_ref = measure_momentum_distribution_ed_clean(
+            ρ_mix,
+            ham_params;
+            gF=expected_gF,
+        )
+        @test k_auto ≈ expected_k_values atol=1e-12
+        @test k_auto ≈ k_ref atol=1e-12
+        @test nk_auto ≈ nk_ref atol=1e-12
+
+        ks_auto, hk_auto, ε_auto = @test_logs (:warn, r"no definite P_x parity") begin
+            measure_all_mode_energies(ρ_mix, ham_params)
+        end
+        ks_ref, hk_ref, ε_ref = measure_all_mode_energies(ρ_mix, ham_params; gF=expected_gF)
+        @test ks_auto == expected_ks
+        @test ks_auto == ks_ref
+        @test hk_auto ≈ hk_ref atol=1e-12
+        @test ε_auto ≈ ε_ref atol=1e-12
     end
 
     @testset "Legacy ED n_k helper delegates to canonical JW measurement" begin

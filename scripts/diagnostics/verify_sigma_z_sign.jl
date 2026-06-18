@@ -32,7 +32,7 @@ function verify_sign(; N::Int=6, theta::Float64=0.4, verbose::Bool=true)
     E0, psi0, _ = CoolingTNS.ground_state_ed(H_sys)
 
     parity_value = CoolingTNS.measure_state_parity(psi0, N)
-    parity = round(Int, parity_value)
+    parity = CoolingTNS._reference_parity_sector(parity_value; atol=1e-8)
     if abs(parity_value - parity) > 1e-8
         error("Ground-state parity is not close to +/-1: parity = $parity_value")
     end

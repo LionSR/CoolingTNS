@@ -71,7 +71,8 @@ function run_diagnostic(; do_plot::Bool=false)
 
     # Ground state parity and modes
     px = CoolingTNS.measure_state_parity(problem.ϕ₀, N)
-    gF = CoolingTNS.fermionic_bc(BC, round(Int, px))
+    parity = CoolingTNS._reference_parity_sector(px)
+    gF = CoolingTNS.fermionic_bc(BC, parity)
     ks = CoolingTNS.allowed_k_indices(N, gF)
     println("Ground state parity ⟨Px⟩ = $(round(px, digits=6)), gF = $gF")
     println("Allowed k-indices: $ks")

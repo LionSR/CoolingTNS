@@ -515,6 +515,41 @@ function fermionic_bc(spin_bc::Symbol, parity::Int)
     return -gI * parity
 end
 
+"""
+    _reference_parity_sector(px; atol=0.1, default=1) -> Int
+
+Return the parity sector used when an automatic Fourier grid must be chosen
+from a measured value of ``⟨P_x⟩``.
+
+If ``⟨P_x⟩`` is within `atol` of ``+1`` or ``-1``, the corresponding sector is
+used.  Otherwise the state has no unique fermionic boundary condition; the
+function returns the deterministic reference sector `default`, which is the
+even sector by default.  This is a diagnostic convention, not a projection of
+the state onto that sector.
+"""
+function _reference_parity_sector(px::Real; atol=0.1, default::Int=1)
+    @assert default == 1 || default == -1 "default must be +1 or -1"
+    abs(px - 1) <= atol && return 1
+    abs(px + 1) <= atol && return -1
+    return default
+end
+
+"""
+    _reference_fermionic_bc(spin_bc, px; atol=0.1, default_parity=1) -> Int
+
+Return the fermionic boundary condition used by automatic Fourier diagnostics.
+Parity eigenstates use their physical sector.  States with no definite
+``P_x`` parity use the deterministic reference sector from
+[`_reference_parity_sector`](@ref), so ED, MPS, MPO, and cooling diagnostics
+share the same grid convention.
+"""
+function _reference_fermionic_bc(spin_bc::Symbol, px::Real; atol=0.1, default_parity::Int=1)
+    return fermionic_bc(
+        spin_bc,
+        _reference_parity_sector(px; atol=atol, default=default_parity),
+    )
+end
+
 # ============================================================================
 # Parity Operator (for the code's Hamiltonian)
 # ============================================================================
