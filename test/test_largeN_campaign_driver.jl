@@ -168,6 +168,23 @@ end
     @test isnan(initial_row["delta"])
     @test isnan(initial_row["evolved_max_bond"])
 
+    prepared_info = merge(info, (stage=:prepared,))
+    prepared_row = progress_row(
+        context,
+        prepared_info,
+        ham_params,
+        -4.0,
+        (max=8, mean=6.5),
+        (max=11, mean=7.25),
+        2.0,
+    )
+    @test prepared_row["cycle"] == 1
+    @test isnan(prepared_row["energy_per_site"])
+    @test isnan(prepared_row["relative_energy"])
+    @test isnan(prepared_row["overlap"])
+    @test prepared_row["system_max_bond"] == 8
+    @test prepared_row["evolved_max_bond"] == 11
+
     evolved_info = merge(info, (stage=:evolved,))
     evolved_row = progress_row(
         context,

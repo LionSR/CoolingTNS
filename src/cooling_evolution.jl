@@ -98,10 +98,11 @@ The returned results dictionary includes:
 - `delta_values`: the set of Δ values used in the protocol.
 
 If `step_observer` is supplied, it is called once after the initial measurement
-with `stage=:initial`, once after each system-bath evolution with
-`stage=:evolved`, and once after each updated-system measurement with
-`stage=:updated`. The callback receives a named tuple containing `stage`, `step`,
-`state`, `evolved_state`, `measurements`, `delta`, `te`, and `bath_info`. This is
+with `stage=:initial`, once after preparing the system-bath state with
+`stage=:prepared`, once after each system-bath evolution with `stage=:evolved`,
+and once after each updated-system measurement with `stage=:updated`. The
+callback receives a named tuple containing `stage`, `step`, `state`,
+`evolved_state`, `measurements`, `delta`, `te`, and `bath_info`. This is
 intended for diagnostics that need transient data, such as system-bath bond
 dimensions, without duplicating the cooling loop.
 """
@@ -152,6 +153,11 @@ function run_cooling_multi_freq(
 
         # Prepare system+bath state
         combined_state = prepare_combined_state(problem, state)
+        notify_step_observer(
+            step_observer,
+            (stage=:prepared, step=step, state=state, evolved_state=combined_state,
+             measurements=measurements, delta=delta_r, te=te_step, bath_info=nothing),
+        )
 
         # Evolve with the step-dependent coupling parameters
         evolved_state = if te_step <= 0
