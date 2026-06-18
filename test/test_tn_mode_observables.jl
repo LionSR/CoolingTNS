@@ -4,6 +4,14 @@ using ITensors
 using ITensorMPS
 using Random
 
+function _ed_state_vector_to_mps(ψ_ed::CoolingTNS.EDStateVector, sites)
+    N = length(sites)
+    @assert ψ_ed.n_qubits == N
+    ψ_tn = MPS(reshape(ψ_ed.data, ntuple(_ -> 2, N)), sites; cutoff=1e-14)
+    normalize!(ψ_tn)
+    return ψ_tn
+end
+
 @testset "TN Mode Observables" begin
     @testset "MPS h_k agrees with ED for X+ product state" begin
         N = 4
@@ -80,6 +88,33 @@ using Random
             @test εk_tn ≈ εk_ed atol=1e-12
             @test hk_tn ≈ hk_ed atol=1e-10
         end
+    end
+
+    @testset "MPS h_k agrees with ED for the exact ground state" begin
+        N = 4
+        J, h = 1.0, 0.5
+        ham_params = IsingParameters(N, J, h, :periodic)
+        sites = siteinds("S=1/2", N)
+
+        H_ed = CoolingTNS.construct_system_hamiltonian(ham_params, EDBackend(), N)
+        E0_ed, ψ_ed, _ = CoolingTNS.ground_state_ed(H_ed)
+        ψ_tn = _ed_state_vector_to_mps(ψ_ed, sites)
+
+        px_ed = measure_state_parity(ψ_ed, N)
+        px_tn = measure_state_parity(ψ_tn, N)
+        @test abs(abs(px_ed) - 1) < 1e-10
+        @test px_tn ≈ px_ed atol=1e-10
+
+        gF = fermionic_bc(:periodic, round(Int, px_ed))
+        ks_tn, hk_tn, εk_tn = measure_all_mode_energies(ψ_tn, ham_params; gF=gF)
+        ks_ed, hk_ed, εk_ed = measure_all_mode_energies(ψ_ed, ham_params; gF=gF)
+
+        @test ks_tn == ks_ed
+        @test εk_tn ≈ εk_ed atol=1e-12
+        @test hk_tn ≈ hk_ed atol=1e-10
+        @test hk_tn ≈ fill(-1.0, N) atol=1e-10
+        @test mode_occupation_from_hk(hk_tn) ≈ zeros(N) atol=1e-10
+        @test ising_energy_from_mode_hk(ks_tn, hk_tn, ham_params) ≈ E0_ed atol=1e-10
     end
 
     @testset "MPS h_k agrees with ED for an entangled state" begin
