@@ -439,6 +439,14 @@ This occupation should not be confused with the raw momentum occupation
 $\tilde n_k=\langle \ta_k^\dag\ta_k\rangle$; in the Bogoliubov vacuum,
 $\tilde n_k=\sin^2\varphi_k$ for generic modes, whereas
 $n_k^{\mathrm{Bog}}=0$ and $\langle h_k\rangle=-1$.
+The individual observables \(h_k\) and the signed coefficients
+\(\operatorname{coeff}_k\) in \cref{eq:code_energy_from_hk} are the defining
+convention for mode-resolved energy diagnostics. The ED and tensor-network
+implementations are tested against the same spin-state expectation values of
+these \(h_k\)'s, with the special-mode signs kept in
+\(\operatorname{coeff}_k\) rather than absorbed into an absolute excitation
+energy. The separate density-matrix cooling-channel convention is recorded in
+the tensor-network note; it does not change the Jordan--Wigner formulas above.
 
 \subsection{Going back to the spin operators}
 

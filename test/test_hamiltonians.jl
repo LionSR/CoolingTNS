@@ -4,38 +4,7 @@ using ITensors
 using ITensorMPS
 using LinearAlgebra
 
-function hamiltonian_test_mpo_to_matrix(H::MPO)
-    N_sites = length(H)
-    Tfull = H[1]
-    for i in 2:N_sites
-        Tfull *= H[i]
-    end
-
-    all_inds = inds(Tfull)
-    s_inds = Index[]
-    sp_inds = Index[]
-    for idx in all_inds
-        if hastags(idx, "Site") && plev(idx) == 0
-            push!(s_inds, idx)
-        elseif hastags(idx, "Site") && plev(idx) == 1
-            push!(sp_inds, idx)
-        end
-    end
-    sort!(s_inds, by=x -> parse(Int, match(r"n=(\d+)", string(tags(x))).captures[1]))
-    sort!(sp_inds, by=x -> parse(Int, match(r"n=(\d+)", string(tags(x))).captures[1]))
-
-    dim = 2^N_sites
-    mat = zeros(ComplexF64, dim, dim)
-    for i in 0:dim-1, j in 0:dim-1
-        vals = Dict{Index, Int}()
-        for k in 1:N_sites
-            vals[sp_inds[k]] = ((i >> (k-1)) & 1) + 1
-            vals[s_inds[k]] = ((j >> (k-1)) & 1) + 1
-        end
-        mat[i+1, j+1] = Tfull[vals...]
-    end
-    return mat
-end
+@isdefined(test_mpo_to_matrix) || include("test_helpers.jl")
 
 function product_labels_from_bits(N::Int, state::Int)
     return [((state >> (i - 1)) & 1) == 0 ? "Up" : "Dn" for i in 1:N]
@@ -286,7 +255,7 @@ end
                 ))
 
                 sites_matrix = siteinds("S=1/2", N_matrix)
-                H_tn_matrix = hamiltonian_test_mpo_to_matrix(
+                H_tn_matrix = test_mpo_to_matrix(
                     CoolingTNS.construct_system_hamiltonian(
                         ham_matrix, CoolingTNS.TNBackend(), sites_matrix
                     )
@@ -454,7 +423,7 @@ end
             H_tn = CoolingTNS.construct_system_bath_hamiltonian(
                 ham_params, CoolingTNS.TNBackend(), sites_xz, xz_coupling_params
             )
-            @test hamiltonian_test_mpo_to_matrix(H_tn) ≈ expected atol=1e-12
+            @test test_mpo_to_matrix(H_tn) ≈ expected atol=1e-12
         end
 
         @testset "ED and TN system-bath couplings agree" begin
@@ -476,7 +445,7 @@ end
                         H_ed = Matrix(CoolingTNS.construct_system_bath_hamiltonian(
                             ham_params, CoolingTNS.EDBackend(), 2small_N, test_coupling_params
                         ))
-                        H_tn = hamiltonian_test_mpo_to_matrix(
+                        H_tn = test_mpo_to_matrix(
                             CoolingTNS.construct_system_bath_hamiltonian(
                                 ham_params, CoolingTNS.TNBackend(), sites_small, test_coupling_params
                             )

@@ -14,45 +14,7 @@ using ITensors
 using ITensorMPS
 using LinearAlgebra
 
-# ============================================================================
-# Helper: Convert TN MPO to dense matrix for comparison with ED
-# ============================================================================
-
-"""Convert an ITensors MPO to a dense matrix for comparison with ED.
-Uses ITensors site index numbering (n=1,2,...) as bit positions."""
-function mpo_to_matrix(ρ::MPO)
-    N_sites = length(ρ)
-    Tfull = ρ[1]
-    for i in 2:N_sites
-        Tfull = Tfull * ρ[i]
-    end
-
-    # Get site indices sorted by site number
-    all_inds = inds(Tfull)
-    s_inds = Index[]
-    sp_inds = Index[]
-    for idx in all_inds
-        if hastags(idx, "Site") && plev(idx) == 0
-            push!(s_inds, idx)
-        elseif hastags(idx, "Site") && plev(idx) == 1
-            push!(sp_inds, idx)
-        end
-    end
-    sort!(s_inds, by=x -> parse(Int, match(r"n=(\d+)", string(tags(x))).captures[1]))
-    sort!(sp_inds, by=x -> parse(Int, match(r"n=(\d+)", string(tags(x))).captures[1]))
-
-    dim = 2^N_sites
-    mat = zeros(ComplexF64, dim, dim)
-    for i in 0:dim-1, j in 0:dim-1
-        vals = Dict{Index, Int}()
-        for k in 1:N_sites
-            vals[s_inds[k]] = ((i >> (k-1)) & 1) + 1
-            vals[sp_inds[k]] = ((j >> (k-1)) & 1) + 1
-        end
-        mat[i+1, j+1] = Tfull[vals...]
-    end
-    return mat
-end
+@isdefined(test_mpo_to_matrix) || include("test_helpers.jl")
 
 # ============================================================================
 # Test parameters (N=2 Ising for simplicity)
@@ -114,7 +76,7 @@ println("  |e₀_ED - e₀_TN| = $(abs(prob_ed.e₀ - prob_tn.e₀))")
 
     # TN initial state
     state_tn = CoolingTNS.setup_initial_state(prob_tn, sim_params_tn, "product", 0.0)
-    ρ_sys_tn_mat = mpo_to_matrix(state_tn.state)
+    ρ_sys_tn_mat = test_mpo_to_matrix(state_tn.state)
 
     diff_init = norm(ρ_sys_tn_mat - ρ_sys_ed.data)
     println("  ||ρ_sys_TN - ρ_sys_ED|| = $diff_init")
@@ -133,7 +95,7 @@ end
     state_tn = CoolingTNS.setup_initial_state(prob_tn, sim_params_tn, "product", 0.0)
     ρ_sb_tn = CoolingTNS.prepare_combined_state(prob_tn, state_tn)
 
-    ρ_sb_tn_mat = mpo_to_matrix(ρ_sb_tn)
+    ρ_sb_tn_mat = test_mpo_to_matrix(ρ_sb_tn)
 
     diff_combined = norm(ρ_sb_tn_mat - ρ_sb_ed.data)
     println("  ||ρ_sb_TN - ρ_sb_ED|| = $diff_combined")
@@ -156,7 +118,7 @@ end
     ρ_sb_tn = CoolingTNS.prepare_combined_state(prob_tn, state_tn)
     ρ_sb_tn_evolved = CoolingTNS.evolve_cooling_step(prob_tn, ρ_sb_tn, te, sim_params_tn, ham_params)
 
-    ρ_sb_tn_evolved_mat = mpo_to_matrix(ρ_sb_tn_evolved)
+    ρ_sb_tn_evolved_mat = test_mpo_to_matrix(ρ_sb_tn_evolved)
 
     diff_evolved = norm(ρ_sb_tn_evolved_mat - ρ_sb_ed_evolved.data)
     println("  ||ρ_evolved_TN - ρ_evolved_ED|| = $diff_evolved")

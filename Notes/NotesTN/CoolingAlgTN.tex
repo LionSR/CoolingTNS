@@ -334,6 +334,37 @@ the Trotter error but increases the number of gate applications.  After every
 gate application, singular values are truncated to control the MPO bond
 dimension.
 
+The mathematical density-matrix channel for one Trotter slice is
+\begin{equation}
+	\rho_{SB}\longmapsto U_{\delta t}\rho_{SB}U_{\delta t}^\dagger,
+	\qquad
+	U_{\delta t}=G_mG_{m-1}\cdots G_1,
+	\label{eq:trotter_density_slice}
+\end{equation}
+where the $G_j$ are the two- and three-site gates in the order displayed
+above.  Thus one noiseless cooling cycle is
+\begin{equation}
+	\mathcal C(\rho_S)=
+	\tr_B\!\left[
+	U_t\left(\rho_S\otimes\ket{\Omega_B}\bra{\Omega_B}\right)U_t^\dagger
+	\right],
+	\qquad U_t=(U_{\delta t})^M .
+	\label{eq:tn_density_cycle}
+\end{equation}
+Here \(\ket{\Omega_B}\) is the coupling-dependent ground state of the bath
+Hamiltonian, for example the negative-eigenvalue state of the selected bath
+Pauli operator.
+This is the same channel convention used by the exact-diagonalization
+implementation.  In the ITensor MPO implementation the call uses
+\texttt{apply\_dag=true} with the same wavefunction gates
+$G_j=e^{-ih_j\delta t}$ used by the MPS Trotter route.  In dense-matrix tests,
+the primed MPO site indices are interpreted as the row layer and the unprimed
+indices as the column layer.  With this convention the MPO evolution realizes
+the forward channel \eqref{eq:trotter_density_slice}.  The code tests this by
+comparing ED and TN for one complete density-matrix cooling cycle, including
+bath preparation and bath trace, and by checking the evolved MPO against the
+corresponding pure MPS Trotter evolution before bath measurement.
+
 
 After the time evolution (\ref{eq:rhot}), we perform the partial trace of the bath degrees of freedom. This can be done efficiently for matrix product operators (see Fig.~\ref{fig:MPO}(c)). Essentially, the order-four tensor of the site to be traced out is reduced to a matrix after applying the trace operation and can be merged with neighboring tensors through a contraction.
 
@@ -376,11 +407,11 @@ Each stochastic trajectory begins from the same initial normalized pure state $\
 	\item The state is renormalized, and we continue with step 1 until $k = N_\text{steps}$.
 \end{enumerate}
 
-For the time evolution of the MPS, we employ the time-dependent variational principle (TDVP) algorithm~\cite{Haegeman2011TimeDependent,Haegeman2016Unifying}. This algorithm projects the time evolution onto the manifold of matrix product states with a fixed bond dimension, avoiding the need for Trotterization and providing a more efficient approach for long-time simulations. The TDVP algorithm is also more extendible to long-range interacting systems compared to TEBD.
+The implementation contains two time-evolution routes for MPS trajectories. For \texttt{ContinuousEvolution}, the code uses the time-dependent variational principle (TDVP) algorithm~\cite{Haegeman2011TimeDependent,Haegeman2016Unifying}, which projects the Schr\"{o}dinger evolution onto the manifold of matrix product states. For \texttt{TrotterEvolution}, the code instead applies the same interleaved system-bath Trotter circuit as in the MPO calculation, followed by stochastic measurement of the bath sites. The present large-system checks use this Trotter trajectory route, so that the MPS and MPO methods are compared with the same discrete system-bath circuit. TDVP should therefore be regarded as a separate continuous-time evolution route, not as the evolution method used in the current fixed-detuning large-\(N\) bond-dimension diagnostics.
 
 To simulate the effects of noise using the MPS method, we employ a probabilistic approach. After each cooling step, we draw a random number $r$ uniformly from $[0,1]$ for each qubit. If $r < p_e$, we apply a randomly selected Pauli operator ($\sigma_x$, $\sigma_y$, or $\sigma_z$) to the corresponding qubit in the MPS. This procedure effectively simulates the action of the depolarizing noise channel described in Eq.~(\ref{eq:depolarizing}).
 
-In our case, since the ground state is the only fixed point of the dynamics, most of the trajectories are expected to converge to the ground state of $H_S$. Consequently, the expectation values, state overlaps, and other physical quantities are expected to converge rapidly as the number of trajectories is increased.
+When the engineered channel has the ground state of $H_S$ as an attractive fixed point, and when no symmetry sector or truncation effect obstructs relaxation, the trajectories are expected to approach low-energy states. This fixed-point property is a physical condition to be checked for the chosen coupling, detuning schedule, and numerical approximation; it should not be assumed from the tensor-network representation alone.
 
 We call $\ket{\Psi_S^{k,(i)}}$ the state of the $i$-th trajectory after $k$ cooling steps. After having collected a set of $N_\text{QT}$ samples $\{ \ket{\Psi_S^{k,(i)}} \}$, we can estimate several physical quantities.
 
@@ -400,7 +431,7 @@ The state fidelity between a given state $\ket{\Phi}$ and $\rho_S^k$ can be comp
 We use the state fidelity with respect to the low excited states of $H_S$ to quantify the efficiency of cooling.
 
 
-Due to the typicality of the trajectory and the fact that we target only the steady state, we use a single trajectory ($N_\text{QT}=1$) and perform the average over the last 200 steps to estimate the steady-state properties.
+A single trajectory ($N_\text{QT}=1$), together with a time average over late cooling steps, is useful as a diagnostic of a proposed protocol. It is not by itself a proof of convergence of the density-matrix channel. Quantitative steady-state estimates should compare independent trajectories, or otherwise justify the replacement of the ensemble average by a time average.
 
 
 \paragraph{Purity}
@@ -409,7 +440,17 @@ The purity of the density matrix $\rho_S^k$ is not the average of the trajectory
 	\tr[(\rho_S^k)^2] \approx \frac{1}{N_\text{QT}^2} \sum_{i,i'=1}^{N_\text{QT}} \left|\braket{\Psi_S^{k,(i)}|\Psi_S^{k,(i')}}\right|^2.
 \end{equation}
 
-The matrix product state simulations were performed using the ITensor.jl~\cite{Fishman2022ITensor} library. Since an MPS quantum trajectory is a pure state simulation, its initial condition is a specified pure product state rather than the maximally mixed density matrix used in the MPO simulations. In the current simulation scripts, \texttt{init\_type="product"} denotes a uniform computational-basis product state, while \texttt{init\_type="theta"} denotes the product-state family in \eqref{eq:code-theta-map}. The identity state is therefore reserved for density-matrix simulations unless an explicit pure-state ensemble or purification is introduced. The bond dimension is truncated to a maximum value of $D \leq 40$ with a cutoff of $10^{-5}$, and the time step is set to $\delta t = 0.1$. The Hamiltonian parameters are the same as in the MPO simulations. The coupling strength between the system and the bath is set to $g=0.3$, and the total evolution time is $t_e=2.0$. The number of cooling steps is varied from 100 to 500.
+The matrix product state simulations were performed using the ITensor.jl~\cite{Fishman2022ITensor} library. Since an MPS quantum trajectory is a pure state simulation, its initial condition is a specified pure product state rather than the maximally mixed density matrix used in the MPO simulations. In the current simulation scripts, \texttt{init\_type="product"} denotes a uniform computational-basis product state, while \texttt{init\_type="theta"} denotes the product-state family in \eqref{eq:code-theta-map}. The identity state is therefore reserved for density-matrix simulations unless an explicit pure-state ensemble or purification is introduced.
+
+The present large-\(N\) fixed-detuning checks should be read as bond-dimension diagnostics, not as a final demonstration of ground-state preparation. For \(N=64\) and \(R=1,2,5,10\) frequency windows, the strongest four-cycle runs in the current diagnostics give effective system-bond dimensions
+\[
+	D_{\mathrm{sys}}^{\mathrm{eff}}=309,637,399,489
+\]
+and effective system-bath bond dimensions
+\[
+	D_{\mathrm{sb}}^{\mathrm{eff}}=394,862,518,737,
+\]
+respectively. The corresponding final energy densities remain above the DMRG ground-state value \(E_0/N=-1.3246328892\). These data show that the current schedules generate substantial entanglement and require larger bond dimensions; they do not yet establish scalable cooling to the ground state. Longer schedules and convergence in bond dimension, Trotter step, trajectory sampling, and detuning choice remain necessary checks.
 
 \section{Bayesian Optimization for Hyperparameter Tuning}
 Optimizing the performance of the cooling algorithm requires finding the optimal values for hyperparameters such as the coupling strength $g$ and the evolution time $t_e$. However, the relationship between these hyperparameters and the cooling efficiency is complex and evaluating the cooling efficiency for a given set of hyperparameters is computationally expensive. We employ Bayesian optimization, a framework for global optimization of expensive black-box functions~\cite{Frazier2018Tutorial}, to address this challenge.
@@ -421,6 +462,14 @@ At each iteration, the hyperparameter configuration that maximizes the acquisiti
 We use the BOHB (Bayesian Optimization and Hyperband) algorithm~\cite{Falkner2018BOHB}, which combines Bayesian optimization with Hyperband~\cite{Li2017Hyperband}, a bandit-based strategy for hyperparameter optimization. The BOHB algorithm is implemented using the Hyperopt.jl library~\cite{Hyperopt.jl}. We define the objective function as the average energy density of the last $k=100$ steps of the MPS quantum trajectory simulation. The search space for the coupling strength $g$ is set to the range $[0.1, 0.5]$, and the search space for the evolution time $t_e$ is set to the range $[1.0, 3.0]$. We run the optimization for 20 iterations, with each cooling simulation running for $200$ steps to evaluate the objective function. The best hyperparameter configuration found by the Bayesian optimization procedure is then used to run the final cooling simulations with $800$ steps and evaluate the optimized algorithm's performance. The Bayesian optimization is performed using the Hyperopt.jl library~\cite{Hyperopt.jl} for the MPS trajectory simulation.
 
 \section{Numerical Results}
+
+The figures and numerical statements in this section are legacy exploratory
+outputs and should be regenerated with the verified ED/TN density-channel
+convention before being used as evidence for scalable ground-state cooling.
+The currently verified content is the channel convention in
+\eqref{eq:trotter_density_slice}--\eqref{eq:tn_density_cycle}, the agreement of
+one complete ED and TN density-matrix cooling cycle in the regression tests,
+and the \(N=64\) fixed-detuning bond-dimension diagnostics described above.
 
 \subsection{Model}
 We test the performance of our algorithm on a one-dimensional quantum Ising model, with the Hamiltonian given by (open boundary condition)
