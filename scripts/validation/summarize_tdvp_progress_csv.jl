@@ -13,6 +13,8 @@ Example:
         /tmp/coolingtns_tdvp_progress/progress.csv
 """
 
+module TDVPProgressCSVSummary
+
 using Printf
 
 include(joinpath(@__DIR__, "largeN_scaling_helpers.jl"))
@@ -330,6 +332,8 @@ function summarize_tdvp_progress_csv_main(args=ARGS)
     return 0
 end
 
+end # module TDVPProgressCSVSummary
+
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(summarize_tdvp_progress_csv_main())
+    exit(TDVPProgressCSVSummary.summarize_tdvp_progress_csv_main())
 end

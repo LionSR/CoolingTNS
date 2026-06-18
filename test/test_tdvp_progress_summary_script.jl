@@ -71,7 +71,9 @@ function tdvp_progress_line(; timestamp="2026-06-19T00:00:00",
 end
 
 @testset "TDVP progress CSV summary script" begin
-    @test parse_csv_line("\"contains,comma\",\"escaped \"\"quote\"\"\",plain") ==
+    @test TDVPProgressCSVSummary.parse_csv_line(
+        "\"contains,comma\",\"escaped \"\"quote\"\"\",plain"
+    ) ==
         ["contains,comma", "escaped \"quote\"", "plain"]
 
     path = tempname() * ".csv"
@@ -157,7 +159,7 @@ end
             ))
         end
 
-        rows = summarize_progress_file(path)
+        rows = TDVPProgressCSVSummary.summarize_progress_file(path)
         @test length(rows) == 2
         row = only(filter(row -> row.method == "mcwf", rows))
         @test row.N == 4
@@ -196,7 +198,7 @@ end
             close(io)
             open(output_path, "w") do out
                 redirect_stdout(out) do
-                    print_markdown(rows)
+                    TDVPProgressCSVSummary.print_markdown(rows)
                 end
             end
             read(output_path, String)
