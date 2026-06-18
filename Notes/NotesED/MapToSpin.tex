@@ -435,10 +435,23 @@ The Bogoliubov quasiparticle occupation reported in the cooling diagnostics is t
     = \frac{1+\langle h_k\rangle}{2}.
     \label{eq:bog_occupation_from_hk}
 \end{align}
-This occupation should not be confused with the raw momentum occupation
-$\tilde n_k=\langle \ta_k^\dag\ta_k\rangle$; in the Bogoliubov vacuum,
-$\tilde n_k=\sin^2\varphi_k$ for generic modes, whereas
-$n_k^{\mathrm{Bog}}=0$ and $\langle h_k\rangle=-1$.
+This occupation should not be confused with the raw Fourier occupation
+\begin{align}
+    \tilde n_k
+    \equiv \langle \ta_k^\dag\ta_k\rangle
+    = \frac{1}{N}\sum_{m,n=1}^{N}e^{i(m-n)\phi_k}
+      \langle a_m^\dag a_n\rangle .
+    \label{eq:raw_fourier_occupation}
+\end{align}
+With the relabeled Fourier sign used in the code one instead writes
+\(\tilde n_k^{\mathrm{code}}=\tilde n_{-k}\), equivalently replacing
+\(e^{i(m-n)\phi_k}\) in \cref{eq:raw_fourier_occupation} by
+\(e^{i(n-m)\phi_k}\).  This is only a relabeling of the momentum grid, but it
+must not be hidden in the notation.  In the Bogoliubov vacuum,
+\(\tilde n_k=\sin^2\varphi_k\) for generic modes, whereas
+\(n_k^{\mathrm{Bog}}=0\) and \(\langle h_k\rangle=-1\).
+The energy reconstruction uses \(h_k\) and the signed coefficient
+\(\operatorname{coeff}_k\), not the expression \(\epsilon_k\tilde n_k\).
 The individual observables \(h_k\) and the signed coefficients
 \(\operatorname{coeff}_k\) in \cref{eq:code_energy_from_hk} are the defining
 convention for mode-resolved energy diagnostics. The ED and tensor-network

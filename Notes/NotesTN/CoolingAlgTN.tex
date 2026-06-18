@@ -407,7 +407,30 @@ Each stochastic trajectory begins from the same initial normalized pure state $\
 	\item The state is renormalized, and we continue with step 1 until $k = N_\text{steps}$.
 \end{enumerate}
 
-The implementation contains two time-evolution routes for MPS trajectories. For \texttt{ContinuousEvolution}, the code uses the time-dependent variational principle (TDVP) algorithm~\cite{Haegeman2011TimeDependent,Haegeman2016Unifying}, which projects the Schr\"{o}dinger evolution onto the manifold of matrix product states. For \texttt{TrotterEvolution}, the code instead applies the same interleaved system-bath Trotter circuit as in the MPO calculation, followed by stochastic measurement of the bath sites. The present large-system checks use this Trotter trajectory route, so that the MPS and MPO methods are compared with the same discrete system-bath circuit. TDVP should therefore be regarded as a separate continuous-time evolution route, not as the evolution method used in the current fixed-detuning large-\(N\) bond-dimension diagnostics.
+The implementation contains two time-evolution routes for MPS trajectories.
+For \texttt{ContinuousEvolution}, the code uses the time-dependent variational
+principle (TDVP) algorithm~\cite{Haegeman2011TimeDependent,Haegeman2016Unifying}.
+For a fixed bath detuning \(\Delta\), it constructs the full interleaved
+system-bath MPO \(H_{SB}(\Delta)\) and approximates
+\begin{equation}
+	\ket{\Psi_{SB}^{k+1}}
+	=
+	e^{-iH_{SB}(\Delta)t_e}
+	\bigl(\ket{\Psi_S^k}\otimes\ket{\Omega_B(\Delta)}\bigr)
+\end{equation}
+by two-site TDVP on the MPS manifold.  In the present ITensor convention the
+time parameter supplied to TDVP is \(-i t_e\), and the interval is partitioned
+into
+\begin{equation}
+	M_{\mathrm{TDVP}}=\left\lceil \frac{t_e}{\tau}\right\rceil
+\end{equation}
+substeps.  The parameter \(\tau\) is therefore a target substep size, not a
+Trotter gate time.  For \texttt{TrotterEvolution}, the code instead applies the
+same interleaved system-bath Trotter circuit as in the MPO calculation,
+followed by stochastic measurement of the bath sites.  These two MPS routes
+must be reported separately: the Trotter route is the discrete circuit used for
+direct MPS/MPO channel comparisons, whereas the TDVP route is a continuous-time
+variational approximation to the same Hamiltonian evolution.
 
 To simulate the effects of noise using the MPS method, we employ a probabilistic approach. After each cooling step, we draw a random number $r$ uniformly from $[0,1]$ for each qubit. If $r < p_e$, we apply a randomly selected Pauli operator ($\sigma_x$, $\sigma_y$, or $\sigma_z$) to the corresponding qubit in the MPS. This procedure effectively simulates the action of the depolarizing noise channel described in Eq.~(\ref{eq:depolarizing}).
 
@@ -442,7 +465,11 @@ The purity of the density matrix $\rho_S^k$ is not the average of the trajectory
 
 The matrix product state simulations were performed using the ITensor.jl~\cite{Fishman2022ITensor} library. Since an MPS quantum trajectory is a pure state simulation, its initial condition is a specified pure product state rather than the maximally mixed density matrix used in the MPO simulations. In the current simulation scripts, \texttt{init\_type="product"} denotes a uniform computational-basis product state, while \texttt{init\_type="theta"} denotes the product-state family in \eqref{eq:code-theta-map}. The identity state is therefore reserved for density-matrix simulations unless an explicit pure-state ensemble or purification is introduced.
 
-The present large-\(N\) fixed-detuning checks should be read as bond-dimension diagnostics, not as a final demonstration of ground-state preparation. For \(N=64\) and \(R=1,2,5,10\) frequency windows, the strongest four-cycle runs in the current diagnostics give effective system-bond dimensions
+The present large-\(N\) fixed-detuning checks should be read as bond-dimension
+diagnostics, not as a final demonstration of ground-state preparation.  For
+\(N=64\), \(R=1,2,5,10\), and the MPS \texttt{TrotterEvolution} route, the
+strongest four-cycle runs in the current diagnostics give effective system-bond
+dimensions
 \[
 	D_{\mathrm{sys}}^{\mathrm{eff}}=309,637,399,489
 \]
@@ -450,7 +477,34 @@ and effective system-bath bond dimensions
 \[
 	D_{\mathrm{sb}}^{\mathrm{eff}}=394,862,518,737,
 \]
-respectively. The corresponding final energy densities remain above the DMRG ground-state value \(E_0/N=-1.3246328892\). These data show that the current schedules generate substantial entanglement and require larger bond dimensions; they do not yet establish scalable cooling to the ground state. Longer schedules and convergence in bond dimension, Trotter step, trajectory sampling, and detuning choice remain necessary checks.
+respectively.  These are resolved values: the \(R=2\) and \(R=10\) lower bounds
+from \(D_{\max}=640\) were extended to \(D_{\max}=960\).  The corresponding
+final energy densities remain above the DMRG ground-state value
+\(E_0/N=-1.3246328892\).  These data show that the current short Trotter
+schedules generate substantial entanglement and require large bond dimensions;
+they do not establish scalable cooling to the ground state.
+
+The first \(N=64\) fixed-detuning checks of the MPS
+\texttt{ContinuousEvolution} route are only a runtime and early-bond
+calibration.  Two cooling cycles are not physically meaningful for deciding
+whether the cooling channel approaches its fixed point.  At two cycles and
+\(D_{\max}=96\), none of \(R=1,2,5,10\) reaches the bond cap.  The effective
+dimensions are
+\[
+	D_{\mathrm{sys}}^{\mathrm{eff}}=36,39,36,35,\qquad
+	D_{\mathrm{sb}}^{\mathrm{eff}}=50,54,51,51,
+\]
+respectively.  The corresponding final energy densities are
+\[
+	1.45494183,\quad 1.00710734,\quad 1.50779337,\quad 1.38290684.
+\]
+Thus TDVP is accessible in the campaign driver, but the two-cycle data should
+not be read as cooling evidence.  They only show that the first transient
+system-bath MPS can be represented at \(D_{\max}=96\) for this protocol.  The
+energies are still positive and far above the ground-state energy.  A test of
+the expected low-entanglement fixed point requires longer traced runs,
+convergence in bond dimension and trajectory sampling, and a checked detuning
+schedule; it cannot be inferred from the two-cycle calibration.
 
 \section{Bayesian Optimization for Hyperparameter Tuning}
 Optimizing the performance of the cooling algorithm requires finding the optimal values for hyperparameters such as the coupling strength $g$ and the evolution time $t_e$. However, the relationship between these hyperparameters and the cooling efficiency is complex and evaluating the cooling efficiency for a given set of hyperparameters is computationally expensive. We employ Bayesian optimization, a framework for global optimization of expensive black-box functions~\cite{Frazier2018Tutorial}, to address this challenge.

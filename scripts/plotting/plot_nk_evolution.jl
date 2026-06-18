@@ -1,5 +1,5 @@
 """
-Plot evolution of momentum distribution n_k during cooling.
+Plot evolution of raw Fourier occupations during cooling.
 
 Standalone plotting script. Usage:
     julia --project=. scripts/plotting/plot_nk_evolution.jl <filename.h5>
@@ -15,8 +15,10 @@ const _COOLINGTNS_PLOT_NK_EVOLUTION_INCLUDED = true
 """
     plot_nk_evolution(filename; steps_to_plot=nothing, save_fig=true)
 
-Plot the evolution of momentum distribution n_k during cooling process.
-Shows how n_k approaches the ground state distribution.
+Plot the evolution of the raw Fourier occupation
+``\\tilde n_k = \\langle \\tilde a_k^\\dagger \\tilde a_k\\rangle`` during the
+cooling process. This is not the Bogoliubov quasiparticle occupation
+``n_k^{\\mathrm{Bog}}``; use `plot_mode_cooling.jl` for the latter.
 """
 function plot_nk_evolution(filename; steps_to_plot=nothing, save_fig=true)
     plt = get_pyplot()

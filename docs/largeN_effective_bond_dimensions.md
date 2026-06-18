@@ -12,8 +12,7 @@ H_S = J \sum_i Z_i Z_{i+1} + h_x \sum_i X_i + h_z \sum_i Z_i,
 
 with open boundary conditions, `J = 1`, `h_x = -1.05`, and `h_z = 0.5`.  The
 reported large-system numbers use the tensor-network Monte Carlo wavefunction
-path, Trotter system-bath evolution, `N = 64`, `g = 0.3`, `tau = 0.2`,
-`cutoff = 1e-7`, one trajectory, and the fixed detuning interval
+path, `N = 64`, `g = 0.3`, `tau = 0.2`, one trajectory, and the fixed detuning interval
 `[0.5051167496264384, 3.0307004977586303]`.  The same detuning interval is used
 for every value of the number of frequencies `R`, so changes in the bond cap do
 not also change the physical protocol through a different gap estimate.  The
@@ -23,9 +22,10 @@ interval is the DMRG gap estimate
 heuristic but holding the numerical interval fixed across the Dmax ladder.
 
 The validation driver records the evolution branch in each HDF5 file.  The
-tables below are Trotter diagnostics.  Future MCWF+TDVP runs should be launched
-with `--methods mcwf --evolution-method continuous` and interpreted separately
-from these Trotter data.
+four-cycle table below is a Trotter diagnostic (`--evolution-method trotter`,
+`cutoff = 1e-7`).  The later two-cycle table is an MCWF+TDVP calibration
+(`--evolution-method continuous`, `cutoff = 1e-6`).  These two protocols should
+not be conflated.
 
 ## Definitions
 
@@ -37,7 +37,7 @@ The nominal parameter `Dmax` is not always the actual Trotter truncation cap.
 The method-specific cap is
 
 ```math
-D_{\rm cap} = \mathrm{tn\_trotter\_maxdim}(\mathrm{method}, D_{\max}).
+D_{\rm cap} = \mathrm{tn\_method\_maxdim}(\mathrm{method}, D_{\max}).
 ```
 
 For MCWF/MPS, `Dcap = Dmax`.  For MPO density-matrix Trotter evolution,
@@ -119,6 +119,23 @@ julia --project=. scripts/validation/summarize_largeN_bond_dimensions.jl \
   /tmp/coolingtns_largeN_dmax960_R2_R10_steps4_20260618/largeN_multifrequency_tn_N64_R2-10_mcwf_steps4_Dmax960_tau0.2_seed20260617.h5
 ```
 
+The two-cycle TDVP calibration was generated with
+
+```bash
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 1,5,10 --methods mcwf --evolution-method continuous \
+  --steps 2 --Dmax 96 --cutoff 1e-6 --tau 0.2 --M-mcwf 1 \
+  --delta-min 0.5051167496264384 --delta-max 3.0307004977586303 \
+  --outdir /tmp/coolingtns_tdvp_N64_R1-5-10_D96_steps2_20260618 \
+  --progress-csv /tmp/coolingtns_tdvp_N64_R1-5-10_D96_steps2_20260618/progress.csv \
+  --verbose
+```
+
+and similarly for `R = 2` in
+`/tmp/coolingtns_tdvp_N64_R2_D96_steps2_20260618`.  The progress CSV records
+the `initial`, `evolved`, and `updated` observer stages, so an interrupted long
+TDVP run still leaves a per-cycle energy and bond-dimension trace.
+
 ## Current N=64 evidence
 
 The strongest current four-cycle estimate is
@@ -181,3 +198,26 @@ A credible long-time `N = 64` to `N = 100` production calculation should use a
 controlled Dmax ladder, record truncation and saturation diagnostics, and either
 increase the effective transient bond cap or change the cooling protocol to
 control the system-bath entanglement growth.
+
+## Two-Cycle MCWF+TDVP Runtime Calibration
+
+The first completed fixed-detuning TDVP calibration checks only two cooling
+cycles.  This is not physically meaningful evidence for cooling or for a
+fixed point.  It is useful only for verifying that the continuous-evolution
+route is accessible and for estimating the first transient bond dimensions
+before attempting long traced runs.
+
+| R | Dcap | Dsys_eff | Dsb_eff | bond_status | final E/N | relE | peak evolved mean | elapsed |
+|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| 1 | 96 | 36 | 50 | no_cap_hit | 1.45494183 | 2.09837 | 39.67 | 168.6 s |
+| 2 | 96 | 39 | 54 | no_cap_hit | 1.00710734 | 1.76029 | 41.88 | 227.0 s |
+| 5 | 96 | 36 | 51 | no_cap_hit | 1.50779337 | 2.13827 | 39.69 | 287.3 s |
+| 10 | 96 | 35 | 51 | no_cap_hit | 1.38290684 | 2.04399 | 39.76 | 376.4 s |
+
+Thus, for the first two TDVP cycles only, `Dmax = 96` is sufficient for all
+four frequency counts tested here: the transient system-bath dimensions are
+about `50--54`, and the retained system-state dimensions are about `35--39`.
+The energies, however, remain positive and far above the DMRG reference
+`E0/N = -1.3246328892`.  The next meaningful TDVP test is therefore a longer
+run with the progress CSV enabled, so that one can examine whether the expected
+low-entanglement fixed point appears after the high-energy transient regime.
