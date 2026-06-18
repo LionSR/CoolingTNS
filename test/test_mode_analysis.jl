@@ -221,6 +221,25 @@ end
         @test energy_scale(3.0, 4.0) ≈ 10.0
     end
 
+    @testset "Code-facing Bogoliubov text matches MapToSpin phase convention" begin
+        file_contains(path, needle) = open(path) do io
+            any(line -> occursin(needle, line), eachline(io))
+        end
+        file_lacks(path, needle) = !file_contains(path, needle)
+
+        note_path = joinpath(@__DIR__, "..", "Notes", "NotesED", "MapToSpin.tex")
+        mode_path = joinpath(@__DIR__, "..", "src", "mode_analysis.jl")
+        ed_path = joinpath(@__DIR__, "..", "src", "ed_backend_complex_jw.jl")
+
+        @test file_contains(note_path, raw"i\sin(\varphi_k) \ta_{-k}^\dag")
+        @test file_lacks(note_path, raw"\cos(\varphi_k) \ta_k + \sin(\varphi_k) \ta_{-k}^\dag")
+        @test file_contains(mode_path, "â_k = cos(φ_k) ã_k + i sin(φ_k) ã†_{-k}")
+        @test file_lacks(mode_path, "â_k = cos(φ_k) ã_k + sin(φ_k) ã†_{-k}")
+        @test file_contains(ed_path, "ã_k = (1/√N) Σ_j exp(-i n φ_k) a_j.")
+        @test file_contains(ed_path, "exp(+i (m-n) φ_k)")
+        @test file_lacks(ed_path, "where a_k = (1/√N) Σ_j exp(+2πikj/N) a_j")
+    end
+
     @testset "Open-boundary BdG matrices use canonical JW convention" begin
         N = 4
         θ = 0.37

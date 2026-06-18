@@ -334,12 +334,22 @@ are the BdG coefficients.
 
 The Bogoliubov transformation is:
 ```
-â_k = cos(φ_k) ã_k + sin(φ_k) ã†_{-k}
+â_k = cos(φ_k) ã_k + i sin(φ_k) ã†_{-k}
 ```
 
 For the ground state: ``n_k = ⟨ã†_k ã_k⟩ = sin²(φ_k)``.
 
 For the special modes ``k = 0, N/2`` where ``r_k = 0``, returns ``0``.
+
+The sign of ``r_k`` is already adjusted to the ``ã_k ∝ exp(+i n φ_k)``
+convention used by ED `_build_fourier_ops` when constructing
+`_build_hk_operator`; TN mode observables use the same resulting ``h_k``
+formula.  This mode-observable convention is distinct from the raw ED
+momentum-distribution loop, which reports notes-sign Fourier occupations.
+
+See also: `_build_hk_operator` in `ed_backend_complex_jw.jl` and `measure_hk`
+in `tn_mode_observables.jl`, which both use this angle in the same ``h_k``
+formula.
 """
 function bogoliubov_angle(k, θ, N)
     wk = w_k_coefficient(k, θ, N)

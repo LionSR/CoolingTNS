@@ -129,8 +129,9 @@ function _measure_momentum_distribution_ed_clean(state, ham_params; gF=nothing)
         nk = 0.0 + 0.0im
         kf = Float64(k)
 
-        # ⟨a†_k a_k⟩ where a_k = (1/√N) Σ_j exp(+2πikj/N) a_j
-        # (code's Fourier convention: exp(+inφ_k))
+        # ⟨ã†_k ã_k⟩ with the notes Fourier convention
+        # ã_k = (1/√N) Σ_j exp(-i n φ_k) a_j.
+        # Therefore ã†_k ã_k carries exp(+i (m-n) φ_k).
         for m in 1:N, n in 1:N
             phase = exp(2π * im * kf * (m - n) / N) / N
             nk += phase * _expect_amdag_an(notes_state, a_dag_ops[m], a_ops[n])
