@@ -1,7 +1,6 @@
 if !isdefined(@__MODULE__, :_COOLINGTNS_LARGEN_SCALING_HELPERS_INCLUDED)
 const _COOLINGTNS_LARGEN_SCALING_HELPERS_INCLUDED = true
 
-using CoolingTNS: uniform_delta_grid
 using Statistics
 
 """
@@ -80,7 +79,7 @@ single-frequency convention used by the validation driver.
 function largeN_delta_values(protocol, R::Integer)
     R >= 1 || throw(ArgumentError("R must be positive, got $R"))
     R == 1 && return [protocol.delta_min]
-    return uniform_delta_grid(protocol.delta_min, protocol.delta_max, R)
+    return collect(range(protocol.delta_min, protocol.delta_max; length=Int(R)))
 end
 
 """
