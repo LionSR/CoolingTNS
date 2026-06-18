@@ -38,6 +38,14 @@ MCWF+TDVP large-N diagnostic:
         --steps 40 --Dmax 80 \
         --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
 
+Long TDVP runs can also write a per-observer-event CSV trace, so partial
+energy and bond-dimension diagnostics survive if an expensive trajectory is
+interrupted:
+
+    julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+        --Ns 64 --R-values 2 --methods mcwf --evolution-method continuous \
+        --steps 40 --Dmax 80 --progress-csv /tmp/tdvp_progress.csv
+
 Fast path check:
 
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl --quick
@@ -88,6 +96,7 @@ function parse_args(args)
         "seed" => 20260617,
         "outdir" => get(ENV, "COOLINGTNS_DATADIR", DEFAULT_OUTDIR),
         "output" => nothing,
+        "progress_csv" => nothing,
         "verbose" => false,
     )
 
@@ -117,7 +126,8 @@ function parse_args(args)
                      "--delta-min", "--delta-max")
             key = replace(a[3:end], "-" => "_")
             cfg[key] = parse(Float64, args[i + 1]); i += 2
-        elseif a in ("--coupling", "--schedule", "--outdir", "--output", "--evolution-method")
+        elseif a in ("--coupling", "--schedule", "--outdir", "--output",
+                     "--evolution-method", "--progress-csv")
             cfg[replace(a[3:end], "-" => "_")] = args[i + 1]; i += 2
         elseif a == "--verbose"
             cfg["verbose"] = true; i += 1
@@ -211,7 +221,96 @@ function bond_summary(state)
     return (dims=dims, max=maximum(dims), mean=mean(dims))
 end
 
-function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed)
+const PROGRESS_CSV_COLUMNS = (
+    "timestamp",
+    "N",
+    "method",
+    "evolution",
+    "R",
+    "trajectory",
+    "seed",
+    "Dmax",
+    "cutoff",
+    "tau",
+    "stage",
+    "step",
+    "cycle",
+    "delta",
+    "te",
+    "energy_per_site",
+    "relative_energy",
+    "overlap",
+    "system_max_bond",
+    "system_mean_bond",
+    "evolved_max_bond",
+    "evolved_mean_bond",
+    "elapsed_seconds",
+)
+
+"""Return a single RFC-4180-compatible CSV cell for scalar progress data."""
+function csv_cell(x)
+    x === nothing && return ""
+    s = x isa AbstractFloat && isnan(x) ? "NaN" : string(x)
+    if occursin(',', s) || occursin('"', s) || occursin('\n', s) || occursin('\r', s)
+        return "\"" * replace(s, "\"" => "\"\"") * "\""
+    end
+    return s
+end
+
+"""Append one flushed progress row, creating the header when the file is new."""
+function append_progress_csv_row(path::AbstractString, row)
+    mkpath(dirname(path))
+    needs_header = !isfile(path) || filesize(path) == 0
+    open(path, "a") do io
+        needs_header && println(io, join(PROGRESS_CSV_COLUMNS, ","))
+        println(io, join((csv_cell(get(row, col, "")) for col in PROGRESS_CSV_COLUMNS), ","))
+        flush(io)
+    end
+    return nothing
+end
+
+"""
+    progress_row(context, info, ham_params, E0, sys_bs, evolved_bs, elapsed)
+
+Build one progress CSV row from a `run_cooling_multi_freq` observer event.
+Energy and overlap are defined only for `:initial` and `:updated`, where the
+system has been measured. For `:evolved`, these columns are `NaN`; the
+`system_*_bond` columns describe the pre-update system state, while
+`evolved_*_bond` describes the current transient system-bath state.
+"""
+function progress_row(context, info, ham_params, E0, sys_bs, evolved_bs, elapsed)
+    has_energy = info.stage === :initial || info.stage === :updated
+    E = has_energy ? info.measurements[RESULT_ENERGY][info.step] : NaN
+    overlap = has_energy ? info.measurements[RESULT_GROUND_STATE_OVERLAP][info.step] : NaN
+    return Dict{String,Any}(
+        "timestamp" => Dates.format(now(), Dates.ISODateTimeFormat),
+        "N" => ham_params.N,
+        "method" => context.method,
+        "evolution" => context.evolution,
+        "R" => context.R,
+        "trajectory" => context.trajectory,
+        "seed" => context.seed,
+        "Dmax" => context.Dmax,
+        "cutoff" => context.cutoff,
+        "tau" => context.tau,
+        "stage" => string(info.stage),
+        "step" => info.step,
+        "cycle" => info.step - 1,
+        "delta" => info.delta,
+        "te" => info.te,
+        "energy_per_site" => has_energy ? E / ham_params.N : NaN,
+        "relative_energy" => has_energy ? relative_energy(E, E0) : NaN,
+        "overlap" => overlap,
+        "system_max_bond" => sys_bs.max,
+        "system_mean_bond" => sys_bs.mean,
+        "evolved_max_bond" => evolved_bs.max,
+        "evolved_mean_bond" => evolved_bs.mean,
+        "elapsed_seconds" => elapsed,
+    )
+end
+
+function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed;
+                            method, R, trajectory, E0)
     steps = cp_multi.steps
     Random.seed!(seed)
     state = setup_initial_state(problem, sim_params, "product", 0.0)
@@ -223,13 +322,34 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
     evolved_maxbond = fill(0, steps + 1)
     evolved_meanbond = fill(NaN, steps + 1)
     final_dims = Ref(Int[])
+    progress_csv = cfg["progress_csv"]
+    progress_context = (
+        method=method,
+        evolution=cfg["evolution_method"],
+        R=R,
+        trajectory=trajectory,
+        seed=seed,
+        Dmax=cfg["Dmax"],
+        cutoff=cfg["cutoff"],
+        tau=cfg["tau"],
+    )
+    start_time = time()
 
     step_observer = info -> begin
         step = info.step
+        elapsed = time() - start_time
         if info.stage === :evolved
             evolved_bs = bond_summary(info.evolved_state)
             evolved_maxbond[step] = evolved_bs.max
             evolved_meanbond[step] = evolved_bs.mean
+            if progress_csv !== nothing
+                sys_bs = bond_summary(info.state.state)
+                append_progress_csv_row(
+                    progress_csv,
+                    progress_row(progress_context, info, ham_params, E0,
+                                 sys_bs, evolved_bs, elapsed),
+                )
+            end
             return nothing
         end
 
@@ -237,6 +357,17 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         sys_maxbond[step] = bs.max
         sys_meanbond[step] = bs.mean
         final_dims[] = bs.dims
+        if progress_csv !== nothing
+            evolved_bs = step == 1 ?
+                (max=NaN, mean=NaN) :
+                (max=evolved_maxbond[step], mean=evolved_meanbond[step])
+            append_progress_csv_row(
+                progress_csv,
+                progress_row(
+                    progress_context, info, ham_params, E0, bs, evolved_bs, elapsed,
+                ),
+            )
+        end
 
         if cfg["verbose"] && step > 1
             E = info.measurements[RESULT_ENERGY][step]
@@ -458,7 +589,8 @@ function run_campaign(cfg)
                     for m in 1:M
                         seed = cfg["seed"] + 1_000_000 * N + 10_000 * R + m
                         row = run_one_trajectory(problem, ham_params, cp_multi, sim_params,
-                                                 cfg, seed)
+                                                 cfg, seed; method=method, R=R,
+                                                 trajectory=m, E0=E0)
                         push!(traj_rows, row)
                         peak_evolved_maxbond = maximum(row["evolved_maxbond"][2:end])
                         system_saturation_cycle = first_bond_saturation_cycle(
