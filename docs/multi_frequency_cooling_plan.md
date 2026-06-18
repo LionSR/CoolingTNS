@@ -181,8 +181,8 @@ Systematic runs for the paper:
 ### Current large-N status
 
 The current `N=64` MCWF/MPS Trotter diagnostics show substantial transient
-system-bath bond growth before the cooling trajectory approaches the ground
-state.  The repository-level summary is
+system-bath bond growth while the short trajectories remain far above the
+ground-state energy.  The repository-level summary is
 [`largeN_effective_bond_dimensions.md`](largeN_effective_bond_dimensions.md).
 In particular, four-cycle fixed-detuning runs with `R = 1,2,5,10` already show
 that `Dmax = 320` is not a converged cap, and some `Dmax = 640` schedules still
@@ -190,8 +190,15 @@ saturate the transient system-bath bond dimension.
 
 The large-`N` validation driver can now select the evolution branch explicitly.
 The Trotter results above should not be conflated with MCWF+TDVP runs launched
-with `--methods mcwf --evolution-method continuous`, which are the next
-candidate for long-cycle large-system diagnostics.
+with `--methods mcwf --evolution-method continuous`.  The first completed
+`N=64`, two-cycle TDVP calibration at `Dmax = 96` resolves the early transient
+bond dimensions for `R = 1,2,5,10` (`Dsb_eff = 50,54,51,51`) but still has
+positive final energy densities.  These first two cycles are only a runtime
+and early-bond calibration; they are not physically meaningful evidence for
+cooling.  TDVP is therefore accessible, but the physical question remains the
+long-cycle fixed point, not the first two cycles.
+Future long TDVP runs should enable `--progress-csv` so interrupted runs retain
+their per-cycle energy and bond-dimension trace.
 
 These data should be used to design the next production campaign.  The table
 above is therefore a target plan, not evidence that the listed bond dimensions
