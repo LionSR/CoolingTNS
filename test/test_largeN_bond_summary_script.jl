@@ -51,6 +51,18 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
         @test row.frac50 ≈ 5 / 6
         @test row.frac75 ≈ 2 / 3
         @test row.frac90 ≈ 2 / 3
+
+        output = mktemp() do output_path, io
+            close(io)
+            open(output_path, "w") do out
+                redirect_stdout(out) do
+                    print_markdown(rows)
+                end
+            end
+            read(output_path, String)
+        end
+        @test occursin("| file | N | method | R | M | Dcap | Dsys_eff | Dsb_eff |", output)
+        @test occursin("| $(basename(path)) | 4 | mcwf | 2 | 2 | 12 | >=12 | >=14 |", output)
     finally
         rm(path; force=true)
     end

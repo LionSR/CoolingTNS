@@ -178,6 +178,20 @@ Systematic runs for the paper:
 | F   | 50 | 5  | uniform grid        | 0.3  | 2.0 | 500   | 40  |
 | G   | 50 | 10 | uniform grid        | 0.3  | 2.0 | 500   | 40  |
 
+### Current large-N status
+
+The current `N=64` MCWF/MPS Trotter diagnostics show substantial transient
+system-bath bond growth before the cooling trajectory approaches the ground
+state.  The repository-level summary is
+[`largeN_effective_bond_dimensions.md`](largeN_effective_bond_dimensions.md).
+In particular, four-cycle fixed-detuning runs with `R = 1,2,5,10` already show
+that `Dmax = 320` is not a converged cap, and some `Dmax = 640` schedules still
+saturate the transient system-bath bond dimension.
+
+These data should be used to design the next production campaign.  The table
+above is therefore a target plan, not evidence that the listed bond dimensions
+are already physically converged at large system size.
+
 ### Step 6: Analysis & figures for the paper
 
 Key figures to produce:
