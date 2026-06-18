@@ -3,32 +3,38 @@
 
 When $g_I=0$, we have $g_F=0$, and the fermionic model has open boundary conditions (OBC). In this case, translational invariance is broken, and we cannot apply the Fourier transformation used for periodic systems. Instead, we use the Bogoliubov-de Gennes (BdG) formalism and the analytic diagonalization approach developed by Lieb, Schultz, and Mattis.
 
-Starting from the fermionic Hamiltonian with open boundary conditions:
-\begin{align}
-    H_{\mathrm{spin}}^{\mathrm{OBC}} &= \frac{\cos\theta}{2} \sum_{n=1}^{N-1} (a_n a_{n+1} + a_n a_{n+1}^\dag - a_n^\dag a_{n+1} - a_n^\dag a_{n+1}^\dag) \nn\\
-                                     &\quad +\sin\theta \sum_{n=1}^N (a_n a_n^\dag - a_n^\dag a_n)
-\end{align}
-We can rewrite this Hamiltonian in matrix form using the Nambu spinor formalism. For the one-body terms $a_n^\dag a_m$, we define a matrix $A$ with elements:
-\begin{align}
-    A_{nm} &= -\sin\theta \delta_{nm} - \frac{\cos\theta}{2}(\delta_{n,m+1} + \delta_{n+1,m})
-\end{align}
-Similarly, for the pairing terms $a_n a_m$ and $a_n^\dag a_m^\dag$, we define an antisymmetric matrix $B$ with elements:
-\begin{align}
-    B_{nm} &= \frac{\cos\theta}{2}(\delta_{n+1,m} - \delta_{n,m+1})
-\end{align}
-Using the $2N$-component Nambu spinor $\bm{\Psi} = (a_1, \dots, a_N, a_1^\dag, \dots, a_N^\dag)^T$, the Hamiltonian takes the compact form:
+Starting from the same Jordan--Wigner convention as in \cref{eq:H_ferm_realspace}, the open-chain fermionic Hamiltonian is
 \begin{align}
     H_{\mathrm{spin}}^{\mathrm{OBC}}
-     &= \frac{1}{2} \bm{\Psi}^\dag H_{\mathrm{BdG}} \bm{\Psi}
+        &= \frac{\cos\theta}{2}\sum_{n=1}^{N-1}
+           (a_n-a_n^\dag)(a_{n+1}+a_{n+1}^\dag) \nn\\
+        &\quad
+           -\frac{\sin\theta}{2}\sum_{n=1}^{N}
+           (a_n a_n^\dag-a_n^\dag a_n).
+    \label{eq:H_obc_fermion_canonical}
 \end{align}
-where $H_{\mathrm{BdG}}$ is the $2N \times 2N$ Bogoliubov-de Gennes Hamiltonian matrix:
+Equivalently, after normal ordering the onsite term, the coefficient of $a_n^\dag a_n$ is $+\sin\theta$.  Thus, if $s=\sin\theta$ and $c=\cos\theta$, the BdG matrices are
+\begin{align}
+    A_{nn} &= s, &
+    A_{n,n+1}=A_{n+1,n} &= -\frac{c}{2}, \nn\\
+    B_{n,n+1} &= -\frac{c}{2}, &
+    B_{n+1,n} &= \frac{c}{2},
+    \label{eq:obc_AB_canonical}
+\end{align}
+with all other entries zero.  The matrix $A$ is symmetric and $B$ is antisymmetric.  In the Nambu spinor
+\begin{equation}
+    \bm{\Psi}=(a_1,\ldots,a_N,a_1^\dag,\ldots,a_N^\dag)^T
+\end{equation}
+the quadratic Hamiltonian is represented by
 \begin{align}
     H_{\mathrm{BdG}} &=
     \begin{pmatrix}
         A  &B\\
         -B &-A
-    \end{pmatrix}
+    \end{pmatrix}.
+    \label{eq:obc_bdg_matrix}
 \end{align}
+The positive eigenvalues of this real symmetric matrix are the open-chain quasiparticle energies $\epsilon_k$.
 To diagonalize $H_{\mathrm{spin}}^{\mathrm{OBC}}$, we use a Bogoliubov transformation to find new fermionic operators $\gamma_k, \gamma_k^\dag$ that are linear combinations of $a_n, a_n^\dag$:
 \begin{align}
     \gamma_k      &= \sum_{n=1}^N (u_{nk} a_n + v_{nk} a_n^\dag)\\
@@ -61,25 +67,63 @@ Eliminating $\psi_k$ (or $\phi_k$), we obtain:
 \end{align}
 The key insight from the Lieb-Schultz-Mattis approach is that for our specific matrices $A$ and $B$, the products $(A+B)(A-B)$ and $(A-B)(A+B)$ have tridiagonal form. Calculating these products explicitly:
 \begin{align}
-    [(A + B)(A - B)]_{nl} &= \sin^2\theta \delta_{nl} + \sin\theta \cos\theta (\delta_{n,l+1} + \delta_{n+1,l}) + \cos^2\theta \delta_{n+1,l+1}\\
-    [(A - B)(A + B)]_{nl} &= \sin^2\theta \delta_{nl} + \sin\theta \cos\theta (\delta_{n,l-1} + \delta_{n-1,l}) + \cos^2\theta \delta_{n-1,l-1}
+    A+B &=
+    \begin{pmatrix}
+        s      & -c     &        &        \\
+               & s      & \ddots &        \\
+               &        & \ddots & -c     \\
+               &        &        & s
+    \end{pmatrix},
+    &
+    A-B &=
+    \begin{pmatrix}
+        s      &        &        &        \\
+        -c     & s      &        &        \\
+               & \ddots & \ddots &        \\
+               &        & -c     & s
+    \end{pmatrix}.
+\end{align}
+Consequently, the matrix acting on $\phi_k$ is
+\begin{align}
+    (A-B)(A+B) =
+    \begin{pmatrix}
+        s^2 & -sc &        &        \\
+        -sc & 1   & \ddots &        \\
+            & \ddots & \ddots & -sc \\
+            &        & -sc & 1
+    \end{pmatrix},
+    \label{eq:obc_phi_tridiagonal}
+\end{align}
+while $(A+B)(A-B)$ has the same off-diagonal entries and diagonal entries $1,\ldots,1,s^2$.  The bulk eigenvalue equation for $\phi_{k,n}$ is therefore
+\begin{align}
+    \epsilon_k^2 \phi_{k,n}
+        = \phi_{k,n}
+          -sc(\phi_{k,n-1}+\phi_{k,n+1}),
+\end{align}
+and hence
+\begin{align}
+    \epsilon_k^2 = 1 - 2sc\cos\omega_k
+                 = 1-\sin(2\theta)\cos\omega_k.
+    \label{eq:obc_epsilon_canonical}
 \end{align}
 This tridiagonal structure allows for an analytic solution. The eigenvectors of these matrices have the form:
 \begin{align}
-    \phi_k &= \mathcal{N}_k (\sin\omega_k, \sin 2\omega_k, \ldots, \sin N \omega_k)^T\\
-    \psi_k &= \mathcal{N}_k (\sin N\omega_k, \sin (N-1)\omega_k, \ldots, \sin\omega_k)^T
+    \phi_{k,n} &= C_{\phi,k}\sin((N+1-n)\omega_k),\\
+    \psi_{k,n} &= C_{\psi,k}\sin(n\omega_k),
 \end{align}
-where $\mathcal{N}_k$ is a normalization constant, and the values of $\omega_k$ are determined by the transcendental equation:
+where \cref{eq:LSM_eq2} fixes the relative normalization, for example
+\begin{equation}
+    \frac{C_{\psi,k}}{C_{\phi,k}}
+        = \frac{s\sin\omega_k}{\epsilon_k\sin(N\omega_k)}
+\end{equation}
+away from the limiting edge-mode cases, and the remaining overall normalization is fixed by the canonical anticommutation relation for $\gamma_k$.  The first row of \cref{eq:obc_phi_tridiagonal} imposes the open-boundary quantization condition
 \begin{align}
-    \frac{\sin(N+1)\omega_k}{\sin N\omega_k} = -\frac{\cos\theta}{2\sin\theta}
+    \frac{\sin((N+1)\omega_k)}{\sin(N\omega_k)} = \cot\theta,
+    \label{eq:obc_quantization_canonical}
 \end{align}
-The eigenvalues (squared energies) for these eigenvectors are:
+with the usual limiting treatment when a root is exponentially close to an edge-mode value.  Combining \cref{eq:obc_epsilon_canonical,eq:obc_quantization_canonical} gives the mode energies
 \begin{align}
-    \epsilon_k^2 = 1 + \sin(2\theta)\cos\omega_k
-\end{align}
-giving us the energy eigenvalues:
-\begin{align}
-    E_k = \epsilon_k = \sqrt{1 + \sin(2\theta)\cos\omega_k}
+    E_k = \epsilon_k = \sqrt{1-\sin(2\theta)\cos\omega_k}.
 \end{align}
 The diagonalized Hamiltonian takes the form:
 \begin{align}
@@ -88,19 +132,13 @@ The diagonalized Hamiltonian takes the form:
 
 \subsection{The numerical method}
 
-There is a more direct and numerical method. If we write in the basis
+There is a more direct numerical method, and this is the convention used in the code.  One forms the matrices $A$ and $B$ in \cref{eq:obc_AB_canonical} and diagonalizes the real symmetric BdG matrix \cref{eq:obc_bdg_matrix}.  Its eigenvalues occur in pairs $-\epsilon_k,\epsilon_k$, and the positive half gives the quasiparticle spectrum.  In the Julia implementation this source of truth is \texttt{obc\_bdg\_matrices} and \texttt{obc\_mode\_energies} in \texttt{src/mode\_analysis.jl}.
+
+If $W$ is an orthogonal matrix of BdG eigenvectors, then the transformed Nambu vector gives the Bogoliubov operators $b_k,b_k^\dagger$.  The Hamiltonian is diagonal in this basis:
 \begin{equation}
-    \bm{\Psi}' = (a_1, a_1^\dagger, a_2, a_2^\dagger, \dots, a_N, a_N^\dagger)^T.
+    H = \sum_k \epsilon_k \left(b_k^\dagger b_k - \frac{1}{2}\right).
 \end{equation}
-the Hamiltonian can be written as $H = \frac{1}{2} (\bm{\Psi}')^\dagger H' \bm{\Psi}'$, where $H'$ is a real, antisymmetric matrix. Any such matrix can be brought to a canonical block-diagonal form by a real orthogonal (special unitary) transformation $U$:
-\begin{equation}
-    U^T H' U = D = \bigoplus_{k=1}^N \begin{pmatrix} 0 & \epsilon_k \\ -\epsilon_k & 0 \end{pmatrix}, \quad \epsilon_k \ge 0.
-\end{equation}
-This transformation can be found using standard numerical libraries (e.g., via a real Schur decomposition). The new vector of operators $\tilde{\bm{\Psi}} = U^T \bm{\Psi}'$ will have components $(b_1, b_1^\dagger, b_2, b_2^\dagger, \dots)^T$, where $b_k, b_k^\dagger$ are the desired Bogoliubov fermion operators. The Hamiltonian is automatically diagonal in this basis:
-\begin{equation}
-    H = \frac{1}{2} \tilde{\bm{\Psi}}^\dagger D \tilde{\bm{\Psi}} = \sum_k \epsilon_k \left(b_k^\dagger b_k - \frac{1}{2}\right).
-\end{equation}
-The columns of the matrix $U$ directly provide the linear combination of the original $a_n, a_n^\dagger$ that form the new $b_k, b_k^\dagger$.
+The many-body spectrum is therefore obtained from the subset sums $\sum_k \epsilon_k(n_k-\frac12)$ with $n_k\in\{0,1\}$.  The regression tests compare this spectrum, after multiplying by the code scale $\Lambda=2\sqrt{J^2+h^2}$, with the exact diagonalization spectrum of the open spin Hamiltonian.
 
 \subsection{Mode energy and occupation}
 
@@ -111,8 +149,10 @@ The columns of the matrix $U$ directly provide the linear combination of the ori
 
 To express the mode occupation operators $\gamma_k^\dag \gamma_k$ in terms of the original fermionic operators, we use the Bogoliubov coefficients derived from the eigenvectors:
 \begin{align}
-    u_{nk} &= \frac{\mathcal{N}_k}{2}[\sin n\omega_k + \sin(N+1-n)\omega_k]\\
-    v_{nk} &= \frac{\mathcal{N}_k}{2}[\sin n\omega_k - \sin(N+1-n)\omega_k]
+    u_{nk} &= \frac{1}{2}\left[
+        C_{\phi,k}\sin((N+1-n)\omega_k)+C_{\psi,k}\sin(n\omega_k)\right],\\
+    v_{nk} &= \frac{1}{2}\left[
+        C_{\phi,k}\sin((N+1-n)\omega_k)-C_{\psi,k}\sin(n\omega_k)\right].
 \end{align}
 The mode occupation is given by:
 \begin{align}

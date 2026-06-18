@@ -140,6 +140,63 @@ function _test_gs_in_sector(H::AbstractMatrix, P::AbstractMatrix, parity::Int)
     return sector_E[idx], ComplexF64.(sector_V[idx])
 end
 
+"""Build the free-fermion many-body spectrum from positive quasiparticle energies."""
+function _test_many_body_spectrum_from_modes(energies)
+    spectrum = [0.0]
+    for ε in energies
+        spectrum = vcat(spectrum, spectrum .+ ε)
+    end
+    return sort(spectrum .- sum(energies) / 2)
+end
+
+"""Build canonical fermion annihilation operators in the occupation basis."""
+function _test_fermion_annihilation_ops(N::Int)
+    I2 = Matrix{ComplexF64}(I, 2, 2)
+    Z = ComplexF64[1 0; 0 -1]
+    σm = ComplexF64[0 1; 0 0]
+    ops = Matrix{ComplexF64}[]
+    for site in 1:N
+        factors = [copy(I2) for _ in 1:N]
+        for j in 1:(site - 1)
+            factors[j] = Z
+        end
+        factors[site] = σm
+        push!(ops, foldl(kron, factors))
+    end
+    return ops
+end
+
+"""Build the stated open-chain fermion Hamiltonian directly from a_n, a_n†."""
+function _test_obc_fermion_hamiltonian_from_realspace(θ::Float64, N::Int)
+    s, c = sin(θ), cos(θ)
+    a = _test_fermion_annihilation_ops(N)
+    adag = [Matrix(op') for op in a]
+    dim = 2^N
+    H = zeros(ComplexF64, dim, dim)
+    for n in 1:(N - 1)
+        H .+= (c / 2) * (a[n] - adag[n]) * (a[n + 1] + adag[n + 1])
+    end
+    for n in 1:N
+        H .-= (s / 2) * (a[n] * adag[n] - adag[n] * a[n])
+    end
+    return H
+end
+
+"""Build 1/2 Ψ† H_BdG Ψ from the Nambu matrix, with Ψ=(a,a†)."""
+function _test_obc_fermion_hamiltonian_from_bdg(θ::Float64, N::Int)
+    a = _test_fermion_annihilation_ops(N)
+    adag = [Matrix(op') for op in a]
+    Ψ = vcat(a, adag)
+    Ψdag = vcat(adag, a)
+    Hbdg = obc_bdg_matrix(θ, N)
+    dim = 2^N
+    H = zeros(ComplexF64, dim, dim)
+    for i in 1:(2N), j in 1:(2N)
+        H .+= (Hbdg[i, j] / 2) * Ψdag[i] * Ψ[j]
+    end
+    return H
+end
+
 # ============================================================================
 # Tests
 # ============================================================================
@@ -162,6 +219,44 @@ end
         @test energy_scale(0.0, 1.0) ≈ 2.0
         @test energy_scale(1.0, 1.0) ≈ 2√2
         @test energy_scale(3.0, 4.0) ≈ 10.0
+    end
+
+    @testset "Open-boundary BdG matrices use canonical JW convention" begin
+        N = 4
+        θ = 0.37
+        s, c = sin(θ), cos(θ)
+        A, B = obc_bdg_matrices(θ, N)
+
+        @test diag(A) ≈ fill(s, N)
+        @test diag(B) ≈ zeros(N)
+        for n in 1:(N - 1)
+            @test A[n, n + 1] ≈ -c / 2
+            @test A[n + 1, n] ≈ -c / 2
+            @test B[n, n + 1] ≈ -c / 2
+            @test B[n + 1, n] ≈ c / 2
+        end
+
+        @test A + B ≈ Tridiagonal(zeros(N - 1), fill(s, N), fill(-c, N - 1))
+        @test A - B ≈ Tridiagonal(fill(-c, N - 1), fill(s, N), zeros(N - 1))
+    end
+
+    @testset "Open-boundary BdG matrix equals stated real-space fermion Hamiltonian" begin
+        for N in [2, 3, 4], θ in [0.31, 0.92]
+            H_realspace = _test_obc_fermion_hamiltonian_from_realspace(θ, N)
+            H_bdg = _test_obc_fermion_hamiltonian_from_bdg(θ, N)
+            @test H_bdg ≈ H_realspace atol=1e-12
+        end
+    end
+
+    @testset "Open-boundary BdG spectrum matches exact ED (N=$N, J=$J, h=$h)" for
+            N in [2, 3, 4, 5],
+            (J, h) in [(1.0, 0.5), (0.7, -0.3), (0.4, 1.1)]
+
+        H_code = _test_build_H_code(N, J, h, :open)
+        exact_spectrum = sort(eigvals(Hermitian(real(H_code))))
+        bdg_spectrum = _test_many_body_spectrum_from_modes(obc_mode_energies_Jh(J, h, N))
+
+        @test bdg_spectrum ≈ exact_spectrum atol=1e-10
     end
 
     @testset "Fermionic BC" begin

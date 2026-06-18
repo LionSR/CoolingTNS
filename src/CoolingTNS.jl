@@ -96,6 +96,7 @@ export generate_k_values, compute_energy_dispersion, compute_ground_state_occupa
 # Mode analysis (canonical parameter bridge and dispersion)
 export theta_from_Jh, Jh_from_theta, energy_scale
 export mode_energy, mode_energy_Jh, w_k_coefficient, r_k_coefficient
+export obc_bdg_matrices, obc_bdg_matrix, obc_mode_energies, obc_mode_energies_Jh
 export bogoliubov_angle, coeff_k, vacuum_energy, vacuum_energy_Jh
 export allowed_k_indices, fermionic_bc, parity_operator_code
 export mode_occupation_from_hk, ising_energy_from_mode_hk
