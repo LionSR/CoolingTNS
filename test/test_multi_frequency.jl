@@ -351,4 +351,59 @@ using Random
             end
         end
     end
+
+    @testset "TDVP evolution kwargs reach multi-frequency cooling" begin
+        Random.seed!(4)
+
+        backend_tn = CoolingTNS.TNBackend()
+        N_tn = 2
+        ham_params_tn = CoolingTNS.NiIsingParameters(N_tn, 1.0, -1.05, 0.5)
+        sim_params_tn = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.MonteCarloWavefunction(),
+            CoolingTNS.ContinuousEvolution();
+            Dmax=4,
+            cutoff=1e-6,
+            tau=0.2,
+            pe=0.0,
+        )
+
+        coupling_basic_tn = CoolingTNS.BasicCouplingParameters("XX", 0.1, 1, 0.2, nothing)
+        problem_basic_tn = CoolingTNS.setup_problem(
+            backend_tn,
+            ham_params_tn,
+            coupling_basic_tn,
+            sim_params_tn,
+        )
+        gap_tn = problem_basic_tn.extra.coupling_params.delta
+        mf_params_tn = CoolingTNS.MultiFrequencyCouplingParameters(
+            "XX",
+            0.1,
+            1,
+            0.2,
+            [gap_tn];
+            randomize_times=false,
+            schedule=:round_robin,
+        )
+
+        problem_mf_tn = CoolingTNS.setup_problem(backend_tn, ham_params_tn, mf_params_tn, sim_params_tn)
+        state_tn = CoolingTNS.setup_initial_state(problem_mf_tn, sim_params_tn, "product", 0.0)
+
+        sweeps = Int[]
+        observer = CoolingTNS.tdvp_sweep_observer((; sweep, kwargs...) -> begin
+            push!(sweeps, sweep)
+            return nothing
+        end)
+
+        results_tn = CoolingTNS.run_cooling(
+            problem_mf_tn,
+            state_tn,
+            mf_params_tn,
+            sim_params_tn,
+            ham_params_tn;
+            evolution_kwargs=(tdvp_sweep_observer! = observer,),
+        )
+
+        @test haskey(results_tn, CoolingTNS.RESULT_ENERGY)
+        @test sweeps == [1]
+    end
 end

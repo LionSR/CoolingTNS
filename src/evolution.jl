@@ -55,8 +55,34 @@ function _tdvp_step_count(t::Float64, tau::Float64)
     return Int(ceil(t / tau))
 end
 
+struct TDVPSweepObserver{F}
+    callback::F
+end
+
+"""
+    tdvp_sweep_observer(callback)
+
+Return an ITensorMPS-compatible TDVP observer adapter. When passed as
+`tdvp_sweep_observer!`, the callback is called after each TDVP sweep with the
+keyword payload emitted by ITensorMPS, including `state`, `sweep`, and
+`current_time`.
+"""
+tdvp_sweep_observer(callback) = TDVPSweepObserver(callback)
+
+function ITensorMPS.update_observer!(observer::TDVPSweepObserver; kwargs...)
+    observer.callback(; kwargs...)
+    return observer
+end
+
 function evolve_state(::HamiltonianParameters, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, ContinuousEvolution},
-                     ::TNBackend, H_total, ψ, t::Float64, ::Vector{<:Index}; kwargs...)
+                     ::TNBackend, H_total, ψ, t::Float64, ::Vector{<:Index};
+                     tdvp_outputlevel::Integer=0,
+                     tdvp_sweep_observer! = nothing,
+                     kwargs...)
+    if !isempty(kwargs)
+        unknown = join(string.(keys(kwargs)), ", ")
+        throw(ArgumentError("Unsupported MCWF+TDVP evolution keyword(s): $unknown."))
+    end
     Dmax, cutoff, tau = sim_params.Dmax, sim_params.cutoff, sim_params.tau
 
     # Pick an integer number of TDVP steps so arbitrary `t` works even when `t/tau`
@@ -70,10 +96,21 @@ function evolve_state(::HamiltonianParameters, sim_params::UnifiedSimulationPara
     end
     @debug "evolve_state MC+Continuous: Dmax=$Dmax, tau=$tau, t=$t, nsteps=$nsteps, nsite=2"
 
+    tdvp_kwargs = (
+        nsteps=nsteps,
+        nsite=2,
+        reverse_step=true,
+        normalize=true,
+        maxdim=Dmax,
+        cutoff=cutoff,
+        outputlevel=tdvp_outputlevel,
+    )
+    if tdvp_sweep_observer! !== nothing
+        tdvp_kwargs = merge(tdvp_kwargs, (sweep_observer! = tdvp_sweep_observer!,))
+    end
+
     # Use nsite=2 to allow bond dimension growth from product states
-    ψ_evolved = tdvp(H_total, _tdvp_real_time(t), ψ;
-                     nsteps=nsteps, nsite=2, reverse_step=true, normalize=true,
-                     maxdim=Dmax, cutoff=cutoff, outputlevel=0)
+    ψ_evolved = tdvp(H_total, _tdvp_real_time(t), ψ; tdvp_kwargs...)
     normalize!(ψ_evolved)
     orthogonalize!(ψ_evolved, 2)
     return ψ_evolved

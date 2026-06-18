@@ -105,6 +105,11 @@ callback receives a named tuple containing `stage`, `step`, `state`,
 `evolved_state`, `measurements`, `delta`, `te`, and `bath_info`. This is
 intended for diagnostics that need transient data, such as system-bath bond
 dimensions, without duplicating the cooling loop.
+
+The optional `evolution_kwargs` named tuple is forwarded to the low-level
+evolution routine for each cooling step. It is intended for diagnostics such as
+TDVP observers or output levels; physical parameters should remain in
+`sim_params` and `mf_params`.
 """
 function run_cooling_multi_freq(
     problem::CoolingProblem{B},
@@ -114,6 +119,7 @@ function run_cooling_multi_freq(
     ham_params;
     measure_modes::Bool=false,
     step_observer=nothing,
+    evolution_kwargs=(;),
 ) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
 
     steps = mf_params.steps
@@ -163,7 +169,10 @@ function run_cooling_multi_freq(
         evolved_state = if te_step <= 0
             combined_state
         else
-            evolve_cooling_step_dynamic(problem, combined_state, coupling_step, te_step, sim_params, ham_params)
+            evolve_cooling_step_dynamic(
+                problem, combined_state, coupling_step, te_step, sim_params, ham_params;
+                evolution_kwargs...,
+            )
         end
         notify_step_observer(
             step_observer,
@@ -219,6 +228,7 @@ function run_cooling(
     ham_params;
     measure_modes::Bool=false,
     step_observer=nothing,
+    evolution_kwargs=(;),
 ) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
     return run_cooling_multi_freq(
         problem,
@@ -228,6 +238,7 @@ function run_cooling(
         ham_params;
         measure_modes=measure_modes,
         step_observer=step_observer,
+        evolution_kwargs=evolution_kwargs,
     )
 end
 
@@ -239,7 +250,10 @@ function _pick_delta_index(step::Int, R::Int, schedule::Symbol)
 end
 
 # Evolve with step-dependent coupling parameters (e.g. changing bath detuning Δ).
-evolve_cooling_step_dynamic(::CoolingProblem, _, ::BasicCouplingParameters, _, _, _) =
+evolve_cooling_step_dynamic(
+    ::CoolingProblem, state, ::BasicCouplingParameters, te_step, sim_params, ham_params;
+    kwargs...,
+) =
     error("evolve_cooling_step_dynamic not implemented for this backend/method combination")
 
 function _interleaved_step_gates_builder(
@@ -281,6 +295,8 @@ function evolve_cooling_step_dynamic(
     te_step::Float64,
     sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, ContinuousEvolution},
     ham_params,
+    ;
+    kwargs...,
 )
     sites = problem.extra.sites
 
@@ -298,7 +314,7 @@ function evolve_cooling_step_dynamic(
         construct_system_bath_hamiltonian(ham_params, problem.backend, sites, coupling_step)
     end
 
-    return evolve_state(ham_params, sim_params, problem.backend, H_step, ψ_sb, te_step, sites)
+    return evolve_state(ham_params, sim_params, problem.backend, H_step, ψ_sb, te_step, sites; kwargs...)
 end
 
 function evolve_cooling_step_dynamic(
@@ -308,6 +324,8 @@ function evolve_cooling_step_dynamic(
     te_step::Float64,
     sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, TrotterEvolution},
     ham_params,
+    ;
+    kwargs...,
 )
     sites = problem.extra.sites
 
@@ -326,7 +344,7 @@ function evolve_cooling_step_dynamic(
     step_gates = _interleaved_step_gates_builder(problem, ham_params, sim_params, sites, coupling_step, δ)
 
     return evolve_state(ham_params, sim_params, problem.backend, gates, ψ_sb, te_step, sites;
-                        gates=gates, step_gates=step_gates)
+                        gates=gates, step_gates=step_gates, kwargs...)
 end
 
 function evolve_cooling_step_dynamic(
@@ -336,6 +354,8 @@ function evolve_cooling_step_dynamic(
     te_step::Float64,
     sim_params::UnifiedSimulationParameters{DensityMatrix, TrotterEvolution},
     ham_params,
+    ;
+    kwargs...,
 )
     sites = problem.extra.sites
 
@@ -354,7 +374,7 @@ function evolve_cooling_step_dynamic(
     step_gates = _interleaved_step_gates_builder(problem, ham_params, sim_params, sites, coupling_step, δ)
 
     ρ_evolved = evolve_state(ham_params, sim_params, problem.backend, gates, ρ_sb, te_step, sites;
-                             step_gates=step_gates)
+                             step_gates=step_gates, kwargs...)
     ρ_evolved /= tr(ρ_evolved)
     return ρ_evolved
 end
@@ -366,6 +386,8 @@ function evolve_cooling_step_dynamic(
     te_step::Float64,
     sim_params::UnifiedSimulationParameters,
     ham_params,
+    ;
+    kwargs...,
 )
     δ = coupling_step.delta
     δ === nothing && throw(ArgumentError("Multi-frequency ED evolution requires coupling_step.delta"))

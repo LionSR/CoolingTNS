@@ -14,6 +14,47 @@ function _test_mps_vector(ψ::MPS, sites)
     return vec
 end
 
+@testset "TN TDVP sweep observer diagnostics" begin
+    sites = siteinds("S=1/2", 2)
+    ψ0 = MPS(sites, ["Up", "Up"])
+    ham_params = CoolingTNS.IsingParameters(2, 0.0, 0.0)
+    sim_tdvp = CoolingTNS.UnifiedSimulationParameters(
+        CoolingTNS.MonteCarloWavefunction(),
+        CoolingTNS.ContinuousEvolution();
+        Dmax=8,
+        cutoff=1e-12,
+        tau=0.1,
+    )
+    os = OpSum()
+    os += 1.0, "X", 1
+    H = MPO(os, sites)
+
+    sweeps = Int[]
+    times = Float64[]
+    maxdims = Int[]
+    sweep_observer = CoolingTNS.tdvp_sweep_observer((; state, sweep, current_time, kwargs...) -> begin
+        push!(sweeps, sweep)
+        push!(times, -imag(current_time))
+        push!(maxdims, maxlinkdim(state))
+        return nothing
+    end)
+
+    ψ_evolved = CoolingTNS.evolve_state(
+        ham_params, sim_tdvp, CoolingTNS.TNBackend(), H, ψ0, 0.2, sites;
+        tdvp_sweep_observer! = sweep_observer,
+    )
+
+    @test length(ψ_evolved) == 2
+    @test sweeps == [1, 2]
+    @test times ≈ [0.1, 0.2] atol=1e-12
+    @test all(>=(1), maxdims)
+
+    @test_throws ArgumentError CoolingTNS.evolve_state(
+        ham_params, sim_tdvp, CoolingTNS.TNBackend(), H, ψ0, 0.2, sites;
+        tdvp_step_observer! = sweep_observer,
+    )
+end
+
 function _x_gate(site, dt)
     return [exp(-1.0im * dt * op("X", site))]
 end

@@ -36,6 +36,16 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     progress_cfg = parse_args(["--progress-csv", progress_path])
     @test progress_cfg["progress_csv"] == progress_path
 
+    tdvp_progress_cfg = parse_args([
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--progress-csv", progress_path,
+        "--tdvp-outputlevel", "1",
+        "--tdvp-sweep-progress",
+    ])
+    @test tdvp_progress_cfg["tdvp_outputlevel"] == 1
+    @test tdvp_progress_cfg["tdvp_sweep_progress"] == true
+
     continuous_cfg = parse_args([
         "--methods", "mcwf",
         "--evolution-method", "continuous",
@@ -51,6 +61,11 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     @test_throws ErrorException parse_args([
         "--methods", "mpo",
         "--evolution-method", "continuous",
+    ])
+    @test_throws ErrorException parse_args(["--tdvp-sweep-progress"])
+    @test_throws ErrorException parse_args([
+        "--progress-csv", progress_path,
+        "--tdvp-sweep-progress",
     ])
     @test_throws ErrorException parse_args(["--Dmax-values", "160,0"])
     @test_throws ErrorException parse_args(["--Dmax-values", "320,320"])
@@ -201,6 +216,26 @@ end
     @test isnan(evolved_row["overlap"])
     @test evolved_row["system_max_bond"] == 8
     @test evolved_row["evolved_max_bond"] == 13
+    @test isnan(evolved_row["tdvp_sweep"])
+    @test isnan(evolved_row["tdvp_time"])
+
+    tdvp_context = (step=2, delta=0.5, te=2.0, sys_bs=(max=8, mean=6.5))
+    sweep_row = tdvp_sweep_progress_row(
+        context,
+        tdvp_context,
+        3,
+        -0.6im,
+        ham_params,
+        (max=21, mean=14.5),
+        4.5,
+    )
+    @test sweep_row["stage"] == "tdvp_sweep"
+    @test sweep_row["cycle"] == 1
+    @test isnan(sweep_row["energy_per_site"])
+    @test sweep_row["system_max_bond"] == 8
+    @test sweep_row["evolved_max_bond"] == 21
+    @test sweep_row["tdvp_sweep"] == 3
+    @test sweep_row["tdvp_time"] == 0.6
 
     path = tempname() * ".csv"
     try
@@ -216,6 +251,14 @@ end
         @test count(==(','), lines[1]) == length(PROGRESS_CSV_COLUMNS) - 1
     finally
         rm(path; force=true)
+    end
+
+    stale_path = tempname() * ".csv"
+    try
+        write(stale_path, "timestamp,N\nold,4\n")
+        @test_throws ArgumentError append_progress_csv_row(stale_path, row)
+    finally
+        rm(stale_path; force=true)
     end
 end
 

@@ -138,6 +138,12 @@ interrupted long TDVP run still leaves the pre-evolution system-bath bond
 dimension, the post-evolution transient bond dimension, and the measured
 per-cycle energy trace.
 
+For long TDVP runs, add `--tdvp-sweep-progress` to the same command to append
+`tdvp_sweep` rows to the progress CSV after each ITensorMPS TDVP sweep/substep.
+These rows record the sweep index, the physical TDVP time reached inside the
+current cooling step, and the current transient bond dimensions.  Use
+`--tdvp-outputlevel 1` when the ITensorMPS textual sweep summary is also useful.
+
 ## Current N=64 evidence
 
 The strongest current four-cycle estimate is
