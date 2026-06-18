@@ -24,6 +24,23 @@ end
 saturation_cycle_label(cycle::Integer) = cycle == 0 ? "none" : string(cycle)
 
 """
+    effective_bond_dimension_label(observed_max, saturation_cycle, saturation_threshold)
+
+Return a conservative effective-bond-dimension label.  If the run reached the
+method-specific saturation threshold, the observed bond dimension is only a
+lower bound on the converged bond dimension, so the label is written as
+`>=D`.  Otherwise the largest observed bond dimension is reported directly.
+"""
+function effective_bond_dimension_label(observed_max::Integer,
+                                        saturation_cycle::Integer,
+                                        saturation_threshold::Integer)
+    if saturation_cycle > 0
+        return ">=$(max(observed_max, saturation_threshold))"
+    end
+    return string(observed_max)
+end
+
+"""
     bond_dimension_quantiles(link_dims, probabilities)
 
 Return quantiles of a final MPS/MPO link-dimension vector as `Float64` values.

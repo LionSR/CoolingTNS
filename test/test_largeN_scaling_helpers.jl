@@ -18,6 +18,9 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
 
     @test saturation_cycle_label(0) == "none"
     @test saturation_cycle_label(4) == "4"
+    @test effective_bond_dimension_label(48, 0, 64) == "48"
+    @test effective_bond_dimension_label(64, 2, 64) == ">=64"
+    @test effective_bond_dimension_label(72, 2, 64) == ">=72"
 
     @test bond_dimension_quantiles([10, 20, 30, 40], [0.5, 0.75]) ≈ [25.0, 32.5]
     @test all(isnan, bond_dimension_quantiles(Int[], [0.5, 0.9]))
