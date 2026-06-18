@@ -250,7 +250,23 @@ This model can be exactly solved by using momentum representation and a Bogoliub
     \hat{a}_k   &= \cos(\varphi_k) \tilde{a}_k + \sin(\varphi_k) \tilde{a}_{-k}^\dagger,
     \label{eq:Bogolibov}
 \end{align}
-where $k=-N/2+1,\ldots,N/2$. In this basis, the Hamiltonian can be written as
+The second line of \cref{eq:Bogolibov} is written in a real Nambu gauge. If
+one instead uses the phase-explicit component
+$\bar{a}_{-k}^\dagger \equiv -i\tilde{a}_{-k}^\dagger$, the same
+quasiparticle operator is
+\begin{equation}
+    \hat{a}_k =
+    \cos(\varphi_k)\tilde{a}_k
+    + i\sin(\varphi_k)\bar{a}_{-k}^\dagger .
+    \label{eq:Bogoliubov_phase_explicit}
+\end{equation}
+This is the Bogoliubov phase convention used in
+\texttt{Notes/NotesED/MapToSpin.tex} and in the ED/TN mode-observable
+implementation, after the momentum relabelling described below. The real gauge
+in \cref{eq:Bogolibov} and the phase-explicit gauge in
+\cref{eq:Bogoliubov_phase_explicit} define the same canonical transformation
+and the same observables.
+Here and below, $k=-N/2+1,\ldots,N/2$. In this basis, the Hamiltonian can be written as
 \begin{equation}
     H_S = \frac{1}{2} \sum_{k=-N/2+1}^{N/2} \epsilon_k\,(\hat{a}^\dagger_k \hat{a}_k-\hat{a}_k \hat{a}_k^\dagger),
     \label{eq:Hs}

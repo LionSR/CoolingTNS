@@ -221,13 +221,15 @@ end
         @test energy_scale(3.0, 4.0) ≈ 10.0
     end
 
-    @testset "Code-facing Bogoliubov text matches MapToSpin phase convention" begin
+    @testset "Bogoliubov text matches MapToSpin phase convention" begin
         file_contains(path, needle) = open(path) do io
             any(line -> occursin(needle, line), eachline(io))
         end
         file_lacks(path, needle) = !file_contains(path, needle)
 
         note_path = joinpath(@__DIR__, "..", "Notes", "NotesED", "MapToSpin.tex")
+        gaussian_main_path = joinpath(@__DIR__, "..", "Notes", "GaussianPaper", "journal_main.tex")
+        gaussian_supp_path = joinpath(@__DIR__, "..", "Notes", "GaussianPaper", "journal_supp.tex")
         mode_path = joinpath(@__DIR__, "..", "src", "mode_analysis.jl")
         ed_path = joinpath(@__DIR__, "..", "src", "ed_backend_complex_jw.jl")
 
@@ -238,6 +240,13 @@ end
         @test file_contains(ed_path, "ã_k = (1/√N) Σ_j exp(-i n φ_k) a_j.")
         @test file_contains(ed_path, "exp(+i (m-n) φ_k)")
         @test file_lacks(ed_path, "where a_k = (1/√N) Σ_j exp(+2πikj/N) a_j")
+        @test file_contains(gaussian_main_path, "real Nambu gauge")
+        @test file_contains(gaussian_main_path, raw"\bar{a}_{-k}^\dagger \equiv -i\tilde{a}_{-k}^\dagger")
+        @test file_contains(gaussian_main_path, raw"i\sin(\varphi_k)\bar{a}_{-k}^\dagger")
+        @test file_contains(gaussian_supp_path, raw"G_k^\dagger \tilde{H}_k G_k")
+        @test file_contains(gaussian_supp_path, raw"\label{eq:bdg_gauge_map}")
+        @test file_contains(gaussian_supp_path, raw"real Nambu gauge of \cref{eq:Hk_2x2_matrix}")
+        @test file_contains(gaussian_supp_path, "phase-explicit BdG form")
     end
 
     @testset "Open-boundary BdG matrices use canonical JW convention" begin
