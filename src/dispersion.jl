@@ -37,8 +37,9 @@ end
 
 Compute ``⟨ã†_k ã_k⟩`` in the Bogoliubov ground state on the supplied grid.
 
-For generic modes this is ``sin²(φ_k)``, where ``φ_k`` is the canonical
-Bogoliubov angle. For integer-grid special modes, the occupation is determined
+For generic modes this is ``sin²(varphi_k)``, where ``varphi_k`` is the
+canonical Bogoliubov angle. The momentum angle is ``φ_k = 2πk/N``. For
+integer-grid special modes, the occupation is determined
 by the sign of the diagonal coefficient ``w_k``; at exact degeneracy the helper
 returns `0.5`, since either occupation is a ground state.
 """
@@ -59,6 +60,6 @@ function _ground_state_occupation(k, θ, N)
         return wk < 0 ? 1.0 : 0.0
     end
 
-    φ = bogoliubov_angle(Float64(k), θ, N)
-    return sin(φ)^2
+    varphi = bogoliubov_angle(Float64(k), θ, N)
+    return sin(varphi)^2
 end

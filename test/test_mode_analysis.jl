@@ -250,8 +250,8 @@ end
         @test file_contains(cooling_tn_path, raw"r^{\mathrm{code}}_k&=+\cos\theta\sin\phi_k")
         @test file_contains(cooling_tn_path, raw"M_{\mathrm{TDVP}}=\left\lceil \frac{t_e}{\tau}\right\rceil")
         @test file_contains(cooling_tn_path, raw"Two cooling cycles are not physically meaningful")
-        @test file_contains(mode_path, "â_k = cos(φ_k) ã_k + i sin(φ_k) ã†_{-k}")
-        @test file_lacks(mode_path, "â_k = cos(φ_k) ã_k + sin(φ_k) ã†_{-k}")
+        @test file_contains(mode_path, "â_k = cos(varphi_k) ã_k + i sin(varphi_k) ã†_{-k}")
+        @test file_lacks(mode_path, "â_k = cos(varphi_k) ã_k + sin(varphi_k) ã†_{-k}")
         @test file_contains(ed_path, "ã_k = (1/√N) Σ_j exp(-i n φ_k) a_j.")
         @test file_contains(ed_path, "exp(+i (m-n) φ_k)")
         @test file_lacks(ed_path, "where a_k = (1/√N) Σ_j exp(+2πikj/N) a_j")
@@ -574,9 +574,9 @@ end
             end
             nk_measured = real(nk)
 
-            # Bogoliubov prediction: n_k = sin²(φ_bogo)
-            φ_bogo = bogoliubov_angle(Float64(k), θ, N)
-            nk_pred = sin(φ_bogo)^2
+            # Bogoliubov prediction: n_k = sin²(varphi_bogo)
+            varphi_bogo = bogoliubov_angle(Float64(k), θ, N)
+            nk_pred = sin(varphi_bogo)^2
 
             @test nk_measured ≈ nk_pred atol=1e-10
         end
@@ -691,7 +691,7 @@ end
 
     @testset "Bogoliubov angle for special modes" begin
         θ = 0.4; N = 4
-        # For k=0 and k=N/2, r_k = 0, so φ_bogo = 0
+        # For k=0 and k=N/2, r_k = 0, so varphi_bogo = 0
         @test bogoliubov_angle(0.0, θ, N) == 0.0
         @test bogoliubov_angle(Float64(N÷2), θ, N) == 0.0
     end

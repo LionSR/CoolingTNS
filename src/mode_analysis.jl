@@ -341,17 +341,19 @@ function r_k_coefficient(k, θ, N)
 end
 
 """
-    bogoliubov_angle(k, θ, N) -> φ_k
+    bogoliubov_angle(k, θ, N) -> varphi_k
 
-Bogoliubov angle satisfying ``tan(2φ_k) = r_k / w_k`` where ``r_k`` and ``w_k``
+Bogoliubov angle satisfying ``tan(2 varphi_k) = r_k / w_k`` where ``r_k`` and ``w_k``
 are the BdG coefficients.
 
 The Bogoliubov transformation is:
 ```
-â_k = cos(φ_k) ã_k + i sin(φ_k) ã†_{-k}
+â_k = cos(varphi_k) ã_k + i sin(varphi_k) ã†_{-k}
 ```
 
-For the ground state: ``n_k = ⟨ã†_k ã_k⟩ = sin²(φ_k)``.
+For the ground state of a generic paired block:
+``tilde n_k = ⟨ã†_k ã_k⟩ = sin²(varphi_k)``. Here ``varphi_k`` is the
+Bogoliubov angle; the momentum angle remains ``φ_k = 2πk/N``.
 
 For the special modes ``k = 0, N/2`` where ``r_k = 0``, returns ``0``.
 

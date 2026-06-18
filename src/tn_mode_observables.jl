@@ -187,10 +187,10 @@ function _measure_hk_from_correlators(correlators, k, ham_params::HamiltonianPar
     θ = theta_from_Jh(J, h)
     φk = 2π * Float64(k) / N
 
-    φ_bogo = bogoliubov_angle(Float64(k), θ, N)
-    c2 = cos(φ_bogo)^2
-    s2 = sin(φ_bogo)^2
-    sc = sin(φ_bogo) * cos(φ_bogo)
+    varphi_bogo = bogoliubov_angle(Float64(k), θ, N)
+    c2 = cos(varphi_bogo)^2
+    s2 = sin(varphi_bogo)^2
+    sc = sin(varphi_bogo) * cos(varphi_bogo)
 
     nk_sum = 0.0 + 0.0im
     nmk_sum = 0.0 + 0.0im

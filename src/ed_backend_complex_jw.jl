@@ -20,15 +20,17 @@ This gives ``a†a = σ⁺σ⁻ = (I + σ_z)/2``, so the **vacuum is all-spins-d
 # Why this convention?
 
 The notes derive free-fermion formulas (mode energies ``ε_k``, Bogoliubov angles,
-ground-state occupation ``n_k = sin²(φ_k)``) using this JW mapping applied to
-``H_notes = (cosθ/2) Σ σ_x σ_x + (sinθ/2) Σ σ_z``. The code's Hamiltonian
-``H_code = J Σ σ_z σ_z + h Σ σ_x`` is related by a global ``R_y(π/2)`` rotation,
-which does not affect the JW operators (they are defined in terms of abstract
-Pauli matrices in the computational basis).
+ground-state raw Fourier occupation ``tilde n_k = sin²(varphi_k)``) using this
+JW mapping applied to ``H_notes = (cosθ/2) Σ σ_x σ_x + (sinθ/2) Σ σ_z``. The
+code's Hamiltonian ``H_code = J Σ σ_z σ_z + h Σ σ_x`` is related by a global
+``R_y(π/2)`` rotation, which does not affect the JW operators (they are defined
+in terms of abstract Pauli matrices in the computational basis).
 
 With this convention, ``⟨ã†_k ã_k⟩`` measured on the ground state of ``H_notes``
 (or equivalently on the rotated ground state of ``H_code``) matches the
-analytical prediction ``n_k^{GS} = sin²(φ_k)``.
+analytical prediction ``tilde n_k^{GS} = sin²(varphi_k)`` for generic modes,
+where ``varphi_k`` is the Bogoliubov angle, not the momentum angle
+``φ_k = 2πk/N``.
 
 # Note on the minus sign
 
@@ -147,11 +149,14 @@ end
 """
     measure_momentum_distribution_ed_clean(state, ham_params; gF=nothing) -> (k_values, n_k)
 
-Compute the momentum distribution ``n_k = ⟨ã_k^† ã_k⟩`` using the
-complex Jordan–Wigner mapping (notes convention).
+Compute the Fourier-fermion occupation ``tilde n_k = ⟨ã_k^† ã_k⟩`` using
+the complex Jordan–Wigner mapping (notes convention). The returned array is
+named ``n_k`` by the existing API.
 
-With this convention, ``n_k = (1 + ⟨σ_z⟩)/2`` per mode, and the ground-state
-prediction from Bogoliubov theory is ``n_k^{GS} = sin²(φ_k)``.
+With this convention, ``tilde n_k = (1 + ⟨σ_z⟩)/2`` per mode, and the
+generic-mode ground-state prediction from Bogoliubov theory is
+``tilde n_k^{GS} = sin²(varphi_k)``, where ``varphi_k`` is the Bogoliubov
+angle, not the momentum angle ``φ_k = 2πk/N``.
 
 Supported boundary conditions: `:periodic`, `:antiperiodic`.
 
@@ -291,14 +296,14 @@ in the notes basis.
 
 The Bogoliubov transformation (with the correct phase from the BdG matrix) is:
 ```
-â_k  = cos(φ) ã_k + i sin(φ) ã†_{-k}
-â†_k = cos(φ) ã†_k - i sin(φ) ã_{-k}
+â_k  = cos(varphi) ã_k + i sin(varphi) ã†_{-k}
+â†_k = cos(varphi) ã†_k - i sin(varphi) ã_{-k}
 ```
 
 This gives:
 ```
-â†_k â_k = cos²(φ) ã†_k ã_k + sin²(φ)(1 - ã†_{-k} ã_{-k})
-           + i sin(φ)cos(φ)(ã†_k ã†_{-k} - ã_{-k} ã_k)
+â†_k â_k = cos²(varphi) ã†_k ã_k + sin²(varphi)(1 - ã†_{-k} ã_{-k})
+           + i sin(varphi)cos(varphi)(ã†_k ã†_{-k} - ã_{-k} ã_k)
 ```
 
 For special modes (k = 0, N/2) where the Bogoliubov angle is 0:
@@ -308,10 +313,10 @@ function _build_hk_operator(k, θ, N, a_ops, a_dag_ops)
     dim = size(a_ops[1], 1)
     II = Matrix{ComplexF64}(I, dim, dim)
 
-    φ_bogo = bogoliubov_angle(Float64(k), θ, N)
-    c2 = cos(φ_bogo)^2
-    s2 = sin(φ_bogo)^2
-    sc = sin(φ_bogo) * cos(φ_bogo)
+    varphi_bogo = bogoliubov_angle(Float64(k), θ, N)
+    c2 = cos(varphi_bogo)^2
+    s2 = sin(varphi_bogo)^2
+    sc = sin(varphi_bogo) * cos(varphi_bogo)
 
     ãk, ãkd = _build_fourier_ops(a_ops, a_dag_ops, k, N)
 
