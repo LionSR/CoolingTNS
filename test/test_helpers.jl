@@ -13,6 +13,8 @@ Set, for example:
 """
 
 using CoolingTNS
+using ITensors
+using ITensorMPS
 
 """Return a boolean from an environment variable.
 
@@ -37,6 +39,46 @@ full_tests_enabled() = env_bool("COOLINGTNS_FULL_TESTS"; default=false)
 
 """Whether tests should print verbose simulation output."""
 test_verbose() = env_bool("COOLINGTNS_TEST_VERBOSE"; default=false)
+
+"""Convert an ITensor MPO to a dense matrix in the ED bit ordering.
+
+The test convention matches `appendzeros_MPO`: primed site indices are matrix
+rows and unprimed site indices are matrix columns. Site tag `n=1` is the least
+significant ED bit.
+"""
+function test_mpo_to_matrix(O::MPO)
+    nsites = length(O)
+    tensor = O[1]
+    for site in 2:nsites
+        tensor *= O[site]
+    end
+
+    row_inds = Index[]
+    col_inds = Index[]
+    for ind in inds(tensor)
+        if hastags(ind, "Site") && plev(ind) == 1
+            push!(row_inds, ind)
+        elseif hastags(ind, "Site") && plev(ind) == 0
+            push!(col_inds, ind)
+        end
+    end
+
+    site_number(ind) = parse(Int, match(r"n=(\d+)", string(tags(ind))).captures[1])
+    sort!(row_inds; by=site_number)
+    sort!(col_inds; by=site_number)
+
+    dim_total = 2^nsites
+    matrix = zeros(ComplexF64, dim_total, dim_total)
+    for row in 0:(dim_total - 1), col in 0:(dim_total - 1)
+        vals = Dict{Index, Int}()
+        for site in 1:nsites
+            vals[row_inds[site]] = ((row >> (site - 1)) & 1) + 1
+            vals[col_inds[site]] = ((col >> (site - 1)) & 1) + 1
+        end
+        matrix[row + 1, col + 1] = tensor[vals...]
+    end
+    return matrix
+end
 
 """Run a full cooling simulation and return `(results, problem, sim_params)`.
 

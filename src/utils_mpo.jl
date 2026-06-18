@@ -28,7 +28,8 @@ function appendzeros_MPO(ρ::MPO, sites::Vector{<:Index}, coupling::String="XX")
                 ψ0[s => state_idx] = amp
             end
         end
-        ρ0 = ψ0 * prime(dag(ψ0), s)
+        # MPO convention: primed site index is the matrix row, unprimed is column.
+        ρ0 = prime(ψ0, s) * dag(ψ0)
 
         if i < N
             ll = sim(linkind(ρ, i))
