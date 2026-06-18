@@ -153,7 +153,7 @@ end
         @test abs(abs(px_ed) - 1) < 1e-10
         @test px_tn ≈ px_ed atol=1e-10
 
-        gF = fermionic_bc(:periodic, round(Int, px_ed))
+        gF = fermionic_bc(:periodic, CoolingTNS._reference_parity_sector(px_ed))
         ks_tn, hk_tn, εk_tn = measure_all_mode_energies(ψ_tn, ham_params; gF=gF)
         ks_ed, hk_ed, εk_ed = measure_all_mode_energies(ψ_ed, ham_params; gF=gF)
 

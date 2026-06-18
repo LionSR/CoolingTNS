@@ -19,7 +19,7 @@ function verify_nk_fix()
         E0, ψ0, gap = CoolingTNS.ground_state_ed(H_sys)
 
         px = CoolingTNS.measure_state_parity(ψ0, N)
-        parity = round(Int, px)
+        parity = CoolingTNS._reference_parity_sector(px)
         gF = CoolingTNS.fermionic_bc(:periodic, parity)
         ks = CoolingTNS.allowed_k_indices(N, gF)
 
