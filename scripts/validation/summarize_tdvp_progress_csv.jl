@@ -124,6 +124,15 @@ function cap_label(cycle::Integer, sweep)
     return "$(cycle):$(sweep)"
 end
 
+function default_progress_cap(method::AbstractString, dmax::Integer)
+    method_name = lowercase(method)
+    method_name == "mcwf" && return dmax
+    method_name == "mpo" && return 4 * dmax
+    throw(ArgumentError(
+        "unknown method '$method' in progress CSV; pass --cap D explicitly"
+    ))
+end
+
 function peak_evolved_bond(rows)
     peak = 0
     for row in rows
@@ -136,7 +145,9 @@ end
 
 function summarize_progress_group(file_name::AbstractString, key, rows; cap=nothing)
     label = group_label(key)
-    threshold = cap === nothing ? parse(Int, label.Dmax) : Int(cap)
+    threshold = cap === nothing ?
+        default_progress_cap(label.method, parse(Int, label.Dmax)) :
+        Int(cap)
     updates = [row for row in rows if progress_cell(row, "stage") == "updated"]
 
     system_cap_cycle = 0
@@ -231,6 +242,8 @@ function summarize_progress_file(path::AbstractString; cap=nothing)
             collect(groups);
             by=pair -> (
                 parse(Int, group_label(pair.first).N),
+                group_label(pair.first).method,
+                group_label(pair.first).evolution,
                 parse(Int, group_label(pair.first).R),
                 parse(Int, group_label(pair.first).trajectory),
             ),

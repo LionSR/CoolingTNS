@@ -31,7 +31,9 @@ const TDVP_PROGRESS_COLUMNS = [
     "elapsed_seconds",
 ]
 
-function tdvp_progress_line(; timestamp="2026-06-19T00:00:00", stage, step, cycle,
+function tdvp_progress_line(; timestamp="2026-06-19T00:00:00",
+                            method="mcwf", evolution="continuous",
+                            R="2", Dmax="6", stage, step, cycle,
                             delta="0.5", te="2.0", energy_per_site="NaN",
                             relative_energy="NaN", overlap="NaN",
                             system_max_bond="1", system_mean_bond="1.0",
@@ -41,12 +43,12 @@ function tdvp_progress_line(; timestamp="2026-06-19T00:00:00", stage, step, cycl
     row = Dict(
         "timestamp" => timestamp,
         "N" => "4",
-        "method" => "mcwf",
-        "evolution" => "continuous",
-        "R" => "2",
+        "method" => method,
+        "evolution" => evolution,
+        "R" => R,
         "trajectory" => "1",
         "seed" => "123",
-        "Dmax" => "6",
+        "Dmax" => Dmax,
         "cutoff" => "1.0e-6",
         "tau" => "0.2",
         "stage" => stage,
@@ -115,11 +117,49 @@ end
                 energy_per_site="0.25", relative_energy="1.25", overlap="0.2",
                 system_max_bond="6", evolved_max_bond="7", elapsed_seconds=16.0,
             ))
+            println(io, tdvp_progress_line(
+                method="mpo", evolution="trotter", R="3", Dmax="6",
+                stage="initial", step=1, cycle=0, delta="NaN", te="NaN",
+                energy_per_site="1.0", relative_energy="2.0", overlap="0.0",
+                system_max_bond="1", evolved_max_bond="NaN", elapsed_seconds=0.5,
+            ))
+            println(io, tdvp_progress_line(
+                method="mpo", evolution="trotter", R="3", Dmax="6",
+                stage="prepared", step=2, cycle=1,
+                system_max_bond="1", evolved_max_bond="12", elapsed_seconds=17.0,
+            ))
+            println(io, tdvp_progress_line(
+                method="mpo", evolution="trotter", R="3", Dmax="6",
+                stage="evolved", step=2, cycle=1,
+                system_max_bond="1", evolved_max_bond="23", elapsed_seconds=18.0,
+            ))
+            println(io, tdvp_progress_line(
+                method="mpo", evolution="trotter", R="3", Dmax="6",
+                stage="updated", step=2, cycle=1,
+                energy_per_site="0.75", relative_energy="1.75", overlap="0.1",
+                system_max_bond="20", evolved_max_bond="23", elapsed_seconds=19.0,
+            ))
+            println(io, tdvp_progress_line(
+                method="mpo", evolution="trotter", R="3", Dmax="6",
+                stage="prepared", step=3, cycle=2,
+                system_max_bond="20", evolved_max_bond="20", elapsed_seconds=20.0,
+            ))
+            println(io, tdvp_progress_line(
+                method="mpo", evolution="trotter", R="3", Dmax="6",
+                stage="evolved", step=3, cycle=2,
+                system_max_bond="20", evolved_max_bond="24", elapsed_seconds=21.0,
+            ))
+            println(io, tdvp_progress_line(
+                method="mpo", evolution="trotter", R="3", Dmax="6",
+                stage="updated", step=3, cycle=2,
+                energy_per_site="0.5", relative_energy="1.5", overlap="0.2",
+                system_max_bond="24", evolved_max_bond="24", elapsed_seconds=22.0,
+            ))
         end
 
         rows = summarize_progress_file(path)
-        @test length(rows) == 1
-        row = only(rows)
+        @test length(rows) == 2
+        row = only(filter(row -> row.method == "mcwf", rows))
         @test row.N == 4
         @test row.R == 2
         @test row.threshold == 6
@@ -136,6 +176,21 @@ end
         @test row.max_sweep == 2
         @test row.last_stage == "updated"
         @test length(row.updates) == 2
+
+        mpo_row = only(filter(row -> row.method == "mpo", rows))
+        @test mpo_row.evolution == "trotter"
+        @test mpo_row.R == 3
+        @test mpo_row.threshold == 24
+        @test mpo_row.completed_cycles == 2
+        @test mpo_row.final_energy == 0.5
+        @test mpo_row.system_effective_bond == ">=24"
+        @test mpo_row.evolved_effective_bond == ">=24"
+        @test mpo_row.bond_status == "not_converged_system_and_evolved_cap"
+        @test mpo_row.system_cap_cycle == 2
+        @test mpo_row.transient_cap_cycle == 2
+        @test mpo_row.transient_cap_sweep === nothing
+        @test mpo_row.max_sweep_cycle == 0
+        @test mpo_row.last_stage == "updated"
 
         output = mktemp() do output_path, io
             close(io)
