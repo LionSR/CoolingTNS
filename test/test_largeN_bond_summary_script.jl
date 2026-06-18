@@ -9,6 +9,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     try
         h5open(path, "w") do f
             write(f, "Dmax", 12)
+            write(f, "evolution_method", "continuous")
             gn = create_group(f, "N4")
             write(gn, "N", 4)
             gm = create_group(gn, "mcwf")
@@ -37,6 +38,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
         row = only(rows)
         @test row.N == 4
         @test row.method == "mcwf"
+        @test row.evolution == "continuous"
         @test row.R == 2
         @test row.M == 2
         @test row.delta_protocol == "fixed_range"
@@ -76,12 +78,12 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | R | M | delta_protocol | delta_range | delta_factor | Dcap |",
+            "| file | N | method | evolution | R | M | delta_protocol | delta_range | delta_factor | Dcap |",
             output,
         )
         @test occursin("| final E/N | relE | best E/N | best relE | tail E/N |", output)
         @test occursin(
-            "| $(basename(path)) | 4 | mcwf | 2 | 2 | fixed_range | " *
+            "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | fixed_range | " *
             "[0.50000000,3.00000000] | n/a | 12 | >=12 | >=14 | " *
             "not_converged_system_and_evolved_cap | 1.00000000 | 2.00000 | " *
             "-0.25000000 | 0.00000 | 0.41666667 | 1.00000 | 3 |",
@@ -112,6 +114,7 @@ end
         end
 
         row = only(summarize_file(path))
+        @test row.evolution == "unknown"
         @test row.delta_protocol == "unknown"
         @test row.delta_range == "unknown"
         @test row.delta_factor == "unknown"

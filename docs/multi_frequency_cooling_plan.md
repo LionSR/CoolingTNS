@@ -188,6 +188,11 @@ In particular, four-cycle fixed-detuning runs with `R = 1,2,5,10` already show
 that `Dmax = 320` is not a converged cap, and some `Dmax = 640` schedules still
 saturate the transient system-bath bond dimension.
 
+The large-`N` validation driver can now select the evolution branch explicitly.
+The Trotter results above should not be conflated with MCWF+TDVP runs launched
+with `--methods mcwf --evolution-method continuous`, which are the next
+candidate for long-cycle large-system diagnostics.
+
 These data should be used to design the next production campaign.  The table
 above is therefore a target plan, not evidence that the listed bond dimensions
 are already physically converged at large system size.

@@ -22,6 +22,11 @@ interval is the DMRG gap estimate
 `Delta_max = 6 Delta_min`, matching the driver's default `delta_max_factor`
 heuristic but holding the numerical interval fixed across the Dmax ladder.
 
+The validation driver records the evolution branch in each HDF5 file.  The
+tables below are Trotter diagnostics.  Future MCWF+TDVP runs should be launched
+with `--methods mcwf --evolution-method continuous` and interpreted separately
+from these Trotter data.
+
 ## Definitions
 
 The code source of truth for these quantities is

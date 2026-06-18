@@ -31,6 +31,13 @@ Fixed-detuning Dmax ladder:
         --Dmax-values 160,320,640 \
         --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
 
+MCWF+TDVP large-N diagnostic:
+
+    julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+        --Ns 64 --R-values 1,2,5,10 --methods mcwf --evolution-method continuous \
+        --steps 40 --Dmax 80 \
+        --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
+
 Fast path check:
 
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl --quick
@@ -60,6 +67,7 @@ function parse_args(args)
         "Ns" => [64],
         "R_values" => [1, 2, 5, 10],
         "methods" => ["mpo", "mcwf"],
+        "evolution_method" => "trotter",
         "steps" => 40,
         "Dmax" => 40,
         "Dmax_values" => nothing,
@@ -109,7 +117,7 @@ function parse_args(args)
                      "--delta-min", "--delta-max")
             key = replace(a[3:end], "-" => "_")
             cfg[key] = parse(Float64, args[i + 1]); i += 2
-        elseif a in ("--coupling", "--schedule", "--outdir", "--output")
+        elseif a in ("--coupling", "--schedule", "--outdir", "--output", "--evolution-method")
             cfg[replace(a[3:end], "-" => "_")] = args[i + 1]; i += 2
         elseif a == "--verbose"
             cfg["verbose"] = true; i += 1
@@ -128,6 +136,11 @@ function parse_args(args)
     end
     for method in cfg["methods"]
         method in ("mpo", "mcwf") || error("unknown method '$method'; use mpo or mcwf")
+    end
+    cfg["evolution_method"] in ("trotter", "continuous") ||
+        error("--evolution-method must be trotter or continuous")
+    if cfg["evolution_method"] == "continuous" && "mpo" in cfg["methods"]
+        error("--evolution-method continuous is only supported for --methods mcwf")
     end
     cfg["schedule_symbol"] = Symbol(cfg["schedule"])
     cfg["schedule_symbol"] in (:round_robin, :random) ||
@@ -169,12 +182,14 @@ function sim_params_for(method::AbstractString, cfg)
     else
         error("unknown method '$method'; use mpo or mcwf")
     end
-    # This diagnostic intentionally uses Trotter evolution for both MPO and
-    # MCWF so that the two TN representations are compared under the same
-    # finite-step system-bath circuit.
+    evolution_method = cfg["evolution_method"] == "continuous" ?
+        ContinuousEvolution() : TrotterEvolution()
+    if sim_method isa DensityMatrix && evolution_method isa ContinuousEvolution
+        error("MPO density-matrix evolution is supported only with TrotterEvolution")
+    end
     return UnifiedSimulationParameters(
         sim_method,
-        TrotterEvolution();
+        evolution_method;
         Dmax=cfg["Dmax"],
         cutoff=cfg["cutoff"],
         tau=cfg["tau"],
@@ -270,13 +285,15 @@ function output_path(cfg)
     Ns = join(cfg["Ns"], "-")
     Rs = join(cfg["R_values"], "-")
     methods = join(cfg["methods"], "-")
+    evolution_suffix = cfg["evolution_method"] == "trotter" ? "" : "_$(cfg["evolution_method"])"
     return joinpath(
         cfg["outdir"],
         @sprintf(
-            "largeN_multifrequency_tn_N%s_R%s_%s_steps%d_Dmax%d_tau%.3g_seed%d.h5",
+            "largeN_multifrequency_tn_N%s_R%s_%s%s_steps%d_Dmax%d_tau%.3g_seed%d.h5",
             Ns,
             Rs,
             methods,
+            evolution_suffix,
             cfg["steps"],
             cfg["Dmax"],
             cfg["tau"],
@@ -366,6 +383,7 @@ function run_campaign(cfg)
         write(f, "generated_at", Dates.format(now(), Dates.ISODateTimeFormat))
         write(f, "Ns", Int.(cfg["Ns"]))
         write(f, "R_values", Int.(cfg["R_values"]))
+        write(f, "evolution_method", cfg["evolution_method"])
         write(f, "steps", cfg["steps"])
         write(f, "Dmax", cfg["Dmax"])
         write(f, "cutoff", cfg["cutoff"])
@@ -400,6 +418,7 @@ function run_campaign(cfg)
                 gm = create_group(gn, method)
                 write(gm, "E0", E0)
                 write(gm, "gap", gap)
+                write(gm, "evolution_method", cfg["evolution_method"])
                 write(gm, "system_solve_reused_across_R", true)
                 detuning_protocol = largeN_detuning_protocol(gap, cfg)
                 write_largeN_detuning_protocol(gm, detuning_protocol)
@@ -520,10 +539,11 @@ function run_largeN_multifrequency_tn_scaling_main()
     cfg = parse_args(ARGS)
     Dmax_values = campaign_dmax_values(cfg)
     @printf("large-N multi-frequency TN campaign\n")
-    @printf("  Ns=%s R=%s methods=%s steps=%d Dmax=%s tau=%.3g cutoff=%.1e\n",
+    @printf("  Ns=%s R=%s methods=%s evolution=%s steps=%d Dmax=%s tau=%.3g cutoff=%.1e\n",
             join(cfg["Ns"], ","),
             join(cfg["R_values"], ","),
             join(cfg["methods"], ","),
+            cfg["evolution_method"],
             cfg["steps"],
             join(Dmax_values, ","),
             cfg["tau"],

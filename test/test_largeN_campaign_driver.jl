@@ -16,6 +16,8 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
         "--outdir", tempdir(),
     ])
 
+    @test cfg["evolution_method"] == "trotter"
+    @test sim_params_for("mcwf", cfg).evolution_method isa CoolingTNS.TrotterEvolution
     @test campaign_dmax_values(cfg) == [160, 320, 640]
     cfgs = campaign_dmax_configs(cfg)
     @test [c["Dmax"] for c in cfgs] == [160, 320, 640]
@@ -30,6 +32,19 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     single_cfg = parse_args(["--Dmax", "80"])
     @test campaign_dmax_values(single_cfg) == [80]
 
+    continuous_cfg = parse_args([
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--outdir", tempdir(),
+    ])
+    @test sim_params_for("mcwf", continuous_cfg).evolution_method isa CoolingTNS.ContinuousEvolution
+    @test occursin("mcwf_continuous_steps", output_path(continuous_cfg))
+
+    @test_throws ErrorException parse_args(["--evolution-method", "bad"])
+    @test_throws ErrorException parse_args([
+        "--methods", "mpo",
+        "--evolution-method", "continuous",
+    ])
     @test_throws ErrorException parse_args(["--Dmax-values", "160,0"])
     @test_throws ErrorException parse_args(["--Dmax-values", "320,320"])
     @test_throws ErrorException parse_args(["--Dmax-values", "160,320"])
