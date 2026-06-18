@@ -209,6 +209,82 @@ function mode_energy_Jh(k, J, h, N)
     return energy_scale(J, h) * mode_energy(k, θ, N)
 end
 
+# ============================================================================
+# Open-boundary BdG source of truth
+# ============================================================================
+
+"""
+    obc_bdg_matrices(θ, N) -> (A, B)
+
+Return the open-boundary real-space BdG matrices for the notes' canonical
+Jordan-Wigner convention, in notes units.
+
+For
+```
+H = (cos θ / 2) Σ_{n=1}^{N-1} (a_n - a_n†)(a_{n+1} + a_{n+1}†)
+    - (sin θ / 2) Σ_{n=1}^N (a_n a_n† - a_n† a_n),
+```
+the nonzero matrix elements are
+```
+A_nn = sin θ,
+A_{n,n+1} = A_{n+1,n} = -cos θ / 2,
+B_{n,n+1} = -cos θ / 2,
+B_{n+1,n} =  cos θ / 2.
+```
+"""
+function obc_bdg_matrices(θ::Real, N::Int)
+    N >= 1 || throw(ArgumentError("N must be positive, got $N"))
+    s = sin(θ)
+    c = cos(θ)
+    A = zeros(Float64, N, N)
+    B = zeros(Float64, N, N)
+    for n in 1:N
+        A[n, n] = s
+    end
+    for n in 1:(N - 1)
+        A[n, n + 1] = -c / 2
+        A[n + 1, n] = -c / 2
+        B[n, n + 1] = -c / 2
+        B[n + 1, n] = c / 2
+    end
+    return A, B
+end
+
+"""
+    obc_bdg_matrix(θ, N) -> Matrix{Float64}
+
+Return the ``2N x 2N`` open-boundary BdG matrix ``[A B; -B -A]`` in the
+canonical notes convention.
+"""
+function obc_bdg_matrix(θ::Real, N::Int)
+    A, B = obc_bdg_matrices(θ, N)
+    return [A B; -B -A]
+end
+
+"""
+    obc_mode_energies(θ, N) -> Vector{Float64}
+
+Return the positive open-boundary BdG quasiparticle energies in notes units.
+The corresponding many-body spectrum is
+``Σ_k ε_k (n_k - 1/2)`` with ``n_k ∈ {0,1}``.
+"""
+function obc_mode_energies(θ::Real, N::Int)
+    Hbdg = Symmetric(obc_bdg_matrix(θ, N))
+    values = sort(eigvals(Hbdg))
+    return values[(N + 1):(2N)]
+end
+
+"""
+    obc_mode_energies_Jh(J, h, N) -> Vector{Float64}
+
+Return the open-boundary BdG quasiparticle energies in code units for
+``H_code = J Σ Z_n Z_{n+1} + h Σ X_n``.
+"""
+function obc_mode_energies_Jh(J::Real, h::Real, N::Int)
+    θ = theta_from_Jh(J, h)
+    return energy_scale(J, h) * obc_mode_energies(θ, N)
+end
+
 """
     w_k_coefficient(k, θ, N) -> w_k
 
