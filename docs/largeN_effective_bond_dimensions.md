@@ -133,8 +133,10 @@ julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
 
 and similarly for `R = 2` in
 `/tmp/coolingtns_tdvp_N64_R2_D96_steps2_20260618`.  The progress CSV records
-the `initial`, `evolved`, and `updated` observer stages, so an interrupted long
-TDVP run still leaves a per-cycle energy and bond-dimension trace.
+the `initial`, `prepared`, `evolved`, and `updated` observer stages, so an
+interrupted long TDVP run still leaves the pre-evolution system-bath bond
+dimension, the post-evolution transient bond dimension, and the measured
+per-cycle energy trace.
 
 ## Current N=64 evidence
 

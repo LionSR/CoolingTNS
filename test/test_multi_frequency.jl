@@ -338,14 +338,16 @@ using Random
                 )
 
                 @test haskey(results_tn, CoolingTNS.RESULT_ENERGY)
-                @test [x.stage for x in observed] == [:initial, :evolved, :updated]
-                @test [x.step for x in observed] == [1, 2, 2]
+                @test [x.stage for x in observed] == [:initial, :prepared, :evolved, :updated]
+                @test [x.step for x in observed] == [1, 2, 2, 2]
                 @test observed[1].state_length == N_tn
                 @test observed[1].evolved_length == 0
                 @test observed[2].state_length == N_tn
                 @test observed[2].evolved_length == 2N_tn
                 @test observed[3].state_length == N_tn
-                @test observed[3].evolved_length == 0
+                @test observed[3].evolved_length == 2N_tn
+                @test observed[4].state_length == N_tn
+                @test observed[4].evolved_length == 0
             end
         end
     end

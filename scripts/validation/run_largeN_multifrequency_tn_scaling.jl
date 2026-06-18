@@ -38,8 +38,9 @@ MCWF+TDVP large-N diagnostic:
         --steps 40 --Dmax 80 \
         --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
 
-Long TDVP runs can also write a per-observer-event CSV trace, so partial
-energy and bond-dimension diagnostics survive if an expensive trajectory is
+Long TDVP runs can also write a per-observer-event CSV trace. The trace includes
+the `initial`, `prepared`, `evolved`, and `updated` stages, so partial energy
+and bond-dimension diagnostics survive if an expensive trajectory is
 interrupted:
 
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
@@ -274,8 +275,8 @@ end
 
 Build one progress CSV row from a `run_cooling_multi_freq` observer event.
 Energy and overlap are defined only for `:initial` and `:updated`, where the
-system has been measured. For `:evolved`, these columns are `NaN`; the
-`system_*_bond` columns describe the pre-update system state, while
+system has been measured. For `:prepared` and `:evolved`, these columns are
+`NaN`; the `system_*_bond` columns describe the pre-update system state, while
 `evolved_*_bond` describes the current transient system-bath state.
 """
 function progress_row(context, info, ham_params, E0, sys_bs, evolved_bs, elapsed)
@@ -338,10 +339,12 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
     step_observer = info -> begin
         step = info.step
         elapsed = time() - start_time
-        if info.stage === :evolved
+        if info.stage === :prepared || info.stage === :evolved
             evolved_bs = bond_summary(info.evolved_state)
-            evolved_maxbond[step] = evolved_bs.max
-            evolved_meanbond[step] = evolved_bs.mean
+            if info.stage === :evolved
+                evolved_maxbond[step] = evolved_bs.max
+                evolved_meanbond[step] = evolved_bs.mean
+            end
             if progress_csv !== nothing
                 sys_bs = bond_summary(info.state.state)
                 append_progress_csv_row(
