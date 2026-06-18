@@ -8,20 +8,6 @@ Shared functions for ED backend cooling evolution to follow DRY principles.
 # Shared ED Backend Functions
 # ============================================================================
 
-function _reference_parity_sector(px::Real; atol=0.1, default::Int=1)
-    @assert default == 1 || default == -1 "default must be +1 or -1"
-    abs(px - 1) <= atol && return 1
-    abs(px + 1) <= atol && return -1
-    return default
-end
-
-function _reference_fermionic_bc(spin_bc::Symbol, px::Real; atol=0.1, default_parity::Int=1)
-    return fermionic_bc(
-        spin_bc,
-        _reference_parity_sector(px; atol=atol, default=default_parity),
-    )
-end
-
 """
     get_bath_ground_state_ed(N_bath::Int, coupling::String) -> EDStateVector
 
