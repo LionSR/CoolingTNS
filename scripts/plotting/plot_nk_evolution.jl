@@ -5,7 +5,12 @@ Standalone plotting script. Usage:
     julia --project=. scripts/plotting/plot_nk_evolution.jl <filename.h5>
 """
 
-include(joinpath(@__DIR__, "PlotUtils.jl"))
+if !isdefined(@__MODULE__, :get_pyplot)
+    Base.include(@__MODULE__, joinpath(@__DIR__, "PlotUtils.jl"))
+end
+
+if !isdefined(@__MODULE__, :_COOLINGTNS_PLOT_NK_EVOLUTION_INCLUDED)
+const _COOLINGTNS_PLOT_NK_EVOLUTION_INCLUDED = true
 
 """
     plot_nk_evolution(filename; steps_to_plot=nothing, save_fig=true)
@@ -67,4 +72,6 @@ function plot_nk_evolution(filename; steps_to_plot=nothing, save_fig=true)
     end
 
     return fig
+end
+
 end
