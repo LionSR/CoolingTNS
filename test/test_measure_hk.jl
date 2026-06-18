@@ -526,6 +526,7 @@ end
             ham_params,
         )
         @test mode_measurements[RESULT_MODE_GF] == gF
+        @test mode_measurements[RESULT_MODE_GF_SOURCE] == "reference"
 
         expected_gF = fermionic_bc(:periodic, 1)
         expected_ks = allowed_k_indices(N, expected_gF)

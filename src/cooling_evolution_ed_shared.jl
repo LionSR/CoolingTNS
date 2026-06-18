@@ -146,18 +146,9 @@ function _momentum_measurement_gF!(measurements,
 
     N = ham_params.N
     px = measure_state_parity(state, N)
-    parity = _reference_parity_sector(px)
-
-    if abs(px - parity) <= 0.1
-        gF = fermionic_bc(ham_params.bc, parity)
-        measurements[RESULT_MOMENTUM_GF_SOURCE] = "state"
-    else
-        # A mixed-parity state has no unique fermionic boundary condition.
-        # Use the deterministic reference grid shared with mode-resolved h_k
-        # measurements rather than a backend-dependent ground-state estimate.
-        gF = fermionic_bc(ham_params.bc, parity)
-        measurements[RESULT_MOMENTUM_GF_SOURCE] = "reference"
-    end
+    sector = _reference_parity_sector_with_source(px)
+    gF = fermionic_bc(ham_params.bc, sector.parity)
+    measurements[RESULT_MOMENTUM_GF_SOURCE] = string(sector.source)
 
     measurements[RESULT_MOMENTUM_GF] = gF
     return gF

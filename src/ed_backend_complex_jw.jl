@@ -94,8 +94,9 @@ function _measure_momentum_distribution_ed_clean(state, ham_params; gF=nothing)
     # Determine k-grid: parity-aware if gF not specified
     if isnothing(gF)
         px = measure_state_parity(state, N)
-        parity = _reference_parity_sector(px)
-        if abs(px - parity) > 0.1
+        sector = _reference_parity_sector_with_source(px)
+        parity = sector.parity
+        if sector.source === :reference
             @warn "measure_momentum_distribution: state has no definite P_x parity " *
                   "(⟨P_x⟩ = $px); using the P_x = $parity reference grid"
         end
@@ -475,8 +476,9 @@ function measure_all_mode_energies(state::Union{EDStateVector, EDDensityMatrix},
     # Determine fermionic BC if not given
     if isnothing(gF)
         px = measure_state_parity(state, N)
-        parity = _reference_parity_sector(px)
-        if abs(px - parity) > 0.1
+        sector = _reference_parity_sector_with_source(px)
+        parity = sector.parity
+        if sector.source === :reference
             @warn "measure_all_mode_energies: state has no definite P_x parity " *
                   "(⟨P_x⟩ = $px); using the P_x = $parity reference grid"
         end

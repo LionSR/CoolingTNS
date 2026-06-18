@@ -248,11 +248,14 @@ end
         end
 
         @test haskey(results_tn, RESULT_MODE_GF)
+        @test haskey(results_tn, RESULT_MODE_GF_SOURCE)
         @test haskey(results_tn, RESULT_MODE_HK)
         @test haskey(results_tn, RESULT_MODE_NK)
         @test haskey(results_tn, RESULT_MODE_K_INDICES)
         @test haskey(results_tn, RESULT_MODE_ENERGIES)
         @test results_tn[RESULT_MODE_GF] == results_ed[RESULT_MODE_GF]
+        @test results_tn[RESULT_MODE_GF_SOURCE] == results_ed[RESULT_MODE_GF_SOURCE]
+        @test results_tn[RESULT_MODE_GF_SOURCE] == "state"
         @test results_tn[RESULT_MODE_K_INDICES] == results_ed[RESULT_MODE_K_INDICES]
         @test results_tn[RESULT_MODE_ENERGIES] ≈ results_ed[RESULT_MODE_ENERGIES] atol=1e-12
         @test results_tn[RESULT_MODE_HK] ≈ results_ed[RESULT_MODE_HK] atol=1e-8
@@ -295,6 +298,7 @@ end
         @test measurements[RESULT_ENERGY][2] == measurements[RESULT_ENERGY][1]
         @test measurements[RESULT_GROUND_STATE_OVERLAP][2] ==
             measurements[RESULT_GROUND_STATE_OVERLAP][1]
+        @test measurements[RESULT_MODE_GF_SOURCE] == "state"
         @test measurements[RESULT_MODE_HK][2, :] == measurements[RESULT_MODE_HK][1, :]
         @test measurements[RESULT_MODE_NK][2, :] == measurements[RESULT_MODE_NK][1, :]
     end
@@ -331,6 +335,8 @@ end
         @test all(isfinite, results_tn[RESULT_MODE_HK])
         @test all(isfinite, results_tn[RESULT_MODE_NK])
         @test results_tn[RESULT_MODE_GF] == results_ed[RESULT_MODE_GF]
+        @test results_tn[RESULT_MODE_GF_SOURCE] == results_ed[RESULT_MODE_GF_SOURCE]
+        @test results_tn[RESULT_MODE_GF_SOURCE] == "state"
         @test results_tn[RESULT_MODE_K_INDICES] == results_ed[RESULT_MODE_K_INDICES]
         @test results_tn[RESULT_MODE_ENERGIES] ≈ results_ed[RESULT_MODE_ENERGIES] atol=1e-12
         @test results_tn[RESULT_MODE_HK] ≈ results_ed[RESULT_MODE_HK] atol=1e-6
@@ -359,11 +365,14 @@ end
         end
 
         @test haskey(results_tn, RESULT_MODE_GF)
+        @test haskey(results_tn, RESULT_MODE_GF_SOURCE)
         @test haskey(results_tn, RESULT_MODE_HK)
         @test haskey(results_tn, RESULT_MODE_NK)
         @test haskey(results_tn, RESULT_MODE_K_INDICES)
         @test haskey(results_tn, RESULT_MODE_ENERGIES)
         @test results_tn[RESULT_MODE_GF] == results_ed[RESULT_MODE_GF]
+        @test results_tn[RESULT_MODE_GF_SOURCE] == results_ed[RESULT_MODE_GF_SOURCE]
+        @test results_tn[RESULT_MODE_GF_SOURCE] == "state"
         @test results_tn[RESULT_MODE_K_INDICES] == results_ed[RESULT_MODE_K_INDICES]
         @test results_tn[RESULT_MODE_ENERGIES] ≈ results_ed[RESULT_MODE_ENERGIES] atol=1e-12
         @test results_tn[RESULT_MODE_HK] ≈ results_ed[RESULT_MODE_HK] atol=1e-8

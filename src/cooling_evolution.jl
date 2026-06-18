@@ -456,12 +456,14 @@ function _add_ising_mode_measurement_slots!(measurements, ::CoolingProblem,
     supports_ising_fourier_observables(ham_params) || return false
 
     # Use the state parity when it selects a definite fermionic sector.  If the
-    # state is mixed between parity sectors, `_reference_fermionic_bc` falls
-    # back to the even-parity reference grid.  This avoids using the approximate
-    # TN DMRG ground state, whose parity need not be exact at finite bond
-    # dimension.
+    # state is mixed between parity sectors, fall back to the even-parity
+    # reference grid and record that provenance.  This avoids using the
+    # approximate TN DMRG ground state, whose parity need not be exact at finite
+    # bond dimension.
     px = measure_state_parity(state.state, ham_params.N)
-    measurements[RESULT_MODE_GF] = _reference_fermionic_bc(ham_params.bc, px)
+    sector = _reference_parity_sector_with_source(px)
+    measurements[RESULT_MODE_GF] = fermionic_bc(ham_params.bc, sector.parity)
+    measurements[RESULT_MODE_GF_SOURCE] = string(sector.source)
 
     measurements[RESULT_MODE_HK] = nothing
     measurements[RESULT_MODE_NK] = nothing

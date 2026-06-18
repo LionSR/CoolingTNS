@@ -21,6 +21,7 @@ const RESULT_MOMENTUM_GF = "momentum_gF"
 const RESULT_MOMENTUM_GF_SOURCE = "momentum_gF_source"
 
 const RESULT_MODE_GF = "mode_gF"
+const RESULT_MODE_GF_SOURCE = "mode_gF_source"
 const RESULT_MODE_HK = "mode_hk"
 const RESULT_MODE_NK = "mode_nk"
 const RESULT_MODE_K_INDICES = "mode_k_indices"
@@ -54,6 +55,7 @@ const RESULT_KEYS = (
     RESULT_MOMENTUM_GF,
     RESULT_MOMENTUM_GF_SOURCE,
     RESULT_MODE_GF,
+    RESULT_MODE_GF_SOURCE,
     RESULT_MODE_HK,
     RESULT_MODE_NK,
     RESULT_MODE_K_INDICES,
