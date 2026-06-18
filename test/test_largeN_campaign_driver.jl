@@ -32,6 +32,10 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     single_cfg = parse_args(["--Dmax", "80"])
     @test campaign_dmax_values(single_cfg) == [80]
 
+    progress_path = joinpath(tempdir(), "largeN_progress.csv")
+    progress_cfg = parse_args(["--progress-csv", progress_path])
+    @test progress_cfg["progress_csv"] == progress_path
+
     continuous_cfg = parse_args([
         "--methods", "mcwf",
         "--evolution-method", "continuous",
@@ -103,6 +107,64 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
             @test read(g_gap["detuning_delta_max_factor"]) == 4.0
             @test read(g_gap["detuning_fixed_across_dmax"]) == false
         end
+    finally
+        rm(path; force=true)
+    end
+end
+
+@testset "Large-N campaign progress CSV" begin
+    context = (
+        method="mcwf",
+        evolution="continuous",
+        R=2,
+        trajectory=1,
+        seed=123,
+        Dmax=24,
+        cutoff=1e-6,
+        tau=0.2,
+    )
+    ham_params = CoolingTNS.NiIsingParameters(4, 1.0, -1.05, 0.5)
+    measurements = Dict{String,Any}(
+        CoolingTNS.RESULT_ENERGY => [-4.0, -1.0],
+        CoolingTNS.RESULT_GROUND_STATE_OVERLAP => [0.1, 0.2],
+    )
+    info = (
+        stage=:updated,
+        step=2,
+        measurements=measurements,
+        delta=0.5,
+        te=2.0,
+    )
+    row = progress_row(
+        context,
+        info,
+        ham_params,
+        -4.0,
+        (max=8, mean=6.5),
+        (max=13, mean=9.25),
+        3.5,
+    )
+
+    @test row["method"] == "mcwf"
+    @test row["evolution"] == "continuous"
+    @test row["cycle"] == 1
+    @test row["energy_per_site"] == -0.25
+    @test row["relative_energy"] == relative_energy(-1.0, -4.0)
+    @test row["system_max_bond"] == 8
+    @test row["evolved_max_bond"] == 13
+
+    path = tempname() * ".csv"
+    try
+        append_progress_csv_row(path, row)
+        append_progress_csv_row(path, merge(row, Dict{String,Any}(
+            "timestamp" => "contains,comma",
+            "stage" => "evolved",
+        )))
+        lines = readlines(path)
+        @test lines[1] == join(PROGRESS_CSV_COLUMNS, ",")
+        @test length(lines) == 3
+        @test occursin("\"contains,comma\"", lines[3])
+        @test count(==(','), lines[1]) == length(PROGRESS_CSV_COLUMNS) - 1
     finally
         rm(path; force=true)
     end
