@@ -129,7 +129,8 @@ and `R = 10` still reach the cap by the fourth cycle.  The focused
 `Dmax = 960` follow-up resolves those two lower bounds for this four-cycle
 diagnostic: `Dsb_eff = 862` for `R = 2` and `Dsb_eff = 737` for `R = 10`.
 
-The strongest currently bounded post-measurement system-state dimensions are:
+The strongest currently bounded effective bond dimensions (post-measurement
+system `Dsys_eff` and transient system-bath `Dsb_eff`) are:
 
 ```text
 R =  1: Dsys_eff = 309, Dsb_eff = 394
