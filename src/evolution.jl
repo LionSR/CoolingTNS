@@ -87,7 +87,8 @@ function evolve_state(ham_params::HamiltonianParameters, sim_params::UnifiedSimu
                      ::TNBackend, ::Any, ψ, t::Float64, ::Vector{<:Index}; gates=nothing, step_gates=nothing, kwargs...)
     gates === nothing && error("Trotter evolution requires pre-computed gates")
 
-    Dmax, cutoff, tau = sim_params.Dmax, sim_params.cutoff, sim_params.tau
+    Dmax = tn_trotter_maxdim(sim_params.sim_method, sim_params.Dmax)
+    cutoff, tau = sim_params.cutoff, sim_params.tau
     steps, dt = trotter_time_slices(t, tau)
     steps == 0 && return ψ
     active_gates = _trotter_gates_for_step(gates, step_gates, dt, tau)
@@ -113,7 +114,7 @@ end
 
 function evolve_state(::HamiltonianParameters, sim_params::UnifiedSimulationParameters{DensityMatrix, TrotterEvolution},
                      ::TNBackend, gates, ρ, t::Float64, ::Vector{<:Index}; step_gates=nothing, kwargs...)
-    Dmax = max(sim_params.Dmax, 4 * sim_params.Dmax)
+    Dmax = tn_trotter_maxdim(sim_params.sim_method, sim_params.Dmax)
     cutoff = sim_params.cutoff / 10
     steps, dt = trotter_time_slices(t, sim_params.tau)
     steps == 0 && return ρ

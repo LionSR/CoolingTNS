@@ -56,6 +56,7 @@ export theta_code_from_initial_product_angle, theta_site_amplitudes
 export CoolingProblem, QuantumState
 export CoolingBackend, EDBackend, TNBackend
 export SimulationMethod, DensityMatrix, MonteCarloWavefunction
+export tn_trotter_maxdim
 export EvolutionMethod, ContinuousEvolution, TrotterEvolution
 # Export new parameter types and functions
 export CouplingParameters, SimulationParameters, CoolingResults

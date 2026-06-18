@@ -324,6 +324,17 @@ struct DensityMatrix <: SimulationMethod end     # Can be used with MPO, or MPS+
 struct MonteCarloWavefunction <: SimulationMethod end  # Used with MPS, TrotterMPS, or ED trajectories
 
 """
+    tn_trotter_maxdim(sim_method, Dmax)
+
+Return the `maxdim` passed to ITensor Trotter gate application for a tensor
+network simulation method.  For density matrices represented as MPOs, the
+gate application evolves the ket and bra virtual spaces, so the historical
+Trotter cap is four times the nominal `Dmax`.
+"""
+tn_trotter_maxdim(::MonteCarloWavefunction, Dmax::Integer) = Dmax
+tn_trotter_maxdim(::DensityMatrix, Dmax::Integer) = 4 * Dmax
+
+"""
     EvolutionMethod
 
 Base abstract type for time evolution methods.
