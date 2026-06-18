@@ -12,6 +12,9 @@ if !@isdefined(get_pyplot)
     include(joinpath(@__DIR__, "PlotUtils.jl"))
 end
 
+using HDF5
+using LaTeXStrings
+
 # Import CoolingTNS types and functions needed by this file
 using CoolingTNS: HamiltonianParameters, CouplingParameters, UnifiedSimulationParameters,
     CoolingBackend, parse_hamiltonian_name, create_filename, mean_last_window,
@@ -20,6 +23,9 @@ using CoolingTNS: HamiltonianParameters, CouplingParameters, UnifiedSimulationPa
     RESULT_MODE_GF, RESULT_MODE_K_INDICES, RESULT_MODE_ENERGIES,
     HDF5_PARSED_ARGS_GROUP, hamiltonian_name, bath_detuning_energy,
     compute_energy_dispersion
+
+if !isdefined(@__MODULE__, :_COOLINGTNS_PLOTTING_INCLUDED)
+const _COOLINGTNS_PLOTTING_INCLUDED = true
 
 _ham_params_with_N(template::HamiltonianParameters, N::Int) =
     HamiltonianParameters(template.model, N, template.params, template.bc)
@@ -854,4 +860,6 @@ function plot_data(filename::AbstractString; moving_average::Bool=false, output_
     plot_energy_and_overlap(E_list, GS_overlap_list, e0, N, base; moving_average=moving_average, output_dir=out_dir)
 
     return nothing
+end
+
 end
