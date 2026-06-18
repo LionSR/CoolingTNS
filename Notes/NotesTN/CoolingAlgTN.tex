@@ -194,11 +194,54 @@ In our numerical simulations, we consider cooling with an extensive number of an
 \subsection{Matrix Product Operator Simulation}
 \label{sec:MPOCooling}
 
-To simulate the cooling dynamics, we employ the time-evolving block decimation (TEBD) algorithm to compute the time-evolved density matrix (\ref{eq:rhot}). The idea is to split the Hamiltonian $H$ (\ref{eq:Ham}) into two parts, even $e$ and odd $o$ sites, such that $H_e$ and $H_o$ only contain mutually commuting terms $H=H_e + H_o$ and use the Suzuki-Trotter decomposition to approximate
+To simulate the MPO cooling dynamics, the implementation first stores the
+combined system and bath in the interleaved order
 \begin{equation}
-	e^{-i(H_e + H_o)t} \approx  \left(e^{\frac{-iH_e t}{M}} e^{\frac{-iH_o t}{M}}\right)^{M},
+	(s_1,b_1,s_2,b_2,\ldots,s_N,b_N).
 \end{equation}
-where $M$ is the number of divisions we divide the time evolution into. The Trotter step $\delta = t/M$ controls the Trotterization error, with smaller values of $\delta$ leading to more accurate approximations at the cost of increased computational complexity. With this decomposition, the evolution operator for each step can then be applied to the matrix product operators. After every application of a two-site unitary, we truncate singular values and shrink the bond dimension of the MPOs.
+This ordering is important: the local system-bath interaction acts on adjacent
+sites $(s_i,b_i)$, while the nearest-neighbor Ising interaction between
+$s_i$ and $s_{i+1}$ becomes a local three-site operator on
+$(s_i,b_i,s_{i+1})$, with the bath site acted on by the identity.
+
+For one Trotter slice of duration $\delta t$, the code applies a symmetric
+second-order sweep.  In the notation of Eq.~\eqref{eq:HIsing}, let
+\begin{equation}
+	\begin{aligned}
+		h_i^{\mathrm{loc}}
+		&= h_x \sigma^x_{s_i}+h_z \sigma^z_{s_i}
+		+\frac{\Delta}{2} \sigma^{\beta}_{b_i}
+		+g\sum_a \sigma^{\mu_a}_{s_i}\sigma^{\nu_a}_{b_i},\\
+		h_i^{ZZ}
+		&=J\sigma^z_{s_i}\Id_{b_i}\sigma^z_{s_{i+1}}.
+	\end{aligned}
+\end{equation}
+Here $\sigma^\beta_{b_i}$ is the bath Pauli operator selected by the coupling
+channel, and the sum over $a$ is the corresponding local system-bath coupling.
+For the transverse-field Ising model used in the integrable tests, the
+$h_z\sigma^z_{s_i}$ term is absent and $h_x$ is replaced by the transverse
+field parameter $h$.
+
+The gates are applied in the following order:
+\begin{equation}
+	\begin{aligned}
+		& e^{-i h_1^{\mathrm{loc}}\delta t/2},\ldots,
+		e^{-i h_N^{\mathrm{loc}}\delta t/2},\\
+		& e^{-i h_1^{ZZ}\delta t/2},\ldots,
+		e^{-i h_{N-1}^{ZZ}\delta t/2},\\
+		& e^{-i h_{N-1}^{ZZ}\delta t/2},\ldots,
+		e^{-i h_1^{ZZ}\delta t/2},\\
+		& e^{-i h_N^{\mathrm{loc}}\delta t/2},\ldots,
+		e^{-i h_1^{\mathrm{loc}}\delta t/2}.
+	\end{aligned}
+\end{equation}
+Thus the tensor-network Trotter path is not the standard even--odd split of
+the system Hamiltonian alone.  It is an interleaved two- and three-site gate
+decomposition of the full system-bath Hamiltonian.  The requested cycle time
+$t$ is divided into $M$ slices with $\delta t=t/M$; smaller $\delta t$ reduces
+the Trotter error but increases the number of gate applications.  After every
+gate application, singular values are truncated to control the MPO bond
+dimension.
 
 
 After the time evolution (\ref{eq:rhot}), we perform the partial trace of the bath degrees of freedom. This can be done efficiently for matrix product operators (see Fig.~\ref{fig:MPO}(c)). Essentially, the order-four tensor of the site to be traced out is reduced to a matrix after applying the trace operation and can be merged with neighboring tensors through a contraction.
