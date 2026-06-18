@@ -8,9 +8,12 @@ Example:
         /tmp/coolingtns_largeN_mcwf_N64_R1_steps4_Dmax320.h5 \
         /tmp/coolingtns_largeN_mcwf_N64_R2-5-10_steps4_Dmax320.h5
 
-The output is a Markdown table.  For multi-trajectory data, final-link
-quantiles and threshold fractions are computed per trajectory and then averaged
-over trajectories.
+The output is a Markdown table.  When present, the stored detuning protocol is
+shown next to the bond-dimension diagnostics, so fixed-detuning cutoff sweeps
+can be audited from the summary alone.  The `delta_range` column is the stored
+protocol interval; for `R=1`, the campaign samples only the lower endpoint.  For
+multi-trajectory data, final-link quantiles and threshold fractions are computed
+per trajectory and then averaged over trajectories.
 """
 
 using CoolingTNS
@@ -34,9 +37,65 @@ function format_float(value::Real, digits::Int=2)
     !isfinite(value) && return "NaN"
     digits == 1 && return @sprintf("%.1f", value)
     digits == 2 && return @sprintf("%.2f", value)
+    digits == 3 && return @sprintf("%.3f", value)
     digits == 5 && return @sprintf("%.5f", value)
     digits == 8 && return @sprintf("%.8f", value)
     return string(round(Float64(value); digits=digits))
+end
+
+function read_group_value(primary_group, fallback_group, key::AbstractString, default)
+    haskey(primary_group, key) && return read(primary_group[key])
+    haskey(fallback_group, key) && return read(fallback_group[key])
+    return default
+end
+
+function detuning_interval_label(delta_min::Real, delta_max::Real)
+    isfinite(delta_min) && isfinite(delta_max) ||
+        return "unknown"
+    return "[$(format_float(delta_min, 8)),$(format_float(delta_max, 8))]"
+end
+
+function delta_values_interval_label(run_group)
+    haskey(run_group, "delta_values") || return "unknown"
+    delta_values = Float64.(read(run_group["delta_values"]))
+    isempty(delta_values) && return "unknown"
+    return detuning_interval_label(minimum(delta_values), maximum(delta_values))
+end
+
+function detuning_factor_label(source::AbstractString, factor::Real)
+    source == "gap_scaled_range" && isfinite(factor) &&
+        return format_float(factor, 3)
+    source == "fixed_range" && return "n/a"
+    return "unknown"
+end
+
+function detuning_protocol_summary(method_group, run_group)
+    source = String(
+        read_group_value(
+            run_group,
+            method_group,
+            "detuning_protocol_source",
+            "unknown",
+        ),
+    )
+    delta_min = Float64(
+        read_group_value(run_group, method_group, "detuning_delta_min", NaN),
+    )
+    delta_max = Float64(
+        read_group_value(run_group, method_group, "detuning_delta_max", NaN),
+    )
+    factor = Float64(
+        read_group_value(run_group, method_group, "detuning_delta_max_factor", NaN),
+    )
+
+    interval = source == "unknown" ?
+        delta_values_interval_label(run_group) :
+        detuning_interval_label(delta_min, delta_max)
+    return (
+        delta_protocol=source,
+        delta_range=interval,
+        delta_factor=detuning_factor_label(source, factor),
+    )
 end
 
 function method_from_name(method_name::AbstractString)
@@ -137,6 +196,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     link_dims = final_link_dimensions(run_group)
     quantiles = mean_link_quantiles(link_dims)
     fractions = mean_link_threshold_fractions(link_dims, threshold)
+    detuning = detuning_protocol_summary(method_group, run_group)
 
     return (
         file=basename(file_name),
@@ -144,6 +204,9 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         method=method_name,
         R=R,
         M=M,
+        delta_protocol=detuning.delta_protocol,
+        delta_range=detuning.delta_range,
+        delta_factor=detuning.delta_factor,
         threshold=threshold,
         final_e_over_n=final_e_over_n,
         relative_energy=final_relative_energy,
@@ -193,11 +256,13 @@ function summarize_file(path::AbstractString)
 end
 
 function print_markdown(rows)
-    println("| file | N | method | R | M | Dcap | Dsys_eff | Dsb_eff | bond_status | final E/N | relE | final sys max | final sys mean | peak evolved max | peak evolved mean | sys sat | evolved sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
-    println("|---|---:|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|")
+    println("| file | N | method | R | M | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | bond_status | final E/N | relE | final sys max | final sys mean | peak evolved max | peak evolved mean | sys sat | evolved sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("|---|---:|---|---:|---:|---|---|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for row in sort(rows; by=row -> (row.N, row.method, row.R, row.file))
         println(
-            "| $(row.file) | $(row.N) | $(row.method) | $(row.R) | $(row.M) | $(row.threshold) | " *
+            "| $(row.file) | $(row.N) | $(row.method) | $(row.R) | $(row.M) | " *
+            "$(row.delta_protocol) | $(row.delta_range) | $(row.delta_factor) | " *
+            "$(row.threshold) | " *
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | $(row.bond_status) | " *
             "$(format_float(row.final_e_over_n, 8)) | $(format_float(row.relative_energy, 5)) | " *
             "$(row.final_system_max) | $(format_float(row.final_system_mean, 2)) | " *
