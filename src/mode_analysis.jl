@@ -209,6 +209,20 @@ function mode_energy_Jh(k, J, h, N)
     return energy_scale(J, h) * mode_energy(k, θ, N)
 end
 
+"""
+    mode_energies_Jh(k_indices, J, h, N) -> Vector{Float64}
+
+Positive quasiparticle gaps for an allowed momentum grid in code units. These
+are the gaps used for bath-resonance diagnostics. They are not the signed
+coefficients used in the exact reconstruction
+``E = (Λ/2) Σ_k coeff_k h_k``.
+"""
+function mode_energies_Jh(k_indices, J, h, N)
+    θ = theta_from_Jh(J, h)
+    Λ = energy_scale(J, h)
+    return [Λ * mode_energy(Float64(k), θ, N) for k in k_indices]
+end
+
 # ============================================================================
 # Open-boundary BdG source of truth
 # ============================================================================

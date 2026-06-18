@@ -258,7 +258,9 @@ end
     measure_all_mode_energies(ψ::MPS, ham_params; gF=nothing)
 
 MPS analogue of the ED mode measurement. Returns allowed k-indices, ``⟨h_k⟩``,
-and the corresponding code-unit mode energies.
+and the corresponding positive code-unit quasiparticle gaps used for resonance
+diagnostics. Energy reconstruction should use `ising_energy_from_mode_hk`, which
+keeps the signed special-mode coefficients.
 """
 function measure_all_mode_energies(ψ::MPS, ham_params::HamiltonianParameters{IsingModel};
                                    gF=nothing)
@@ -271,8 +273,6 @@ function _measure_all_mode_energies_tn(state::Union{MPS,MPO}, ham_params::Hamilt
     N = ham_params.N
 
     J, h = ham_params.params.J, ham_params.params.h
-    θ = theta_from_Jh(J, h)
-    Λ = energy_scale(J, h)
 
     if isnothing(gF)
         px = measure_state_parity(state, N)
@@ -288,7 +288,7 @@ function _measure_all_mode_energies_tn(state::Union{MPS,MPO}, ham_params::Hamilt
     correlators = _split_string_correlators(state)
     ks = allowed_k_indices(N, gF)
     hk_values = [_measure_hk_from_correlators(correlators, k, ham_params) for k in ks]
-    εk_values = [Λ * mode_energy(Float64(k), θ, N) for k in ks]
+    εk_values = mode_energies_Jh(ks, J, h, N)
     return ks, hk_values, εk_values
 end
 
@@ -296,7 +296,9 @@ end
     measure_all_mode_energies(ρ::MPO, ham_params; gF=nothing)
 
 MPO analogue of the ED mode measurement. Returns allowed k-indices,
-``⟨h_k⟩``, and the corresponding code-unit mode energies.
+``⟨h_k⟩``, and the corresponding positive code-unit quasiparticle gaps used for
+resonance diagnostics. Energy reconstruction should use
+`ising_energy_from_mode_hk`, which keeps the signed special-mode coefficients.
 """
 function measure_all_mode_energies(ρ::MPO, ham_params::HamiltonianParameters{IsingModel};
                                    gF=nothing)
