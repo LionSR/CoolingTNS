@@ -10,8 +10,8 @@ cooling channel:
 
 For each system size and each number of bath detunings R, the script records
 energy density, relative energy above the DMRG ground state, ground-state
-overlap, runtime, detuning sequence, and effective bond dimensions of the
-updated system state.
+overlap, runtime, detuning sequence, effective bond dimensions, and the first
+cooling cycle where the method-specific bond threshold is reached.
 
 Example N=64 campaign:
 
@@ -37,6 +37,8 @@ using ITensorMPS
 using Printf
 using Random
 using Statistics
+
+include(joinpath(@__DIR__, "largeN_scaling_helpers.jl"))
 
 const DEFAULT_OUTDIR = joinpath(@__DIR__, "Data", "largeN_multifrequency")
 
@@ -263,7 +265,7 @@ function output_path(cfg)
     )
 end
 
-function write_run_group(parent, name, traj_rows, E0)
+function write_run_group(parent, name, traj_rows, E0, saturation_threshold)
     g = create_group(parent, name)
     nsteps = length(traj_rows[1]["E"])
     M = length(traj_rows)
@@ -281,6 +283,14 @@ function write_run_group(parent, name, traj_rows, E0)
     E_mean = vec(mean(E; dims=2))
     E_stderr = M == 1 ? zeros(nsteps) : vec(std(E; dims=2)) ./ sqrt(M)
     rel_mean = relative_energy.(E_mean, Ref(E0))
+    system_saturation_cycles = Int[
+        first_bond_saturation_cycle(row["sys_maxbond"], saturation_threshold)
+        for row in traj_rows
+    ]
+    evolved_saturation_cycles = Int[
+        first_bond_saturation_cycle(row["evolved_maxbond"], saturation_threshold)
+        for row in traj_rows
+    ]
 
     write(g, "M", M)
     write(g, "E_trajectories", E)
@@ -294,6 +304,9 @@ function write_run_group(parent, name, traj_rows, E0)
     write(g, "system_mean_bond", sys_meanbond)
     write(g, "evolved_max_bond", evolved_maxbond)
     write(g, "evolved_mean_bond", evolved_meanbond)
+    write(g, "bond_saturation_threshold", saturation_threshold)
+    write(g, "system_saturation_cycle", system_saturation_cycles)
+    write(g, "evolved_saturation_cycle", evolved_saturation_cycles)
     write(g, "elapsed_seconds", Float64[row["elapsed"] for row in traj_rows])
     write(g, "delta_lists", delta_lists)
     write(g, "delta_list_first_trajectory", delta_lists[:, 1])
@@ -310,7 +323,11 @@ function write_run_group(parent, name, traj_rows, E0)
         final_rel=rel_mean[end],
         final_overlap=mean(overlap[end, :]),
         final_sys_maxbond=maximum(sys_maxbond[end, :]),
+        final_sys_meanbond=mean(sys_meanbond[end, :]),
         peak_evolved_maxbond=maximum(evolved_maxbond[2:end, :]),
+        peak_evolved_meanbond=maximum(vec(mean(evolved_meanbond[2:end, :]; dims=2))),
+        first_system_saturation_cycle=first_recorded_saturation_cycle(system_saturation_cycles),
+        first_evolved_saturation_cycle=first_recorded_saturation_cycle(evolved_saturation_cycles),
         elapsed=sum(row["elapsed"] for row in traj_rows),
     )
 end
@@ -363,6 +380,10 @@ function run_campaign(cfg)
                 write(gm, "system_solve_reused_across_R", true)
 
                 M = method == "mcwf" ? cfg["M_mcwf"] : cfg["M_mpo"]
+                saturation_threshold = CoolingTNS.tn_trotter_maxdim(
+                    sim_params.sim_method, cfg["Dmax"]
+                )
+                write(gm, "bond_saturation_threshold", saturation_threshold)
                 for R in cfg["R_values"]
                     delta_values = campaign_delta_values(gap, cfg, R)
                     cp_multi = MultiFrequencyCouplingParameters(
@@ -395,15 +416,23 @@ function run_campaign(cfg)
                                                  cfg, seed)
                         push!(traj_rows, row)
                         peak_evolved_maxbond = maximum(row["evolved_maxbond"][2:end])
-                        @printf("  traj %d/%d seed=%d final E/N=%.8f rel=%.6g final_sysD=%d peak_evolvedD=%d elapsed=%.1fs\n",
+                        system_saturation_cycle = first_bond_saturation_cycle(
+                            row["sys_maxbond"], saturation_threshold
+                        )
+                        evolved_saturation_cycle = first_bond_saturation_cycle(
+                            row["evolved_maxbond"], saturation_threshold
+                        )
+                        @printf("  traj %d/%d seed=%d final E/N=%.8f rel=%.6g final_sysD=%d peak_evolvedD=%d sysSat=%s evolvedSat=%s elapsed=%.1fs\n",
                                 m, M, seed, row["E"][end] / N,
                                 relative_energy(row["E"][end], E0),
                                 row["sys_maxbond"][end],
                                 peak_evolved_maxbond,
+                                saturation_cycle_label(system_saturation_cycle),
+                                saturation_cycle_label(evolved_saturation_cycle),
                                 row["elapsed"])
                     end
 
-                    summary = write_run_group(gm, "R$R", traj_rows, E0)
+                    summary = write_run_group(gm, "R$R", traj_rows, E0, saturation_threshold)
                     push!(summaries, (
                         N=N,
                         method=method,
@@ -413,15 +442,23 @@ function run_campaign(cfg)
                         final_rel=summary.final_rel,
                         final_overlap=summary.final_overlap,
                         final_sys_maxbond=summary.final_sys_maxbond,
+                        final_sys_meanbond=summary.final_sys_meanbond,
                         peak_evolved_maxbond=summary.peak_evolved_maxbond,
+                        peak_evolved_meanbond=summary.peak_evolved_meanbond,
+                        first_system_saturation_cycle=summary.first_system_saturation_cycle,
+                        first_evolved_saturation_cycle=summary.first_evolved_saturation_cycle,
                         elapsed=summary.elapsed,
                     ))
-                    @printf("  mean final E/N=%.8f rel=%.6g overlap=%.6g final_sysD=%d peak_evolvedD=%d elapsed_total=%.1fs\n",
+                    @printf("  mean final E/N=%.8f rel=%.6g overlap=%.6g final_sysD=%d mean_sysD=%.2f peak_evolvedD=%d mean_evolvedD=%.2f sysSat=%s evolvedSat=%s elapsed_total=%.1fs\n",
                             summary.final_E_mean / N,
                             summary.final_rel,
                             summary.final_overlap,
                             summary.final_sys_maxbond,
+                            summary.final_sys_meanbond,
                             summary.peak_evolved_maxbond,
+                            summary.peak_evolved_meanbond,
+                            saturation_cycle_label(summary.first_system_saturation_cycle),
+                            saturation_cycle_label(summary.first_evolved_saturation_cycle),
                             summary.elapsed)
                     GC.gc()
                 end
@@ -432,9 +469,13 @@ function run_campaign(cfg)
     println("\nwrote $path")
     println("summary:")
     for s in summaries
-        @printf("  N=%d %-4s R=%2d final E/N=%.8f rel=%.6g overlap=%.6g final_sysD=%d peak_evolvedD=%d elapsed=%.1fs\n",
+        @printf("  N=%d %-4s R=%2d final E/N=%.8f rel=%.6g overlap=%.6g final_sysD=%d mean_sysD=%.2f peak_evolvedD=%d mean_evolvedD=%.2f sysSat=%s evolvedSat=%s elapsed=%.1fs\n",
                 s.N, s.method, s.R, s.final_E / s.N, s.final_rel,
-                s.final_overlap, s.final_sys_maxbond, s.peak_evolved_maxbond, s.elapsed)
+                s.final_overlap, s.final_sys_maxbond, s.final_sys_meanbond,
+                s.peak_evolved_maxbond, s.peak_evolved_meanbond,
+                saturation_cycle_label(s.first_system_saturation_cycle),
+                saturation_cycle_label(s.first_evolved_saturation_cycle),
+                s.elapsed)
     end
     return path, summaries
 end
