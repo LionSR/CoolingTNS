@@ -212,7 +212,7 @@ function print_markdown(rows)
     end
 end
 
-function main(args=ARGS)
+function summarize_largeN_bond_dimensions_main(args=ARGS)
     if isempty(args) || any(arg -> arg in ("-h", "--help"), args)
         usage()
         return isempty(args) ? 1 : 0
@@ -229,5 +229,5 @@ function main(args=ARGS)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    exit(main())
+    exit(summarize_largeN_bond_dimensions_main())
 end

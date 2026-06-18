@@ -1,4 +1,5 @@
 using Test
+using HDF5
 
 include(joinpath(@__DIR__, "..", "scripts", "validation",
                  "run_largeN_multifrequency_tn_scaling.jl"))
@@ -31,8 +32,60 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
 
     @test_throws ErrorException parse_args(["--Dmax-values", "160,0"])
     @test_throws ErrorException parse_args(["--Dmax-values", "320,320"])
+    @test_throws ErrorException parse_args(["--Dmax-values", "160,320"])
     @test_throws ErrorException parse_args([
         "--Dmax-values", "160,320",
+        "--delta-min", "0.5",
+        "--delta-max", "3.0",
         "--output", joinpath(tempdir(), "one_file.h5"),
     ])
+
+    path = tempname() * ".h5"
+    try
+        protocol = largeN_detuning_protocol(0.75; delta_min=0.5, delta_max=3.0)
+        traj_rows = [
+            Dict{String,Any}(
+                "E" => [-2.0, -1.5, -1.0],
+                "overlap" => [0.1, 0.2, 0.3],
+                "purity" => [1.0, 1.0, 1.0],
+                "sys_maxbond" => [1, 4, 8],
+                "sys_meanbond" => [1.0, 3.0, 6.0],
+                "evolved_maxbond" => [0, 7, 9],
+                "evolved_meanbond" => [NaN, 5.0, 7.0],
+                "delta_list" => [NaN, 0.5, 3.0],
+                "final_bond_dims" => [4, 8],
+                "elapsed" => 1.25,
+            ),
+        ]
+
+        h5open(path, "w") do f
+            write_run_group(f, "R2", traj_rows, -2.0, 8, protocol, [0.5, 3.0])
+            gap_protocol = largeN_detuning_protocol(0.75; delta_max_factor=4.0)
+            write_run_group(
+                f, "R3_gap", traj_rows, -2.0, 8,
+                gap_protocol, largeN_delta_values(gap_protocol, 3)
+            )
+        end
+        h5open(path, "r") do f
+            g = f["R2"]
+            @test read(g["delta_values"]) == [0.5, 3.0]
+            @test read(g["detuning_protocol_source"]) == "fixed_range"
+            @test read(g["detuning_reference_gap"]) == 0.75
+            @test read(g["detuning_delta_min"]) == 0.5
+            @test read(g["detuning_delta_max"]) == 3.0
+            @test isnan(read(g["detuning_delta_max_factor"]))
+            @test read(g["detuning_fixed_across_dmax"]) == true
+
+            g_gap = f["R3_gap"]
+            @test read(g_gap["delta_values"]) == [0.75, 1.875, 3.0]
+            @test read(g_gap["detuning_protocol_source"]) == "gap_scaled_range"
+            @test read(g_gap["detuning_reference_gap"]) == 0.75
+            @test read(g_gap["detuning_delta_min"]) == 0.75
+            @test read(g_gap["detuning_delta_max"]) == 3.0
+            @test read(g_gap["detuning_delta_max_factor"]) == 4.0
+            @test read(g_gap["detuning_fixed_across_dmax"]) == false
+        end
+    finally
+        rm(path; force=true)
+    end
 end

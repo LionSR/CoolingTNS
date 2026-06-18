@@ -4,6 +4,32 @@ using CoolingTNS
 include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helpers.jl"))
 
 @testset "Large-N scaling helper functions" begin
+    gap_protocol = largeN_detuning_protocol(0.5; delta_max_factor=6.0)
+    @test gap_protocol.source == "gap_scaled_range"
+    @test gap_protocol.reference_gap == 0.5
+    @test gap_protocol.delta_min == 0.5
+    @test gap_protocol.delta_max == 3.0
+    @test gap_protocol.fixed_across_dmax == false
+    @test largeN_delta_values(gap_protocol, 1) == [0.5]
+    @test largeN_delta_values(gap_protocol, 3) == [0.5, 1.75, 3.0]
+
+    fixed_protocol = largeN_detuning_protocol(
+        0.75; delta_min=0.25, delta_max=1.25, delta_max_factor=6.0
+    )
+    @test fixed_protocol.source == "fixed_range"
+    @test fixed_protocol.reference_gap == 0.75
+    @test fixed_protocol.delta_min == 0.25
+    @test fixed_protocol.delta_max == 1.25
+    @test isnan(fixed_protocol.delta_max_factor)
+    @test fixed_protocol.fixed_across_dmax == true
+    @test largeN_delta_values(fixed_protocol, 2) == [0.25, 1.25]
+
+    @test_throws ArgumentError largeN_detuning_protocol(0.0; delta_max_factor=6.0)
+    @test_throws ArgumentError largeN_detuning_protocol(0.5; delta_max_factor=0.5)
+    @test_throws ArgumentError largeN_detuning_protocol(0.5; delta_min=0.5)
+    @test_throws ArgumentError largeN_detuning_protocol(0.5; delta_min=1.0, delta_max=0.5)
+    @test_throws ArgumentError largeN_delta_values(fixed_protocol, 0)
+
     @test tn_trotter_maxdim(MonteCarloWavefunction(), 12) == 12
     @test tn_trotter_maxdim(DensityMatrix(), 12) == 48
 

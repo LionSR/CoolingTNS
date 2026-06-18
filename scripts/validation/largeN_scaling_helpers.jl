@@ -1,4 +1,104 @@
+if !isdefined(@__MODULE__, :_COOLINGTNS_LARGEN_SCALING_HELPERS_INCLUDED)
+const _COOLINGTNS_LARGEN_SCALING_HELPERS_INCLUDED = true
+
+using CoolingTNS: uniform_delta_grid
 using Statistics
+
+"""
+    largeN_detuning_protocol(gap; delta_min, delta_max, delta_max_factor)
+
+Return the detuning interval used by a large-N validation campaign.  A fixed
+range is an explicit physical protocol; otherwise the range is derived from the
+DMRG gap estimate as `[gap, delta_max_factor * gap]`.
+"""
+function largeN_detuning_protocol(
+    gap::Real;
+    delta_min=nothing,
+    delta_max=nothing,
+    delta_max_factor::Real=6.0,
+)
+    if (delta_min === nothing) != (delta_max === nothing)
+        throw(ArgumentError("delta_min and delta_max must be supplied together"))
+    end
+
+    reference_gap = Float64(gap)
+    isfinite(reference_gap) && reference_gap > 0 ||
+        throw(ArgumentError("reference gap must be finite and positive, got $gap"))
+
+    if delta_min === nothing
+        factor = Float64(delta_max_factor)
+        isfinite(factor) && factor >= 1 ||
+            throw(ArgumentError("delta_max_factor must be finite and at least 1, got $factor"))
+        return (
+            source="gap_scaled_range",
+            reference_gap=reference_gap,
+            delta_min=reference_gap,
+            delta_max=factor * reference_gap,
+            delta_max_factor=factor,
+            fixed_across_dmax=false,
+        )
+    end
+
+    delta_min_value = Float64(delta_min)
+    delta_max_value = Float64(delta_max)
+    isfinite(delta_min_value) &&
+        isfinite(delta_max_value) &&
+        delta_min_value > 0 &&
+        delta_max_value >= delta_min_value ||
+        throw(ArgumentError("fixed detuning range must satisfy 0 < delta_min <= delta_max"))
+    return (
+        source="fixed_range",
+        reference_gap=reference_gap,
+        delta_min=delta_min_value,
+        delta_max=delta_max_value,
+        delta_max_factor=NaN,
+        fixed_across_dmax=true,
+    )
+end
+
+"""
+    largeN_detuning_protocol(gap, cfg)
+
+Construct the large-N detuning protocol from parsed campaign-driver options.
+"""
+function largeN_detuning_protocol(gap::Real, cfg)
+    return largeN_detuning_protocol(
+        gap;
+        delta_min=cfg["delta_min"],
+        delta_max=cfg["delta_max"],
+        delta_max_factor=cfg["delta_max_factor"],
+    )
+end
+
+"""
+    largeN_delta_values(protocol, R)
+
+Return the `R` bath detunings for a stored large-N protocol.  For `R=1`, the
+single detuning is the low end of the interval; this matches the previous
+single-frequency convention used by the validation driver.
+"""
+function largeN_delta_values(protocol, R::Integer)
+    R >= 1 || throw(ArgumentError("R must be positive, got $R"))
+    R == 1 && return [protocol.delta_min]
+    return uniform_delta_grid(protocol.delta_min, protocol.delta_max, R)
+end
+
+"""
+    write_largeN_detuning_protocol(parent, protocol)
+
+Write the on-disk HDF5 metadata contract for a large-N detuning protocol:
+`detuning_protocol_source`, `detuning_reference_gap`, `detuning_delta_min`,
+`detuning_delta_max`, `detuning_delta_max_factor`, and
+`detuning_fixed_across_dmax`.
+"""
+function write_largeN_detuning_protocol(parent, protocol)
+    write(parent, "detuning_protocol_source", protocol.source)
+    write(parent, "detuning_reference_gap", protocol.reference_gap)
+    write(parent, "detuning_delta_min", protocol.delta_min)
+    write(parent, "detuning_delta_max", protocol.delta_max)
+    write(parent, "detuning_delta_max_factor", protocol.delta_max_factor)
+    write(parent, "detuning_fixed_across_dmax", protocol.fixed_across_dmax)
+end
 
 """
     first_bond_saturation_cycle(maxbond, saturation_threshold)
@@ -148,4 +248,6 @@ function peak_evolved_mean_bond(evolved_meanbond)
     history = bond_history_matrix(evolved_meanbond)
     size(history, 1) >= 2 || return NaN
     return maximum(vec(mean(history[2:end, :]; dims=2)))
+end
+
 end
