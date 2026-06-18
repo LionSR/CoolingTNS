@@ -197,8 +197,9 @@ positive final energy densities.  These first two cycles are only a runtime
 and early-bond calibration; they are not physically meaningful evidence for
 cooling.  TDVP is therefore accessible, but the physical question remains the
 long-cycle fixed point, not the first two cycles.
-Future long TDVP runs should enable `--progress-csv` so interrupted runs retain
-their per-cycle energy and bond-dimension trace.
+Future long TDVP runs should enable `--progress-csv` and
+`--tdvp-sweep-progress` so interrupted runs retain both the per-cycle energy
+trace and the inner TDVP sweep-level bond-dimension trace.
 
 These data should be used to design the next production campaign.  The table
 above is therefore a target plan, not evidence that the listed bond dimensions

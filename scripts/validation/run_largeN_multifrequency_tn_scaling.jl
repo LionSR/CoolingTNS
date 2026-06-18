@@ -47,6 +47,10 @@ interrupted:
         --Ns 64 --R-values 2 --methods mcwf --evolution-method continuous \
         --steps 40 --Dmax 80 --progress-csv /tmp/tdvp_progress.csv
 
+To additionally record one CSV row after each TDVP sweep/substep, add
+`--tdvp-sweep-progress`.  To let ITensorMPS print its own TDVP sweep summary,
+use `--tdvp-outputlevel 1`.
+
 Fast path check:
 
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl --quick
@@ -98,6 +102,8 @@ function parse_args(args)
         "outdir" => get(ENV, "COOLINGTNS_DATADIR", DEFAULT_OUTDIR),
         "output" => nothing,
         "progress_csv" => nothing,
+        "tdvp_outputlevel" => 0,
+        "tdvp_sweep_progress" => false,
         "verbose" => false,
     )
 
@@ -118,7 +124,7 @@ function parse_args(args)
             cfg["R_values"] = parse_int_list(args[i + 1]); i += 2
         elseif a == "--methods"
             cfg["methods"] = parse_method_list(args[i + 1]); i += 2
-        elseif a in ("--steps", "--Dmax", "--M-mcwf", "--M-mpo", "--seed")
+        elseif a in ("--steps", "--Dmax", "--M-mcwf", "--M-mpo", "--seed", "--tdvp-outputlevel")
             key = replace(a[3:end], "-" => "_")
             cfg[key] = parse(Int, args[i + 1]); i += 2
         elseif a == "--Dmax-values"
@@ -132,6 +138,8 @@ function parse_args(args)
             cfg[replace(a[3:end], "-" => "_")] = args[i + 1]; i += 2
         elseif a == "--verbose"
             cfg["verbose"] = true; i += 1
+        elseif a == "--tdvp-sweep-progress"
+            cfg["tdvp_sweep_progress"] = true; i += 1
         else
             error("unknown argument: $a")
         end
@@ -167,6 +175,12 @@ function parse_args(args)
             "--Dmax-values requires --delta-min and --delta-max so every Dmax " *
             "run uses the same physical detuning protocol"
         )
+    end
+    if cfg["tdvp_sweep_progress"] && cfg["progress_csv"] === nothing
+        error("--tdvp-sweep-progress requires --progress-csv")
+    end
+    if cfg["tdvp_sweep_progress"] && cfg["evolution_method"] != "continuous"
+        error("--tdvp-sweep-progress requires --evolution-method continuous")
     end
     return cfg
 end
@@ -245,6 +259,8 @@ const PROGRESS_CSV_COLUMNS = (
     "system_mean_bond",
     "evolved_max_bond",
     "evolved_mean_bond",
+    "tdvp_sweep",
+    "tdvp_time",
     "elapsed_seconds",
 )
 
@@ -306,6 +322,42 @@ function progress_row(context, info, ham_params, E0, sys_bs, evolved_bs, elapsed
         "system_mean_bond" => sys_bs.mean,
         "evolved_max_bond" => evolved_bs.max,
         "evolved_mean_bond" => evolved_bs.mean,
+        "tdvp_sweep" => NaN,
+        "tdvp_time" => NaN,
+        "elapsed_seconds" => elapsed,
+    )
+end
+
+tdvp_physical_time(t::Real) = Float64(t)
+tdvp_physical_time(t::Complex) = -Float64(imag(t))
+
+function tdvp_sweep_progress_row(context, tdvp_context, sweep, current_time,
+                                 ham_params, evolved_bs, elapsed)
+    return Dict{String,Any}(
+        "timestamp" => Dates.format(now(), Dates.ISODateTimeFormat),
+        "N" => ham_params.N,
+        "method" => context.method,
+        "evolution" => context.evolution,
+        "R" => context.R,
+        "trajectory" => context.trajectory,
+        "seed" => context.seed,
+        "Dmax" => context.Dmax,
+        "cutoff" => context.cutoff,
+        "tau" => context.tau,
+        "stage" => "tdvp_sweep",
+        "step" => tdvp_context.step,
+        "cycle" => tdvp_context.step - 1,
+        "delta" => tdvp_context.delta,
+        "te" => tdvp_context.te,
+        "energy_per_site" => NaN,
+        "relative_energy" => NaN,
+        "overlap" => NaN,
+        "system_max_bond" => tdvp_context.sys_bs.max,
+        "system_mean_bond" => tdvp_context.sys_bs.mean,
+        "evolved_max_bond" => evolved_bs.max,
+        "evolved_mean_bond" => evolved_bs.mean,
+        "tdvp_sweep" => sweep,
+        "tdvp_time" => tdvp_physical_time(current_time),
         "elapsed_seconds" => elapsed,
     )
 end
@@ -335,18 +387,28 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         tau=cfg["tau"],
     )
     start_time = time()
+    tdvp_context = Ref{Any}(nothing)
 
     step_observer = info -> begin
         step = info.step
         elapsed = time() - start_time
         if info.stage === :prepared || info.stage === :evolved
             evolved_bs = bond_summary(info.evolved_state)
+            sys_bs = bond_summary(info.state.state)
+            if info.stage === :prepared
+                tdvp_context[] = (
+                    step=step,
+                    delta=info.delta,
+                    te=info.te,
+                    sys_bs=sys_bs,
+                )
+            end
             if info.stage === :evolved
                 evolved_maxbond[step] = evolved_bs.max
                 evolved_meanbond[step] = evolved_bs.mean
+                tdvp_context[] = nothing
             end
             if progress_csv !== nothing
-                sys_bs = bond_summary(info.state.state)
                 append_progress_csv_row(
                     progress_csv,
                     progress_row(progress_context, info, ham_params, E0,
@@ -381,6 +443,32 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         end
     end
 
+    tdvp_observer = if cfg["tdvp_sweep_progress"] && progress_csv !== nothing &&
+                       cfg["evolution_method"] == "continuous" && method == "mcwf"
+        tdvp_sweep_observer((; state, sweep, current_time, kwargs...) -> begin
+            ctx = tdvp_context[]
+            ctx === nothing && return nothing
+            elapsed = time() - start_time
+            append_progress_csv_row(
+                progress_csv,
+                tdvp_sweep_progress_row(
+                    progress_context, ctx, sweep, current_time, ham_params,
+                    bond_summary(state), elapsed,
+                ),
+            )
+            return nothing
+        end)
+    else
+        nothing
+    end
+    evolution_kwargs = if cfg["evolution_method"] == "continuous" && method == "mcwf"
+        kwargs = (tdvp_outputlevel=cfg["tdvp_outputlevel"],)
+        tdvp_observer === nothing ? kwargs :
+            merge(kwargs, (tdvp_sweep_observer! = tdvp_observer,))
+    else
+        (;)
+    end
+
     result = nothing
     elapsed = @elapsed begin
         result = run_cooling_multi_freq(
@@ -390,6 +478,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
             sim_params,
             ham_params;
             step_observer=step_observer,
+            evolution_kwargs=evolution_kwargs,
         )
     end
 
