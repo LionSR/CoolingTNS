@@ -8,8 +8,8 @@ or:
 """
 
 # Allow tests and notebooks to include several standalone plot scripts in one session.
-if !@isdefined(get_pyplot)
-    include(joinpath(@__DIR__, "PlotUtils.jl"))
+if !isdefined(@__MODULE__, :get_pyplot)
+    Base.include(@__MODULE__, joinpath(@__DIR__, "PlotUtils.jl"))
 end
 
 using HDF5

@@ -20,6 +20,9 @@ if !isdefined(@__MODULE__, :get_pyplot)
     Base.include(@__MODULE__, joinpath(@__DIR__, "PlotUtils.jl"))
 end
 
+if !isdefined(@__MODULE__, :_COOLINGTNS_PLOT_MODE_COOLING_INCLUDED)
+const _COOLINGTNS_PLOT_MODE_COOLING_INCLUDED = true
+
 using CoolingTNS:
     RESULT_MODE_HK,
     RESULT_MODE_NK,
@@ -28,9 +31,6 @@ using CoolingTNS:
     mode_occupation_from_hk,
     bath_detuning_energy,
     nearest_bath_resonance_indices
-
-if !isdefined(@__MODULE__, :_COOLINGTNS_PLOT_MODE_COOLING_INCLUDED)
-const _COOLINGTNS_PLOT_MODE_COOLING_INCLUDED = true
 
 """
     _mode_occupation_from_plot_data(data)
