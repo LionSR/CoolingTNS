@@ -127,6 +127,10 @@ function cap_label(cycle::Integer, sweep)
 end
 
 function default_progress_cap(method::AbstractString, dmax::Integer)
+    # This lightweight CLI intentionally avoids importing CoolingTNS.  The
+    # factors mirror the project-wide dispatch rule in src/parameter_types.jl:
+    # `tn_method_maxdim(::MonteCarloWavefunction, Dmax) = Dmax` and
+    # `tn_method_maxdim(::DensityMatrix, Dmax) = 4Dmax`.
     method_name = lowercase(method)
     method_name == "mcwf" && return dmax
     method_name == "mpo" && return 4 * dmax
