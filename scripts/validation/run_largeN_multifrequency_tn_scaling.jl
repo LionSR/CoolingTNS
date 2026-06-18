@@ -24,6 +24,13 @@ Fixed-detuning Dmax comparison:
         --Ns 64 --R-values 2 --methods mcwf --steps 20 --Dmax 80 \
         --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
 
+Fixed-detuning Dmax ladder:
+
+    julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+        --Ns 64 --R-values 1,2,5,10 --methods mcwf --steps 4 \
+        --Dmax-values 160,320,640 \
+        --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
+
 Fast path check:
 
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl --quick
@@ -55,6 +62,7 @@ function parse_args(args)
         "methods" => ["mpo", "mcwf"],
         "steps" => 40,
         "Dmax" => 40,
+        "Dmax_values" => nothing,
         "cutoff" => 1e-7,
         "tau" => 0.2,
         "J" => 1.0,
@@ -95,6 +103,8 @@ function parse_args(args)
         elseif a in ("--steps", "--Dmax", "--M-mcwf", "--M-mpo", "--seed")
             key = replace(a[3:end], "-" => "_")
             cfg[key] = parse(Int, args[i + 1]); i += 2
+        elseif a == "--Dmax-values"
+            cfg["Dmax_values"] = parse_int_list(args[i + 1]); i += 2
         elseif a in ("--cutoff", "--tau", "--J", "--hx", "--hz", "--g", "--te", "--delta-max-factor",
                      "--delta-min", "--delta-max")
             key = replace(a[3:end], "-" => "_")
@@ -111,6 +121,11 @@ function parse_args(args)
     all(R -> R >= 1, cfg["R_values"]) || error("all R values must be positive")
     all(N -> N >= 2, cfg["Ns"]) || error("all N values must be at least 2")
     cfg["steps"] >= 1 || error("--steps must be at least 1")
+    all(D -> D >= 1, campaign_dmax_values(cfg)) ||
+        error("all Dmax values must be positive")
+    if cfg["output"] !== nothing && length(campaign_dmax_values(cfg)) > 1
+        error("--output names a single HDF5 file and cannot be used with multiple --Dmax-values")
+    end
     for method in cfg["methods"]
         method in ("mpo", "mcwf") || error("unknown method '$method'; use mpo or mcwf")
     end
@@ -124,6 +139,20 @@ function parse_args(args)
         error("--delta-max must be at least --delta-min")
     end
     return cfg
+end
+
+function campaign_dmax_values(cfg)
+    values = cfg["Dmax_values"]
+    values === nothing && return [cfg["Dmax"]]
+    isempty(values) && error("--Dmax-values must contain at least one integer")
+    length(unique(values)) == length(values) ||
+        error("--Dmax-values must not repeat a cap; repeated caps would overwrite output files")
+    return values
+end
+
+function campaign_dmax_configs(cfg)
+    values = campaign_dmax_values(cfg)
+    return [merge(copy(cfg), Dict{String,Any}("Dmax" => D)) for D in values]
 end
 
 function sim_params_for(method::AbstractString, cfg)
@@ -480,18 +509,27 @@ function run_campaign(cfg)
     return path, summaries
 end
 
+function run_campaign_ladder(cfg)
+    outputs = Tuple{String,Vector{NamedTuple}}[]
+    for run_cfg in campaign_dmax_configs(cfg)
+        push!(outputs, run_campaign(run_cfg))
+    end
+    return outputs
+end
+
 function main()
     cfg = parse_args(ARGS)
+    Dmax_values = campaign_dmax_values(cfg)
     @printf("large-N multi-frequency TN campaign\n")
-    @printf("  Ns=%s R=%s methods=%s steps=%d Dmax=%d tau=%.3g cutoff=%.1e\n",
+    @printf("  Ns=%s R=%s methods=%s steps=%d Dmax=%s tau=%.3g cutoff=%.1e\n",
             join(cfg["Ns"], ","),
             join(cfg["R_values"], ","),
             join(cfg["methods"], ","),
             cfg["steps"],
-            cfg["Dmax"],
+            join(Dmax_values, ","),
             cfg["tau"],
             cfg["cutoff"])
-    run_campaign(cfg)
+    run_campaign_ladder(cfg)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
