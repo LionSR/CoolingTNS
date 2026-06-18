@@ -494,37 +494,38 @@ end
         ρ_mix = EDDensityMatrix(0.5 * ψ_even * ψ_even' + 0.5 * ψ_odd * ψ_odd', N)
 
         measurements = Dict{String, Any}()
-        gF = CoolingTNS._momentum_measurement_gF!(measurements, ρ_mix, ϕ₀, ham_params)
+        gF = CoolingTNS._momentum_measurement_gF!(measurements, ρ_mix, ham_params)
         @test gF == fermionic_bc(:periodic, 1)
         @test measurements[RESULT_MOMENTUM_GF_SOURCE] == "reference"
 
-        @test CoolingTNS._momentum_measurement_gF!(measurements, odd_state, ϕ₀, ham_params) == gF
+        @test CoolingTNS._momentum_measurement_gF!(measurements, odd_state, ham_params) == gF
         @test measurements[RESULT_MOMENTUM_GF_SOURCE] == "reference"
 
         odd_reference_measurements = Dict{String, Any}()
         @test CoolingTNS._momentum_measurement_gF!(
             odd_reference_measurements,
             ρ_mix,
-            odd_state,
             ham_params,
         ) == fermionic_bc(:periodic, 1)
         @test odd_reference_measurements[RESULT_MOMENTUM_GF_SOURCE] == "reference"
 
-        ambiguous_ϕ₀ = CoolingTNS.product_state_ed(N, 0)
-        @test abs(measure_state_parity(ambiguous_ϕ₀, N)) < 1e-10
-        ambiguous_measurements = Dict{String, Any}()
-        @test CoolingTNS._momentum_measurement_gF!(
-            ambiguous_measurements,
-            ρ_mix,
-            ambiguous_ϕ₀,
-            ham_params,
-        ) == fermionic_bc(:periodic, 1)
-        @test ambiguous_measurements[RESULT_MOMENTUM_GF_SOURCE] == "reference"
-
         precomputed = Dict{String, Any}(RESULT_MOMENTUM_GF => fermionic_bc(:periodic, -1))
-        @test CoolingTNS._momentum_measurement_gF!(precomputed, ρ_mix, ϕ₀, ham_params) ==
+        @test CoolingTNS._momentum_measurement_gF!(precomputed, ρ_mix, ham_params) ==
               fermionic_bc(:periodic, -1)
         @test precomputed[RESULT_MOMENTUM_GF_SOURCE] == "precomputed"
+
+        coupling_params = BasicCouplingParameters("XX", 0.0, 0, 0.0, 0.5)
+        sim_params = UnifiedSimulationParameters(DensityMatrix(), ContinuousEvolution())
+        problem = setup_problem(EDBackend(), ham_params, coupling_params, sim_params)
+        mixed_state = QuantumState(EDBackend(), DensityMatrix(), ContinuousEvolution(), ρ_mix)
+        mode_measurements = Dict{String, Any}()
+        @test CoolingTNS._add_ising_mode_measurement_slots!(
+            mode_measurements,
+            problem,
+            mixed_state,
+            ham_params,
+        )
+        @test mode_measurements[RESULT_MODE_GF] == gF
     end
 
     @testset "Legacy ED n_k helper delegates to canonical JW measurement" begin

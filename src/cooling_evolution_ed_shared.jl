@@ -141,7 +141,7 @@ function process_bath_ed_monte_carlo(state::EDStateVector, N_bath::Int)
 end
 
 """
-    _momentum_measurement_gF!(measurements, state, ϕ₀, ham_params) -> Int
+    _momentum_measurement_gF!(measurements, state, ham_params) -> Int
 
 Return and cache the fermionic boundary sector used for ED momentum
 diagnostics. If the current system state has definite ``P_x`` parity, the
@@ -150,8 +150,9 @@ unique parity sector, the grid falls back to the same even-parity reference
 sector used by mode diagnostics. Later calls reuse the cached grid so all
 cooling steps share the same momentum axis.
 """
-function _momentum_measurement_gF!(measurements, state::Union{EDStateVector, EDDensityMatrix},
-                                   ::EDStateVector, ham_params)
+function _momentum_measurement_gF!(measurements,
+                                   state::Union{EDStateVector, EDDensityMatrix},
+                                   ham_params)
     if haskey(measurements, RESULT_MOMENTUM_GF)
         get!(measurements, RESULT_MOMENTUM_GF_SOURCE, "precomputed")
         return measurements[RESULT_MOMENTUM_GF]
@@ -299,7 +300,7 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
     
     # K-space measurements for ED with periodic/antiperiodic even Ising chains.
     if haskey(measurements, RESULT_MOMENTUM_DISTRIBUTION) && supports_ising_fourier_observables(ham_params)
-        gF = _momentum_measurement_gF!(measurements, sys_state, ϕ₀, ham_params)
+        gF = _momentum_measurement_gF!(measurements, sys_state, ham_params)
         k_values, n_k = measure_momentum_distribution_ed_clean(sys_state, ham_params; gF=gF)
         _ensure_momentum_storage!(measurements, k_values, n_k)
         measurements[RESULT_MOMENTUM_DISTRIBUTION][step, :] .= n_k
