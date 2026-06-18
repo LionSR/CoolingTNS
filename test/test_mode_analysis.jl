@@ -678,6 +678,17 @@ end
         @test mode_energy(Float64(N÷2), θ, N) ≈ abs(wNh) atol=1e-15
     end
 
+    @testset "Code-unit positive gap grid" begin
+        N = 6
+        J, h = 1.0, 0.5
+        for gF in [-1, 1]
+            ks = allowed_k_indices(N, gF)
+            gaps = mode_energies_Jh(ks, J, h, N)
+            @test gaps ≈ [mode_energy_Jh(Float64(k), J, h, N) for k in ks] atol=1e-15
+            @test all(>=(0), gaps)
+        end
+    end
+
     @testset "Bogoliubov angle for special modes" begin
         θ = 0.4; N = 4
         # For k=0 and k=N/2, r_k = 0, so φ_bogo = 0

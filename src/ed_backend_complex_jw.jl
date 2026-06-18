@@ -458,13 +458,13 @@ Measure ⟨h_k⟩ for all allowed modes and return mode energies.
 # Returns
 - `k_indices`: Vector of allowed k-indices (integer or half-integer)
 - `hk_values`: Vector of ⟨h_k⟩ values (each in [-1, +1])
-- `εk_values`: Vector of mode energies ε_k in code units
+- `εk_values`: Vector of positive quasiparticle gaps ε_k in code units,
+  suitable for bath-resonance diagnostics
 
-The "mode energy contribution" for each mode is ``ε_k · ⟨h_k⟩``, which
-approaches ``-ε_k`` (negative, the vacuum value) when the mode is cooled.
-
-The total energy satisfies: ``⟨H⟩ = (Λ/2) Σ_k coeff_k · ⟨h_k⟩`` where
-``Λ = 2√(J²+h²)`` is the energy scale.
+These stored gaps are not the signed energy-reconstruction coefficients.  The
+total energy satisfies ``⟨H⟩ = (Λ/2) Σ_k coeff_k · ⟨h_k⟩``, where
+``Λ = 2√(J²+h²)`` and `coeff_k` keeps the signed special-mode coefficients.
+Use `ising_energy_from_mode_hk` for energy reconstruction from `hk_values`.
 """
 function measure_all_mode_energies(state::Union{EDStateVector, EDDensityMatrix},
                                     ham_params; gF=nothing)
@@ -472,7 +472,6 @@ function measure_all_mode_energies(state::Union{EDStateVector, EDDensityMatrix},
     J = ham_params.params.J
     h = ham_params.params.h
     θ = theta_from_Jh(J, h)
-    Λ = energy_scale(J, h)
 
     # Determine fermionic BC if not given
     if isnothing(gF)
@@ -505,7 +504,7 @@ function measure_all_mode_energies(state::Union{EDStateVector, EDDensityMatrix},
     end
 
     hk_values = Float64[]
-    εk_values = Float64[]
+    εk_values = mode_energies_Jh(ks, J, h, N)
 
     for k in ks
         # Build h_k operator
@@ -520,7 +519,6 @@ function measure_all_mode_energies(state::Union{EDStateVector, EDDensityMatrix},
         end
 
         push!(hk_values, real(hk_val))
-        push!(εk_values, Λ * mode_energy(Float64(k), θ, N))
     end
 
     return ks, hk_values, εk_values
