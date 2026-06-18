@@ -10,8 +10,8 @@ cooling channel:
 
 For each system size and each number of bath detunings R, the script records
 energy density, relative energy above the DMRG ground state, ground-state
-overlap, runtime, detuning sequence, effective bond dimensions, and the first
-cooling cycle where the method-specific bond threshold is reached.
+overlap, runtime, the explicit detuning protocol, effective bond dimensions,
+and the first cooling cycle where the method-specific bond threshold is reached.
 
 Example N=64 campaign:
 
@@ -138,6 +138,12 @@ function parse_args(args)
     if cfg["delta_min"] !== nothing && cfg["delta_max"] < cfg["delta_min"]
         error("--delta-max must be at least --delta-min")
     end
+    if cfg["Dmax_values"] !== nothing && cfg["delta_min"] === nothing
+        error(
+            "--Dmax-values requires --delta-min and --delta-max so every Dmax " *
+            "run uses the same physical detuning protocol"
+        )
+    end
     return cfg
 end
 
@@ -187,21 +193,6 @@ function bond_summary(state)
     dims = mps_or_mpo_link_dims(state)
     isempty(dims) && return (dims=dims, max=1, mean=1.0)
     return (dims=dims, max=maximum(dims), mean=mean(dims))
-end
-
-function campaign_delta_values(gap::Real, delta_max_factor::Real, R::Int)
-    R == 1 && return [Float64(gap)]
-    return uniform_delta_grid(gap, delta_max_factor * gap, R)
-end
-
-function campaign_delta_values(gap::Real, cfg, R::Int)
-    if cfg["delta_min"] !== nothing
-        δmin = Float64(cfg["delta_min"])
-        δmax = Float64(cfg["delta_max"])
-        R == 1 && return [δmin]
-        return uniform_delta_grid(δmin, δmax, R)
-    end
-    return campaign_delta_values(gap, cfg["delta_max_factor"], R)
 end
 
 function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed)
@@ -294,7 +285,8 @@ function output_path(cfg)
     )
 end
 
-function write_run_group(parent, name, traj_rows, E0, saturation_threshold)
+function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
+                         detuning_protocol, delta_values)
     g = create_group(parent, name)
     nsteps = length(traj_rows[1]["E"])
     M = length(traj_rows)
@@ -341,6 +333,8 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold)
     write(g, "delta_list_first_trajectory", delta_lists[:, 1])
     write(g, "delta_list_is_common", common_delta_list)
     common_delta_list && write(g, "delta_list", delta_lists[:, 1])
+    write(g, "delta_values", Float64.(delta_values))
+    write_largeN_detuning_protocol(g, detuning_protocol)
 
     bd = create_group(g, "final_bond_dims")
     for (j, row) in enumerate(traj_rows)
@@ -407,6 +401,8 @@ function run_campaign(cfg)
                 write(gm, "E0", E0)
                 write(gm, "gap", gap)
                 write(gm, "system_solve_reused_across_R", true)
+                detuning_protocol = largeN_detuning_protocol(gap, cfg)
+                write_largeN_detuning_protocol(gm, detuning_protocol)
 
                 M = method == "mcwf" ? cfg["M_mcwf"] : cfg["M_mpo"]
                 saturation_threshold = CoolingTNS.tn_trotter_maxdim(
@@ -414,7 +410,7 @@ function run_campaign(cfg)
                 )
                 write(gm, "bond_saturation_threshold", saturation_threshold)
                 for R in cfg["R_values"]
-                    delta_values = campaign_delta_values(gap, cfg, R)
+                    delta_values = largeN_delta_values(detuning_protocol, R)
                     cp_multi = MultiFrequencyCouplingParameters(
                         cfg["coupling"],
                         cfg["g"],
@@ -461,7 +457,10 @@ function run_campaign(cfg)
                                 row["elapsed"])
                     end
 
-                    summary = write_run_group(gm, "R$R", traj_rows, E0, saturation_threshold)
+                    summary = write_run_group(
+                        gm, "R$R", traj_rows, E0, saturation_threshold,
+                        detuning_protocol, delta_values
+                    )
                     push!(summaries, (
                         N=N,
                         method=method,
@@ -517,7 +516,7 @@ function run_campaign_ladder(cfg)
     return outputs
 end
 
-function main()
+function run_largeN_multifrequency_tn_scaling_main()
     cfg = parse_args(ARGS)
     Dmax_values = campaign_dmax_values(cfg)
     @printf("large-N multi-frequency TN campaign\n")
@@ -533,5 +532,5 @@ function main()
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    run_largeN_multifrequency_tn_scaling_main()
 end
