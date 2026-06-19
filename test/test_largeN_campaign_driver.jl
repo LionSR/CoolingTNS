@@ -641,6 +641,7 @@ end
         end
 
         h5open(output, "r") do f
+            @test read(f["tdvp_sweep_progress"]) == true
             g = f["N2/mcwf/R1"]
             tdvp_sweep_max_bond = read(g["tdvp_sweep_max_bond"])
             @test size(tdvp_sweep_max_bond) == (2, 1)
