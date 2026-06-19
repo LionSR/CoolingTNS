@@ -209,11 +209,13 @@ model-basis convention.
 
 ### Automatic Analytic Detuning Check
 
-After PR #232, the same mode-resolved driver no longer uses the generic TN
-excited-state DMRG estimate as the automatic detuning reference.  For
-periodic/antiperiodic integrable-Ising mode campaigns it records the minimum
-positive Bogoliubov mode energy on the same parity-aware Fourier grid as
-`mode_hk`.  A short `N = 64` check without `--delta-min` or `--delta-max` used
+The current mode-resolved driver no longer uses the generic TN excited-state
+DMRG estimate as the automatic detuning reference.  For the default `XX`
+integrable-Ising mode campaign, the system-side coupling is local `X`, which
+preserves the code parity \(P_x\).  The automatic reference is therefore the
+lowest generic two-quasiparticle energy, \(2\min_k \epsilon_k\), on the same
+parity-aware Fourier grid as `mode_hk`.  A short `N = 64` check without
+`--delta-min` or `--delta-max` used
 
 ```bash
 JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
@@ -223,16 +225,16 @@ julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
   --cutoff 1e-6 --tau 0.2 --te 0.1 --M-mcwf 1 --h -1.05 \
   --measure-modes --init-state theta --theta 0.0 \
   --tdvp-sweep-progress \
-  --outdir .worktree/mode_auto_reference_20260620 \
-  --output .worktree/mode_auto_reference_20260620/N64_mode_auto_R1_steps2_Dmax32.h5
+  --outdir .worktree/mode_pair_reference_20260620 \
+  --output .worktree/mode_pair_reference_20260620/N64_mode_pair_R1_steps2_Dmax32.h5
 ```
 
 The run selected the analytic reference
-`detuning_reference_gap_source = "ising_mode_reference"` with
+`detuning_reference_gap_source = "ising_mode_pair_reference"` with
 
 ```text
-gap = detuning_delta_min = 0.141838527476,
-detuning_delta_max = 0.851031164856,
+gap = detuning_delta_min = 0.283677054952,
+detuning_delta_max = 1.702062329712,
 mode_ek_values range = [0.141838527476, 4.098765891354].
 ```
 
@@ -249,7 +251,7 @@ The short-run summary is:
 
 | R | completed cycles | detuning protocol | final E/N | best E/N | relE | Dsys | Devolved | Dtdvp sweep | mode gF source | max \(|E-E_{\mathrm{modes}}|\) |
 |---:|---:|:---|---:|---:|---:|---:|---:|---:|:---:|---:|
-| 1 | 2/2 | gap-scaled analytic mode reference | -1.04991223 | -1.05000000 | 0.19550 | 5 | 6 | 6 | state | 1.18e-12 |
+| 1 | 2/2 | gap-scaled analytic pair reference | -1.04991405 | -1.05000000 | 0.19550 | 5 | 6 | 6 | state | 1.18e-12 |
 
 This is a convention and execution check, not a cooling claim.  It verifies
 that the formerly failing automatic-detuning path now reaches the actual TDVP

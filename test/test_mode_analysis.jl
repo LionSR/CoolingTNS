@@ -393,12 +393,15 @@ end
         @test !supports_ising_fourier_observables(nothing)
     end
 
-    @testset "Mode detuning reference is the positive quasiparticle scale" begin
+    @testset "Mode detuning reference is the parity-preserving two-quasiparticle scale" begin
         ham = IsingParameters(64, 1.0, -1.05, :periodic)
         expected_even = minimum(filter(
             >(sqrt(eps(Float64))),
             mode_energies_Jh(
-                allowed_k_indices(ham.N, fermionic_bc(ham.bc, 1)),
+                filter(
+                    k -> abs(sin(2π * Float64(k) / ham.N)) > sqrt(eps(Float64)),
+                    allowed_k_indices(ham.N, fermionic_bc(ham.bc, 1)),
+                ),
                 ham.params.J,
                 ham.params.h,
                 ham.N,
@@ -407,16 +410,19 @@ end
         expected_odd = minimum(filter(
             >(sqrt(eps(Float64))),
             mode_energies_Jh(
-                allowed_k_indices(ham.N, fermionic_bc(ham.bc, -1)),
+                filter(
+                    k -> abs(sin(2π * Float64(k) / ham.N)) > sqrt(eps(Float64)),
+                    allowed_k_indices(ham.N, fermionic_bc(ham.bc, -1)),
+                ),
                 ham.params.J,
                 ham.params.h,
                 ham.N,
             ),
         ))
 
-        @test ising_mode_detuning_reference(ham) ≈ expected_even atol=1e-14
+        @test ising_mode_detuning_reference(ham) ≈ 2 * expected_even atol=1e-14
         @test ising_mode_detuning_reference(ham) > 0
-        @test ising_mode_detuning_reference(ham; parity=-1) ≈ expected_odd atol=1e-14
+        @test ising_mode_detuning_reference(ham; parity=-1) ≈ 2 * expected_odd atol=1e-14
         @test_throws ArgumentError ising_mode_detuning_reference(
             IsingParameters(4, 1.0, 0.5, :open)
         )
@@ -424,6 +430,26 @@ end
             NiIsingParameters(4, 1.0, -1.05, 0.5, :periodic)
         )
         @test_throws ArgumentError ising_mode_detuning_reference(ham; parity=0)
+    end
+
+    @testset "Parity-preserving detuning reference matches local X selection rule" begin
+        J, h = 1.0, -1.05
+        X = ComplexF64[0 1; 1 0]
+        for N in [4, 6]
+            ham = IsingParameters(N, J, h, :periodic)
+            H = _test_build_H_code(N, J, h, :periodic)
+            E, V = eigen(Hermitian(real(H)))
+            O = _test_site_op(X, 1, N)
+            i0 = argmin(E)
+            accessible_gaps = Float64[]
+            for j in eachindex(E)
+                gap = E[j] - E[i0]
+                amplitude = abs(ComplexF64.(V[:, j])' * O * ComplexF64.(V[:, i0]))
+                gap > 1e-9 && amplitude > 1e-8 && push!(accessible_gaps, gap)
+            end
+
+            @test ising_mode_detuning_reference(ham) ≈ minimum(accessible_gaps) atol=1e-10
+        end
     end
 
     @testset "H_notes from JW equals ED Hamiltonian (N=$N)" for N in [4, 6]

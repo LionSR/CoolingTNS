@@ -226,14 +226,17 @@ end
 """
     ising_mode_detuning_reference(ham_params; parity=1) -> Float64
 
-Return the minimum positive Bogoliubov quasiparticle energy on the Fourier
-grid used by the periodic/antiperiodic Ising mode observables.  The default
-`parity=1` is the deterministic reference sector also used when a measured
-state parity is not yet available.
+Return the lowest parity-preserving generic two-quasiparticle energy on the
+Fourier grid used by the periodic/antiperiodic Ising mode observables.  The
+default `parity=1` is the deterministic reference sector also used when a
+measured state parity is not yet available.
 
-This is a bath-detuning reference for mode-resolved Ising diagnostics.  It is
-not the full finite-size many-body gap across parity sectors, and it should
-not be confused with a variational DMRG excited-state estimate.
+This is the bath-detuning reference for the parity-preserving local ``X``
+system coupling used by the default mode-resolved Ising cooling diagnostics:
+the coupling can create or remove generic quasiparticles only in pairs, so the
+reference scale is ``2 min_k ε_k``.  It is not the single-quasiparticle mode
+energy, not the cross-parity many-body gap, and not a variational DMRG
+excited-state estimate.
 """
 function ising_mode_detuning_reference(
     ham_params::HamiltonianParameters{IsingModel};
@@ -248,12 +251,16 @@ function ising_mode_detuning_reference(
     N = ham_params.N
     J, h = ham_params.params.J, ham_params.params.h
     gF = fermionic_bc(ham_params.bc, parity)
-    energies = mode_energies_Jh(allowed_k_indices(N, gF), J, h, N)
+    generic_ks = filter(
+        k -> abs(sin(2π * Float64(k) / N)) > sqrt(eps(Float64)),
+        allowed_k_indices(N, gF),
+    )
+    energies = mode_energies_Jh(generic_ks, J, h, N)
     positive_energies = filter(>(sqrt(eps(Float64))), energies)
     isempty(positive_energies) && throw(ArgumentError(
-        "the reference Fourier grid has no strictly positive quasiparticle energy"
+        "the reference Fourier grid has no strictly positive generic quasiparticle energy"
     ))
-    return minimum(positive_energies)
+    return 2 * minimum(positive_energies)
 end
 
 function ising_mode_detuning_reference(

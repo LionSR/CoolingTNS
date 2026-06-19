@@ -267,9 +267,41 @@ end
     @test mode_ham.params.h == -0.75
     @test CoolingTNS.supports_ising_fourier_observables(mode_ham)
     mode_reference = campaign_base_detuning_reference(mode_ham, mode_cfg)
-    @test mode_reference.source == "ising_mode_reference"
+    @test mode_reference.source == "ising_mode_pair_reference"
     @test mode_reference.delta ≈ CoolingTNS.ising_mode_detuning_reference(mode_ham)
     @test mode_reference.delta > 0
+    @test campaign_mode_detuning_preserves_px("XX")
+    @test !campaign_mode_detuning_preserves_px("XY")
+    @test !campaign_mode_detuning_preserves_px("ZZ")
+    nonpreserving_mode_cfg = parse_args([
+        "--model", "ising",
+        "--bc", "periodic",
+        "--Ns", "64",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--coupling", "ZZ",
+        "--measure-modes",
+        "--outdir", tempdir(),
+    ])
+    @test_throws ErrorException campaign_base_detuning_reference(mode_ham, nonpreserving_mode_cfg)
+    explicit_nonpreserving_mode_cfg = parse_args([
+        "--model", "ising",
+        "--bc", "periodic",
+        "--Ns", "64",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--coupling", "ZZ",
+        "--delta-min", "0.5",
+        "--delta-max", "1.0",
+        "--measure-modes",
+        "--outdir", tempdir(),
+    ])
+    explicit_nonpreserving_ref = campaign_base_detuning_reference(
+        mode_ham,
+        explicit_nonpreserving_mode_cfg,
+    )
+    @test explicit_nonpreserving_ref.source == "setup_gap"
+    @test isnothing(explicit_nonpreserving_ref.delta)
     generic_cfg = parse_args(["--outdir", tempdir()])
     generic_reference = campaign_base_detuning_reference(
         campaign_hamiltonian_parameters(64, generic_cfg),
@@ -706,7 +738,7 @@ end
                 CoolingTNS.IsingParameters(2, 1.0, 0.5, :periodic)
             )
             @test read(gm["gap"]) ≈ reference
-            @test read(gm["detuning_reference_gap_source"]) == "ising_mode_reference"
+            @test read(gm["detuning_reference_gap_source"]) == "ising_mode_pair_reference"
             @test read(gm["detuning_protocol_source"]) == "gap_scaled_range"
             @test read(gm["detuning_reference_gap"]) ≈ reference
             @test read(gm["detuning_delta_min"]) ≈ reference

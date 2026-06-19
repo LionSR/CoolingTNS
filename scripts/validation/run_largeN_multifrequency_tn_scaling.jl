@@ -47,11 +47,13 @@ Mode-resolved integrable-Ising campaign:
         --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
 
 If `--measure-modes` is used without an explicit detuning interval, the
-gap-scaled interval is referenced to the minimum positive analytic
-Bogoliubov mode energy on the same Fourier grid as the mode observables, not
-to the generic TN excited-state DMRG estimate.  For mode-resolved Ising runs,
-the stored `gap` and `detuning_reference_gap` fields record this analytic
-reference even when an explicit fixed detuning interval is supplied.
+gap-scaled interval for the default parity-preserving `XX` coupling is
+referenced to the lowest generic analytic two-quasiparticle energy
+`2 min_k ε_k` on the same Fourier grid as the mode observables, not to the
+generic TN excited-state DMRG estimate.  For mode-resolved Ising runs with this
+parity-preserving coupling, the stored `gap` and `detuning_reference_gap`
+fields record this analytic reference even when an explicit fixed detuning
+interval is supplied.
 
 Long TDVP runs can also write a per-observer-event CSV trace. The trace includes
 the `initial`, `prepared`, `evolved`, and `updated` stages, so partial energy
@@ -329,11 +331,24 @@ function campaign_hamiltonian_parameters(N::Int, cfg)
     error("unknown model '$(cfg["model"])'")
 end
 
+function campaign_mode_detuning_preserves_px(coupling::AbstractString)
+    return all(term -> first(term) == "X", coupling_operator_terms(String(coupling)))
+end
+
 function campaign_base_detuning_reference(ham_params, cfg)
     if cfg["measure_modes"] && supports_ising_fourier_observables(ham_params)
+        if !campaign_mode_detuning_preserves_px(cfg["coupling"])
+            cfg["delta_min"] === nothing && error(
+                "--measure-modes automatic detuning currently assumes a " *
+                "parity-preserving system coupling in the Ising code basis. " *
+                "Use an explicit --delta-min/--delta-max for coupling " *
+                "$(cfg["coupling"])."
+            )
+            return (delta=nothing, source="setup_gap")
+        end
         return (
             delta=ising_mode_detuning_reference(ham_params),
-            source="ising_mode_reference",
+            source="ising_mode_pair_reference",
         )
     end
     return (delta=nothing, source="setup_gap")

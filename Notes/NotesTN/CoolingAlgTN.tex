@@ -294,6 +294,22 @@ The signed special-mode coefficient $w_k$ is essential.  Replacing it by
 $|w_k|$, or writing a mode contribution as $\epsilon_k n_k$ without specifying
 which occupation is meant, gives a different quantity.
 
+The same distinction enters the bath-detuning convention.  The HDF5 dataset
+\texttt{mode\_ek\_values} stores the positive single-quasiparticle energies
+$\Lambda\epsilon_k$ used to label the measured modes.  For the default
+\texttt{XX} cooling channel in the code basis, however, the system-side
+operator is $\sigma^x_j$, which commutes with
+$P_x=\prod_j\sigma^x_j$.  The dynamics is therefore parity-preserving in the
+integrable Ising system.  The lowest generic excitation accessible from a fixed
+parity sector has energy
+\begin{equation}
+	\Delta_{\mathrm{pair}}
+	=2\Lambda \min_{\sin\phi_k\neq 0}\epsilon_k ,
+\end{equation}
+not $\Lambda\min_k\epsilon_k$.  The large-\(N\) mode-resolved driver uses this
+two-quasiparticle scale as its automatic analytic detuning reference when no
+explicit detuning interval is supplied.
+
 \subsection{Matrix Product Operator Simulation}
 \label{sec:MPOCooling}
 

@@ -669,6 +669,15 @@ Here $\Delta_{\mathrm{intra}}$ is the parity-preserving excitation gap within a 
 
 The hierarchy $\Delta_{\mathrm{inter}} < \Delta_{\mathrm{intra}}$ arises when the energy difference between filled modes in different parity sectors is smaller than creating a particle-hole pair within a sector. For parity-preserving dynamics, excitations are confined within sectors, making $\Delta_{\mathrm{intra}}$ the relevant energy scale.
 
+This distinction is important for the tensor-network cooling diagnostics.  The
+stored array \texttt{mode\_ek\_values} contains the single-quasiparticle
+energies $\epsilon_k$ in code units.  By contrast, the automatic bath-detuning
+reference for a parity-preserving local system coupling is the many-body scale
+$\Delta_{\mathrm{intra}}=2\epsilon_{\min}$, because such a coupling can change
+the generic Bogoliubov occupations only in pairs within a fixed parity sector.
+Thus one should not use the minimum of \texttt{mode\_ek\_values} itself as the
+default detuning for the parity-preserving Ising cooling channel.
+
 
 
 \subsection{Keeping the parity}
