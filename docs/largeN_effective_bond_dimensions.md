@@ -438,3 +438,55 @@ persistence of TDVP sweep histories added later.  Consequently
 legacy files, while the accompanying progress CSVs record the cycle-3 evolved
 cap events shown above.  New stop-cap runs with `--tdvp-sweep-progress` store
 both `tdvp_sweep_max_bond` and `tdvp_sweep_saturation_cycle` in HDF5.
+
+## MCWF+TDVP Stop-on-Cap Scan at te=1.0
+
+The previous stop-on-cap scan used `te = 2.0` and reached the evolved-state cap
+after only three completed cycles.  To test whether the per-cycle TDVP evolution
+time is driving the early entanglement growth, the same `N = 64`, `Dmax = 96`
+diagnostic was repeated with `te = 1.0` for `R = 1,2,5,10`:
+
+```bash
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 1,2,5,10 --methods mcwf \
+  --evolution-method continuous --steps 40 --Dmax 96 \
+  --cutoff 1e-6 --tau 0.2 --te 1.0 --M-mcwf 1 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --outdir .worktree/largeN_te_scan_20260619 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The jobs were run as separate single-`R` processes with one Julia thread and
+one BLAS thread.  The HDF5 summary is
+
+| R | Dcap | completed/requested cycles | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | evolved sat | tdvp sweep sat | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|
+| 1 | 96 | 6/40 | 1.38944858 | 1.37249467 | 91 | >=96 | >=96 | not_converged_evolved_and_tdvp_sweep_cap | 6 | 6 | 583.6 s |
+| 2 | 96 | 5/40 | 1.04543594 | 1.04543594 | 75 | >=96 | >=96 | not_converged_evolved_and_tdvp_sweep_cap | 5 | 5 | 354.3 s |
+| 5 | 96 | 6/40 | 0.95391585 | 0.95391585 | 93 | >=96 | >=96 | not_converged_evolved_and_tdvp_sweep_cap | 6 | 6 | 678.1 s |
+| 10 | 96 | 6/40 | 1.06789254 | 1.06789254 | 95 | >=96 | >=96 | not_converged_evolved_and_tdvp_sweep_cap | 6 | 6 | 814.4 s |
+
+The completed-cycle energy prefixes are
+
+| R | cycle 1 | cycle 2 | cycle 3 | cycle 4 | cycle 5 | cycle 6 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 1.47283533 | 1.42021639 | 1.41664172 | 1.37249467 | 1.39299353 | 1.38944858 |
+| 2 | 1.34971125 | 1.08774223 | 1.11219382 | 1.10108801 | 1.04543594 | n/a |
+| 5 | 1.45742344 | 1.47791073 | 1.41073739 | 1.19093076 | 1.00541882 | 0.95391585 |
+| 10 | 1.43660574 | 1.37874652 | 1.24211139 | 1.21842946 | 1.19862114 | 1.06789254 |
+
+Thus lowering `te` from `2.0` to `1.0` materially delays the first cap event:
+the `te = 2.0` scan stopped at cycle 3 for all four frequency counts, while
+the `te = 1.0` scan reaches cycle 5 for `R = 2` and cycle 6 for
+`R = 1,5,10`.  This is a useful protocol signal, not a converged cooling
+calculation.  Every run still reaches the evolved and TDVP-sweep cap, and the
+final energies remain far above the DMRG reference
+`E0/N = -1.3246328892`.  Among these single-trajectory capped prefixes, `R = 5`
+has the lowest final energy, followed by `R = 2` and `R = 10`, while `R = 1`
+remains poor.
+
+The next physical scan should therefore change the schedule before simply
+raising `Dmax`: for example, test `te = 0.5` at `Dmax = 96`, or increase the
+cap only after identifying a detuning/time schedule that postpones cap growth
+without stalling the energy.
