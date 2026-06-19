@@ -865,18 +865,23 @@ function output_path(cfg)
     model_suffix = cfg["model"] == "niising" && cfg["bc"] == "open" ? "" :
         "_$(cfg["model"])_bc$(cfg["bc"])"
     stop_suffix = cfg["stop_on_bond_cap"] ? "_stopcap" : ""
+    schedule_suffix = cfg["schedule"] == "round_robin" ? "" : "_sched$(cfg["schedule"])"
+    # `te` is a scanned physical protocol parameter, so keep more digits than
+    # the legacy `tau` token to avoid collisions between nearby evolution times.
     return joinpath(
         cfg["outdir"],
         @sprintf(
-            "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s_steps%d_Dmax%d_tau%.3g_seed%d.h5",
+            "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s%s_steps%d_Dmax%d_te%.12g_tau%.3g_seed%d.h5",
             Ns,
             Rs,
             methods,
             evolution_suffix,
             model_suffix,
             stop_suffix,
+            schedule_suffix,
             cfg["steps"],
             cfg["Dmax"],
+            cfg["te"],
             cfg["tau"],
             cfg["seed"],
         ),

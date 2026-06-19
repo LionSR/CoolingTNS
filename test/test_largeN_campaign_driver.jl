@@ -39,6 +39,24 @@ end
     single_cfg = parse_args(["--Dmax", "80"])
     @test campaign_dmax_values(single_cfg) == [80]
 
+    te1_cfg = parse_args(["--te", "1.0", "--outdir", tempdir()])
+    te05_cfg = parse_args(["--te", "0.5", "--outdir", tempdir()])
+    @test output_path(te1_cfg) != output_path(te05_cfg)
+    @test occursin("_te1_", output_path(te1_cfg))
+    @test occursin("_te0.5_", output_path(te05_cfg))
+
+    random_schedule_cfg = parse_args([
+        "--schedule", "random",
+        "--outdir", tempdir(),
+    ])
+    round_robin_cfg = parse_args([
+        "--schedule", "round_robin",
+        "--outdir", tempdir(),
+    ])
+    @test output_path(random_schedule_cfg) != output_path(round_robin_cfg)
+    @test occursin("_schedrandom_", output_path(random_schedule_cfg))
+    @test !occursin("_schedround_robin_", output_path(round_robin_cfg))
+
     progress_path = joinpath(tempdir(), "largeN_progress.csv")
     progress_cfg = parse_args(["--progress-csv", progress_path])
     @test progress_cfg["progress_csv"] == progress_path
