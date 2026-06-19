@@ -111,6 +111,10 @@ evolution routine for each cooling step. It is intended for diagnostics such as
 TDVP observers or output levels; physical parameters should remain in
 `sim_params` and `mf_params`.
 
+The optional `rng` controls only the multi-frequency schedule draws:
+random detuning order and randomized cycle times.  It does not alter other
+randomness in the backend, such as MCWF bath measurements.
+
 If `stop_condition` is supplied, it is evaluated after an `:updated` observer
 event, when the system measurement for that cycle has already been recorded.
 Returning `false` or `nothing` continues the run. Returning `true` stops with
@@ -132,6 +136,7 @@ function run_cooling_multi_freq(
     step_observer=nothing,
     evolution_kwargs=(;),
     stop_condition=nothing,
+    rng::AbstractRNG=Random.default_rng(),
 ) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
 
     steps = mf_params.steps
@@ -155,15 +160,10 @@ function run_cooling_multi_freq(
     )
     print_cooling_status(1, measurements, ham_params, state)
 
-    R = length(mf_params.delta_values)
-
     for step in 2:steps+1
-        # Pick frequency
-        r = _pick_delta_index(step, R, mf_params.schedule)
-        delta_r = mf_params.delta_values[r]
-
-        # Pick evolution time
-        te_step = mf_params.randomize_times ? (rand() * 2 * mf_params.te) : mf_params.te
+        choice = multi_frequency_cycle_choice(mf_params, step - 1; rng=rng)
+        delta_r = choice.delta
+        te_step = choice.te
 
         measurements[RESULT_DELTA_LIST][step] = delta_r
         measurements[RESULT_TE_LIST][step] = te_step
@@ -306,6 +306,7 @@ function run_cooling(
     step_observer=nothing,
     evolution_kwargs=(;),
     stop_condition=nothing,
+    rng::AbstractRNG=Random.default_rng(),
 ) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
     return run_cooling_multi_freq(
         problem,
@@ -317,14 +318,8 @@ function run_cooling(
         step_observer=step_observer,
         evolution_kwargs=evolution_kwargs,
         stop_condition=stop_condition,
+        rng=rng,
     )
-end
-
-# Internal helper: pick which Δ index to use at this step.
-function _pick_delta_index(step::Int, R::Int, schedule::Symbol)
-    schedule == :round_robin && return mod1(step - 1, R)
-    schedule == :random && return rand(1:R)
-    throw(ArgumentError("Unknown multi-frequency schedule=$schedule (expected :round_robin or :random)"))
 end
 
 # Evolve with step-dependent coupling parameters (e.g. changing bath detuning Δ).

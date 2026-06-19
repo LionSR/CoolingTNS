@@ -20,6 +20,61 @@ using Random
     @test gap !== nothing
     @test gap > 0
 
+    @testset "cycle sequence helper fixes the protocol convention" begin
+        sequence_params = CoolingTNS.MultiFrequencyCouplingParameters(
+            "XX",
+            0.1,
+            5,
+            1.25,
+            [0.5, 1.0, 1.5];
+            randomize_times=false,
+            schedule=:round_robin,
+        )
+        sequence = CoolingTNS.multi_frequency_cycle_sequence(sequence_params)
+        @test sequence.delta_indices == [1, 2, 3, 1, 2]
+        @test isequal(sequence.delta_list, [NaN, 0.5, 1.0, 1.5, 0.5, 1.0])
+        @test isequal(sequence.te_list, [NaN, 1.25, 1.25, 1.25, 1.25, 1.25])
+
+        fourth_choice = CoolingTNS.multi_frequency_cycle_choice(sequence_params, 4)
+        @test fourth_choice == (delta_index=1, delta=0.5, te=1.25)
+        @test_throws ArgumentError CoolingTNS.multi_frequency_cycle_choice(sequence_params, 0)
+
+        random_params = CoolingTNS.MultiFrequencyCouplingParameters(
+            "XX",
+            0.1,
+            4,
+            0.75,
+            [0.5, 1.0, 1.5];
+            randomize_times=true,
+            schedule=:random,
+        )
+        random_sequence_a = CoolingTNS.multi_frequency_cycle_sequence(
+            random_params; rng=MersenneTwister(17)
+        )
+        random_sequence_b = CoolingTNS.multi_frequency_cycle_sequence(
+            random_params; rng=MersenneTwister(17)
+        )
+        @test random_sequence_a.delta_indices == random_sequence_b.delta_indices
+        @test isequal(random_sequence_a.delta_list, random_sequence_b.delta_list)
+        @test isequal(random_sequence_a.te_list, random_sequence_b.te_list)
+        @test all(i -> 1 <= i <= length(random_params.delta_values), random_sequence_a.delta_indices)
+        @test all(t -> 0 <= t <= 2 * random_params.te, random_sequence_a.te_list[2:end])
+
+        zero_step_params = CoolingTNS.MultiFrequencyCouplingParameters(
+            "XX",
+            0.1,
+            0,
+            0.75,
+            [0.5, 1.0];
+            randomize_times=true,
+            schedule=:random,
+        )
+        zero_step_sequence = CoolingTNS.multi_frequency_cycle_sequence(zero_step_params)
+        @test isempty(zero_step_sequence.delta_indices)
+        @test isequal(zero_step_sequence.delta_list, [NaN])
+        @test isequal(zero_step_sequence.te_list, [NaN])
+    end
+
     # Multi-frequency protocol with a single Δ value (should match single-frequency behavior)
     mf_params = CoolingTNS.MultiFrequencyCouplingParameters(
         "XX",
@@ -73,6 +128,31 @@ using Random
     )
     @test results_explicit_nothing[CoolingTNS.RESULT_GROUND_STATE_OVERLAP] ==
           results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP]
+
+    rng_mf_params = CoolingTNS.MultiFrequencyCouplingParameters(
+        "XX",
+        0.1,
+        2,
+        1.0,
+        [gap, 2 * gap];
+        randomize_times=true,
+        schedule=:random,
+    )
+    rng_problem = CoolingTNS.setup_problem(backend, ham_params, rng_mf_params, sim_params)
+    rng_state = CoolingTNS.setup_initial_state(rng_problem, sim_params, "product", 0.0)
+    expected_sequence = CoolingTNS.multi_frequency_cycle_sequence(
+        rng_mf_params; rng=MersenneTwister(23)
+    )
+    rng_results = CoolingTNS.run_cooling(
+        rng_problem,
+        rng_state,
+        rng_mf_params,
+        sim_params,
+        ham_params;
+        rng=MersenneTwister(23),
+    )
+    @test isequal(rng_results[CoolingTNS.RESULT_DELTA_LIST], expected_sequence.delta_list)
+    @test isequal(rng_results[CoolingTNS.RESULT_TE_LIST], expected_sequence.te_list)
 
     stopped_state = CoolingTNS.setup_initial_state(problem_mf, sim_params, "product", 0.0)
     stopped_results = CoolingTNS.run_cooling(

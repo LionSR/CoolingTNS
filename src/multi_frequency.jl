@@ -11,6 +11,7 @@ using ITensors
 using ITensorMPS
 using KrylovKit
 using LinearAlgebra
+using Random
 
 
 """
@@ -21,6 +22,74 @@ Uniform grid of `R` detuning values from `delta_min` to `delta_max` (inclusive).
 function uniform_delta_grid(delta_min::Real, delta_max::Real, R::Integer)
     R < 1 && throw(ArgumentError("R must be ≥ 1, got $R"))
     return collect(range(Float64(delta_min), Float64(delta_max); length=Int(R)))
+end
+
+function _multi_frequency_delta_index(
+    cycle::Integer,
+    R::Integer,
+    schedule::Symbol;
+    rng::AbstractRNG=Random.default_rng(),
+)
+    cycle >= 1 || throw(ArgumentError("cycle must be positive, got $cycle"))
+    R >= 1 || throw(ArgumentError("R must be positive, got $R"))
+    schedule == :round_robin && return mod1(Int(cycle), Int(R))
+    schedule == :random && return rand(rng, 1:Int(R))
+    throw(ArgumentError("Unknown multi-frequency schedule=$schedule (expected :round_robin or :random)"))
+end
+
+"""
+    multi_frequency_cycle_choice(mf_params, cycle; rng=Random.default_rng())
+
+Return the detuning index, detuning value, and evolution time used in one
+physical multi-frequency cooling cycle.  The cycle index starts at one; it is
+not the measurement-array index, whose first entry is the initial state.
+"""
+function multi_frequency_cycle_choice(
+    mf_params::MultiFrequencyCouplingParameters,
+    cycle::Integer;
+    rng::AbstractRNG=Random.default_rng(),
+)
+    r = _multi_frequency_delta_index(
+        cycle,
+        length(mf_params.delta_values),
+        mf_params.schedule;
+        rng=rng,
+    )
+    te_step = mf_params.randomize_times ? (rand(rng) * 2 * mf_params.te) : mf_params.te
+    return (delta_index=r, delta=mf_params.delta_values[r], te=te_step)
+end
+
+"""
+    multi_frequency_cycle_sequence(mf_params; rng=Random.default_rng())
+
+Return the full detuning/time sequence for a multi-frequency protocol.  The
+returned `delta_list` and `te_list` have length `steps + 1`, with `NaN` in the
+first entry to match the result arrays produced by `run_cooling_multi_freq`.
+The `delta_indices` vector has one entry per physical cooling cycle.
+
+For `schedule=:random` or `randomize_times=true`, this function samples the
+sequence from `rng`.  It matches a run of `run_cooling_multi_freq` when that run
+is supplied an RNG in the same state.
+"""
+function multi_frequency_cycle_sequence(
+    mf_params::MultiFrequencyCouplingParameters;
+    rng::AbstractRNG=Random.default_rng(),
+)
+    steps = mf_params.steps
+    steps >= 0 || throw(ArgumentError("steps must be nonnegative, got $steps"))
+
+    delta_indices = Vector{Int}(undef, steps)
+    delta_list = fill(NaN, steps + 1)
+    te_list = fill(NaN, steps + 1)
+
+    for cycle in 1:steps
+        choice = multi_frequency_cycle_choice(mf_params, cycle; rng=rng)
+        delta_indices[cycle] = choice.delta_index
+        delta_list[cycle + 1] = choice.delta
+        te_list[cycle + 1] = choice.te
+    end
+
+    return (delta_indices=delta_indices, delta_list=delta_list, te_list=te_list)
 end
 
 

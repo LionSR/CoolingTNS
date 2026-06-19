@@ -108,7 +108,8 @@ export supports_ising_fourier_observables
 export bath_detuning_energy, nearest_bath_resonance_indices
 
 # Multi-frequency cooling helpers
-export uniform_delta_grid, compute_excitation_gaps, spectral_delta_values
+export uniform_delta_grid, multi_frequency_cycle_choice, multi_frequency_cycle_sequence
+export compute_excitation_gaps, spectral_delta_values
 
 # Complex JW (notes convention)
 export jordan_wigner_transform_complex, pauli_y_complex
