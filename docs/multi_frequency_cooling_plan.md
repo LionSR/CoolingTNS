@@ -197,9 +197,19 @@ positive final energy densities.  These first two cycles are only a runtime
 and early-bond calibration; they are not physically meaningful evidence for
 cooling.  TDVP is therefore accessible, but the physical question remains the
 long-cycle fixed point, not the first two cycles.
+The next completed `R = 5`, five-cycle TDVP probe at `Dmax = 96` lowers the
+energy density to `E/N = 0.66394232` after the early transient, but it reaches
+the transient system-bath cap in cycle 3 and the retained system cap in cycle
+4.  Thus it is evidence of high-bond TDVP cooling dynamics, not a converged
+large-`N` benchmark.
 Future long TDVP runs should enable `--progress-csv` and
 `--tdvp-sweep-progress` so interrupted runs retain both the per-cycle energy
 trace and the inner TDVP sweep-level bond-dimension trace.
+When several `R` values or `Dmax` values are to be run on a many-core machine,
+the validation driver should first be invoked with `--print-parallel-plan`.
+This prints one independent command for each `(N, method, R, Dmax)` tuple and
+assigns distinct HDF5 and progress CSV paths, so process-level parallelism can
+be used without concurrent writes to the same output file.
 
 These data should be used to design the next production campaign.  The table
 above is therefore a target plan, not evidence that the listed bond dimensions
