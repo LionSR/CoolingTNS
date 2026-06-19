@@ -51,6 +51,18 @@ To additionally record one CSV row after each TDVP sweep/substep, add
 `--tdvp-sweep-progress`.  To let ITensorMPS print its own TDVP sweep summary,
 use `--tdvp-outputlevel 1`.
 
+To prepare independent commands for process-level parallel execution, use
+`--print-parallel-plan`.  The plan splits the campaign into one command for
+each `(N, method, R, Dmax)` tuple and assigns distinct HDF5 and progress CSV
+paths:
+
+    julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+        --Ns 64 --R-values 1,2,5,10 --methods mcwf --evolution-method continuous \
+        --steps 5 --Dmax-values 96,128 \
+        --delta-min 0.5051167496264384 --delta-max 3.0307004977586303 \
+        --progress-csv /tmp/tdvp_progress.csv --tdvp-sweep-progress \
+        --print-parallel-plan
+
 Fast path check:
 
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl --quick
@@ -74,6 +86,11 @@ parse_int_list(s::AbstractString) =
 
 parse_method_list(s::AbstractString) =
     [lowercase(strip(x)) for x in split(s, ",") if !isempty(strip(x))]
+
+function require_unique_values(values, flag::AbstractString)
+    length(unique(values)) == length(values) && return nothing
+    error("$flag must not repeat values; repeated campaign axes would overwrite output files")
+end
 
 function parse_args(args)
     cfg = Dict{String,Any}(
@@ -104,6 +121,7 @@ function parse_args(args)
         "progress_csv" => nothing,
         "tdvp_outputlevel" => 0,
         "tdvp_sweep_progress" => false,
+        "print_parallel_plan" => false,
         "verbose" => false,
     )
 
@@ -140,6 +158,8 @@ function parse_args(args)
             cfg["verbose"] = true; i += 1
         elseif a == "--tdvp-sweep-progress"
             cfg["tdvp_sweep_progress"] = true; i += 1
+        elseif a == "--print-parallel-plan"
+            cfg["print_parallel_plan"] = true; i += 1
         else
             error("unknown argument: $a")
         end
@@ -147,6 +167,9 @@ function parse_args(args)
 
     all(R -> R >= 1, cfg["R_values"]) || error("all R values must be positive")
     all(N -> N >= 2, cfg["Ns"]) || error("all N values must be at least 2")
+    require_unique_values(cfg["Ns"], "--Ns")
+    require_unique_values(cfg["R_values"], "--R-values")
+    require_unique_values(cfg["methods"], "--methods")
     cfg["steps"] >= 1 || error("--steps must be at least 1")
     all(D -> D >= 1, campaign_dmax_values(cfg)) ||
         error("all Dmax values must be positive")
@@ -197,6 +220,113 @@ end
 function campaign_dmax_configs(cfg)
     values = campaign_dmax_values(cfg)
     return [merge(copy(cfg), Dict{String,Any}("Dmax" => D)) for D in values]
+end
+
+function shell_word(x)
+    s = string(x)
+    isempty(s) && return "''"
+    if occursin(r"[^A-Za-z0-9_@%+=:,./~-]", s)
+        return "'" * replace(s, "'" => "'\\''") * "'"
+    end
+    return s
+end
+
+function parallel_progress_csv_path(base_path::AbstractString, run_cfg)
+    stem, ext = splitext(basename(base_path))
+    suffix = @sprintf(
+        "_N%d_%s_R%d_Dmax%d",
+        only(run_cfg["Ns"]),
+        only(run_cfg["methods"]),
+        only(run_cfg["R_values"]),
+        run_cfg["Dmax"],
+    )
+    return joinpath(dirname(base_path), stem * suffix * ext)
+end
+
+function parallel_plan_configs(cfg)
+    dmax_values = campaign_dmax_values(cfg)
+    njobs = length(cfg["Ns"]) * length(cfg["methods"]) *
+            length(cfg["R_values"]) * length(dmax_values)
+    if cfg["output"] !== nothing && njobs > 1
+        error("--output cannot be used with a multi-job --print-parallel-plan")
+    end
+
+    jobs = Dict{String,Any}[]
+    for D in dmax_values, N in cfg["Ns"], method in cfg["methods"], R in cfg["R_values"]
+        run_cfg = merge(copy(cfg), Dict{String,Any}(
+            "Ns" => [N],
+            "methods" => [method],
+            "R_values" => [R],
+            "Dmax" => D,
+            "Dmax_values" => nothing,
+            "print_parallel_plan" => false,
+        ))
+        if cfg["progress_csv"] !== nothing && njobs > 1
+            run_cfg["progress_csv"] = parallel_progress_csv_path(cfg["progress_csv"], run_cfg)
+        end
+        push!(jobs, run_cfg)
+    end
+    return jobs
+end
+
+function command_args_for_config(cfg; script_path=joinpath("scripts", "validation",
+                                                           "run_largeN_multifrequency_tn_scaling.jl"))
+    args = String[
+        "julia",
+        "--project=.",
+        script_path,
+        "--Ns", join(cfg["Ns"], ","),
+        "--R-values", join(cfg["R_values"], ","),
+        "--methods", join(cfg["methods"], ","),
+        "--evolution-method", cfg["evolution_method"],
+        "--steps", string(cfg["steps"]),
+        "--Dmax", string(cfg["Dmax"]),
+        "--cutoff", string(cfg["cutoff"]),
+        "--tau", string(cfg["tau"]),
+        "--J", string(cfg["J"]),
+        "--hx", string(cfg["hx"]),
+        "--hz", string(cfg["hz"]),
+        "--coupling", cfg["coupling"],
+        "--g", string(cfg["g"]),
+        "--te", string(cfg["te"]),
+        "--delta-max-factor", string(cfg["delta_max_factor"]),
+        "--schedule", cfg["schedule"],
+        "--M-mcwf", string(cfg["M_mcwf"]),
+        "--M-mpo", string(cfg["M_mpo"]),
+        "--seed", string(cfg["seed"]),
+        "--outdir", cfg["outdir"],
+    ]
+    if cfg["delta_min"] !== nothing
+        append!(args, ["--delta-min", string(cfg["delta_min"]),
+                       "--delta-max", string(cfg["delta_max"])])
+    end
+    if cfg["output"] !== nothing
+        append!(args, ["--output", cfg["output"]])
+    end
+    if cfg["progress_csv"] !== nothing
+        append!(args, ["--progress-csv", cfg["progress_csv"]])
+    end
+    cfg["tdvp_outputlevel"] == 0 ||
+        append!(args, ["--tdvp-outputlevel", string(cfg["tdvp_outputlevel"])])
+    cfg["tdvp_sweep_progress"] && push!(args, "--tdvp-sweep-progress")
+    cfg["verbose"] && push!(args, "--verbose")
+    return args
+end
+
+parallel_plan_commands(cfg) =
+    [join(shell_word.(command_args_for_config(run_cfg)), " ")
+     for run_cfg in parallel_plan_configs(cfg)]
+
+function print_parallel_plan(cfg; io=stdout)
+    commands = parallel_plan_commands(cfg)
+    println(io, "# large-N campaign parallel job plan")
+    println(io, "# jobs: $(length(commands))")
+    println(io, "# Run these commands with an external process scheduler.")
+    println(io, "# Each command has a distinct HDF5 output path; progress CSV paths are distinct when a base --progress-csv is supplied.")
+    for command in commands
+        println(io, command)
+    end
+    return commands
 end
 
 function sim_params_for(method::AbstractString, cfg)
@@ -785,6 +915,10 @@ end
 
 function run_largeN_multifrequency_tn_scaling_main()
     cfg = parse_args(ARGS)
+    if cfg["print_parallel_plan"]
+        print_parallel_plan(cfg)
+        return nothing
+    end
     Dmax_values = campaign_dmax_values(cfg)
     @printf("large-N multi-frequency TN campaign\n")
     @printf("  Ns=%s R=%s methods=%s evolution=%s steps=%d Dmax=%s tau=%.3g cutoff=%.1e\n",

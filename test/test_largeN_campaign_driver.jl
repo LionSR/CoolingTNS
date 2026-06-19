@@ -46,6 +46,59 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     @test tdvp_progress_cfg["tdvp_outputlevel"] == 1
     @test tdvp_progress_cfg["tdvp_sweep_progress"] == true
 
+    parallel_cfg = parse_args([
+        "--Ns", "64",
+        "--R-values", "2,5",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--steps", "5",
+        "--Dmax-values", "96,128",
+        "--delta-min", "0.5051167496264384",
+        "--delta-max", "3.0307004977586303",
+        "--outdir", tempdir(),
+        "--progress-csv", joinpath(tempdir(), "tdvp_progress.csv"),
+        "--tdvp-sweep-progress",
+        "--print-parallel-plan",
+    ])
+    @test parallel_cfg["print_parallel_plan"] == true
+    parallel_jobs = parallel_plan_configs(parallel_cfg)
+    @test length(parallel_jobs) == 4
+    @test all(job -> job["Dmax_values"] === nothing, parallel_jobs)
+    @test all(job -> length(job["Ns"]) == 1, parallel_jobs)
+    @test all(job -> length(job["R_values"]) == 1, parallel_jobs)
+    @test length(unique(output_path.(parallel_jobs))) == length(parallel_jobs)
+    @test length(unique(job["progress_csv"] for job in parallel_jobs)) == length(parallel_jobs)
+    @test all(job -> occursin("Dmax$(job["Dmax"])", output_path(job)), parallel_jobs)
+    @test all(job -> occursin("_R$(only(job["R_values"]))_", job["progress_csv"]), parallel_jobs)
+
+    parallel_commands = parallel_plan_commands(parallel_cfg)
+    @test length(parallel_commands) == 4
+    @test all(command -> occursin("--tdvp-sweep-progress", command), parallel_commands)
+    @test all(command -> occursin("--evolution-method continuous", command), parallel_commands)
+    @test all(command -> occursin("--delta-min 0.5051167496264384", command), parallel_commands)
+    @test !any(command -> occursin("--Dmax-values", command), parallel_commands)
+    parallel_plan_text = sprint(io -> print_parallel_plan(parallel_cfg; io=io))
+    @test all(
+        line -> startswith(line, "#") || startswith(line, "julia "),
+        split(chomp(parallel_plan_text), '\n'),
+    )
+    @test shell_word("~/tdvp data") == "'~/tdvp data'"
+    @test shell_word("~/tdvp_data") == "~/tdvp_data"
+
+    single_output_plan = parse_args([
+        "--methods", "mcwf",
+        "--R-values", "5",
+        "--output", joinpath(tempdir(), "single.h5"),
+        "--print-parallel-plan",
+    ])
+    @test length(parallel_plan_configs(single_output_plan)) == 1
+    @test_throws ErrorException parallel_plan_configs(parse_args([
+        "--methods", "mcwf",
+        "--R-values", "2,5",
+        "--output", joinpath(tempdir(), "collision.h5"),
+        "--print-parallel-plan",
+    ]))
+
     continuous_cfg = parse_args([
         "--methods", "mcwf",
         "--evolution-method", "continuous",
@@ -69,6 +122,9 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     ])
     @test_throws ErrorException parse_args(["--Dmax-values", "160,0"])
     @test_throws ErrorException parse_args(["--Dmax-values", "320,320"])
+    @test_throws ErrorException parse_args(["--Ns", "64,64"])
+    @test_throws ErrorException parse_args(["--R-values", "2,2"])
+    @test_throws ErrorException parse_args(["--methods", "mcwf,mcwf"])
     @test_throws ErrorException parse_args(["--Dmax-values", "160,320"])
     @test_throws ErrorException parse_args([
         "--Dmax-values", "160,320",
