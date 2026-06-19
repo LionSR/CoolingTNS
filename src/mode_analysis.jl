@@ -223,6 +223,48 @@ function mode_energies_Jh(k_indices, J, h, N)
     return [Λ * mode_energy(Float64(k), θ, N) for k in k_indices]
 end
 
+"""
+    ising_mode_detuning_reference(ham_params; parity=1) -> Float64
+
+Return the minimum positive Bogoliubov quasiparticle energy on the Fourier
+grid used by the periodic/antiperiodic Ising mode observables.  The default
+`parity=1` is the deterministic reference sector also used when a measured
+state parity is not yet available.
+
+This is a bath-detuning reference for mode-resolved Ising diagnostics.  It is
+not the full finite-size many-body gap across parity sectors, and it should
+not be confused with a variational DMRG excited-state estimate.
+"""
+function ising_mode_detuning_reference(
+    ham_params::HamiltonianParameters{IsingModel};
+    parity::Int=1,
+)
+    supports_ising_fourier_observables(ham_params) || throw(ArgumentError(
+        "Ising mode detuning references require even-size periodic or antiperiodic Ising parameters"
+    ))
+    (parity == 1 || parity == -1) ||
+        throw(ArgumentError("parity must be +1 or -1, got $parity"))
+
+    N = ham_params.N
+    J, h = ham_params.params.J, ham_params.params.h
+    gF = fermionic_bc(ham_params.bc, parity)
+    energies = mode_energies_Jh(allowed_k_indices(N, gF), J, h, N)
+    positive_energies = filter(>(sqrt(eps(Float64))), energies)
+    isempty(positive_energies) && throw(ArgumentError(
+        "the reference Fourier grid has no strictly positive quasiparticle energy"
+    ))
+    return minimum(positive_energies)
+end
+
+function ising_mode_detuning_reference(
+    ham_params::HamiltonianParameters;
+    parity::Int=1,
+)
+    throw(ArgumentError(
+        "Ising mode detuning references are only defined for integrable Ising parameters"
+    ))
+end
+
 # ============================================================================
 # Open-boundary BdG source of truth
 # ============================================================================

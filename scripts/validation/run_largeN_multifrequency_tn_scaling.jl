@@ -46,6 +46,11 @@ Mode-resolved integrable-Ising campaign:
         --h -1.05 --init-state theta --theta 0.0 --measure-modes \
         --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
 
+If `--measure-modes` is used without an explicit detuning interval, the
+gap-scaled interval is referenced to the minimum positive analytic
+Bogoliubov mode energy on the same Fourier grid as the mode observables, not
+to the generic TN excited-state DMRG estimate.
+
 Long TDVP runs can also write a per-observer-event CSV trace. The trace includes
 the `initial`, `prepared`, `evolved`, and `updated` stages, so partial energy
 and bond-dimension diagnostics survive if an expensive trajectory is
@@ -320,6 +325,16 @@ function campaign_hamiltonian_parameters(N::Int, cfg)
         return NiIsingParameters(N, cfg["J"], cfg["hx"], cfg["hz"], bc)
     end
     error("unknown model '$(cfg["model"])'")
+end
+
+function campaign_base_detuning_reference(ham_params, cfg)
+    if cfg["measure_modes"] && supports_ising_fourier_observables(ham_params)
+        return (
+            delta=ising_mode_detuning_reference(ham_params),
+            source="ising_mode_reference",
+        )
+    end
+    return (delta=nothing, source="setup_gap")
 end
 
 function campaign_dmax_values(cfg)
@@ -1119,17 +1134,26 @@ function run_campaign(cfg)
 
             for method in cfg["methods"]
                 sim_params = sim_params_for(method, cfg)
-                cp_base = BasicCouplingParameters(cfg["coupling"], cfg["g"], 1, cfg["te"], nothing)
+                base_detuning = campaign_base_detuning_reference(ham_params, cfg)
+                cp_base = BasicCouplingParameters(
+                    cfg["coupling"], cfg["g"], 1, cfg["te"], base_detuning.delta
+                )
                 @printf("\nsetup N=%d method=%s\n", N, method)
                 Random.seed!(cfg["seed"] + 1000 * N)
                 base_problem = setup_problem(backend, ham_params, cp_base, sim_params)
                 gap = Float64(base_problem.extra.coupling_params.delta)
                 E0 = Float64(base_problem.e₀)
-                @printf("  E0/N=%.10f, gap=%.8f (reused across R)\n", E0 / N, gap)
+                @printf(
+                    "  E0/N=%.10f, detuning reference=%.8f (%s; reused across R)\n",
+                    E0 / N,
+                    gap,
+                    base_detuning.source,
+                )
 
                 gm = create_group(gn, method)
                 write(gm, "E0", E0)
                 write(gm, "gap", gap)
+                write(gm, "detuning_reference_gap_source", base_detuning.source)
                 write(gm, "evolution_method", cfg["evolution_method"])
                 write(gm, "system_solve_reused_across_R", true)
                 detuning_protocol = largeN_detuning_protocol(gap, cfg)

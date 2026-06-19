@@ -393,6 +393,39 @@ end
         @test !supports_ising_fourier_observables(nothing)
     end
 
+    @testset "Mode detuning reference is the positive quasiparticle scale" begin
+        ham = IsingParameters(64, 1.0, -1.05, :periodic)
+        expected_even = minimum(filter(
+            >(sqrt(eps(Float64))),
+            mode_energies_Jh(
+                allowed_k_indices(ham.N, fermionic_bc(ham.bc, 1)),
+                ham.params.J,
+                ham.params.h,
+                ham.N,
+            ),
+        ))
+        expected_odd = minimum(filter(
+            >(sqrt(eps(Float64))),
+            mode_energies_Jh(
+                allowed_k_indices(ham.N, fermionic_bc(ham.bc, -1)),
+                ham.params.J,
+                ham.params.h,
+                ham.N,
+            ),
+        ))
+
+        @test ising_mode_detuning_reference(ham) ≈ expected_even atol=1e-14
+        @test ising_mode_detuning_reference(ham) > 0
+        @test ising_mode_detuning_reference(ham; parity=-1) ≈ expected_odd atol=1e-14
+        @test_throws ArgumentError ising_mode_detuning_reference(
+            IsingParameters(4, 1.0, 0.5, :open)
+        )
+        @test_throws ArgumentError ising_mode_detuning_reference(
+            NiIsingParameters(4, 1.0, -1.05, 0.5, :periodic)
+        )
+        @test_throws ArgumentError ising_mode_detuning_reference(ham; parity=0)
+    end
+
     @testset "H_notes from JW equals ED Hamiltonian (N=$N)" for N in [4, 6]
         J, h = 1.0, 0.5
         θ = theta_from_Jh(J, h)

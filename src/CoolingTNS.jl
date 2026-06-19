@@ -105,6 +105,7 @@ export bogoliubov_angle, coeff_k, vacuum_energy, vacuum_energy_Jh
 export allowed_k_indices, fermionic_bc, parity_operator_code
 export mode_occupation_from_hk, ising_energy_from_mode_hk
 export supports_ising_fourier_observables
+export ising_mode_detuning_reference
 export bath_detuning_energy, nearest_bath_resonance_indices
 
 # Multi-frequency cooling helpers
