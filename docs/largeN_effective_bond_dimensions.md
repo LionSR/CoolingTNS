@@ -624,3 +624,80 @@ is worse than the round-robin `te = 1.0` run and reaches the evolved and TDVP
 sweep caps one cycle earlier.  Thus random ordering is a real schedule
 variable, but this one-seed diagnostic does not give evidence of a scalable
 low-entanglement route to the ground state.
+
+## Randomized-Time MCWF+TDVP Probe at Mean te=1.0
+
+After exposing randomized evolution times in the large-N driver, the same
+`N = 64`, `Dmax = 96` stop-on-cap diagnostic was repeated with round-robin
+detuning order but randomized cycle times.  Each cycle draws
+`t_m ~ Uniform(0, 2 te)` with mean `te = 1.0`, and the HDF5 output records the
+realized `te_list`.
+
+```bash
+for R in 1 2 5 10; do
+  JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  BLIS_NUM_THREADS=1 \
+  julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+    --Ns 64 --R-values "$R" --methods mcwf \
+    --evolution-method continuous --steps 40 --Dmax 96 \
+    --cutoff 1e-6 --tau 0.2 --te 1.0 --randomize-times \
+    --M-mcwf 1 \
+    --delta-min 0.5051167496264384 \
+    --delta-max 3.0307004977586303 \
+    --outdir .worktree/largeN_randtime_scan_20260619 \
+    --progress-csv ".worktree/largeN_randtime_scan_20260619/tdvp_progress_N64_mcwf_R${R}_Dmax96_te1.0_randtime.csv" \
+    --tdvp-sweep-progress --stop-on-bond-cap --verbose
+done
+```
+
+The HDF5 summary is
+
+| R | mean te | Dcap | completed/requested cycles | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | system sat | evolved sat | tdvp sweep sat | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---:|
+| 1 | 1.0 | 96 | 6/40 | 1.55558375 | 1.48133017 | 87 | >=96 | >=96 | not_converged_evolved_and_tdvp_sweep_cap | none | 6 | 6 | 858.6 s |
+| 2 | 1.0 | 96 | 7/40 | 1.09926433 | 1.09097226 | >=96 | >=96 | >=96 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 7 | 7 | 7 | 1041.6 s |
+| 5 | 1.0 | 96 | 7/40 | 1.35803471 | 1.35803471 | 93 | >=96 | >=96 | not_converged_evolved_and_tdvp_sweep_cap | none | 7 | 7 | 704.2 s |
+| 10 | 1.0 | 96 | 8/40 | 1.07882431 | 1.07882431 | 91 | >=96 | >=96 | not_converged_evolved_and_tdvp_sweep_cap | none | 8 | 8 | 861.9 s |
+
+The completed-cycle prefixes, including the realized cycle times, are
+
+| R | cycle | delta | te | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 1 | 0.50511675 | 0.02811079 | 1.48437487 | 1 | 2 | 20.8 s |
+| 1 | 2 | 0.50511675 | 1.58210982 | 1.50767726 | 8 | 8 | 38.3 s |
+| 1 | 3 | 0.50511675 | 0.21089060 | 1.50784234 | 8 | 9 | 45.1 s |
+| 1 | 4 | 0.50511675 | 1.51131337 | 1.48133017 | 24 | 31 | 97.1 s |
+| 1 | 5 | 0.50511675 | 0.83104255 | 1.50550305 | 35 | 45 | 165.7 s |
+| 1 | 6 | 0.50511675 | 1.85082244 | 1.55558375 | 87 | 96 | 858.6 s |
+| 2 | 1 | 0.50511675 | 0.70976735 | 1.37357943 | 3 | 4 | 24.9 s |
+| 2 | 2 | 3.03070050 | 1.35299857 | 1.10646940 | 9 | 13 | 47.4 s |
+| 2 | 3 | 0.50511675 | 0.30863670 | 1.10717316 | 12 | 15 | 56.3 s |
+| 2 | 4 | 3.03070050 | 1.33648073 | 1.09112697 | 33 | 45 | 126.3 s |
+| 2 | 5 | 0.50511675 | 0.26346633 | 1.09135350 | 36 | 47 | 163.4 s |
+| 2 | 6 | 3.03070050 | 0.31688886 | 1.09097226 | 49 | 60 | 215.4 s |
+| 2 | 7 | 0.50511675 | 1.38166777 | 1.09926433 | 96 | 96 | 1041.6 s |
+| 5 | 1 | 0.50511675 | 0.71014027 | 1.41861024 | 3 | 4 | 24.8 s |
+| 5 | 2 | 1.13651269 | 1.89633000 | 1.42055762 | 16 | 20 | 64.2 s |
+| 5 | 3 | 1.76790862 | 0.35000499 | 1.42019203 | 17 | 24 | 77.2 s |
+| 5 | 4 | 2.39930456 | 0.11401318 | 1.42015600 | 17 | 24 | 83.7 s |
+| 5 | 5 | 3.03070050 | 0.12515411 | 1.42011740 | 20 | 26 | 90.4 s |
+| 5 | 6 | 0.50511675 | 0.48084740 | 1.42511952 | 31 | 39 | 121.2 s |
+| 5 | 7 | 1.13651269 | 1.72149561 | 1.35803471 | 93 | 96 | 704.2 s |
+| 10 | 1 | 0.50511675 | 0.57805193 | 1.42361164 | 3 | 4 | 23.0 s |
+| 10 | 2 | 0.78573717 | 1.92354935 | 1.33488776 | 16 | 18 | 60.1 s |
+| 10 | 3 | 1.06635758 | 0.00420173 | 1.33489373 | 16 | 16 | 66.1 s |
+| 10 | 4 | 1.34697800 | 0.77368787 | 1.33666918 | 24 | 30 | 94.3 s |
+| 10 | 5 | 1.62759842 | 0.33586292 | 1.33747991 | 28 | 34 | 114.7 s |
+| 10 | 6 | 1.90821883 | 0.56199226 | 1.18038440 | 39 | 49 | 162.3 s |
+| 10 | 7 | 2.18883925 | 0.77709643 | 1.17770501 | 59 | 76 | 298.4 s |
+| 10 | 8 | 2.46945966 | 1.06039527 | 1.07882431 | 91 | 96 | 861.9 s |
+
+Randomizing the cycle times delays the cap event for some schedules relative
+to fixed `te = 1.0`, but it does not improve the best capped-prefix energy in
+this one-seed scan.  The best randomized-time result is `R = 10` with
+`E/N = 1.07882431`, still above the fixed-time `R = 5` stopped-prefix energy
+`0.95391585`.  The randomized-time `R = 2` run also reaches the retained
+system cap at cycle 7 and has worse final and best energies than the fixed-time
+`R = 2` scan.  Thus time randomization is a meaningful protocol axis to record,
+but this diagnostic does not support it as a solution to the large-N
+bond-growth bottleneck.
