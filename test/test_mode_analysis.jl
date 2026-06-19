@@ -107,8 +107,8 @@ function _test_split_by_parity(H::AbstractMatrix, P::AbstractMatrix)
     return even_E, odd_E
 end
 
-"""Find ground state in a given parity sector."""
-function _test_gs_in_sector(H::AbstractMatrix, P::AbstractMatrix, parity::Int)
+"""Return energy eigenpairs in a given parity sector."""
+function _test_sector_eigensystem(H::AbstractMatrix, P::AbstractMatrix, parity::Int)
     evals, evecs = eigen(Hermitian(real(H)))
     dim = length(evals)
     p_vals = Float64[]
@@ -136,8 +136,35 @@ function _test_gs_in_sector(H::AbstractMatrix, P::AbstractMatrix, parity::Int)
     mask = p_vals .== parity
     sector_E = result_evals[mask]
     sector_V = result_evecs[mask]
-    idx = argmin(sector_E)
-    return sector_E[idx], ComplexF64.(sector_V[idx])
+    order = sortperm(sector_E)
+    return sector_E[order], sector_V[order]
+end
+
+"""Find ground state in a given parity sector."""
+function _test_gs_in_sector(H::AbstractMatrix, P::AbstractMatrix, parity::Int)
+    sector_E, sector_V = _test_sector_eigensystem(H, P, parity)
+    return first(sector_E), first(sector_V)
+end
+
+"""Return gaps reachable from the fixed-sector ground state by a local operator."""
+function _test_accessible_gaps_from_sector_ground(
+    H::AbstractMatrix,
+    P::AbstractMatrix,
+    O::AbstractMatrix,
+    parity::Int;
+    gap_tol::Float64=1e-9,
+    amplitude_tol::Float64=1e-8,
+)
+    sector_E, sector_V = _test_sector_eigensystem(H, P, parity)
+    ψ0 = first(sector_V)
+    E0 = first(sector_E)
+    gaps = Float64[]
+    for j in eachindex(sector_E)
+        gap = sector_E[j] - E0
+        amplitude = abs(sector_V[j]' * O * ψ0)
+        gap > gap_tol && amplitude > amplitude_tol && push!(gaps, gap)
+    end
+    return sort(gaps)
 end
 
 """Build the free-fermion many-body spectrum from positive quasiparticle energies."""
@@ -438,17 +465,35 @@ end
         for N in [4, 6]
             ham = IsingParameters(N, J, h, :periodic)
             H = _test_build_H_code(N, J, h, :periodic)
-            E, V = eigen(Hermitian(real(H)))
+            Px = _test_parity_x(N)
             O = _test_site_op(X, 1, N)
-            i0 = argmin(E)
-            accessible_gaps = Float64[]
-            for j in eachindex(E)
-                gap = E[j] - E[i0]
-                amplitude = abs(ComplexF64.(V[:, j])' * O * ComplexF64.(V[:, i0]))
-                gap > 1e-9 && amplitude > 1e-8 && push!(accessible_gaps, gap)
-            end
+            # This is the default periodic even sector used by mode campaigns.
+            # Its fermionic grid is half-integer, so there are no special modes
+            # and the generic pair threshold is the first local-X transition.
+            @test fermionic_bc(ham.bc, 1) == -1
+            accessible_gaps = _test_accessible_gaps_from_sector_ground(H, Px, O, 1)
 
             @test ising_mode_detuning_reference(ham) ≈ minimum(accessible_gaps) atol=1e-10
+        end
+    end
+
+    @testset "Integer-grid detuning reference excludes special-mode transitions" begin
+        J, h = 1.0, -1.05
+        X = ComplexF64[0 1; 1 0]
+        for N in [4, 6], (bc, parity) in [(:periodic, -1), (:antiperiodic, 1)]
+            ham = IsingParameters(N, J, h, bc)
+            H = _test_build_H_code(N, J, h, bc)
+            Px = _test_parity_x(N)
+            O = _test_site_op(X, 1, N)
+            @test fermionic_bc(bc, parity) == 1
+            accessible_gaps = _test_accessible_gaps_from_sector_ground(H, Px, O, parity)
+            reference = ising_mode_detuning_reference(ham; parity)
+
+            # On the integer grid, lower local-X transitions can rearrange the
+            # special modes.  The detuning reference is instead the generic
+            # two-quasiparticle threshold, which remains visible in ED.
+            @test any(gap -> isapprox(gap, reference; atol=1e-10), accessible_gaps)
+            @test minimum(accessible_gaps) < reference
         end
     end
 

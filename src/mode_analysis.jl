@@ -234,9 +234,9 @@ measured state parity is not yet available.
 This is the bath-detuning reference for the parity-preserving local ``X``
 system coupling used by the default mode-resolved Ising cooling diagnostics:
 the coupling can create or remove generic quasiparticles only in pairs, so the
-reference scale is ``2 min_k ε_k``.  It is not the single-quasiparticle mode
-energy, not the cross-parity many-body gap, and not a variational DMRG
-excited-state estimate.
+reference scale is ``2 min_{sin φ_k != 0} ε_k``.  It is not the
+single-quasiparticle mode energy, not the cross-parity many-body gap, and not a
+variational DMRG excited-state estimate.
 """
 function ising_mode_detuning_reference(
     ham_params::HamiltonianParameters{IsingModel};
