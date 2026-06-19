@@ -243,6 +243,16 @@ Here
 	w_k=\sin\theta-\cos\theta\cos\phi_k,\qquad
 	r_k=-\cos\theta\sin\phi_k.
 \end{equation}
+We use the same Bogoliubov-angle convention as in
+\texttt{NotesED/MapToSpin.tex}: for generic modes,
+\begin{align}
+	\tan(2\varphi_k)&=\frac{r_k}{w_k},\label{eq:tn_bogoliubov_angle}\\
+	\hat a_k&=\cos(\varphi_k)\tilde a_k
+	+i\sin(\varphi_k)\tilde a_{-k}^\dagger .
+	\label{eq:tn_bogoliubov_transform}
+\end{align}
+For the special modes with $\sin\phi_k=0$, there is no Bogoliubov mixing and
+we set $\varphi_k=0$.
 The ED and tensor-network implementations evaluate the same diagnostics after
 the relabeling $k\mapsto -k$:
 \begin{align}
@@ -251,8 +261,10 @@ the relabeling $k\mapsto -k$:
 	&=\frac{1}{\sqrt N}\sum_{n=1}^{N}e^{+in\phi_k}a_n,\\
 	r^{\mathrm{code}}_k&=+\cos\theta\sin\phi_k.
 \end{align}
-The mode energy, coefficient, and occupation formulas below are invariant under
-this relabeling.  With either convention,
+Equivalently, $r^{\mathrm{code}}_k=-r_k$ and
+$\varphi_k^{\mathrm{code}}=-\varphi_k$ after this relabeling.  The mode
+energy, coefficient, and occupation formulas below are invariant under this
+relabeling.  With either convention,
 \begin{equation}
 	\epsilon_k=\sqrt{w_k^2+r_k^2}
 	=\sqrt{1-\sin(2\theta)\cos\phi_k}.
