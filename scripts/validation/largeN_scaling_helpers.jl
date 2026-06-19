@@ -125,6 +125,7 @@ function first_recorded_saturation_cycle(cycles::AbstractVector{<:Integer})
 end
 
 saturation_cycle_label(cycle::Integer) = cycle == 0 ? "none" : string(cycle)
+saturation_cycle_label(::Missing) = "n/a"
 
 """
     bond_cap_status(system_saturation_cycle, evolved_saturation_cycle,

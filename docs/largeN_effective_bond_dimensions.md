@@ -56,9 +56,9 @@ different states in the same cooling cycle and should not be interchanged.
 - `Dtdvp_sweep_eff` is the effective bond dimension inferred from the largest
   transient state seen by the inner TDVP sweep observer during MCWF+TDVP
   evolution.  The HDF5 source fields are `tdvp_sweep_max_bond` and
-  `tdvp_sweep_saturation_cycle`.  Legacy files without this diagnostic are
-  summarized with a zero sweep value.  This is an inner-sweep diagnostic, not an
-  additional retained physical state.
+  `tdvp_sweep_saturation_cycle`.  Legacy files and runs without this diagnostic
+  are summarized as `n/a`, not as a measured zero-dimensional state.  This is an
+  inner-sweep diagnostic, not an additional retained physical state.
 
 For Trotter cooling, `Dsb_eff` is the more stringent quantity, because the
 algorithm must represent the enlarged system-bath state before the bath is
@@ -434,7 +434,7 @@ yet produce a physically controlled long-time cooling trajectory.
 
 The HDF5 files for this particular stop-cap campaign predate the HDF5
 persistence of TDVP sweep histories added later.  Consequently
-`summarize_largeN_bond_dimensions.jl` reports `Dtdvp_sweep_eff = 0` for these
+`summarize_largeN_bond_dimensions.jl` reports `Dtdvp_sweep_eff = n/a` for these
 legacy files, while the accompanying progress CSVs record the cycle-3 evolved
 cap events shown above.  New stop-cap runs with `--tdvp-sweep-progress` store
 both `tdvp_sweep_max_bond` and `tdvp_sweep_saturation_cycle` in HDF5.

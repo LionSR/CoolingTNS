@@ -125,6 +125,58 @@ end
         @test row.delta_protocol == "unknown"
         @test row.delta_range == "unknown"
         @test row.delta_factor == "unknown"
+        @test row.tdvp_sweep_effective_bond == "n/a"
+        @test ismissing(row.peak_tdvp_sweep_max)
+        @test ismissing(row.tdvp_sweep_saturation_cycle)
+        @test row.bond_status == "not_converged_evolved_cap"
+
+        output = mktemp() do output_path, io
+            close(io)
+            open(output_path, "w") do out
+                redirect_stdout(out) do
+                    print_markdown([row])
+                end
+            end
+            read(output_path, String)
+        end
+        @test occursin(
+            "| $(basename(path)) | 2 | mcwf | unknown | 1 | 1 | unknown | " *
+            "unknown | unknown | 4 | 2 | >=4 | n/a | not_converged_evolved_cap |",
+            output,
+        )
+        @test occursin("| 4.00 | n/a | none | 1 | n/a |", output)
+    finally
+        rm(path; force=true)
+    end
+end
+
+@testset "Large-N summary treats all-zero TDVP sweep placeholders as missing" begin
+    path = tempname() * ".h5"
+    try
+        h5open(path, "w") do f
+            write(f, "Dmax", 4)
+            write(f, "evolution_method", "continuous")
+            gn = create_group(f, "N2")
+            write(gn, "N", 2)
+            gm = create_group(gn, "mcwf")
+            gr = create_group(gm, "R1")
+
+            write(gr, "M", 1)
+            write(gr, "E_mean", [-1.0, 0.0])
+            write(gr, "relative_energy_mean", [0.0, 1.0])
+            write(gr, "system_max_bond", [1, 2])
+            write(gr, "system_mean_bond", [1.0, 2.0])
+            write(gr, "evolved_max_bond", [0, 4])
+            write(gr, "evolved_mean_bond", [NaN, 4.0])
+            write(gr, "tdvp_sweep_max_bond", [0, 0])
+            write(gr, "tdvp_sweep_saturation_cycle", [0])
+        end
+
+        row = only(summarize_file(path))
+        @test row.tdvp_sweep_effective_bond == "n/a"
+        @test ismissing(row.peak_tdvp_sweep_max)
+        @test ismissing(row.tdvp_sweep_saturation_cycle)
+        @test row.bond_status == "not_converged_evolved_cap"
     finally
         rm(path; force=true)
     end

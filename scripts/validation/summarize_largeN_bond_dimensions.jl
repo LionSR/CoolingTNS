@@ -44,6 +44,9 @@ function format_float(value::Real, digits::Int=2)
     return string(round(Float64(value); digits=digits))
 end
 
+format_integer_or_na(value::Integer) = string(value)
+format_integer_or_na(::Missing) = "n/a"
+
 function read_group_value(primary_group, fallback_group, key::AbstractString, default)
     haskey(primary_group, key) && return read(primary_group[key])
     haskey(fallback_group, key) && return read(fallback_group[key])
@@ -175,9 +178,17 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     system_mean_bond = bond_history_matrix(read(run_group["system_mean_bond"]))
     evolved_max_bond = bond_history_matrix(read(run_group["evolved_max_bond"]))
     evolved_mean_bond = bond_history_matrix(read(run_group["evolved_mean_bond"]))
-    tdvp_sweep_max_bond = haskey(run_group, "tdvp_sweep_max_bond") ?
+    tdvp_sweep_dataset_present = haskey(run_group, "tdvp_sweep_max_bond")
+    tdvp_sweep_max_bond = tdvp_sweep_dataset_present ?
         bond_history_matrix(read(run_group["tdvp_sweep_max_bond"])) :
-        zeros(Int, size(system_max_bond))
+        Matrix{Int}(undef, 0, 0)
+    tdvp_sweep_saturation_dataset_cycle = first_saturation_from_dataset(
+        run_group, "tdvp_sweep_saturation_cycle"
+    )
+    has_tdvp_sweep_history =
+        !isempty(tdvp_sweep_max_bond) &&
+        (any(value -> value != 0, tdvp_sweep_max_bond) ||
+         tdvp_sweep_saturation_dataset_cycle > 0)
 
     final_e_over_n = energy_mean[end] / N
     final_relative_energy = relative_energy_mean[end]
@@ -191,7 +202,9 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     final_system_mean = final_system_mean_bond(system_mean_bond)
     peak_evolved_max = peak_evolved_max_bond(evolved_max_bond)
     peak_evolved_mean = peak_evolved_mean_bond(evolved_mean_bond)
-    peak_tdvp_sweep_max = isempty(tdvp_sweep_max_bond) ? 0 : maximum(tdvp_sweep_max_bond)
+    peak_tdvp_sweep_max = has_tdvp_sweep_history ?
+        maximum(tdvp_sweep_max_bond) :
+        missing
 
     system_saturation_cycle = first_saturation_from_dataset(run_group, "system_saturation_cycle")
     system_saturation_cycle == 0 &&
@@ -199,24 +212,29 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     evolved_saturation_cycle = first_saturation_from_dataset(run_group, "evolved_saturation_cycle")
     evolved_saturation_cycle == 0 &&
         (evolved_saturation_cycle = first_saturation_from_history(evolved_max_bond, threshold))
-    tdvp_sweep_saturation_cycle = first_saturation_from_dataset(
-        run_group, "tdvp_sweep_saturation_cycle"
-    )
-    tdvp_sweep_saturation_cycle == 0 &&
-        (tdvp_sweep_saturation_cycle = first_saturation_from_history(
-            tdvp_sweep_max_bond, threshold
-        ))
+    tdvp_sweep_saturation_cycle_for_status = 0
+    tdvp_sweep_saturation_cycle = if has_tdvp_sweep_history
+        cycle = tdvp_sweep_saturation_dataset_cycle
+        cycle == 0 && (cycle = first_saturation_from_history(tdvp_sweep_max_bond, threshold))
+        tdvp_sweep_saturation_cycle_for_status = cycle
+        cycle
+    else
+        missing
+    end
     system_effective_bond = effective_bond_dimension_label(
         final_system_max, system_saturation_cycle, threshold
     )
     evolved_effective_bond = effective_bond_dimension_label(
         peak_evolved_max, evolved_saturation_cycle, threshold
     )
-    tdvp_sweep_effective_bond = effective_bond_dimension_label(
-        peak_tdvp_sweep_max, tdvp_sweep_saturation_cycle, threshold
-    )
+    tdvp_sweep_effective_bond = has_tdvp_sweep_history ?
+        effective_bond_dimension_label(
+            peak_tdvp_sweep_max, tdvp_sweep_saturation_cycle, threshold
+        ) :
+        "n/a"
     bond_status = bond_cap_status(
-        system_saturation_cycle, evolved_saturation_cycle, tdvp_sweep_saturation_cycle
+        system_saturation_cycle, evolved_saturation_cycle,
+        tdvp_sweep_saturation_cycle_for_status,
     )
 
     link_dims = final_link_dimensions(run_group)
@@ -306,7 +324,7 @@ function print_markdown(rows)
             "$(row.tail_count) | " *
             "$(row.final_system_max) | $(format_float(row.final_system_mean, 2)) | " *
             "$(row.peak_evolved_max) | $(format_float(row.peak_evolved_mean, 2)) | " *
-            "$(row.peak_tdvp_sweep_max) | " *
+            "$(format_integer_or_na(row.peak_tdvp_sweep_max)) | " *
             "$(saturation_cycle_label(row.system_saturation_cycle)) | " *
             "$(saturation_cycle_label(row.evolved_saturation_cycle)) | " *
             "$(saturation_cycle_label(row.tdvp_sweep_saturation_cycle)) | " *

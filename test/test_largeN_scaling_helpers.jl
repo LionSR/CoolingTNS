@@ -55,6 +55,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
 
     @test saturation_cycle_label(0) == "none"
     @test saturation_cycle_label(4) == "4"
+    @test saturation_cycle_label(missing) == "n/a"
     @test bond_cap_status(0, 0) == "no_cap_hit"
     @test bond_cap_status(3, 0) == "not_converged_system_cap"
     @test bond_cap_status(0, 2) == "not_converged_evolved_cap"
