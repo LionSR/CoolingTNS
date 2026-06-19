@@ -266,6 +266,17 @@ end
     @test mode_ham.bc == :periodic
     @test mode_ham.params.h == -0.75
     @test CoolingTNS.supports_ising_fourier_observables(mode_ham)
+    mode_reference = campaign_base_detuning_reference(mode_ham, mode_cfg)
+    @test mode_reference.source == "ising_mode_reference"
+    @test mode_reference.delta ≈ CoolingTNS.ising_mode_detuning_reference(mode_ham)
+    @test mode_reference.delta > 0
+    generic_cfg = parse_args(["--outdir", tempdir()])
+    generic_reference = campaign_base_detuning_reference(
+        campaign_hamiltonian_parameters(64, generic_cfg),
+        generic_cfg,
+    )
+    @test generic_reference.source == "setup_gap"
+    @test isnothing(generic_reference.delta)
     @test occursin("ising_bcperiodic", output_path(mode_cfg))
     mode_command = join(command_args_for_config(mode_cfg), " ")
     @test occursin("--model ising", mode_command)
@@ -666,8 +677,6 @@ end
             "--te", "0.0",
             "--init-state", "theta",
             "--theta", "0.0",
-            "--delta-min", "0.5",
-            "--delta-max", "0.5",
             "--measure-modes",
             "--outdir", dir,
             "--output", output,
@@ -691,6 +700,19 @@ end
             @test read(f["h"]) == 0.5
             @test isnan(read(f["hx"]))
             @test isnan(read(f["hz"]))
+
+            gm = f["N2/mcwf"]
+            reference = CoolingTNS.ising_mode_detuning_reference(
+                CoolingTNS.IsingParameters(2, 1.0, 0.5, :periodic)
+            )
+            @test read(gm["gap"]) ≈ reference
+            @test read(gm["detuning_reference_gap_source"]) == "ising_mode_reference"
+            @test read(gm["detuning_protocol_source"]) == "gap_scaled_range"
+            @test read(gm["detuning_reference_gap"]) ≈ reference
+            @test read(gm["detuning_delta_min"]) ≈ reference
+            @test read(gm["detuning_delta_max"]) ≈ 6.0 * reference
+            @test read(gm["detuning_delta_max_factor"]) == 6.0
+            @test read(gm["detuning_fixed_across_dmax"]) == false
 
             g = f["N2/mcwf/R1"]
             mode_hk = read(g[CoolingTNS.RESULT_MODE_HK])
