@@ -45,6 +45,7 @@ end
         include("test_ed_dm_kspace_examples.jl")
         include("test_ed_kspace_smoke_example.jl")
         include("test_ed_kspace_demo_text.jl")
+        include("test_bogoliubov_notation_text.jl")
     end
 
     if RUN_FULL_TESTS
