@@ -5,7 +5,7 @@
 Standalone diagnostic script that:
 1. Sets up a small Ising chain (N=6, PBC) with reasonable parameters
 2. Runs ED DensityMatrix cooling for ~50 steps with mode measurement
-3. Prints a summary table of physical mode occupations n_k at each step
+3. Prints a summary table of Bogoliubov occupations n_k^Bog at each step
 4. Verifies energy consistency: (Λ/2) Σ_k coeff_k · ⟨h_k⟩ ≈ ⟨H⟩
 5. Optionally generates a matplotlib plot
 
@@ -136,9 +136,9 @@ function run_diagnostic(; do_plot::Bool=false)
     res_indices = Set(CoolingTNS.nearest_bath_resonance_indices(εk_values, Δ))
 
     println("=" ^ 80)
-    println("  Cooling Summary Table: physical occupations n_k")
+    println("  Cooling Summary Table: Bogoliubov occupations n_k^Bog")
     println("=" ^ 80)
-    println("  Table entries are quasiparticle occupations n_k; resonant modes are marked by *.")
+    println("  Table entries are quasiparticle occupations n_k^Bog; resonant modes are marked by *.")
     println()
 
     # Header
@@ -210,10 +210,10 @@ function run_diagnostic(; do_plot::Bool=false)
     # ========================================================================
 
     println("=" ^ 80)
-    println("  Mode Cooling Effectiveness: physical occupations n_k")
+    println("  Mode Cooling Effectiveness: Bogoliubov occupations n_k^Bog")
     println("=" ^ 80)
     @printf("  %-10s  %-10s  %-12s  %-12s  %-10s  %-10s\n",
-            "k", "ε_k", "n_k(init)", "n_k(final)", "Δn_k", "|ε_k - Δ|")
+            "k", "ε_k", "n_Bog(init)", "n_Bog(final)", "Δn_Bog", "|ε_k - Δ|")
     println("  " * "─" ^ 66)
 
     for i in 1:n_modes

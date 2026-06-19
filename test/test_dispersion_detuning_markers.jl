@@ -22,6 +22,10 @@ function _line_label(line)
     return pyconvert(String, line.get_label())
 end
 
+function _axis_ylabel(ax)
+    return pyconvert(String, ax.get_ylabel())
+end
+
 _is_constant_at(values, target; atol=1e-12) =
     length(values) >= 2 && all(v -> isapprox(v, target; atol=atol, rtol=0), values)
 
@@ -35,6 +39,13 @@ end
 
 function _has_line_label_containing(ax, text)
     return any(line -> occursin(text, _line_label(line)), _axis_lines(ax))
+end
+
+@testset "Dispersion docstrings keep Fourier tilde literal" begin
+    text = read(joinpath(@__DIR__, "..", "scripts", "plotting",
+                         "plot_dispersion_with_gs.jl"), String)
+    @test occursin(raw"\\tilde", text)
+    @test !occursin("\t", text)
 end
 
 @testset "Dispersion detuning markers use energy axis" begin
@@ -56,6 +67,8 @@ end
     @test !_has_vertical_line_at(energy_ax, delta / pi)
     @test _has_line_label_containing(energy_ax, "0.7")
     @test !_has_horizontal_line_at(occupation_ax, δ_abs)
+    @test occursin("Raw Fourier", _axis_ylabel(occupation_ax))
+    @test occursin("tilde", _axis_ylabel(occupation_ax))
     plt.close(fig_gs)
 
     fig_array_delta = plot_energy_dispersion(4, 1.0, 0.5, :periodic; delta=[δ_abs], save_fig=false)

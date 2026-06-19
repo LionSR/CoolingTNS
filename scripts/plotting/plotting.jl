@@ -720,7 +720,8 @@ end
 """
     plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true, show_fig=false)
 
-Plot the momentum distribution n_k vs k at a subset of cooling steps.
+Plot the raw Fourier momentum distribution ``\\tilde n_k`` vs k at a subset of
+cooling steps.
 
 If the file contains a scalar `delta`, the plot marks the momentum values whose
 mode energies are closest to `|delta|`. The mode energies are read from
@@ -760,8 +761,8 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
     _add_momentum_resonance_markers!(ax, k_values, εk_values, get(data, "delta", nothing))
 
     ax.set_xlabel(L"Momentum $k$")
-    ax.set_ylabel(L"Occupation $n_k$")
-    ax.set_title("Momentum Distribution Evolution")
+    ax.set_ylabel(RAW_FOURIER_OCCUPATION_LABEL)
+    ax.set_title("Raw Fourier Occupation Evolution")
     ax.legend()
     ax.grid(true, alpha=0.3)
     plt.tight_layout()
@@ -778,7 +779,8 @@ end
 """
     plot_momentum_distribution_heatmap(filename; save_fig=true, show_fig=false)
 
-Plot the momentum distribution as a heatmap showing n_k vs (k, step).
+Plot the raw Fourier momentum distribution as a heatmap showing ``\\tilde n_k``
+vs (k, step).
 """
 function plot_momentum_distribution_heatmap(filename; save_fig=true, show_fig=false)
     plt = get_pyplot()
@@ -808,10 +810,10 @@ function plot_momentum_distribution_heatmap(filename; save_fig=true, show_fig=fa
 
     ax.set_xlabel("Cooling Step")
     ax.set_ylabel(L"Momentum $k$")
-    ax.set_title("Momentum Distribution Evolution Heatmap")
+    ax.set_title("Raw Fourier Occupation Evolution Heatmap")
 
     cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label(L"Occupation $n_k$")
+    cbar.set_label(RAW_FOURIER_OCCUPATION_LABEL)
 
     if 0 in k_values
         ax.axhline(y=0, color="white", linestyle="--", alpha=0.5, linewidth=1)

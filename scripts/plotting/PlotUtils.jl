@@ -23,6 +23,12 @@ const _COOLINGTNS_PLOTUTILS_INCLUDED = true
 # Lazy pyplot access - imported once per session
 const _pyplot = Ref{Py}()
 
+const RAW_FOURIER_OCCUPATION_LABEL = L"Raw Fourier occupation $\tilde n_k$"
+const RAW_FOURIER_GS_OCCUPATION_LABEL = L"$\tilde n_k^{\mathrm{GS}}$"
+const BOGOLIUBOV_OCCUPATION_LABEL = L"Bogoliubov occupation $n_k^{\mathrm{Bog}}$"
+const BOGOLIUBOV_GS_OCCUPATION_LABEL = L"$n_k^{\mathrm{Bog}} = 0 \; (\mathrm{GS})$"
+const BOGOLIUBOV_HALF_OCCUPATION_LABEL = L"$n_k^{\mathrm{Bog}} = 1/2$"
+
 """
     get_pyplot()
 

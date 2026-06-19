@@ -55,6 +55,10 @@ function _momentum_line_label(line)
     return pyconvert(String, line.get_label())
 end
 
+function _momentum_axis_ylabel(ax)
+    return pyconvert(String, ax.get_ylabel())
+end
+
 _momentum_is_constant_at(values, target; atol=1e-12) =
     length(values) >= 2 && all(v -> isapprox(v, target; atol=atol, rtol=0), values)
 
@@ -83,6 +87,12 @@ end
     @test show_count[] == 1
 end
 
+@testset "Momentum docstrings keep Fourier tilde literal" begin
+    text = read(joinpath(@__DIR__, "..", "scripts", "plotting", "plotting.jl"), String)
+    @test count(raw"\\tilde", text) >= 2
+    @test !occursin("\t", text)
+end
+
 @testset "Momentum distribution detuning markers use momentum axis" begin
     plt = get_pyplot()
 
@@ -108,11 +118,18 @@ end
         fig = plot_momentum_distribution(stored_energy_file; save_fig=false)
         ax = fig.axes[0]
         @test length(pyconvert(Vector, fig.axes)) == 1
+        @test occursin("Raw Fourier", _momentum_axis_ylabel(ax))
+        @test occursin("tilde", _momentum_axis_ylabel(ax))
         @test _momentum_has_vertical_line_at(ax, 0.0)
         @test _momentum_has_vertical_line_at(ax, pi / 2)
         @test !_momentum_has_horizontal_line_at(ax, delta)
         @test _momentum_has_label_containing(ax, "1.2")
         plt.close(fig)
+
+        heatmap_fig = plot_momentum_distribution_heatmap(stored_energy_file; save_fig=false)
+        @test occursin("Raw Fourier", _momentum_axis_ylabel(heatmap_fig.axes[1]))
+        @test occursin("tilde", _momentum_axis_ylabel(heatmap_fig.axes[1]))
+        plt.close(heatmap_fig)
 
         mismatch_k_values = CoolingTNS.generate_k_values(4, 1)
         mismatch_energies = CoolingTNS.compute_energy_dispersion(mismatch_k_values, 1.0, 0.5)

@@ -23,8 +23,8 @@ _has_mode_energy_data(data::AbstractDict) = all(key -> haskey(data, key), _MODE_
 function _warn_missing_mode_energy_data(filename, data)
     if haskey(data, CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION) &&
        haskey(data, CoolingTNS.RESULT_K_VALUES)
-        @warn "File $filename contains Fourier occupations n_k, but not Bogoliubov mode data. " *
-              "Not plotting epsilon_k*n_k as an energy; rerun with measure_modes=true."
+        @warn "File $filename contains raw Fourier occupations tilde_n_k, but not Bogoliubov mode data. " *
+              "Not plotting epsilon_k*tilde_n_k as an energy; rerun with measure_modes=true."
     else
         @warn "No Bogoliubov mode energy data found in file $filename"
     end

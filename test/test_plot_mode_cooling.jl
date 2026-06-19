@@ -1,7 +1,12 @@
 using Test
 using CoolingTNS
+using PythonCall
+
+pyimport("matplotlib").use("Agg"; force=true)
 
 include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
+
+_mode_axis_ylabel(ax) = pyconvert(String, ax.get_ylabel())
 
 @testset "Mode cooling plot data convention" begin
     mode_hk = [-1.0 0.0; 1.0 -0.5]
@@ -17,6 +22,17 @@ include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"))
     @test _occupation_ylim([NaN]) == (-0.05, 1.05)
 
     @test_throws ErrorException _mode_occupation_from_plot_data(Dict{String, Any}())
+
+    fig = plot_mode_occupation_from_data(
+        stored_nk,
+        [-1//2, 1//2],
+        [0.8, 1.2];
+        title="test",
+    )
+    @test occursin("Bogoliubov", _mode_axis_ylabel(fig.axes[0]))
+    @test occursin("Bog", _mode_axis_ylabel(fig.axes[0]))
+    @test occursin("Bogoliubov", _mode_axis_ylabel(fig.axes[1]))
+    get_pyplot().close(fig)
 end
 
 @testset "Mode cooling resonance convention" begin

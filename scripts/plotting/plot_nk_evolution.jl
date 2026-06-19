@@ -56,12 +56,13 @@ function plot_nk_evolution(filename; steps_to_plot=nothing, save_fig=true)
         end
     end
 
-    ax.plot(k_values/pi, n_k_gs, "k--", linewidth=2.5, label="Ground state")
+    ax.plot(k_values/pi, n_k_gs, "k--", linewidth=2.5,
+            label=RAW_FOURIER_GS_OCCUPATION_LABEL)
 
 
     ax.set_xlabel("k/pi", fontsize=14)
-    ax.set_ylabel("n_k", fontsize=14)
-    ax.set_title("Momentum Distribution Evolution\n(N=$N, J=$J, h=$h, BC=$bc)", fontsize=16)
+    ax.set_ylabel(RAW_FOURIER_OCCUPATION_LABEL, fontsize=14)
+    ax.set_title("Raw Fourier Occupation Evolution\n(N=$N, J=$J, h=$h, BC=$bc)", fontsize=16)
     ax.grid(true, alpha=0.3)
     ax.legend(loc="best", fontsize=12)
     ax.set_ylim(-0.1, 1.1)
