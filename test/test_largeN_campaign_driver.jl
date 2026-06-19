@@ -85,6 +85,68 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     @test shell_word("~/tdvp data") == "'~/tdvp data'"
     @test shell_word("~/tdvp_data") == "~/tdvp_data"
 
+    mode_cfg = parse_args([
+        "--model", "ising",
+        "--bc", "periodic",
+        "--Ns", "64",
+        "--R-values", "1,2",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--steps", "5",
+        "--Dmax", "32",
+        "--h", "-0.75",
+        "--measure-modes",
+        "--outdir", tempdir(),
+    ])
+    @test mode_cfg["measure_modes"] == true
+    @test mode_cfg["model"] == "ising"
+    @test mode_cfg["bc"] == "periodic"
+    @test mode_cfg["h"] == -0.75
+    mode_ham = campaign_hamiltonian_parameters(64, mode_cfg)
+    @test mode_ham.model isa CoolingTNS.IsingModel
+    @test mode_ham.bc == :periodic
+    @test mode_ham.params.h == -0.75
+    @test CoolingTNS.supports_ising_fourier_observables(mode_ham)
+    @test occursin("ising_bcperiodic", output_path(mode_cfg))
+    mode_command = join(command_args_for_config(mode_cfg), " ")
+    @test occursin("--model ising", mode_command)
+    @test occursin("--bc periodic", mode_command)
+    @test occursin("--h -0.75", mode_command)
+    @test !occursin("--hx", mode_command)
+    @test !occursin("--hz", mode_command)
+    @test occursin("--measure-modes", mode_command)
+
+    @test parse_args([
+        "--model", "ising",
+        "--bc", "antiperiodic",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--measure_modes",
+    ])["measure_modes"]
+    @test_throws ErrorException parse_args(["--measure-modes"])
+    @test_throws ErrorException parse_args([
+        "--model", "ising",
+        "--bc", "open",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--measure-modes",
+    ])
+    @test_throws ErrorException parse_args([
+        "--model", "ising",
+        "--bc", "periodic",
+        "--Ns", "5",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--measure-modes",
+    ])
+    @test_throws ErrorException parse_args([
+        "--model", "ising",
+        "--bc", "periodic",
+        "--methods", "mpo",
+        "--evolution-method", "trotter",
+        "--measure-modes",
+    ])
+
     single_output_plan = parse_args([
         "--methods", "mcwf",
         "--R-values", "5",
@@ -114,6 +176,14 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     @test_throws ErrorException parse_args([
         "--methods", "mpo",
         "--evolution-method", "continuous",
+    ])
+    @test_throws ErrorException parse_args(["--h", "0.5"])
+    @test_throws ErrorException parse_args(["--bc", "periodic"])
+    @test_throws ErrorException parse_args([
+        "--model", "ising",
+        "--bc", "antiperiodic",
+        "--methods", "mcwf",
+        "--evolution-method", "trotter",
     ])
     @test_throws ErrorException parse_args(["--tdvp-sweep-progress"])
     @test_throws ErrorException parse_args([
@@ -180,6 +250,62 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
         end
     finally
         rm(path; force=true)
+    end
+
+    mode_path = tempname() * ".h5"
+    try
+        protocol = largeN_detuning_protocol(0.75; delta_min=0.5, delta_max=1.5)
+        mode_hk_1 = [-1.0 0.0; -0.5 0.5; 0.0 1.0]
+        mode_hk_2 = [-0.8 0.2; -0.4 0.6; 0.2 0.8]
+        mode_nk_1 = CoolingTNS.mode_occupation_from_hk(mode_hk_1)
+        mode_nk_2 = CoolingTNS.mode_occupation_from_hk(mode_hk_2)
+        base_row = Dict{String,Any}(
+            "E" => [-2.0, -1.5, -1.0],
+            "overlap" => [0.1, 0.2, 0.3],
+            "purity" => [1.0, 1.0, 1.0],
+            "sys_maxbond" => [1, 4, 8],
+            "sys_meanbond" => [1.0, 3.0, 6.0],
+            "evolved_maxbond" => [0, 7, 9],
+            "evolved_meanbond" => [NaN, 5.0, 7.0],
+            "delta_list" => [NaN, 0.5, 1.5],
+            "final_bond_dims" => [4, 8],
+            "elapsed" => 1.25,
+            CoolingTNS.RESULT_MODE_K_INDICES => [1//2, 3//2],
+            CoolingTNS.RESULT_MODE_ENERGIES => [0.4, 0.8],
+            CoolingTNS.RESULT_MODE_GF => -1,
+            CoolingTNS.RESULT_MODE_GF_SOURCE => "state",
+        )
+        traj_rows = [
+            merge(copy(base_row), Dict{String,Any}(
+                CoolingTNS.RESULT_MODE_HK => mode_hk_1,
+                CoolingTNS.RESULT_MODE_NK => mode_nk_1,
+            )),
+            merge(copy(base_row), Dict{String,Any}(
+                "E" => [-2.0, -1.75, -1.25],
+                CoolingTNS.RESULT_MODE_HK => mode_hk_2,
+                CoolingTNS.RESULT_MODE_NK => mode_nk_2,
+                "elapsed" => 1.5,
+            )),
+        ]
+
+        h5open(mode_path, "w") do f
+            write_run_group(f, "R_modes", traj_rows, -2.0, 8, protocol, [0.5, 1.5])
+        end
+        h5open(mode_path, "r") do f
+            g = f["R_modes"]
+            @test read(g[CoolingTNS.RESULT_MODE_HK]) ≈ (mode_hk_1 .+ mode_hk_2) ./ 2
+            @test read(g[CoolingTNS.RESULT_MODE_NK]) ≈ (mode_nk_1 .+ mode_nk_2) ./ 2
+            @test read(g[CoolingTNS.RESULT_MODE_K_INDICES]) == Float64.([1//2, 3//2])
+            @test read(g[CoolingTNS.RESULT_MODE_ENERGIES]) == [0.4, 0.8]
+            @test read(g[CoolingTNS.RESULT_MODE_GF]) == -1
+            @test read(g[CoolingTNS.RESULT_MODE_GF_SOURCE]) == "state"
+            @test size(read(g["mode_hk_trajectories"])) == (3, 2, 2)
+            @test read(g["mode_hk_trajectories"])[:, :, 1] ≈ mode_hk_1
+            @test read(g["mode_hk_trajectories"])[:, :, 2] ≈ mode_hk_2
+            @test size(read(g["mode_nk_stderr"])) == (3, 2)
+        end
+    finally
+        rm(mode_path; force=true)
     end
 end
 

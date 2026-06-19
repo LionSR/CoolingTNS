@@ -8,7 +8,9 @@ using Statistics
 
 Return the detuning interval used by a large-N validation campaign.  A fixed
 range is an explicit physical protocol; otherwise the range is derived from the
-DMRG gap estimate as `[gap, delta_max_factor * gap]`.
+DMRG gap estimate as `[gap, delta_max_factor * gap]`.  A fixed range records
+the reference gap estimate for provenance, but does not use it to define the
+detunings.
 """
 function largeN_detuning_protocol(
     gap::Real;
@@ -21,10 +23,12 @@ function largeN_detuning_protocol(
     end
 
     reference_gap = Float64(gap)
-    isfinite(reference_gap) && reference_gap > 0 ||
-        throw(ArgumentError("reference gap must be finite and positive, got $gap"))
+    isfinite(reference_gap) ||
+        throw(ArgumentError("reference gap must be finite, got $gap"))
 
     if delta_min === nothing
+        reference_gap > 0 ||
+            throw(ArgumentError("reference gap must be positive for a gap-scaled detuning range, got $gap"))
         factor = Float64(delta_max_factor)
         isfinite(factor) && factor >= 1 ||
             throw(ArgumentError("delta_max_factor must be finite and at least 1, got $factor"))
