@@ -87,6 +87,11 @@ parse_int_list(s::AbstractString) =
 parse_method_list(s::AbstractString) =
     [lowercase(strip(x)) for x in split(s, ",") if !isempty(strip(x))]
 
+function require_unique_values(values, flag::AbstractString)
+    length(unique(values)) == length(values) && return nothing
+    error("$flag must not repeat values; repeated campaign axes would overwrite output files")
+end
+
 function parse_args(args)
     cfg = Dict{String,Any}(
         "Ns" => [64],
@@ -162,6 +167,9 @@ function parse_args(args)
 
     all(R -> R >= 1, cfg["R_values"]) || error("all R values must be positive")
     all(N -> N >= 2, cfg["Ns"]) || error("all N values must be at least 2")
+    require_unique_values(cfg["Ns"], "--Ns")
+    require_unique_values(cfg["R_values"], "--R-values")
+    require_unique_values(cfg["methods"], "--methods")
     cfg["steps"] >= 1 || error("--steps must be at least 1")
     all(D -> D >= 1, campaign_dmax_values(cfg)) ||
         error("all Dmax values must be positive")
@@ -217,7 +225,7 @@ end
 function shell_word(x)
     s = string(x)
     isempty(s) && return "''"
-    if occursin(r"[^A-Za-z0-9_@%+=:,./-]", s)
+    if occursin(r"[^A-Za-z0-9_@%+=:,./~-]", s)
         return "'" * replace(s, "'" => "'\\''") * "'"
     end
     return s
@@ -907,6 +915,10 @@ end
 
 function run_largeN_multifrequency_tn_scaling_main()
     cfg = parse_args(ARGS)
+    if cfg["print_parallel_plan"]
+        print_parallel_plan(cfg)
+        return nothing
+    end
     Dmax_values = campaign_dmax_values(cfg)
     @printf("large-N multi-frequency TN campaign\n")
     @printf("  Ns=%s R=%s methods=%s evolution=%s steps=%d Dmax=%s tau=%.3g cutoff=%.1e\n",
@@ -918,10 +930,6 @@ function run_largeN_multifrequency_tn_scaling_main()
             join(Dmax_values, ","),
             cfg["tau"],
             cfg["cutoff"])
-    if cfg["print_parallel_plan"]
-        print_parallel_plan(cfg)
-        return nothing
-    end
     run_campaign_ladder(cfg)
 end
 

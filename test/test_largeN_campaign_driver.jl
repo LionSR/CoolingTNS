@@ -77,6 +77,13 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     @test all(command -> occursin("--evolution-method continuous", command), parallel_commands)
     @test all(command -> occursin("--delta-min 0.5051167496264384", command), parallel_commands)
     @test !any(command -> occursin("--Dmax-values", command), parallel_commands)
+    parallel_plan_text = sprint(io -> print_parallel_plan(parallel_cfg; io=io))
+    @test all(
+        line -> startswith(line, "#") || startswith(line, "julia "),
+        split(chomp(parallel_plan_text), '\n'),
+    )
+    @test shell_word("~/tdvp data") == "'~/tdvp data'"
+    @test shell_word("~/tdvp_data") == "~/tdvp_data"
 
     single_output_plan = parse_args([
         "--methods", "mcwf",
@@ -115,6 +122,9 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     ])
     @test_throws ErrorException parse_args(["--Dmax-values", "160,0"])
     @test_throws ErrorException parse_args(["--Dmax-values", "320,320"])
+    @test_throws ErrorException parse_args(["--Ns", "64,64"])
+    @test_throws ErrorException parse_args(["--R-values", "2,2"])
+    @test_throws ErrorException parse_args(["--methods", "mcwf,mcwf"])
     @test_throws ErrorException parse_args(["--Dmax-values", "160,320"])
     @test_throws ErrorException parse_args([
         "--Dmax-values", "160,320",
