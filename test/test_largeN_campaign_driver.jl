@@ -55,6 +55,14 @@ end
     @test tdvp_progress_cfg["tdvp_sweep_progress"] == true
     @test tdvp_progress_cfg["stop_on_bond_cap"] == true
 
+    tdvp_hdf5_sweep_cfg = parse_args([
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--tdvp-sweep-progress",
+    ])
+    @test tdvp_hdf5_sweep_cfg["progress_csv"] === nothing
+    @test tdvp_hdf5_sweep_cfg["tdvp_sweep_progress"] == true
+
     parallel_cfg = parse_args([
         "--Ns", "64",
         "--R-values", "2,5",
@@ -303,6 +311,7 @@ end
                 "sys_meanbond" => [1.0, 3.0, 6.0],
                 "evolved_maxbond" => [0, 7, 9],
                 "evolved_meanbond" => [NaN, 5.0, 7.0],
+                "tdvp_sweep_maxbond" => [0, 6, 10],
                 "delta_list" => [NaN, 0.5, 3.0],
                 "final_bond_dims" => [4, 8],
                 "elapsed" => 1.25,
@@ -332,6 +341,8 @@ end
             @test read(g["requested_steps"]) == [2]
             @test read(g["completed_steps"]) == [2]
             @test read(g["stop_reasons"]) == [""]
+            @test vec(read(g["tdvp_sweep_max_bond"])) == [0, 6, 10]
+            @test read(g["tdvp_sweep_saturation_cycle"]) == [2]
 
             g_gap = f["R3_gap"]
             @test read(g_gap["delta_values"]) == [0.75, 1.875, 3.0]
@@ -361,6 +372,7 @@ end
             "sys_meanbond" => [1.0, 3.0, 6.0],
             "evolved_maxbond" => [0, 7, 9],
             "evolved_meanbond" => [NaN, 5.0, 7.0],
+            "tdvp_sweep_maxbond" => [0, 6, 10],
             "delta_list" => [NaN, 0.5, 1.5],
             "final_bond_dims" => [4, 8],
             "elapsed" => 1.25,
@@ -599,6 +611,42 @@ end
             @test read(g["mode_hk_stderr"]) == zeros(2, 2)
             @test read(g["mode_nk_stderr"]) == zeros(2, 2)
             @test !haskey(g, CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION)
+        end
+    end
+end
+
+@testset "Large-N campaign TDVP sweep HDF5 without CSV" begin
+    mktempdir() do dir
+        output = joinpath(dir, "tdvp_sweep_hdf5.h5")
+        cfg = parse_args([
+            "--Ns", "2",
+            "--R-values", "1",
+            "--methods", "mcwf",
+            "--evolution-method", "continuous",
+            "--steps", "1",
+            "--Dmax", "4",
+            "--cutoff", "1e-6",
+            "--tau", "0.2",
+            "--te", "0.05",
+            "--delta-min", "0.5",
+            "--delta-max", "0.5",
+            "--tdvp-sweep-progress",
+            "--outdir", dir,
+            "--output", output,
+        ])
+        @test cfg["progress_csv"] === nothing
+
+        redirect_stdout(devnull) do
+            run_campaign(cfg)
+        end
+
+        h5open(output, "r") do f
+            g = f["N2/mcwf/R1"]
+            tdvp_sweep_max_bond = read(g["tdvp_sweep_max_bond"])
+            @test size(tdvp_sweep_max_bond) == (2, 1)
+            @test tdvp_sweep_max_bond[1, 1] == 0
+            @test tdvp_sweep_max_bond[2, 1] >= 1
+            @test size(read(g["tdvp_sweep_saturation_cycle"])) == (1,)
         end
     end
 end

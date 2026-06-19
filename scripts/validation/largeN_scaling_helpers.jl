@@ -127,20 +127,22 @@ end
 saturation_cycle_label(cycle::Integer) = cycle == 0 ? "none" : string(cycle)
 
 """
-    bond_cap_status(system_saturation_cycle, evolved_saturation_cycle)
+    bond_cap_status(system_saturation_cycle, evolved_saturation_cycle,
+                    tdvp_sweep_saturation_cycle=0)
 
 Return a machine-readable bond-cap diagnostic for a large-N cooling run.  This
 status is only a bond-dimension statement: `no_cap_hit` does not imply energy
 or trajectory convergence.
 """
 function bond_cap_status(system_saturation_cycle::Integer,
-                         evolved_saturation_cycle::Integer)
-    system_hit = system_saturation_cycle > 0
-    evolved_hit = evolved_saturation_cycle > 0
-    system_hit && evolved_hit && return "not_converged_system_and_evolved_cap"
-    system_hit && return "not_converged_system_cap"
-    evolved_hit && return "not_converged_evolved_cap"
-    return "no_cap_hit"
+                         evolved_saturation_cycle::Integer,
+                         tdvp_sweep_saturation_cycle::Integer=0)
+    hit_sources = String[]
+    system_saturation_cycle > 0 && push!(hit_sources, "system")
+    evolved_saturation_cycle > 0 && push!(hit_sources, "evolved")
+    tdvp_sweep_saturation_cycle > 0 && push!(hit_sources, "tdvp_sweep")
+    isempty(hit_sources) && return "no_cap_hit"
+    return "not_converged_$(join(hit_sources, "_and_"))_cap"
 end
 
 """

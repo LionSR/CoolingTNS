@@ -26,6 +26,8 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
             write(gr, "system_mean_bond", [1.0 1.0; 4.0 5.0; 8.0 5.0])
             write(gr, "evolved_max_bond", [0 0; 12 6; 8 14])
             write(gr, "evolved_mean_bond", [NaN NaN; 8.0 7.0; 9.0 11.0])
+            write(gr, "tdvp_sweep_max_bond", [0 0; 6 13; 8 14])
+            write(gr, "tdvp_sweep_saturation_cycle", [0, 1])
             write(gr, "delta_values", [0.5, 3.0])
 
             bd = create_group(gr, "final_bond_dims")
@@ -54,13 +56,17 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
         @test row.tail_count == 3
         @test row.system_effective_bond == ">=12"
         @test row.evolved_effective_bond == ">=14"
-        @test row.bond_status == "not_converged_system_and_evolved_cap"
+        @test row.tdvp_sweep_effective_bond == ">=14"
+        @test row.bond_status ==
+              "not_converged_system_and_evolved_and_tdvp_sweep_cap"
         @test row.final_system_max == 12
         @test row.final_system_mean == 6.5
         @test row.peak_evolved_max == 14
         @test row.peak_evolved_mean == 10.0
+        @test row.peak_tdvp_sweep_max == 14
         @test row.system_saturation_cycle == 2
         @test row.evolved_saturation_cycle == 1
+        @test row.tdvp_sweep_saturation_cycle == 1
         @test row.q50 == 10.0
         @test row.q75 == 11.0
         @test row.q90 ≈ 11.6
@@ -84,8 +90,9 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
         @test occursin("| final E/N | relE | best E/N | best relE | tail E/N |", output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | fixed_range | " *
-            "[0.50000000,3.00000000] | n/a | 12 | >=12 | >=14 | " *
-            "not_converged_system_and_evolved_cap | 1.00000000 | 2.00000 | " *
+            "[0.50000000,3.00000000] | n/a | 12 | >=12 | >=14 | >=14 | " *
+            "not_converged_system_and_evolved_and_tdvp_sweep_cap | " *
+            "1.00000000 | 2.00000 | " *
             "-0.25000000 | 0.00000 | 0.41666667 | 1.00000 | 3 |",
             output,
         )
