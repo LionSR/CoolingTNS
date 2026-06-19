@@ -43,7 +43,8 @@ D_{\rm cap} = \mathrm{tn\_method\_maxdim}(\mathrm{method}, D_{\max}).
 For MCWF/MPS, `Dcap = Dmax`.  For MPO density-matrix Trotter evolution,
 `Dcap = 4 Dmax`.
 
-The summary table reports two different bond dimensions.
+The summary table reports three effective bond-dimension labels.  They refer to
+different states in the same cooling cycle and should not be interchanged.
 
 - `Dsys_eff` is the effective bond dimension of the retained system state after
   bath measurement.  It is computed from the largest final link dimension of
@@ -52,10 +53,18 @@ The summary table reports two different bond dimensions.
   system-bath state before bath measurement.  It is computed from the largest
   link dimension of the `2N`-site evolved MPS or MPO over all recorded cooling
   cycles and trajectories.
+- `Dtdvp_sweep_eff` is the effective bond dimension inferred from the largest
+  transient state seen by the inner TDVP sweep observer during MCWF+TDVP
+  evolution.  The HDF5 source fields are `tdvp_sweep_max_bond` and
+  `tdvp_sweep_saturation_cycle`.  Legacy files without this diagnostic are
+  summarized with a zero sweep value.  This is an inner-sweep diagnostic, not an
+  additional retained physical state.
 
 For Trotter cooling, `Dsb_eff` is the more stringent quantity, because the
 algorithm must represent the enlarged system-bath state before the bath is
-measured and discarded.
+measured and discarded.  For MCWF+TDVP cooling, `Dtdvp_sweep_eff` is the
+corresponding sweep-level cap diagnostic when `--tdvp-sweep-progress` has been
+enabled.
 
 The reported value is conservative.  If the run reaches `Dcap`, then the
 observed maximum is only a lower bound on the bond dimension required by the
@@ -66,11 +75,16 @@ The summary script also reports a machine-readable `bond_status` column.  The
 status is only a bond-dimension diagnostic:
 
 - `no_cap_hit`: neither the retained system state nor the transient
-  system-bath state reached the cap during the recorded run.
+  system-bath state nor the recorded TDVP sweep history reached the cap during
+  the recorded run.
 - `not_converged_system_cap`: the retained system state reached the cap.
 - `not_converged_evolved_cap`: the transient system-bath state reached the
   cap.
-- `not_converged_system_and_evolved_cap`: both histories reached the cap.
+- `not_converged_tdvp_sweep_cap`: the inner TDVP sweep history reached the cap.
+
+Combined labels are formed by joining the cap-hit sources with `_and_`; for
+example, `not_converged_system_and_evolved_and_tdvp_sweep_cap` means that all
+three recorded histories reached the cap.
 
 A `no_cap_hit` entry does not by itself imply ground-state cooling or
 trajectory convergence; it only means that the imposed bond cap was not reached
@@ -85,6 +99,10 @@ separate column because a severely truncated trajectory could in principle
 undershoot the ground-state reference in raw energy.  These fields separate
 monotone cooling, transient low-energy excursions, and late-time plateaus
 without assuming that a finite trajectory has reached a fixed point.
+
+The current HDF5 summary table therefore contains the sweep-specific columns
+`Dtdvp_sweep_eff`, `peak tdvp sweep max`, and `tdvp sweep sat` in addition to
+the retained-system and transient system-bath columns.
 
 ## Mode-Resolved Integrable-Ising Campaigns
 
