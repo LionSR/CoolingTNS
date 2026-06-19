@@ -182,7 +182,10 @@ the mode reconstruction
 E_{\mathrm{modes}}(t)=\frac{1}{2}\sum_k \varepsilon_k h_k(t)
 ```
 
-to numerical precision.
+to numerical precision.  Here \(\varepsilon_k\) denotes the code-unit value
+stored in HDF5 as `mode_ek_values`; relative to the dimensionless convention in
+`Notes/NotesED/MapToSpin.tex`, it includes the overall factor
+\(\Lambda = 2\sqrt{J^2+h^2}\).
 
 | R | completed cycles | final E/N | best E/N | relE | Dsys | Devolved | Dtdvp sweep | mode gF source | max \(|E-E_{\mathrm{modes}}|\) |
 |---:|---:|---:|---:|---:|---:|---:|---:|:---:|---:|
