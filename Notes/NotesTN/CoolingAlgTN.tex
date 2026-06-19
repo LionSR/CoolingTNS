@@ -487,7 +487,7 @@ dimensions
 \]
 and effective system-bath bond dimensions
 \[
-	D_{\mathrm{sb}}^{\mathrm{eff}}=394,862,518,737,
+	D_{\mathrm{sb}}^{\mathrm{eff}}=394, 862, 518, 737,
 \]
 respectively.  These are resolved values: the \(R=2\) and \(R=10\) lower bounds
 from \(D_{\max}=640\) were extended to \(D_{\max}=960\).  The corresponding
@@ -626,12 +626,18 @@ For the initial states, we choose three physical angles in the lower part of the
 \subsection{Matrix Product Operator Simulation Results}
 
 In this subsection, we present the results obtained from the MPO simulations of the cooling algorithm.
+The figures in this section should be read together with the large-\(N\)
+bond-dimension diagnostics above.  Some of the plots were produced before the
+current fixed-detuning and mode-diagnostic tests were added to the code.  They
+are useful as historical truncation diagnostics and qualitative checks of the
+cooling channel, but they do not by themselves establish controlled
+ground-state preparation at \(N=50\) or \(N=100\).
 
 \subsubsection{Noiseless Cooling}
 
 We first investigate the performance of the cooling algorithm in the absence of noise. The MPO simulations are performed for system sizes ranging from $N=10$ to $N=100$, with a bond dimension of $D \leq 100$ and a Trotter step size of $\delta t = 0.1$. The coupling strength between the system and the bath is set to $g=0.3$, and the total evolution time is $t_e=2.0$. The number of cooling steps is varied from 100 to 400.
 
-Fig.~\ref{fig:MPOCooling:noiseless} shows the energy and ground state overlap as a function of the number of cooling steps for different system sizes. The initial state is set to be the infinite temperature identity state. We observe that the energy decreases rapidly in the first few cooling steps and then saturates to a value close to the ground state energy. The ground state overlap also increases with the number of cooling steps, indicating that the cooling algorithm effectively prepares the ground state of the system. The convergence is faster for smaller system sizes, but the algorithm remains effective even for large systems with $N=100$.
+Fig.~\ref{fig:MPOCooling:noiseless} shows the energy and ground state overlap as a function of the number of cooling steps for different system sizes. The initial state is set to be the infinite temperature identity state. In these exploratory runs the energy decreases rapidly in the first few cooling steps and then saturates. The ground state overlap also increases in the plotted data. These observations are evidence that the implemented channel can cool in the tested truncation regime; they are not a convergence proof for large systems, because the current \(N=64\) diagnostics show that the relevant system-bath bond dimensions can be much larger than the bond dimensions used in the historical plots.
 
 \begin{figure}[ht]
 	\centering
@@ -653,14 +659,14 @@ In practice, quantum systems are inevitably coupled to environments, leading to 
 	\label{fig:MPOCooling:noisy}
 \end{figure}
 
-Fig.~\ref{fig:MPOCooling:noisy} shows the energy and ground state overlap as a function of the number of cooling steps. The system size is fixed at $N=100$, and the other simulation parameters are the same as in the noiseless case. We observe that the cooling algorithm remains effective in preparing low-energy states close to the ground state, even in the presence of noise. The convergence rate depends on the noise strength, with stronger noise leading to slower convergence and higher steady-state energy. However, the algorithm still achieves significant cooling and ground state preparation fidelity, demonstrating its robustness against depolarizing noise.
+Fig.~\ref{fig:MPOCooling:noisy} shows the energy and ground state overlap as a function of the number of cooling steps. The system size is fixed at $N=100$, and the other simulation parameters are the same as in the noiseless case. Within this fixed truncation, the plotted channel still lowers the energy in the presence of noise. The convergence rate depends on the noise strength, with stronger noise leading to slower convergence and higher late-time energy. A controlled robustness claim requires the same bond-dimension, positivity, and trajectory-convergence checks used in the current validation workflow.
 
-To further quantify the impact of noise on the cooling performance, we investigate the scaling of the energy density error and ground state overlap for different noise strengths, ranging from $p_e=0.001$ to $p_e=0.01$. Fig.~\ref{fig:MPOCooling:noisy:pe} shows the results for a system size of $N=100$ after 500 cooling steps. The energy density error, defined as the difference between the steady-state energy density and the ground state energy density, scales linearly with the noise strength. The ground state overlap decreases exponentially with the noise strength, but remains significant even for the strongest noise considered ($p_e=0.01$). These results demonstrate the resilience of the cooling algorithm against depolarizing noise and its ability to prepare low-energy states in the presence of experimental imperfections.
+To further quantify the impact of noise on the cooling performance, we investigate the scaling of the energy density error and ground state overlap for different noise strengths, ranging from $p_e=0.001$ to $p_e=0.01$. Fig.~\ref{fig:MPOCooling:noisy:pe} shows the results for a system size of $N=100$ after 500 cooling steps. The energy density error is defined as the difference between the late-time energy density in the truncated simulation and the numerical ground-state energy density. In the plotted data it is approximately linear in the noise strength, while the ground state overlap decreases with the noise strength. This is a useful diagnostic trend for the implemented channel, not a final demonstration of ground-state preparation in the thermodynamic or large-bond limit.
 
 \begin{figure}
 	\centering
 	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_niIsingJ1.0hx-1.05hz0.5_energy_error_and_overlap_vs_N_multiple_pe.pdf}
-	\caption{Numerical MPO cooling results of $N_s = N_b$ in the presence of noise $p_e$, starting from the infinite temperature state.  We find that the error in the energy density is close to being linear in the noise rate $p_e$ and independent of the system size. We also find that the ground state fidelity decreases exponentially with the noise rate $p_e$. The bond dimension is $D \leq 20$, the system size is $N \leq 100$, and the Trotter step is $\delta t = 0.1$.}
+	\caption{Numerical MPO cooling results of $N_s = N_b$ in the presence of noise $p_e$, starting from the infinite temperature state. In this fixed-bond historical data set, the late-time energy-density error is approximately linear in the noise rate $p_e$, and the ground-state overlap decreases as the noise rate increases. The bond dimension is $D \leq 20$, the system size is $N \leq 100$, and the Trotter step is $\delta t = 0.1$.}
 	\label{fig:MPOCooling:noisy:pe}
 \end{figure}
 
@@ -669,7 +675,7 @@ To further quantify the impact of noise on the cooling performance, we investiga
 
 % In this subsection, we present the results obtained using the MPS quantum trajectory simulations of the cooling algorithm.
 
-We simulate the cooling algorithm using MPS quantum trajectories for system sizes ranging from $N=10$ to $N=100$ and noise rates from $p_e=0.001$ to $p_e=0.01$. The bond dimension is truncated to a maximum value of $D \leq 40$, and the time step is set to $\delta t = 0.1$. The coupling strength between the system and the bath is set to $g=0.3$, and the total evolution time is $t_e=2.0$. The number of cooling steps is varied from 100 to 500. Since MPS trajectory simulations are probabilistic, we average the last 200 trajectories' energy to estimate the energy of the steady state in one simulation by using the typicality of the simulation.
+We simulate the cooling algorithm using MPS quantum trajectories for system sizes ranging from $N=10$ to $N=100$ and noise rates from $p_e=0.001$ to $p_e=0.01$. The bond dimension is truncated to a maximum value of $D \leq 40$, and the time step is set to $\delta t = 0.1$. The coupling strength between the system and the bath is set to $g=0.3$, and the total evolution time is $t_e=2.0$. The number of cooling steps is varied from 100 to 500. Since MPS trajectory simulations are probabilistic, a late-time average of trajectory energies is a practical diagnostic of a proposed protocol. It should be interpreted as a steady-state estimate only after independent trajectory sampling and bond-dimension convergence have been checked.
 
 \begin{figure}
 	\centering
@@ -680,7 +686,7 @@ We simulate the cooling algorithm using MPS quantum trajectories for system size
 	\label{fig:MPSCooling:noiseless}
 \end{figure}
 
-Fig.~\ref{fig:MPSCooling:noisy} shows the error in the energy density as a function of the system size for different noise rates. The error in the energy density is defined as the absolute difference between the steady-state energy density obtained from the MPS simulations and the exact ground state energy density obtained from DMRG calculations. We observe that the error in the energy density exhibits a linear scaling with the noise rate, consistent with the findings of the MPO simulations. The error remains small even for the largest system size considered ($N=100$) and the strongest noise rate ($p_e=0.01$), demonstrating the effectiveness of the cooling algorithm in preparing low-energy states in the presence of noise.
+Fig.~\ref{fig:MPSCooling:noisy} shows the error in the energy density as a function of the system size for different noise rates. The error in the energy density is defined as the absolute difference between the late-time trajectory energy density and the DMRG ground-state energy density. In the plotted truncated data the error scales approximately linearly with the noise rate, consistent with the MPO trend. This comparison is qualitative unless the trajectory ensemble and the MPS bond dimension are both converged.
 
 
 \begin{figure}
@@ -692,7 +698,9 @@ Fig.~\ref{fig:MPSCooling:noisy} shows the error in the energy density as a funct
 	\label{fig:MPSCooling:noisy}
 \end{figure}
 
-The MPS quantum trajectory simulations corroborate the findings of the MPO simulations, confirming the ability of the cooling algorithm to prepare low-energy states in the presence of noise.
+The MPS quantum trajectory simulations are therefore compatible with the MPO
+diagnostics in the tested regime.  They do not remove the need for the
+large-\(N\) convergence checks described above.
 
 \subsection{Hyperparameter Optimization Results}
 
@@ -719,14 +727,14 @@ To optimize the performance of the cooling algorithm, we employ Bayesian optimiz
 	\centering
 	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5_CouplingXXg0.3te2.0steps200_SimMPSDmax40peInt0_SearchBayesiantrials20_energy_and_overlap_vs_N.pdf}
 	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5_CouplingXXg0.3te2.0steps200_SimMPSDmax40peInt9_SearchBayesiantrials20_energy_and_overlap_vs_N.pdf}
-	\caption{Optimized cooling simulation results. The steady-state energy density and ground state overlap are plotted as a function of the system size. The optimal hyperparameters are obtained from the Bayesian optimization procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The MPS trajectories start from pure product states; noisy runs sample stochastic Pauli errors after each cooling step. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$. The energy of the steady state is estimated by averaging the last 100 steps.}
+	\caption{Optimized cooling simulation results. The late-time energy density and ground state overlap are plotted as a function of the system size. The optimal hyperparameters are obtained from the Bayesian optimization procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The MPS trajectories start from pure product states; noisy runs sample stochastic Pauli errors after each cooling step. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$. The plotted energy is estimated by averaging the last 100 steps of the truncated trajectory.}
 	\label{fig:OptimizedCooling}
 \end{figure}
 
 \begin{figure}
 	\centering
 	\includegraphics[width=0.5\textwidth]{Figures/OptimizedCooling/OptimizedCooling_HamniIsingJ1.0hx-1.05hz0.5_CouplingXXg0.3te2.0steps200_SimMPSDmax40peInt9_SearchBaytrials20_Eerror_and_F_vs_N_multipe.pdf}
-	\caption{Optimized cooling simulation results for different noise rates. The error in the energy density and the ground state overlap are plotted as a function of the system size for different noise rates. The optimal hyperparameters are obtained from the Bayesian optimization procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The MPS trajectories start from pure product states, and stochastic Pauli errors are sampled after each cooling step in the noisy runs. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$. The energy of the steady state is estimated by averaging the last 100 steps.}
+	\caption{Optimized cooling simulation results for different noise rates. The late-time energy-density error and the ground state overlap are plotted as a function of the system size for different noise rates. The optimal hyperparameters are obtained from the Bayesian optimization procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. The MPS trajectories start from pure product states, and stochastic Pauli errors are sampled after each cooling step in the noisy runs. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$. The plotted energy is estimated by averaging the last 100 steps of the truncated trajectory.}
 	\label{fig:OptimizedCooling:pe}
 \end{figure}
 
@@ -735,7 +743,7 @@ To optimize the performance of the cooling algorithm, we employ Bayesian optimiz
 
 % Table~\ref{tab:OptimalHyperparameters} presents the optimal hyperparameter values ($g^*$ and $t_e^*$) obtained from the Bayesian optimization procedure for different system sizes and noise rates. We observe that the optimal coupling strength $g^*$ decreases with increasing system size and noise rate, while the optimal evolution time $t_e^*$ increases. This suggests that for larger systems and stronger noise, a weaker coupling and longer evolution time are required to achieve optimal cooling performance.
 
-To evaluate the performance of the optimized cooling algorithm, we run the cooling simulations using the optimal hyperparameter values for different system sizes and noise rates. Fig.~\ref{fig:OptimizedCooling} shows the steady-state energy density and ground state overlap obtained from the optimized cooling simulations. We observe that the optimized cooling algorithm achieves lower energy densities and higher ground state overlaps compared to the unoptimized simulations.
+To evaluate the performance of the optimized cooling algorithm, we run the cooling simulations using the optimal hyperparameter values for different system sizes and noise rates. Fig.~\ref{fig:OptimizedCooling} shows the late-time energy density and ground state overlap obtained from the optimized simulations. Within the historical truncation settings, the optimized parameters give lower energy densities and higher ground state overlaps than the unoptimized parameters. The same parameters should be re-evaluated with the current fixed-detuning, bond-dimension, and trajectory-convergence diagnostics before being used as evidence for scalable cooling.
 
 % \begin{table}[ht]
 % 	\centering
