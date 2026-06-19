@@ -888,8 +888,13 @@ function output_path(cfg)
     stop_suffix = cfg["stop_on_bond_cap"] ? "_stopcap" : ""
     schedule_suffix = cfg["schedule"] == "round_robin" ? "" : "_sched$(cfg["schedule"])"
     random_time_suffix = cfg["randomize_times"] ? "_randtime" : ""
-    init_suffix = cfg["init_state"] == "product" ? "" :
+    init_suffix = if cfg["init_state"] == "product"
+        ""
+    elseif cfg["init_state"] == "identity"
+        "_initidentity"
+    else
         @sprintf("_init%s_theta%.12g", cfg["init_state"], cfg["theta"])
+    end
     # `te` is a scanned physical protocol parameter, so keep more digits than
     # the legacy `tau` token to avoid collisions between nearby evolution times.
     return joinpath(

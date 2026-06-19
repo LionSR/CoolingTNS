@@ -70,6 +70,8 @@ end
         "--init-state", "identity",
     ])
     @test identity_init_cfg["init_state"] == "identity"
+    @test occursin("_initidentity_", output_path(identity_init_cfg))
+    @test !occursin("_initidentity_theta", output_path(identity_init_cfg))
     @test_throws ErrorException parse_args(["--init-state", "bad"])
     @test_throws ErrorException parse_args([
         "--methods", "mcwf",
