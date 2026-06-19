@@ -54,11 +54,11 @@ setup_problem(backend, ham_params, coupling_params, sim_params)
 ```
 run_cooling_multi_freq(problem_template, state, multi_freq_params, sim_params, ham_params)
   → for each step:
-      1. pick Δ_r from schedule (round-robin or random)
-      2. optionally pick t_m from Uniform(0, 2·te) if randomize_times=true
-      3. rebuild H_SB(Δ_r) from OpSum  (~0.1s, negligible vs evolution)
-      4. run normal cooling step: append bath → evolve(t_m) → sample bath
-      5. measure
+      1. call multi_frequency_cycle_choice to choose Δ_r and t_m
+         from the schedule (round-robin or random) and the randomized-time flag
+      2. rebuild H_SB(Δ_r) from OpSum  (~0.1s, negligible vs evolution)
+      3. run normal cooling step: append bath → evolve(t_m) → sample bath
+      4. measure
 ```
 
 **Why rebuild each step?**  Building the H_SB MPO from `OpSum` costs ~0.1s.
@@ -124,23 +124,10 @@ New function `run_cooling_multi_freq` in `src/cooling_evolution.jl`:
 ```julia
 function run_cooling_multi_freq(problem, state, mf_params, sim_params, ham_params;
                                 measure_modes=false)
-    R = length(mf_params.delta_values)
-
     for step in 2:mf_params.steps+1
-        # Pick frequency
-        r = if mf_params.schedule == :round_robin
-            mod1(step - 1, R)
-        else  # :random
-            rand(1:R)
-        end
-        delta_r = mf_params.delta_values[r]
-
-        # Pick evolution time
-        te_step = if mf_params.randomize_times
-            rand() * 2 * mf_params.te   # Uniform(0, 2t)
-        else
-            mf_params.te
-        end
+        choice = multi_frequency_cycle_choice(mf_params, step - 1)
+        delta_r = choice.delta
+        te_step = choice.te
 
         # Build H_SB for this step's Δ
         coupling_step = BasicCouplingParameters(
@@ -158,6 +145,14 @@ function run_cooling_multi_freq(problem, state, mf_params, sim_params, ham_param
     ...
 end
 ```
+
+The helper `multi_frequency_cycle_sequence` returns the complete planned
+detuning/time sequence with the same `delta_list` and `te_list` convention used
+in HDF5 output: the first entry is `NaN` because it corresponds to the initial
+measurement before any cooling cycle.  This keeps the physical schedule and the
+recorded diagnostic arrays on a single convention.  For random schedules or
+randomized times, the helper samples from its supplied RNG; it matches a run
+when `run_cooling_multi_freq` receives an RNG in the same state.
 
 ### Step 4: Comparison script
 
