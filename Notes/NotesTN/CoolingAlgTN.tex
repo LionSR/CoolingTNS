@@ -518,6 +518,34 @@ the expected low-entanglement fixed point requires longer traced runs,
 convergence in bond dimension and trajectory sampling, and a checked detuning
 schedule; it cannot be inferred from the two-cycle calibration.
 
+A first longer traced run was carried out at the same system size with
+\(R=5\), five cooling cycles, \(\tau=0.2\), cutoff \(10^{-7}\), and
+\(D_{\max}=96\).  Its energy densities over the five cycles were
+\begin{align*}
+	1.50329932,\quad 1.50854622,\quad 1.39440026,\quad
+	0.99126917,\\
+	0.66394232.
+\end{align*}
+Thus this calculation does show cooling after the early transient.  It is,
+however, still a bond-dimension diagnostic rather than a converged cooling
+benchmark.  The transient system-bath MPS reaches the cap during the third
+cycle, and the retained system MPS reaches the cap in the fourth cycle.  The
+corresponding effective dimensions are therefore only lower bounds,
+\[
+	D_{\mathrm{sys}}^{\mathrm{eff}}\geq 96,\qquad
+	D_{\mathrm{sb}}^{\mathrm{eff}}\geq 96,
+\]
+with the machine-readable bond status
+\[
+\begin{gathered}
+	\texttt{not\_converged\_system\_and}\\
+	\texttt{\_evolved\_cap}.
+\end{gathered}
+\]
+This is the presently relevant \(D_{\max}=96\) TDVP evidence: five cycles are
+more meaningful than the two-cycle calibration, but they also show that this
+cap is insufficient for a controlled large-\(N\) TDVP cooling claim.
+
 \section{Bayesian Optimization for Hyperparameter Tuning}
 Optimizing the performance of the cooling algorithm requires finding the optimal values for hyperparameters such as the coupling strength $g$ and the evolution time $t_e$. However, the relationship between these hyperparameters and the cooling efficiency is complex and evaluating the cooling efficiency for a given set of hyperparameters is computationally expensive. We employ Bayesian optimization, a framework for global optimization of expensive black-box functions~\cite{Frazier2018Tutorial}, to address this challenge.
 

@@ -23,9 +23,9 @@ heuristic but holding the numerical interval fixed across the Dmax ladder.
 
 The validation driver records the evolution branch in each HDF5 file.  The
 four-cycle table below is a Trotter diagnostic (`--evolution-method trotter`,
-`cutoff = 1e-7`).  The later two-cycle table is an MCWF+TDVP calibration
-(`--evolution-method continuous`, `cutoff = 1e-6`).  These two protocols should
-not be conflated.
+`cutoff = 1e-7`).  The TDVP tables are MCWF+TDVP diagnostics
+(`--evolution-method continuous`) with their stated cutoffs and bond caps.
+These two protocols should not be conflated.
 
 ## Definitions
 
@@ -283,3 +283,46 @@ rapid cap saturation and large sweep-to-sweep runtime variability.  A
 meaningful next TDVP calculation should focus on `R = 2` and/or `R = 5` at a
 larger cap, with the same sweep diagnostics enabled, and should stop early if
 the cap is reached before a controlled third or fourth cycle is obtained.
+
+## Five-Cycle MCWF+TDVP R=5, Dmax=96 Probe
+
+The first longer fixed-detuning TDVP probe at the larger cap was then run for
+`R = 5`:
+
+```bash
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 5 --methods mcwf \
+  --evolution-method continuous --steps 5 --Dmax 96 \
+  --cutoff 1e-7 --tau 0.2 --M-mcwf 1 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --outdir /tmp/coolingtns_tdvp_sweep_N64_R5_D96_steps5_20260619 \
+  --progress-csv /tmp/coolingtns_tdvp_sweep_N64_R5_D96_steps5_20260619/progress.csv \
+  --tdvp-sweep-progress --tdvp-outputlevel 1 --verbose
+```
+
+Summarizing the progress CSV gives
+
+| R | Dcap | completed cycles | final E/N | Dsys_eff | Dsb_eff | bond_status | system cap | evolved cap | max sweep dt | max sweep at |
+|---:|---:|---:|---:|---:|---:|---|---|---|---:|---|
+| 5 | 96 | 5 | 0.66394232 | >=96 | >=96 | not_converged_system_and_evolved_cap | 4 | 3:4 | 334.2 s | 5:4 |
+
+The per-cycle energy and bond trace is
+
+| cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 0.50511675 | 1.50329932 | 11 | 16 | 47.2 s |
+| 2 | 1.13651269 | 1.50854622 | 54 | 73 | 833.8 s |
+| 3 | 1.76790862 | 1.39440026 | 95 | 96 | 2439.6 s |
+| 4 | 2.39930456 | 0.99126917 | 96 | 96 | 3901.7 s |
+| 5 | 3.03070050 | 0.66394232 | 96 | 96 | 5256.1 s |
+
+This run is more informative than the two-cycle calibration: after the early
+transient, the energy decreases for cycles 3 through 5.  It is nevertheless not
+a converged TDVP benchmark.  The transient system-bath MPS first reaches the
+`Dmax = 96` cap during cycle 3, and the retained system MPS reaches the cap in
+cycle 4.  Therefore the reported effective bond dimensions are lower bounds,
+`D_{\rm sys}^{\rm eff} >= 96` and `D_{\rm sb}^{\rm eff} >= 96`, rather than
+resolved requirements.  The result should be read as evidence that the
+physically relevant TDVP run has entered the high-bond regime, not as evidence
+that `Dmax = 96` is sufficient for large-system cooling.
