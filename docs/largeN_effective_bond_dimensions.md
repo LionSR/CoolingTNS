@@ -763,3 +763,92 @@ system cap at cycle 7 and has worse final and best energies than the fixed-time
 `R = 2` scan.  Thus time randomization is a meaningful protocol axis to record,
 but this diagnostic does not support it as a solution to the large-N
 bond-growth bottleneck.
+
+## Post-Krylov-Expansion MCWF+TDVP N=64 Stop-on-Cap Probe
+
+After PR #229 made Krylov-expanded two-site TDVP the default for MCWF cooling,
+the `N = 64` fixed-detuning diagnostic was rerun.  This rerun supersedes the
+flat pre-expansion TDVP traces as evidence about the corrected implementation,
+but it does not supersede the older tables as historical truncation diagnostics.
+
+The all-frequency low-cap scan was
+
+```bash
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 1,2,5,10 --methods mcwf \
+  --evolution-method continuous --steps 8 --Dmax 32 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --progress-csv .worktree/postfix_tdvp_krylov_N64_20260619/tdvp_progress_N64_niising_open_mcwf_Dmax32_te1.0.csv \
+  --outdir .worktree/postfix_tdvp_krylov_N64_20260619 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The higher-cap follow-up for the two best low-cap prefixes was
+
+```bash
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 2,10 --methods mcwf \
+  --evolution-method continuous --steps 8 --Dmax 64 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --progress-csv .worktree/postfix_tdvp_krylov_N64_20260619/tdvp_progress_N64_niising_open_mcwf_Dmax64_te1.0_R2_R10.csv \
+  --outdir .worktree/postfix_tdvp_krylov_N64_20260619 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The common ED reference is `E0/N = -1.3246328892`, with finite-size gap
+`0.27448183`.  The HDF5 summaries are
+
+| Dcap | R | completed/requested cycles | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | system sat | evolved sat | tdvp sweep sat | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---:|
+| 32 | 1 | 4/8 | 1.37255398 | 1.37255398 | >=32 | >=32 | >=32 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 4 | 4 | 4 | 294.0 s |
+| 32 | 2 | 3/8 | 1.11215604 | 1.08753626 | 24 | >=32 | >=32 | not_converged_evolved_and_tdvp_sweep_cap | none | 3 | 3 | 111.4 s |
+| 32 | 5 | 3/8 | 1.41126632 | 1.41126632 | 24 | >=32 | >=32 | not_converged_evolved_and_tdvp_sweep_cap | none | 3 | 3 | 73.5 s |
+| 32 | 10 | 3/8 | 1.24038933 | 1.24038933 | 24 | >=32 | >=32 | not_converged_evolved_and_tdvp_sweep_cap | none | 3 | 3 | 79.9 s |
+| 64 | 2 | 4/8 | 1.10143056 | 1.08753626 | 53 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | none | 4 | 4 | 443.2 s |
+| 64 | 10 | 4/8 | 1.21672165 | 1.21672165 | 50 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | none | 4 | 4 | 633.1 s |
+
+The completed-cycle prefixes are
+
+| Dcap | R | cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 32 | 1 | 1 | 0.50511675 | 1.47291896 | 4 | 6 | 33.1 s |
+| 32 | 1 | 2 | 0.50511675 | 1.42012553 | 11 | 15 | 69.9 s |
+| 32 | 1 | 3 | 0.50511675 | 1.41672905 | 23 | 31 | 135.0 s |
+| 32 | 1 | 4 | 0.50511675 | 1.37255398 | 32 | 32 | 294.0 s |
+| 32 | 2 | 1 | 0.50511675 | 1.34957051 | 4 | 6 | 21.9 s |
+| 32 | 2 | 2 | 3.03070050 | 1.08753626 | 11 | 15 | 51.1 s |
+| 32 | 2 | 3 | 0.50511675 | 1.11215604 | 24 | 32 | 111.4 s |
+| 32 | 5 | 1 | 0.50511675 | 1.45743454 | 4 | 6 | 21.3 s |
+| 32 | 5 | 2 | 1.13651269 | 1.47827437 | 11 | 15 | 39.7 s |
+| 32 | 5 | 3 | 1.76790862 | 1.41126632 | 24 | 32 | 73.5 s |
+| 32 | 10 | 1 | 0.50511675 | 1.43565981 | 4 | 6 | 21.2 s |
+| 32 | 10 | 2 | 0.78573717 | 1.37759077 | 11 | 15 | 39.9 s |
+| 32 | 10 | 3 | 1.06635758 | 1.24038933 | 24 | 32 | 79.9 s |
+| 64 | 2 | 1 | 0.50511675 | 1.34957051 | 4 | 6 | 22.2 s |
+| 64 | 2 | 2 | 3.03070050 | 1.08753626 | 11 | 15 | 51.9 s |
+| 64 | 2 | 3 | 0.50511675 | 1.11215599 | 25 | 33 | 121.1 s |
+| 64 | 2 | 4 | 3.03070050 | 1.10143056 | 53 | 64 | 443.2 s |
+| 64 | 10 | 1 | 0.50511675 | 1.43565981 | 4 | 6 | 20.9 s |
+| 64 | 10 | 2 | 0.78573717 | 1.37759077 | 11 | 15 | 40.1 s |
+| 64 | 10 | 3 | 1.06635758 | 1.24038933 | 24 | 32 | 81.1 s |
+| 64 | 10 | 4 | 1.34697800 | 1.21672165 | 50 | 64 | 633.1 s |
+
+Corrected TDVP dynamics is no longer flat: the Krylov-expanded two-site TDVP
+run changes the energy already in the first few cycles.  The present
+stop-on-cap data nevertheless remains far from ground-state cooling.  The best
+observed capped prefix is the `R = 2` value `E/N = 1.08753626`, still far above
+`E0/N = -1.3246328892`.  Raising the cap from `32` to `64` confirms that the
+`Dmax = 32` data was cap-limited rather than converged.  For `R = 2` and
+`R = 10`, the transient evolved state and the TDVP sweep observer both reach
+bond dimension `64` by cycle 4, while the retained system state has already
+grown to bond dimension `53` and `50`, respectively.
+
+Thus the effective transient bond dimension after the TDVP correction is at
+least `64` by the fourth cooling cycle for these fixed `te = 1.0` schedules.
+The next large-\(D\) calculation should therefore not be interpreted only as a
+larger-bond rerun.  It should be paired with a schedule or adaptivity change
+which can be tested against this post-expansion stop-on-cap baseline.
