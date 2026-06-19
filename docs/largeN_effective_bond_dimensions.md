@@ -381,3 +381,60 @@ cycle 4.  Therefore the reported effective bond dimensions are lower bounds,
 resolved requirements.  The result should be read as evidence that the
 physically relevant TDVP run has entered the high-bond regime, not as evidence
 that `Dmax = 96` is sufficient for large-system cooling.
+
+## Forty-Cycle MCWF+TDVP Stop-on-Cap Diagnostics
+
+After adding the opt-in stop condition, the same fixed detuning interval was
+used for a requested forty-cycle MCWF+TDVP diagnostic over all four frequency
+counts:
+
+```bash
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 1,2,5,10 --methods mcwf \
+  --evolution-method continuous --steps 40 --Dmax 96 \
+  --cutoff 1e-6 --tau 0.2 --M-mcwf 1 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --outdir .worktree/largeN_stopcap_20260619 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+These runs were intended to answer whether the longer calculation can proceed
+beyond the early transient, not to establish convergence.  All four `Dmax = 96`
+jobs stopped after three completed cycles because the evolved system-bath state
+reached the cap during cycle 3.  The `R = 2`, `Dmax = 128` follow-up stopped at
+the same cycle.
+
+Summarizing the progress CSVs gives
+
+| R | Dcap | completed/requested cycles | final E/N | Dsys_eff | Dsb_eff | bond_status | evolved cap | max sweep dt | elapsed |
+|---:|---:|---:|---:|---:|---:|---|---|---:|---:|
+| 1 | 96 | 3/40 | 1.46044484 | 91 | >=96 | not_converged_evolved_cap | 3:7 | 131.5 s | 878.5 s |
+| 2 | 96 | 3/40 | 0.98249764 | 95 | >=96 | not_converged_evolved_cap | 3:6 | 148.7 s | 1075.2 s |
+| 5 | 96 | 3/40 | 1.39412230 | 90 | >=96 | not_converged_evolved_cap | 3:8 | 124.0 s | 710.0 s |
+| 10 | 96 | 3/40 | 1.28228975 | 92 | >=96 | not_converged_evolved_cap | 3:7 | 126.0 s | 742.1 s |
+| 2 | 128 | 3/40 | 0.98236229 | 120 | >=128 | not_converged_evolved_cap | 3:8 | 281.9 s | 1171.6 s |
+
+The corresponding completed-cycle energy prefixes are
+
+| R | Dcap | cycle 1 | cycle 2 | cycle 3 |
+|---:|---:|---:|---:|---:|
+| 1 | 96 | 1.48954935 | 1.45494183 | 1.46044484 |
+| 2 | 96 | 1.35534537 | 1.00710734 | 0.98249764 |
+| 5 | 96 | 1.50268855 | 1.50779337 | 1.39412230 |
+| 10 | 96 | 1.43490779 | 1.38290684 | 1.28228975 |
+| 2 | 128 | 1.35534537 | 1.00710734 | 0.98236229 |
+
+Thus the stop-on-cap calculation is more useful than a two-cycle timing
+calibration, but it is still a cap-location diagnostic.  Increasing `R = 2`
+from `Dmax = 96` to `Dmax = 128` changes the third-cycle energy only in the
+fourth decimal place and does not move the first cap event beyond cycle 3.  At
+this fixed detuning interval and `te = 2.0`, modestly raising the cap does not
+yet produce a physically controlled long-time cooling trajectory.
+
+The HDF5 files for this particular stop-cap campaign predate the HDF5
+persistence of TDVP sweep histories added later.  Consequently
+`summarize_largeN_bond_dimensions.jl` reports `Dtdvp_sweep_eff = 0` for these
+legacy files, while the accompanying progress CSVs record the cycle-3 evolved
+cap events shown above.  New stop-cap runs with `--tdvp-sweep-progress` store
+both `tdvp_sweep_max_bond` and `tdvp_sweep_saturation_cycle` in HDF5.
