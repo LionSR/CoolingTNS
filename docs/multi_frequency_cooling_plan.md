@@ -202,21 +202,25 @@ energy density to `E/N = 0.66394232` after the early transient, but it reaches
 the transient system-bath cap in cycle 3 and the retained system cap in cycle
 4.  Thus it is evidence of high-bond TDVP cooling dynamics, not a converged
 large-`N` benchmark.
-Future long TDVP runs should enable `--progress-csv` and
-`--tdvp-sweep-progress` so interrupted runs retain both the per-cycle energy
-trace and the inner TDVP sweep-level bond-dimension trace.
+Future long TDVP runs should enable `--tdvp-sweep-progress` so interrupted runs
+retain the inner TDVP sweep-level bond-dimension trace in the HDF5 output.
+Adding `--progress-csv` also preserves a textual per-observer-event trace for
+live monitoring and partial-run inspection.
 If the purpose of a run is only to locate the first cap event, the validation
 driver can also be run with `--stop-on-bond-cap`.  This stops after the first
 completed cycle whose retained system state or transient system-bath state
 reaches the method-specific cap; when `--tdvp-sweep-progress` is enabled, the
 transient test includes the inner TDVP sweep states recorded during that cycle.
 The driver writes the completed prefix of each time series and records
-`requested_steps`, `completed_steps`, and `stop_reasons` in the HDF5 group.
-This option is restricted to single-trajectory diagnostic runs; ensemble
-members whose cap events may occur at different cycles should be launched as
-independent jobs.  When no explicit `--output` path is supplied, the generated
-HDF5 filename receives a `_stopcap` suffix so these partial diagnostic outputs
-do not overwrite full benchmark files with the same physical parameters.
+`requested_steps`, `completed_steps`, and `stop_reasons` in the HDF5 group.  It
+also stores the per-cycle `tdvp_sweep_max_bond` trace and
+`tdvp_sweep_saturation_cycle` metadata, so the sweep-level cap source is
+recoverable from the HDF5 file without consulting the progress CSV.  This option
+is restricted to single-trajectory diagnostic runs; ensemble members whose cap
+events may occur at different cycles should be launched as independent jobs.
+When no explicit `--output` path is supplied, the generated HDF5 filename
+receives a `_stopcap` suffix so these partial diagnostic outputs do not
+overwrite full benchmark files with the same physical parameters.
 When several `R` values or `Dmax` values are to be run on a many-core machine,
 the validation driver should first be invoked with `--print-parallel-plan`.
 This prints one independent command for each `(N, method, R, Dmax)` tuple and

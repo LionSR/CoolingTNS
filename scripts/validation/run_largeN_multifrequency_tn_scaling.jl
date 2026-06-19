@@ -55,9 +55,10 @@ interrupted:
         --Ns 64 --R-values 2 --methods mcwf --evolution-method continuous \
         --steps 40 --Dmax 80 --progress-csv /tmp/tdvp_progress.csv
 
-To additionally record one CSV row after each TDVP sweep/substep, add
-`--tdvp-sweep-progress`.  To let ITensorMPS print its own TDVP sweep summary,
-use `--tdvp-outputlevel 1`.
+Add `--tdvp-sweep-progress` to install the TDVP sweep observer used by the HDF5
+`tdvp_sweep_max_bond` diagnostic. When `--progress-csv` is also supplied, the
+same observer additionally writes one CSV row after each TDVP sweep/substep. To
+let ITensorMPS print its own TDVP sweep summary, use `--tdvp-outputlevel 1`.
 
 For diagnostic runs where the objective is only to locate the first
 bond-dimension cap event, add `--stop-on-bond-cap`.  This stops a trajectory
@@ -68,7 +69,10 @@ inside the cycle.  It is intended for single-trajectory diagnostics; use
 independent jobs for ensemble members whose partial trajectories may stop at
 different cycle counts.  Unless `--output` is given explicitly, the HDF5
 filename receives a `_stopcap` suffix so these partial diagnostic files do not
-overwrite full benchmark files with the same physical parameters.
+overwrite full benchmark files with the same physical parameters.  The HDF5
+group also records `tdvp_sweep_max_bond` and
+`tdvp_sweep_saturation_cycle`, so sweep-level cap events are recoverable
+without the progress CSV.
 
 To prepare independent commands for process-level parallel execution, use
 `--print-parallel-plan`.  The plan splits the campaign into one command for
@@ -267,9 +271,6 @@ function parse_args(args)
             "--Dmax-values requires --delta-min and --delta-max so every Dmax " *
             "run uses the same physical detuning protocol"
         )
-    end
-    if cfg["tdvp_sweep_progress"] && cfg["progress_csv"] === nothing
-        error("--tdvp-sweep-progress requires --progress-csv")
     end
     if cfg["tdvp_sweep_progress"] && cfg["evolution_method"] != "continuous"
         error("--tdvp-sweep-progress requires --evolution-method continuous")
@@ -677,7 +678,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
     )
     start_time = time()
     tdvp_context = Ref{Any}(nothing)
-    records_tdvp_sweeps = cfg["tdvp_sweep_progress"] && progress_csv !== nothing &&
+    records_tdvp_sweeps = cfg["tdvp_sweep_progress"] &&
                           cfg["evolution_method"] == "continuous" && method == "mcwf"
     saturation_threshold = CoolingTNS.tn_method_maxdim(sim_params.sim_method, cfg["Dmax"])
 
@@ -748,13 +749,15 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
             tdvp_sweep_maxbond[ctx.step] = max(
                 tdvp_sweep_maxbond[ctx.step], evolved_bs.max,
             )
-            append_progress_csv_row(
-                progress_csv,
-                tdvp_sweep_progress_row(
-                    progress_context, ctx, sweep, current_time, ham_params,
-                    evolved_bs, elapsed,
-                ),
-            )
+            if progress_csv !== nothing
+                append_progress_csv_row(
+                    progress_csv,
+                    tdvp_sweep_progress_row(
+                        progress_context, ctx, sweep, current_time, ham_params,
+                        evolved_bs, elapsed,
+                    ),
+                )
+            end
             return nothing
         end)
     else
@@ -805,6 +808,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
     sys_meanbond_completed = sys_meanbond[1:completed_index]
     evolved_maxbond_completed = evolved_maxbond[1:completed_index]
     evolved_meanbond_completed = evolved_meanbond[1:completed_index]
+    tdvp_sweep_maxbond_completed = tdvp_sweep_maxbond[1:completed_index]
     if cfg["measure_modes"]
         all(k -> haskey(result, k) && result[k] !== nothing, (
             RESULT_MODE_GF,
@@ -833,6 +837,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         "sys_meanbond" => sys_meanbond_completed,
         "evolved_maxbond" => evolved_maxbond_completed,
         "evolved_meanbond" => evolved_meanbond_completed,
+        "tdvp_sweep_maxbond" => tdvp_sweep_maxbond_completed,
         "delta_list" => delta_list,
         "final_bond_dims" => final_dims[],
         "elapsed" => elapsed,
@@ -952,6 +957,7 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     sys_meanbond = reduce(hcat, [row["sys_meanbond"] for row in traj_rows])
     evolved_maxbond = reduce(hcat, [row["evolved_maxbond"] for row in traj_rows])
     evolved_meanbond = reduce(hcat, [row["evolved_meanbond"] for row in traj_rows])
+    tdvp_sweep_maxbond = reduce(hcat, [row["tdvp_sweep_maxbond"] for row in traj_rows])
     delta_lists = reduce(hcat, [row["delta_list"] for row in traj_rows])
     common_delta_list = all(j -> isequal(delta_lists[:, j], delta_lists[:, 1]), 1:M)
 
@@ -964,6 +970,10 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     ]
     evolved_saturation_cycles = Int[
         first_bond_saturation_cycle(row["evolved_maxbond"], saturation_threshold)
+        for row in traj_rows
+    ]
+    tdvp_sweep_saturation_cycles = Int[
+        first_bond_saturation_cycle(row["tdvp_sweep_maxbond"], saturation_threshold)
         for row in traj_rows
     ]
 
@@ -979,9 +989,11 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     write(g, "system_mean_bond", sys_meanbond)
     write(g, "evolved_max_bond", evolved_maxbond)
     write(g, "evolved_mean_bond", evolved_meanbond)
+    write(g, "tdvp_sweep_max_bond", tdvp_sweep_maxbond)
     write(g, "bond_saturation_threshold", saturation_threshold)
     write(g, "system_saturation_cycle", system_saturation_cycles)
     write(g, "evolved_saturation_cycle", evolved_saturation_cycles)
+    write(g, "tdvp_sweep_saturation_cycle", tdvp_sweep_saturation_cycles)
     write(g, "elapsed_seconds", Float64[row["elapsed"] for row in traj_rows])
     write(g, "requested_steps", Int[row["requested_steps"] for row in traj_rows])
     write(g, "completed_steps", Int[row["completed_steps"] for row in traj_rows])
@@ -1009,6 +1021,9 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
         peak_evolved_meanbond=peak_evolved_mean_bond(evolved_meanbond),
         first_system_saturation_cycle=first_recorded_saturation_cycle(system_saturation_cycles),
         first_evolved_saturation_cycle=first_recorded_saturation_cycle(evolved_saturation_cycles),
+        first_tdvp_sweep_saturation_cycle=first_recorded_saturation_cycle(
+            tdvp_sweep_saturation_cycles
+        ),
         elapsed=sum(row["elapsed"] for row in traj_rows),
     )
 end
@@ -1119,13 +1134,17 @@ function run_campaign(cfg)
                         evolved_saturation_cycle = first_bond_saturation_cycle(
                             row["evolved_maxbond"], saturation_threshold
                         )
-                        @printf("  traj %d/%d seed=%d final E/N=%.8f rel=%.6g final_sysD=%d peak_evolvedD=%d sysSat=%s evolvedSat=%s elapsed=%.1fs\n",
+                        tdvp_sweep_saturation_cycle = first_bond_saturation_cycle(
+                            row["tdvp_sweep_maxbond"], saturation_threshold
+                        )
+                        @printf("  traj %d/%d seed=%d final E/N=%.8f rel=%.6g final_sysD=%d peak_evolvedD=%d sysSat=%s evolvedSat=%s tdvpSweepSat=%s elapsed=%.1fs\n",
                                 m, M, seed, row["E"][end] / N,
                                 relative_energy(row["E"][end], E0),
                                 row["sys_maxbond"][end],
                                 peak_evolved_maxbond,
                                 saturation_cycle_label(system_saturation_cycle),
                                 saturation_cycle_label(evolved_saturation_cycle),
+                                saturation_cycle_label(tdvp_sweep_saturation_cycle),
                                 row["elapsed"])
                     end
 
@@ -1147,9 +1166,10 @@ function run_campaign(cfg)
                         peak_evolved_meanbond=summary.peak_evolved_meanbond,
                         first_system_saturation_cycle=summary.first_system_saturation_cycle,
                         first_evolved_saturation_cycle=summary.first_evolved_saturation_cycle,
+                        first_tdvp_sweep_saturation_cycle=summary.first_tdvp_sweep_saturation_cycle,
                         elapsed=summary.elapsed,
                     ))
-                    @printf("  mean final E/N=%.8f rel=%.6g overlap=%.6g final_sysD=%d mean_sysD=%.2f peak_evolvedD=%d mean_evolvedD=%.2f sysSat=%s evolvedSat=%s elapsed_total=%.1fs\n",
+                    @printf("  mean final E/N=%.8f rel=%.6g overlap=%.6g final_sysD=%d mean_sysD=%.2f peak_evolvedD=%d mean_evolvedD=%.2f sysSat=%s evolvedSat=%s tdvpSweepSat=%s elapsed_total=%.1fs\n",
                             summary.final_E_mean / N,
                             summary.final_rel,
                             summary.final_overlap,
@@ -1159,6 +1179,7 @@ function run_campaign(cfg)
                             summary.peak_evolved_meanbond,
                             saturation_cycle_label(summary.first_system_saturation_cycle),
                             saturation_cycle_label(summary.first_evolved_saturation_cycle),
+                            saturation_cycle_label(summary.first_tdvp_sweep_saturation_cycle),
                             summary.elapsed)
                     GC.gc()
                 end
@@ -1169,12 +1190,13 @@ function run_campaign(cfg)
     println("\nwrote $path")
     println("summary:")
     for s in summaries
-        @printf("  N=%d %-4s R=%2d final E/N=%.8f rel=%.6g overlap=%.6g final_sysD=%d mean_sysD=%.2f peak_evolvedD=%d mean_evolvedD=%.2f sysSat=%s evolvedSat=%s elapsed=%.1fs\n",
+        @printf("  N=%d %-4s R=%2d final E/N=%.8f rel=%.6g overlap=%.6g final_sysD=%d mean_sysD=%.2f peak_evolvedD=%d mean_evolvedD=%.2f sysSat=%s evolvedSat=%s tdvpSweepSat=%s elapsed=%.1fs\n",
                 s.N, s.method, s.R, s.final_E / s.N, s.final_rel,
                 s.final_overlap, s.final_sys_maxbond, s.final_sys_meanbond,
                 s.peak_evolved_maxbond, s.peak_evolved_meanbond,
                 saturation_cycle_label(s.first_system_saturation_cycle),
                 saturation_cycle_label(s.first_evolved_saturation_cycle),
+                saturation_cycle_label(s.first_tdvp_sweep_saturation_cycle),
                 s.elapsed)
     end
     return path, summaries

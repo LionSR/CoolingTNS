@@ -59,6 +59,11 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test bond_cap_status(3, 0) == "not_converged_system_cap"
     @test bond_cap_status(0, 2) == "not_converged_evolved_cap"
     @test bond_cap_status(3, 2) == "not_converged_system_and_evolved_cap"
+    @test bond_cap_status(0, 0, 4) == "not_converged_tdvp_sweep_cap"
+    @test bond_cap_status(3, 0, 4) == "not_converged_system_and_tdvp_sweep_cap"
+    @test bond_cap_status(0, 2, 4) == "not_converged_evolved_and_tdvp_sweep_cap"
+    @test bond_cap_status(3, 2, 4) ==
+          "not_converged_system_and_evolved_and_tdvp_sweep_cap"
     @test effective_bond_dimension_label(48, 0, 64) == "48"
     @test effective_bond_dimension_label(64, 2, 64) == ">=64"
     @test effective_bond_dimension_label(72, 2, 64) == ">=72"

@@ -175,6 +175,9 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     system_mean_bond = bond_history_matrix(read(run_group["system_mean_bond"]))
     evolved_max_bond = bond_history_matrix(read(run_group["evolved_max_bond"]))
     evolved_mean_bond = bond_history_matrix(read(run_group["evolved_mean_bond"]))
+    tdvp_sweep_max_bond = haskey(run_group, "tdvp_sweep_max_bond") ?
+        bond_history_matrix(read(run_group["tdvp_sweep_max_bond"])) :
+        zeros(Int, size(system_max_bond))
 
     final_e_over_n = energy_mean[end] / N
     final_relative_energy = relative_energy_mean[end]
@@ -188,6 +191,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     final_system_mean = final_system_mean_bond(system_mean_bond)
     peak_evolved_max = peak_evolved_max_bond(evolved_max_bond)
     peak_evolved_mean = peak_evolved_mean_bond(evolved_mean_bond)
+    peak_tdvp_sweep_max = isempty(tdvp_sweep_max_bond) ? 0 : maximum(tdvp_sweep_max_bond)
 
     system_saturation_cycle = first_saturation_from_dataset(run_group, "system_saturation_cycle")
     system_saturation_cycle == 0 &&
@@ -195,13 +199,25 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     evolved_saturation_cycle = first_saturation_from_dataset(run_group, "evolved_saturation_cycle")
     evolved_saturation_cycle == 0 &&
         (evolved_saturation_cycle = first_saturation_from_history(evolved_max_bond, threshold))
+    tdvp_sweep_saturation_cycle = first_saturation_from_dataset(
+        run_group, "tdvp_sweep_saturation_cycle"
+    )
+    tdvp_sweep_saturation_cycle == 0 &&
+        (tdvp_sweep_saturation_cycle = first_saturation_from_history(
+            tdvp_sweep_max_bond, threshold
+        ))
     system_effective_bond = effective_bond_dimension_label(
         final_system_max, system_saturation_cycle, threshold
     )
     evolved_effective_bond = effective_bond_dimension_label(
         peak_evolved_max, evolved_saturation_cycle, threshold
     )
-    bond_status = bond_cap_status(system_saturation_cycle, evolved_saturation_cycle)
+    tdvp_sweep_effective_bond = effective_bond_dimension_label(
+        peak_tdvp_sweep_max, tdvp_sweep_saturation_cycle, threshold
+    )
+    bond_status = bond_cap_status(
+        system_saturation_cycle, evolved_saturation_cycle, tdvp_sweep_saturation_cycle
+    )
 
     link_dims = final_link_dimensions(run_group)
     quantiles = mean_link_quantiles(link_dims)
@@ -228,13 +244,16 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         tail_count=tail_count,
         system_effective_bond=system_effective_bond,
         evolved_effective_bond=evolved_effective_bond,
+        tdvp_sweep_effective_bond=tdvp_sweep_effective_bond,
         bond_status=bond_status,
         final_system_max=final_system_max,
         final_system_mean=final_system_mean,
         peak_evolved_max=peak_evolved_max,
         peak_evolved_mean=peak_evolved_mean,
+        peak_tdvp_sweep_max=peak_tdvp_sweep_max,
         system_saturation_cycle=system_saturation_cycle,
         evolved_saturation_cycle=evolved_saturation_cycle,
+        tdvp_sweep_saturation_cycle=tdvp_sweep_saturation_cycle,
         q50=quantiles[1],
         q75=quantiles[2],
         q90=quantiles[3],
@@ -272,22 +291,25 @@ function summarize_file(path::AbstractString)
 end
 
 function print_markdown(rows)
-    println("| file | N | method | evolution | R | M | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | final sys max | final sys mean | peak evolved max | peak evolved mean | sys sat | evolved sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
-    println("|---|---:|---|---|---:|---:|---|---|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|")
+    println("| file | N | method | evolution | R | M | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("|---|---:|---|---|---:|---:|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for row in sort(rows; by=row -> (row.N, row.method, row.evolution, row.R, row.file))
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | $(row.R) | $(row.M) | " *
             "$(row.delta_protocol) | $(row.delta_range) | $(row.delta_factor) | " *
             "$(row.threshold) | " *
-            "$(row.system_effective_bond) | $(row.evolved_effective_bond) | $(row.bond_status) | " *
+            "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
+            "$(row.tdvp_sweep_effective_bond) | $(row.bond_status) | " *
             "$(format_float(row.final_e_over_n, 8)) | $(format_float(row.relative_energy, 5)) | " *
             "$(format_float(row.best_e_over_n, 8)) | $(format_float(row.best_relative_energy, 5)) | " *
             "$(format_float(row.tail_e_over_n, 8)) | $(format_float(row.tail_relative_energy, 5)) | " *
             "$(row.tail_count) | " *
             "$(row.final_system_max) | $(format_float(row.final_system_mean, 2)) | " *
             "$(row.peak_evolved_max) | $(format_float(row.peak_evolved_mean, 2)) | " *
+            "$(row.peak_tdvp_sweep_max) | " *
             "$(saturation_cycle_label(row.system_saturation_cycle)) | " *
             "$(saturation_cycle_label(row.evolved_saturation_cycle)) | " *
+            "$(saturation_cycle_label(row.tdvp_sweep_saturation_cycle)) | " *
             "$(format_float(row.q50, 1)) | $(format_float(row.q75, 1)) | " *
             "$(format_float(row.q90, 1)) | $(format_float(row.q95, 1)) | " *
             "$(format_float(row.frac50, 2)) | $(format_float(row.frac75, 2)) | " *
