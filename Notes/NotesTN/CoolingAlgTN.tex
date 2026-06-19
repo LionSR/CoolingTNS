@@ -437,7 +437,27 @@ into
 	M_{\mathrm{TDVP}}=\left\lceil \frac{t_e}{\tau}\right\rceil
 \end{equation}
 substeps.  The parameter \(\tau\) is therefore a target substep size, not a
-Trotter gate time.  For \texttt{TrotterEvolution}, the code instead applies the
+Trotter gate time.  Before the two-site TDVP sweep, the implementation expands
+the MPS basis by a global Krylov vector.  In formulae, if
+\(\ket{\Psi_0}=\ket{\Psi_S^k}\otimes\ket{\Omega_B(\Delta)}\), then the
+initial variational basis is enlarged so that it contains the Krylov space
+\begin{equation}
+	\mathcal{K}_m(H_{SB},\ket{\Psi_0})
+	=
+	\operatorname{span}\{\ket{\Psi_0},H_{SB}\ket{\Psi_0},\ldots,
+	H_{SB}^m\ket{\Psi_0}\}.
+	\label{eq:TDVPKrylovExpansion}
+\end{equation}
+The code currently uses \(m=1\) by default.  This expansion is essential for
+the interleaved ordering
+\((S_1,B_1,S_2,B_2,\ldots)\): the nearest-neighbor Ising term
+\(\sigma^z_i\sigma^z_{i+1}\) then acts on MPS sites \(2i-1\) and \(2i+1\).
+From a product MPS, the unexpanded two-site TDVP tangent space does not contain
+the corresponding next-nearest-neighbor first-order direction, and therefore
+can incorrectly leave the state stationary for, for example, the
+\(\sigma^x_S\sigma^x_B\) cooling channel.  The Krylov expansion restores this
+direction and is verified against exact exponentiation at small system size.
+For \texttt{TrotterEvolution}, the code instead applies the
 same interleaved system-bath Trotter circuit as in the MPO calculation,
 followed by stochastic measurement of the bath sites.  These two MPS routes
 must be reported separately: the Trotter route is the discrete circuit used for

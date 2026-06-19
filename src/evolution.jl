@@ -55,6 +55,50 @@ function _tdvp_step_count(t::Float64, tau::Float64)
     return Int(ceil(t / tau))
 end
 
+"""
+    _tdvp_expand_state(H_total, ψ, Dmax, cutoff, krylovdim)
+
+Return an MPS representing the same state as `ψ`, but with its local bases
+expanded by Krylov reference vectors generated from `H_total`.  This is used
+before two-site TDVP so that interleaved next-nearest-neighbour system terms
+can act from product-state or partially product-state MPS manifolds.
+
+The returned MPS may alias `ψ` when no expansion is requested or possible; the
+TDVP caller treats its input as consumed.  When some links are already at the
+retained TDVP cap `Dmax`, the helper still allows a one-dimensional reference
+space rather than disabling expansion globally.  The subsequent TDVP update
+enforces the retained `maxdim`.
+"""
+function _tdvp_expand_state(H_total, ψ::MPS, Dmax::Int, cutoff::Float64, krylovdim::Integer)
+    krylovdim < 0 && throw(ArgumentError("TDVP Krylov expansion dimension must be nonnegative; got $krylovdim."))
+    krylovdim == 0 && return ψ
+    Dmax <= 1 && return ψ
+
+    # The expansion carries zero Schmidt weight before TDVP.  Do not truncate it
+    # here: the subsequent local TDVP exponentiation is what populates these
+    # directions, which is essential for interleaved next-nearest-neighbour
+    # system terms acting on product MPS states.
+    reference_maxdim = max(1, Dmax - min(maxlinkdim(ψ), Dmax - 1))
+    references = MPS[]
+    previous_reference = ψ
+    norm_threshold = max(cutoff, eps(Float64))
+    for _ in 1:krylovdim
+        reference = apply(H_total, previous_reference; maxdim=reference_maxdim, cutoff=cutoff)
+        reference_norm = norm(reference)
+        if !isfinite(reference_norm) || reference_norm <= norm_threshold
+            break
+        end
+        normalize!(reference)
+        push!(references, reference)
+        previous_reference = reference
+    end
+    isempty(references) && return ψ
+
+    ψ_expanded = expand(ψ, references; alg="orthogonalize", cutoff=cutoff)
+    normalize!(ψ_expanded)
+    return ψ_expanded
+end
+
 struct TDVPSweepObserver{F}
     callback::F
 end
@@ -77,6 +121,7 @@ end
 function evolve_state(::HamiltonianParameters, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, ContinuousEvolution},
                      ::TNBackend, H_total, ψ, t::Float64, ::Vector{<:Index};
                      tdvp_outputlevel::Integer=0,
+                     tdvp_expand_krylovdim::Integer=1,
                      tdvp_sweep_observer! = nothing,
                      kwargs...)
     if !isempty(kwargs)
@@ -94,7 +139,8 @@ function evolve_state(::HamiltonianParameters, sim_params::UnifiedSimulationPara
         orthogonalize!(ψ_evolved, min(2, length(ψ_evolved)))
         return ψ_evolved
     end
-    @debug "evolve_state MC+Continuous: Dmax=$Dmax, tau=$tau, t=$t, nsteps=$nsteps, nsite=2"
+    @debug "evolve_state MC+Continuous: Dmax=$Dmax, tau=$tau, t=$t, nsteps=$nsteps, nsite=2, " *
+        "tdvp_expand_krylovdim=$tdvp_expand_krylovdim"
 
     tdvp_kwargs = (
         nsteps=nsteps,
@@ -109,8 +155,11 @@ function evolve_state(::HamiltonianParameters, sim_params::UnifiedSimulationPara
         tdvp_kwargs = merge(tdvp_kwargs, (sweep_observer! = tdvp_sweep_observer!,))
     end
 
-    # Use nsite=2 to allow bond dimension growth from product states
-    ψ_evolved = tdvp(H_total, _tdvp_real_time(t), ψ; tdvp_kwargs...)
+    # Use nsite=2 to allow bond dimension growth from product states.  The input
+    # MPS is treated as consumed by this routine; callers that need to reuse it
+    # should pass a copy.
+    ψ_tdvp = _tdvp_expand_state(H_total, ψ, Dmax, cutoff, tdvp_expand_krylovdim)
+    ψ_evolved = tdvp(H_total, _tdvp_real_time(t), ψ_tdvp; tdvp_kwargs...)
     normalize!(ψ_evolved)
     orthogonalize!(ψ_evolved, 2)
     return ψ_evolved

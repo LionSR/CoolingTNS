@@ -255,6 +255,8 @@ end
         @test file_contains(cooling_tn_path, raw"=\tilde a^{\mathrm{notes}}_{-k}")
         @test file_contains(cooling_tn_path, raw"r^{\mathrm{code}}_k&=+\cos\theta\sin\phi_k")
         @test file_contains(cooling_tn_path, raw"M_{\mathrm{TDVP}}=\left\lceil \frac{t_e}{\tau}\right\rceil")
+        @test file_contains(cooling_tn_path, raw"\label{eq:TDVPKrylovExpansion}")
+        @test file_contains(cooling_tn_path, raw"\mathcal{K}_m(H_{SB},\ket{\Psi_0})")
         @test file_contains(cooling_tn_path, raw"Two cooling cycles are not physically meaningful")
         @test file_contains(cooling_tn_path, raw"This is the presently relevant \(D_{\max}=96\) TDVP evidence")
         @test file_contains(cooling_tn_path, raw"more meaningful than the two-cycle calibration")
