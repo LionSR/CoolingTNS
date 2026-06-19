@@ -1,6 +1,9 @@
 using Test
 using CoolingTNS
 using HDF5
+using PythonCall
+
+pyimport("matplotlib").use("Agg"; force=true)
 
 include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_ek_evolution.jl"))
 include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_nk_evolution.jl"))
@@ -80,7 +83,7 @@ end
     )
 
     @test !_has_mode_energy_data(data)
-    @test_logs (:warn, r"Not plotting epsilon_k\*n_k as an energy") begin
+    @test_logs (:warn, r"Not plotting epsilon_k\*tilde_n_k as an energy") begin
         _warn_missing_mode_energy_data("example.h5", data)
     end
 end
@@ -152,6 +155,7 @@ end
 
         @test fig_nk !== nothing
         @test fig_ek !== nothing
+        @test occursin("tilde", pyconvert(String, fig_nk.axes[0].get_ylabel()))
 
         plt = get_pyplot()
         plt.close(fig_nk)

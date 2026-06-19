@@ -1,8 +1,8 @@
 """
     plot_mode_cooling.jl
 
-Plot mode-resolved cooling: quasiparticle occupation n_k vs cooling step for
-each Bogoliubov mode k, colored by the mode energy ε_k.
+Plot mode-resolved cooling: Bogoliubov quasiparticle occupation
+``n_k^{Bog}`` vs cooling step for each mode k, colored by the mode energy ε_k.
 
 Can be called standalone (loads data from HDF5) or from the diagnostic script
 via `plot_mode_occupation_from_data(...)`.
@@ -35,7 +35,7 @@ using CoolingTNS:
 """
     _mode_occupation_from_plot_data(data)
 
-Return the physical quasiparticle occupation matrix for mode-cooling plots.
+Return the Bogoliubov quasiparticle occupation matrix for mode-cooling plots.
 
 New result files store `RESULT_MODE_NK` directly. Older files stored only `RESULT_MODE_HK`,
 with `h_k = 2n_k - 1`; those files are converted through
@@ -66,10 +66,12 @@ _mode_index_label(k) = k isa Rational ? "$(numerator(k))/$(denominator(k))" : "$
     plot_mode_occupation_from_data(mode_nk, k_indices, εk_values;
                                    delta=nothing, savepath=nothing, title=nothing)
 
-Plot the physical quasiparticle occupation n_k vs cooling step for each mode.
+Plot the Bogoliubov quasiparticle occupation ``n_k^{Bog}`` vs cooling step for
+each mode.
 
 # Arguments
-- `mode_nk`: Matrix of size (n_steps, n_modes) with occupation values n_k
+- `mode_nk`: Matrix of size (n_steps, n_modes) with occupation values
+  ``n_k^{Bog}``
 - `k_indices`: Vector of mode indices (integer or half-integer)
 - `εk_values`: Vector of mode energies ε_k in code units
 - `delta`: Bath detuning Δ (optional, used to highlight resonant mode)
@@ -92,7 +94,7 @@ function plot_mode_occupation_from_data(mode_nk::AbstractMatrix, k_indices, εk_
 
     steps = 0:(n_steps - 1)
 
-    # --- Left panel: n_k vs step ---
+    # --- Left panel: Bogoliubov occupation vs step ---
     for i in 1:n_modes
         color = cmap(norm(εk_values[i]))
         k_label = _mode_index_label(k_indices[i])
@@ -101,8 +103,10 @@ function plot_mode_occupation_from_data(mode_nk::AbstractMatrix, k_indices, εk_
     end
 
     # Reference lines
-    ax1.axhline(y=0.0, color="black", linestyle="--", alpha=0.5, label=L"n_k = 0 \; (\mathrm{GS})")
-    ax1.axhline(y=0.5, color="gray", linestyle=":", alpha=0.3, label=L"n_k = 1/2")
+    ax1.axhline(y=0.0, color="black", linestyle="--", alpha=0.5,
+                label=BOGOLIUBOV_GS_OCCUPATION_LABEL)
+    ax1.axhline(y=0.5, color="gray", linestyle=":", alpha=0.3,
+                label=BOGOLIUBOV_HALF_OCCUPATION_LABEL)
     ax1.axhline(y=1.0, color="black", linestyle=":", alpha=0.25)
 
     # Highlight all resonant modes closest to the bath detuning.
@@ -116,8 +120,8 @@ function plot_mode_occupation_from_data(mode_nk::AbstractMatrix, k_indices, εk_
     end
 
     ax1.set_xlabel("Cooling step")
-    ax1.set_ylabel(L"\langle n_k \rangle")
-    ax1.set_title(title !== nothing ? title : "Mode occupation evolution")
+    ax1.set_ylabel(BOGOLIUBOV_OCCUPATION_LABEL)
+    ax1.set_title(title !== nothing ? title : "Bogoliubov Mode Occupation Evolution")
     ax1.legend(fontsize=8, loc="best")
     ax1.grid(true, alpha=0.3)
     ymin, ymax = _occupation_ylim(mode_nk)
@@ -129,7 +133,7 @@ function plot_mode_occupation_from_data(mode_nk::AbstractMatrix, k_indices, εk_
     cbar = fig.colorbar(sm, ax=ax1, shrink=0.8)
     cbar.set_label(L"\varepsilon_k \; \mathrm{(code\;units)}")
 
-    # --- Right panel: final n_k vs ε_k ---
+    # --- Right panel: final Bogoliubov occupation vs ε_k ---
     initial_nk = mode_nk[1, :]
     final_nk = mode_nk[end, :]
 
@@ -137,8 +141,10 @@ function plot_mode_occupation_from_data(mode_nk::AbstractMatrix, k_indices, εk_
                 label="Initial", zorder=3)
     ax2.scatter(εk_values, final_nk, marker="s", s=80, color="red", alpha=0.6,
                 label="Final", zorder=3)
-    ax2.axhline(y=0.0, color="black", linestyle="--", alpha=0.5, label=L"n_k = 0 \; (\mathrm{GS})")
-    ax2.axhline(y=0.5, color="gray", linestyle=":", alpha=0.3, label=L"n_k = 1/2")
+    ax2.axhline(y=0.0, color="black", linestyle="--", alpha=0.5,
+                label=BOGOLIUBOV_GS_OCCUPATION_LABEL)
+    ax2.axhline(y=0.5, color="gray", linestyle=":", alpha=0.3,
+                label=BOGOLIUBOV_HALF_OCCUPATION_LABEL)
     ax2.axhline(y=1.0, color="black", linestyle=":", alpha=0.25)
 
     if δ_abs !== nothing
@@ -147,8 +153,8 @@ function plot_mode_occupation_from_data(mode_nk::AbstractMatrix, k_indices, εk_
     end
 
     ax2.set_xlabel(L"\varepsilon_k \; \mathrm{(code\;units)}")
-    ax2.set_ylabel(L"\langle n_k \rangle")
-    ax2.set_title("Initial and final mode occupation")
+    ax2.set_ylabel(BOGOLIUBOV_OCCUPATION_LABEL)
+    ax2.set_title("Initial and Final Bogoliubov Occupation")
     ax2.legend(fontsize=9)
     ax2.grid(true, alpha=0.3)
     ax2.set_ylim(ymin, ymax)
@@ -168,7 +174,7 @@ end
                                 delta=nothing, savepath=nothing, title=nothing)
 
 Legacy entry point accepting the Bogoliubov observable `h_k`. The plotted
-quantity is still the physical occupation `n_k`, obtained from
+quantity is still the Bogoliubov occupation `n_k^Bog`, obtained from
 `CoolingTNS.mode_occupation_from_hk`.
 """
 function plot_mode_cooling_from_data(mode_hk::AbstractMatrix, k_indices, εk_values;
