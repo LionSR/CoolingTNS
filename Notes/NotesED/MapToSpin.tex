@@ -676,7 +676,10 @@ reference for a parity-preserving local system coupling is the many-body scale
 $\Delta_{\mathrm{intra}}=2\epsilon_{\min}$, because such a coupling can change
 the generic Bogoliubov occupations only in pairs within a fixed parity sector.
 Thus one should not use the minimum of \texttt{mode\_ek\_values} itself as the
-default detuning for the parity-preserving Ising cooling channel.
+default detuning for the parity-preserving Ising cooling channel.  On a
+Fourier grid containing special modes, lower fixed-parity transitions involving
+those special modes may occur; such cases should use an explicit detuning
+interval until the special-mode transition scale is selected separately.
 
 
 

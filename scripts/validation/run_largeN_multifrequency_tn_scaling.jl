@@ -47,13 +47,15 @@ Mode-resolved integrable-Ising campaign:
         --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
 
 If `--measure-modes` is used without an explicit detuning interval, the
-gap-scaled interval for the default parity-preserving `XX` coupling is
-referenced to the lowest generic analytic two-quasiparticle energy
+gap-scaled interval for the default periodic, parity-preserving `XX` coupling
+is referenced to the lowest generic analytic two-quasiparticle energy
 `2 min_{sin φ_k != 0} ε_k` on the same Fourier grid as the mode observables,
-not to the generic TN excited-state DMRG estimate.  For mode-resolved Ising
-runs with this parity-preserving coupling, the stored `gap` and
-`detuning_reference_gap` fields record this analytic reference even when an
-explicit fixed detuning interval is supplied.
+not to the generic TN excited-state DMRG estimate.  Automatic analytic detuning
+is disabled on reference grids containing special modes, such as the default
+antiperiodic reference sector; use an explicit `--delta-min/--delta-max` there.
+For mode-resolved Ising runs with this periodic parity-preserving coupling, the
+stored `gap` and `detuning_reference_gap` fields record this analytic reference
+even when an explicit fixed detuning interval is supplied.
 
 Long TDVP runs can also write a per-observer-event CSV trace. The trace includes
 the `initial`, `prepared`, `evolved`, and `updated` stages, so partial energy
@@ -335,6 +337,15 @@ function campaign_mode_detuning_preserves_px(coupling::AbstractString)
     return all(term -> first(term) == "X", coupling_operator_terms(String(coupling)))
 end
 
+function campaign_mode_detuning_has_special_modes(ham_params)
+    N = ham_params.N
+    gF = fermionic_bc(ham_params.bc, 1)
+    return any(
+        k -> abs(sin(2π * Float64(k) / N)) <= sqrt(eps(Float64)),
+        allowed_k_indices(N, gF),
+    )
+end
+
 function campaign_base_detuning_reference(ham_params, cfg)
     if cfg["measure_modes"] && supports_ising_fourier_observables(ham_params)
         if !campaign_mode_detuning_preserves_px(cfg["coupling"])
@@ -346,6 +357,14 @@ function campaign_base_detuning_reference(ham_params, cfg)
             )
             # This source labels the reference gap stored in HDF5; the actual
             # detuning range is still the explicit fixed interval from cfg.
+            return (delta=nothing, source="setup_gap")
+        end
+        if campaign_mode_detuning_has_special_modes(ham_params)
+            cfg["delta_min"] === nothing && error(
+                "--measure-modes automatic detuning currently assumes the " *
+                "reference Fourier grid has no special modes. Use an explicit " *
+                "--delta-min/--delta-max for $(ham_params.bc) boundary conditions."
+            )
             return (delta=nothing, source="setup_gap")
         end
         return (

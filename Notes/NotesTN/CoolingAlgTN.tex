@@ -309,7 +309,10 @@ parity sector has energy
 \end{equation}
 not $\Lambda\min_k\epsilon_k$.  The large-\(N\) mode-resolved driver uses this
 two-quasiparticle scale, Eq.~\eqref{eq:mode_pair_threshold}, as its automatic
-analytic detuning reference when no explicit detuning interval is supplied.
+analytic detuning reference when no explicit detuning interval is supplied and
+the reference Fourier grid contains no special modes.  If the reference grid
+contains special modes, the driver requires an explicit detuning interval
+because lower fixed-parity special-mode transitions can occur.
 
 \subsection{Matrix Product Operator Simulation}
 \label{sec:MPOCooling}

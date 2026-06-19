@@ -273,6 +273,39 @@ end
     @test campaign_mode_detuning_preserves_px("XX")
     @test !campaign_mode_detuning_preserves_px("XY")
     @test !campaign_mode_detuning_preserves_px("ZZ")
+    @test !campaign_mode_detuning_has_special_modes(mode_ham)
+    antiperiodic_mode_cfg = parse_args([
+        "--model", "ising",
+        "--bc", "antiperiodic",
+        "--Ns", "64",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--measure-modes",
+        "--outdir", tempdir(),
+    ])
+    antiperiodic_mode_ham = campaign_hamiltonian_parameters(64, antiperiodic_mode_cfg)
+    @test campaign_mode_detuning_has_special_modes(antiperiodic_mode_ham)
+    @test_throws ErrorException campaign_base_detuning_reference(
+        antiperiodic_mode_ham,
+        antiperiodic_mode_cfg,
+    )
+    explicit_antiperiodic_mode_cfg = parse_args([
+        "--model", "ising",
+        "--bc", "antiperiodic",
+        "--Ns", "64",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--delta-min", "0.5",
+        "--delta-max", "1.0",
+        "--measure-modes",
+        "--outdir", tempdir(),
+    ])
+    explicit_antiperiodic_ref = campaign_base_detuning_reference(
+        antiperiodic_mode_ham,
+        explicit_antiperiodic_mode_cfg,
+    )
+    @test explicit_antiperiodic_ref.source == "setup_gap"
+    @test isnothing(explicit_antiperiodic_ref.delta)
     nonpreserving_mode_cfg = parse_args([
         "--model", "ising",
         "--bc", "periodic",
