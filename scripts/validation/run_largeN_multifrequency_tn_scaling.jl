@@ -38,6 +38,14 @@ MCWF+TDVP large-N diagnostic:
         --steps 40 --Dmax 80 \
         --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
 
+Mode-resolved integrable-Ising campaign:
+
+    julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+        --model ising --bc periodic --Ns 64 --R-values 1,2,5,10 \
+        --methods mcwf --evolution-method continuous --steps 40 --Dmax 80 \
+        --h -1.05 --measure-modes \
+        --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
+
 Long TDVP runs can also write a per-observer-event CSV trace. The trace includes
 the `initial`, `prepared`, `evolved`, and `updated` stages, so partial energy
 and bond-dimension diagnostics survive if an expensive trajectory is
@@ -98,12 +106,15 @@ function parse_args(args)
         "R_values" => [1, 2, 5, 10],
         "methods" => ["mpo", "mcwf"],
         "evolution_method" => "trotter",
+        "model" => "niising",
+        "bc" => "open",
         "steps" => 40,
         "Dmax" => 40,
         "Dmax_values" => nothing,
         "cutoff" => 1e-7,
         "tau" => 0.2,
         "J" => 1.0,
+        "h" => nothing,
         "hx" => -1.05,
         "hz" => 0.5,
         "coupling" => "XX",
@@ -122,6 +133,7 @@ function parse_args(args)
         "tdvp_outputlevel" => 0,
         "tdvp_sweep_progress" => false,
         "print_parallel_plan" => false,
+        "measure_modes" => false,
         "verbose" => false,
     )
 
@@ -147,15 +159,17 @@ function parse_args(args)
             cfg[key] = parse(Int, args[i + 1]); i += 2
         elseif a == "--Dmax-values"
             cfg["Dmax_values"] = parse_int_list(args[i + 1]); i += 2
-        elseif a in ("--cutoff", "--tau", "--J", "--hx", "--hz", "--g", "--te", "--delta-max-factor",
+        elseif a in ("--cutoff", "--tau", "--J", "--h", "--hx", "--hz", "--g", "--te", "--delta-max-factor",
                      "--delta-min", "--delta-max")
             key = replace(a[3:end], "-" => "_")
             cfg[key] = parse(Float64, args[i + 1]); i += 2
-        elseif a in ("--coupling", "--schedule", "--outdir", "--output",
+        elseif a in ("--model", "--bc", "--coupling", "--schedule", "--outdir", "--output",
                      "--evolution-method", "--progress-csv")
             cfg[replace(a[3:end], "-" => "_")] = args[i + 1]; i += 2
         elseif a == "--verbose"
             cfg["verbose"] = true; i += 1
+        elseif a in ("--measure-modes", "--measure_modes")
+            cfg["measure_modes"] = true; i += 1
         elseif a == "--tdvp-sweep-progress"
             cfg["tdvp_sweep_progress"] = true; i += 1
         elseif a == "--print-parallel-plan"
@@ -179,10 +193,39 @@ function parse_args(args)
     for method in cfg["methods"]
         method in ("mpo", "mcwf") || error("unknown method '$method'; use mpo or mcwf")
     end
+    cfg["model"] in ("niising", "ising") ||
+        error("--model must be niising or ising")
+    Symbol(cfg["bc"]) in (:open, :periodic, :antiperiodic) ||
+        error("--bc must be open, periodic, or antiperiodic")
+    if cfg["model"] == "niising" && cfg["h"] !== nothing
+        error("--h is only used with --model ising; use --hx for niising")
+    end
+    if cfg["model"] == "ising" && cfg["h"] === nothing
+        # Backward compatibility for the large-N driver: before `--model ising`,
+        # `--hx` was the only transverse-field flag.  After parsing, `cfg["h"]`
+        # is the effective Ising field, not a record of whether `--h` was
+        # explicitly supplied.
+        cfg["h"] = cfg["hx"]
+    end
     cfg["evolution_method"] in ("trotter", "continuous") ||
         error("--evolution-method must be trotter or continuous")
+    if cfg["evolution_method"] == "trotter" && Symbol(cfg["bc"]) != :open
+        error("--evolution-method trotter currently requires --bc open in this TN campaign")
+    end
     if cfg["evolution_method"] == "continuous" && "mpo" in cfg["methods"]
         error("--evolution-method continuous is only supported for --methods mcwf")
+    end
+    if cfg["measure_modes"]
+        cfg["model"] == "ising" ||
+            error("--measure-modes requires --model ising")
+        Symbol(cfg["bc"]) in (:periodic, :antiperiodic) ||
+            error("--measure-modes requires --bc periodic or antiperiodic")
+        all(iseven, cfg["Ns"]) ||
+            error("--measure-modes requires even system sizes")
+        all(method -> method == "mcwf", cfg["methods"]) ||
+            error("--measure-modes is currently supported in this TN campaign only for --methods mcwf")
+        cfg["evolution_method"] == "continuous" ||
+            error("--measure-modes requires --evolution-method continuous in this TN campaign")
     end
     cfg["schedule_symbol"] = Symbol(cfg["schedule"])
     cfg["schedule_symbol"] in (:round_robin, :random) ||
@@ -206,6 +249,16 @@ function parse_args(args)
         error("--tdvp-sweep-progress requires --evolution-method continuous")
     end
     return cfg
+end
+
+function campaign_hamiltonian_parameters(N::Int, cfg)
+    bc = Symbol(cfg["bc"])
+    if cfg["model"] == "ising"
+        return IsingParameters(N, cfg["J"], cfg["h"], bc)
+    elseif cfg["model"] == "niising"
+        return NiIsingParameters(N, cfg["J"], cfg["hx"], cfg["hz"], bc)
+    end
+    error("unknown model '$(cfg["model"])'")
 end
 
 function campaign_dmax_values(cfg)
@@ -279,13 +332,13 @@ function command_args_for_config(cfg; script_path=joinpath("scripts", "validatio
         "--R-values", join(cfg["R_values"], ","),
         "--methods", join(cfg["methods"], ","),
         "--evolution-method", cfg["evolution_method"],
+        "--model", cfg["model"],
+        "--bc", cfg["bc"],
         "--steps", string(cfg["steps"]),
         "--Dmax", string(cfg["Dmax"]),
         "--cutoff", string(cfg["cutoff"]),
         "--tau", string(cfg["tau"]),
         "--J", string(cfg["J"]),
-        "--hx", string(cfg["hx"]),
-        "--hz", string(cfg["hz"]),
         "--coupling", cfg["coupling"],
         "--g", string(cfg["g"]),
         "--te", string(cfg["te"]),
@@ -300,6 +353,11 @@ function command_args_for_config(cfg; script_path=joinpath("scripts", "validatio
         append!(args, ["--delta-min", string(cfg["delta_min"]),
                        "--delta-max", string(cfg["delta_max"])])
     end
+    if cfg["model"] == "ising"
+        append!(args, ["--h", string(cfg["h"])])
+    else
+        append!(args, ["--hx", string(cfg["hx"]), "--hz", string(cfg["hz"])])
+    end
     if cfg["output"] !== nothing
         append!(args, ["--output", cfg["output"]])
     end
@@ -309,6 +367,7 @@ function command_args_for_config(cfg; script_path=joinpath("scripts", "validatio
     cfg["tdvp_outputlevel"] == 0 ||
         append!(args, ["--tdvp-outputlevel", string(cfg["tdvp_outputlevel"])])
     cfg["tdvp_sweep_progress"] && push!(args, "--tdvp-sweep-progress")
+    cfg["measure_modes"] && push!(args, "--measure-modes")
     cfg["verbose"] && push!(args, "--verbose")
     return args
 end
@@ -632,6 +691,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
             ham_params;
             step_observer=step_observer,
             evolution_kwargs=evolution_kwargs,
+            measure_modes=cfg["measure_modes"],
         )
     end
 
@@ -639,6 +699,25 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
     overlap = result[RESULT_GROUND_STATE_OVERLAP]
     purity = get(result, RESULT_PURITY, fill(NaN, steps + 1))
     delta_list = result[RESULT_DELTA_LIST]
+    if cfg["measure_modes"]
+        all(k -> haskey(result, k) && result[k] !== nothing, (
+            RESULT_MODE_GF,
+            RESULT_MODE_GF_SOURCE,
+            RESULT_MODE_HK,
+            RESULT_MODE_NK,
+            RESULT_MODE_K_INDICES,
+            RESULT_MODE_ENERGIES,
+        )) || error(
+            "--measure-modes was requested, but the run did not produce a complete " *
+            "Ising Fourier-mode measurement set"
+        )
+        mode_hk = result[RESULT_MODE_HK]
+        mode_nk = result[RESULT_MODE_NK]
+        (mode_hk isa AbstractMatrix && mode_nk isa AbstractMatrix) ||
+            error("--measure-modes produced mode data with an unexpected shape")
+        all(isfinite, mode_hk) && all(isfinite, mode_nk) ||
+            error("--measure-modes produced non-finite mode data")
+    end
 
     return Dict{String,Any}(
         "E" => E,
@@ -651,6 +730,12 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         "delta_list" => delta_list,
         "final_bond_dims" => final_dims[],
         "elapsed" => elapsed,
+        RESULT_MODE_GF => get(result, RESULT_MODE_GF, nothing),
+        RESULT_MODE_GF_SOURCE => get(result, RESULT_MODE_GF_SOURCE, nothing),
+        RESULT_MODE_HK => get(result, RESULT_MODE_HK, nothing),
+        RESULT_MODE_NK => get(result, RESULT_MODE_NK, nothing),
+        RESULT_MODE_K_INDICES => get(result, RESULT_MODE_K_INDICES, nothing),
+        RESULT_MODE_ENERGIES => get(result, RESULT_MODE_ENERGIES, nothing),
     )
 end
 
@@ -663,20 +748,84 @@ function output_path(cfg)
     Rs = join(cfg["R_values"], "-")
     methods = join(cfg["methods"], "-")
     evolution_suffix = cfg["evolution_method"] == "trotter" ? "" : "_$(cfg["evolution_method"])"
+    model_suffix = cfg["model"] == "niising" && cfg["bc"] == "open" ? "" :
+        "_$(cfg["model"])_bc$(cfg["bc"])"
     return joinpath(
         cfg["outdir"],
         @sprintf(
-            "largeN_multifrequency_tn_N%s_R%s_%s%s_steps%d_Dmax%d_tau%.3g_seed%d.h5",
+            "largeN_multifrequency_tn_N%s_R%s_%s%s%s_steps%d_Dmax%d_tau%.3g_seed%d.h5",
             Ns,
             Rs,
             methods,
             evolution_suffix,
+            model_suffix,
             cfg["steps"],
             cfg["Dmax"],
             cfg["tau"],
             cfg["seed"],
         ),
     )
+end
+
+mode_dataset_present(row) = get(row, RESULT_MODE_HK, nothing) !== nothing
+
+function common_mode_metadata(traj_rows, key::AbstractString)
+    value = traj_rows[1][key]
+    for row in traj_rows[2:end]
+        isequal(row[key], value) ||
+            error("mode metadata '$key' differs across trajectories")
+    end
+    return value
+end
+
+"""
+Write ensemble-mean, standard-error, and trajectory-resolved Bogoliubov mode
+measurements for one `(N, method, R)` campaign group.
+"""
+function write_mode_measurement_group!(g, traj_rows)
+    any_mode = any(mode_dataset_present, traj_rows)
+    any_mode || return nothing
+    all(mode_dataset_present, traj_rows) ||
+        error("mode measurements are present for only part of the trajectory ensemble")
+
+    for key in (
+        RESULT_MODE_HK,
+        RESULT_MODE_NK,
+        RESULT_MODE_K_INDICES,
+        RESULT_MODE_ENERGIES,
+        RESULT_MODE_GF,
+        RESULT_MODE_GF_SOURCE,
+    )
+        all(row -> get(row, key, nothing) !== nothing, traj_rows) ||
+            error("incomplete mode measurement set: missing $key")
+    end
+
+    k_indices = common_mode_metadata(traj_rows, RESULT_MODE_K_INDICES)
+    mode_energies = common_mode_metadata(traj_rows, RESULT_MODE_ENERGIES)
+    mode_gF = common_mode_metadata(traj_rows, RESULT_MODE_GF)
+    mode_gF_source = common_mode_metadata(traj_rows, RESULT_MODE_GF_SOURCE)
+
+    mode_hk = cat([Float64.(row[RESULT_MODE_HK]) for row in traj_rows]...; dims=3)
+    mode_nk = cat([Float64.(row[RESULT_MODE_NK]) for row in traj_rows]...; dims=3)
+    M = size(mode_hk, 3)
+    mode_hk_mean = dropdims(mean(mode_hk; dims=3); dims=3)
+    mode_nk_mean = dropdims(mean(mode_nk; dims=3); dims=3)
+    mode_hk_stderr = M == 1 ? zeros(size(mode_hk_mean)) :
+        dropdims(std(mode_hk; dims=3); dims=3) ./ sqrt(M)
+    mode_nk_stderr = M == 1 ? zeros(size(mode_nk_mean)) :
+        dropdims(std(mode_nk; dims=3); dims=3) ./ sqrt(M)
+
+    write(g, RESULT_MODE_HK, mode_hk_mean)
+    write(g, RESULT_MODE_NK, mode_nk_mean)
+    write(g, RESULT_MODE_K_INDICES, Float64.(k_indices))
+    write(g, RESULT_MODE_ENERGIES, Float64.(mode_energies))
+    write(g, RESULT_MODE_GF, Int(mode_gF))
+    write(g, RESULT_MODE_GF_SOURCE, String(mode_gF_source))
+    write(g, "mode_hk_trajectories", mode_hk)
+    write(g, "mode_nk_trajectories", mode_nk)
+    write(g, "mode_hk_stderr", mode_hk_stderr)
+    write(g, "mode_nk_stderr", mode_nk_stderr)
+    return nothing
 end
 
 function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
@@ -729,6 +878,7 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     common_delta_list && write(g, "delta_list", delta_lists[:, 1])
     write(g, "delta_values", Float64.(delta_values))
     write_largeN_detuning_protocol(g, detuning_protocol)
+    write_mode_measurement_group!(g, traj_rows)
 
     bd = create_group(g, "final_bond_dims")
     for (j, row) in enumerate(traj_rows)
@@ -760,14 +910,18 @@ function run_campaign(cfg)
         write(f, "generated_at", Dates.format(now(), Dates.ISODateTimeFormat))
         write(f, "Ns", Int.(cfg["Ns"]))
         write(f, "R_values", Int.(cfg["R_values"]))
+        write(f, "model", cfg["model"])
+        write(f, "bc", cfg["bc"])
         write(f, "evolution_method", cfg["evolution_method"])
         write(f, "steps", cfg["steps"])
         write(f, "Dmax", cfg["Dmax"])
         write(f, "cutoff", cfg["cutoff"])
         write(f, "tau", cfg["tau"])
         write(f, "J", cfg["J"])
-        write(f, "hx", cfg["hx"])
-        write(f, "hz", cfg["hz"])
+        write(f, "h", cfg["model"] == "ising" ? cfg["h"] : NaN)
+        write(f, "hx", cfg["model"] == "niising" ? cfg["hx"] : NaN)
+        write(f, "hz", cfg["model"] == "niising" ? cfg["hz"] : NaN)
+        write(f, "measure_modes", cfg["measure_modes"])
         write(f, "coupling", cfg["coupling"])
         write(f, "g", cfg["g"])
         write(f, "te", cfg["te"])
@@ -778,7 +932,13 @@ function run_campaign(cfg)
         write(f, "seed", cfg["seed"])
 
         for N in cfg["Ns"]
-            ham_params = NiIsingParameters(N, cfg["J"], cfg["hx"], cfg["hz"])
+            ham_params = campaign_hamiltonian_parameters(N, cfg)
+            if cfg["measure_modes"] && !supports_ising_fourier_observables(ham_params)
+                error(
+                    "--measure-modes requires an even-size integrable Ising chain " *
+                    "with periodic or antiperiodic spin boundary conditions"
+                )
+            end
             gn = create_group(f, "N$N")
             write(gn, "N", N)
 

@@ -24,10 +24,19 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test fixed_protocol.fixed_across_dmax == true
     @test largeN_delta_values(fixed_protocol, 2) == [0.25, 1.25]
 
+    fixed_protocol_negative_reference = largeN_detuning_protocol(
+        -0.035; delta_min=0.5, delta_max=0.5, delta_max_factor=6.0
+    )
+    @test fixed_protocol_negative_reference.source == "fixed_range"
+    @test fixed_protocol_negative_reference.reference_gap == -0.035
+    @test fixed_protocol_negative_reference.delta_min == 0.5
+    @test fixed_protocol_negative_reference.delta_max == 0.5
+
     @test_throws ArgumentError largeN_detuning_protocol(0.0; delta_max_factor=6.0)
     @test_throws ArgumentError largeN_detuning_protocol(0.5; delta_max_factor=0.5)
     @test_throws ArgumentError largeN_detuning_protocol(0.5; delta_min=0.5)
     @test_throws ArgumentError largeN_detuning_protocol(0.5; delta_min=1.0, delta_max=0.5)
+    @test_throws ArgumentError largeN_detuning_protocol(NaN; delta_min=0.5, delta_max=0.5)
     @test_throws ArgumentError largeN_delta_values(fixed_protocol, 0)
 
     @test tn_method_maxdim(MonteCarloWavefunction(), 12) == 12

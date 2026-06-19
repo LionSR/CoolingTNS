@@ -86,6 +86,43 @@ undershoot the ground-state reference in raw energy.  These fields separate
 monotone cooling, transient low-energy excursions, and late-time plateaus
 without assuming that a finite trajectory has reached a fixed point.
 
+## Mode-Resolved Integrable-Ising Campaigns
+
+The Bogoliubov mode observables `mode_hk` and occupations
+`mode_nk = (mode_hk + 1)/2` are not defined for the default nonintegrable
+Hamiltonian above.  They are defined for the translation-invariant
+transverse-field Ising model with even `N` and periodic or antiperiodic spin
+boundary conditions, using the parity-aware fermionic boundary-condition
+convention described in `Notes/NotesED/MapToSpin.tex`.
+
+These Bogoliubov occupations are distinct from the Jordan-Wigner Fourier
+occupations \(\langle \tilde a_k^\dagger \tilde a_k\rangle\), which are stored
+under `momentum_dist` when that separate observable is requested.  The mode
+energy plots and cooling diagnostics use `mode_hk`, `mode_nk`, and
+`mode_ek_values`; they should not be interpreted as the Fourier occupation
+dataset.
+
+The large-N driver therefore exposes mode measurements only through an explicit
+integrable-Ising command.  For example,
+
+```bash
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --model ising --bc periodic --Ns 64 --R-values 1,2,5,10 \
+  --methods mcwf --evolution-method continuous --steps 40 --Dmax 80 \
+  --h -1.05 --measure-modes \
+  --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
+```
+
+When `--measure-modes` is supplied, the driver fails early unless the requested
+campaign is an even-size periodic or antiperiodic integrable Ising run using the
+MCWF/TDVP tensor-network path.  The HDF5 output then stores the ensemble means
+`mode_hk` and the derived Bogoliubov occupation `mode_nk`, the
+trajectory-resolved arrays
+`mode_hk_trajectories` and `mode_nk_trajectories`, the common `mode_k_indices`,
+the mode energies `mode_ek_values`, and the parity-selected fermionic boundary
+condition metadata.  This keeps the occupation-number diagnostics tied to the
+same convention as the ED and TN observable tests.
+
 ## Reproduction commands
 
 The four-cycle Dmax ladder was generated with
