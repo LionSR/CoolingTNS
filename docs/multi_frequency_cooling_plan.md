@@ -209,7 +209,32 @@ When several `R` values or `Dmax` values are to be run on a many-core machine,
 the validation driver should first be invoked with `--print-parallel-plan`.
 This prints one independent command for each `(N, method, R, Dmax)` tuple and
 assigns distinct HDF5 and progress CSV paths, so process-level parallelism can
-be used without concurrent writes to the same output file.
+be used without concurrent writes to the same output file.  The planning mode
+also accepts `--plan-julia-threads` and `--plan-blas-threads`, which prefix the
+printed commands with `JULIA_NUM_THREADS` and BLAS thread environment variables.
+
+A first runtime-only calibration of this mechanism was run on 2026-06-19.  This
+calibration used `N=64`, MCWF+TDVP, `R=2,5`, two cooling cycles, `Dmax=32`,
+`cutoff=10^{-6}`, and the fixed detuning interval
+`[0.5051167496264384, 3.0307004977586303]`.  It is not physical cooling
+evidence: both trajectories hit the `D=32` cap by cycle 2, so the results are
+only timing and orchestration diagnostics.
+
+| execution mode | Julia threads | BLAS threads | jobs | wall time | user time | system time | interpretation |
+|---|---:|---:|---|---:|---:|---:|---|
+| serial, one driver process | 1 | 1 | `R=2` then `R=5` | 287.70 s | 280.23 s | 3.53 s | baseline |
+| serial, one driver process | 1 | 16 | `R=2` then `R=5` | 284.34 s | 954.09 s | 503.05 s | no useful wall-time gain; much larger CPU use |
+| two independent processes | 1 | 1 | `R=2` and `R=5` concurrently | 179.28 s | 172.59 s and 170.32 s | 2.10 s and 2.07 s | throughput speedup about 1.6 relative to the serial BLAS=1 baseline |
+
+The practical recommendation from this small calibration is to start large-`N`
+throughput scans with one Julia thread and one BLAS thread per independent
+process, and to vary the number of independent processes externally.  BLAS
+threading should be re-tested at larger caps, but for this TDVP calibration it
+only increased CPU consumption.  The benchmark artifacts are stored under
+`/tmp/coolingtns_parallel_bench_serial_blas1_20260619`,
+`/tmp/coolingtns_parallel_bench_parallel_blas1_R2_20260619`,
+`/tmp/coolingtns_parallel_bench_parallel_blas1_R5_20260619`, and
+`/tmp/coolingtns_parallel_bench_serial_blas16_20260619`.
 
 These data should be used to design the next production campaign.  The table
 above is therefore a target plan, not evidence that the listed bond dimensions
