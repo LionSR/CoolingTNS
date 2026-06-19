@@ -74,6 +74,12 @@ group also records `tdvp_sweep_max_bond` and
 `tdvp_sweep_saturation_cycle`, so sweep-level cap events are recoverable
 without the progress CSV.
 
+Add `--randomize-times` to draw each cycle time independently from
+`Uniform(0, 2te)`.  The HDF5 output records the resulting `te_list` or
+trajectory-resolved `te_lists`, and the default filename receives a `_randtime`
+suffix so randomized-time diagnostics do not overwrite fixed-time runs with the
+same mean `te`.
+
 To prepare independent commands for process-level parallel execution, use
 `--print-parallel-plan`.  The plan splits the campaign into one command for
 each `(N, method, R, Dmax)` tuple and assigns distinct HDF5 and progress CSV
@@ -148,6 +154,7 @@ function parse_args(args)
         "delta_min" => nothing,
         "delta_max" => nothing,
         "schedule" => "round_robin",
+        "randomize_times" => false,
         "M_mcwf" => 1,
         "M_mpo" => 1,
         "seed" => 20260617,
@@ -202,6 +209,8 @@ function parse_args(args)
             cfg["tdvp_sweep_progress"] = true; i += 1
         elseif a == "--stop-on-bond-cap"
             cfg["stop_on_bond_cap"] = true; i += 1
+        elseif a in ("--randomize-times", "--randomize_times")
+            cfg["randomize_times"] = true; i += 1
         elseif a == "--print-parallel-plan"
             cfg["print_parallel_plan"] = true; i += 1
         else
@@ -413,6 +422,7 @@ function command_args_for_config(cfg; script_path=joinpath("scripts", "validatio
         append!(args, ["--tdvp-outputlevel", string(cfg["tdvp_outputlevel"])])
     cfg["tdvp_sweep_progress"] && push!(args, "--tdvp-sweep-progress")
     cfg["stop_on_bond_cap"] && push!(args, "--stop-on-bond-cap")
+    cfg["randomize_times"] && push!(args, "--randomize-times")
     cfg["measure_modes"] && push!(args, "--measure-modes")
     cfg["verbose"] && push!(args, "--verbose")
     return args
@@ -804,6 +814,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
     overlap = result[RESULT_GROUND_STATE_OVERLAP]
     purity = get(result, RESULT_PURITY, fill(NaN, completed_index))
     delta_list = result[RESULT_DELTA_LIST]
+    te_list = result[RESULT_TE_LIST]
     sys_maxbond_completed = sys_maxbond[1:completed_index]
     sys_meanbond_completed = sys_meanbond[1:completed_index]
     evolved_maxbond_completed = evolved_maxbond[1:completed_index]
@@ -839,6 +850,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         "evolved_meanbond" => evolved_meanbond_completed,
         "tdvp_sweep_maxbond" => tdvp_sweep_maxbond_completed,
         "delta_list" => delta_list,
+        "te_list" => te_list,
         "final_bond_dims" => final_dims[],
         "elapsed" => elapsed,
         "requested_steps" => get(result, RESULT_REQUESTED_STEPS, steps),
@@ -866,6 +878,7 @@ function output_path(cfg)
         "_$(cfg["model"])_bc$(cfg["bc"])"
     stop_suffix = cfg["stop_on_bond_cap"] ? "_stopcap" : ""
     schedule_suffix = cfg["schedule"] == "round_robin" ? "" : "_sched$(cfg["schedule"])"
+    random_time_suffix = cfg["randomize_times"] ? "_randtime" : ""
     # `te` is a scanned physical protocol parameter, so keep more digits than
     # the legacy `tau` token to avoid collisions between nearby evolution times.
     return joinpath(
@@ -878,7 +891,7 @@ function output_path(cfg)
             evolution_suffix,
             model_suffix,
             stop_suffix,
-            schedule_suffix,
+            schedule_suffix * random_time_suffix,
             cfg["steps"],
             cfg["Dmax"],
             cfg["te"],
@@ -964,7 +977,9 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     evolved_meanbond = reduce(hcat, [row["evolved_meanbond"] for row in traj_rows])
     tdvp_sweep_maxbond = reduce(hcat, [row["tdvp_sweep_maxbond"] for row in traj_rows])
     delta_lists = reduce(hcat, [row["delta_list"] for row in traj_rows])
+    te_lists = reduce(hcat, [row["te_list"] for row in traj_rows])
     common_delta_list = all(j -> isequal(delta_lists[:, j], delta_lists[:, 1]), 1:M)
+    common_te_list = all(j -> isequal(te_lists[:, j], te_lists[:, 1]), 1:M)
 
     E_mean = vec(mean(E; dims=2))
     E_stderr = M == 1 ? zeros(nsteps) : vec(std(E; dims=2)) ./ sqrt(M)
@@ -1007,6 +1022,10 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     write(g, "delta_list_first_trajectory", delta_lists[:, 1])
     write(g, "delta_list_is_common", common_delta_list)
     common_delta_list && write(g, "delta_list", delta_lists[:, 1])
+    write(g, "te_lists", te_lists)
+    write(g, "te_list_first_trajectory", te_lists[:, 1])
+    write(g, "te_list_is_common", common_te_list)
+    common_te_list && write(g, "te_list", te_lists[:, 1])
     write(g, "delta_values", Float64.(delta_values))
     write_largeN_detuning_protocol(g, detuning_protocol)
     write_mode_measurement_group!(g, traj_rows)
@@ -1060,6 +1079,7 @@ function run_campaign(cfg)
         write(f, "coupling", cfg["coupling"])
         write(f, "g", cfg["g"])
         write(f, "te", cfg["te"])
+        write(f, "randomize_times", cfg["randomize_times"])
         write(f, "delta_max_factor", cfg["delta_max_factor"])
         write(f, "delta_min_override", cfg["delta_min"] === nothing ? NaN : cfg["delta_min"])
         write(f, "delta_max_override", cfg["delta_max"] === nothing ? NaN : cfg["delta_max"])
@@ -1109,7 +1129,7 @@ function run_campaign(cfg)
                         cfg["steps"],
                         cfg["te"],
                         delta_values;
-                        randomize_times=false,
+                        randomize_times=cfg["randomize_times"],
                         schedule=cfg["schedule_symbol"],
                     )
                     problem = CoolingTNS.setup_tn_multifrequency_problem_from_system(
