@@ -49,6 +49,9 @@ using Random
     @test haskey(results, CoolingTNS.RESULT_GROUND_STATE_OVERLAP)
     @test haskey(results, CoolingTNS.RESULT_DELTA_LIST)
     @test haskey(results, CoolingTNS.RESULT_TE_LIST)
+    @test results[CoolingTNS.RESULT_REQUESTED_STEPS] == mf_params.steps
+    @test results[CoolingTNS.RESULT_COMPLETED_STEPS] == mf_params.steps
+    @test results[CoolingTNS.RESULT_STOP_REASON] == ""
 
     @test length(results[CoolingTNS.RESULT_ENERGY]) == mf_params.steps + 1
     @test length(results[CoolingTNS.RESULT_DELTA_LIST]) == mf_params.steps + 1
@@ -70,6 +73,37 @@ using Random
     )
     @test results_explicit_nothing[CoolingTNS.RESULT_GROUND_STATE_OVERLAP] ==
           results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP]
+
+    stopped_state = CoolingTNS.setup_initial_state(problem_mf, sim_params, "product", 0.0)
+    stopped_results = CoolingTNS.run_cooling(
+        problem_mf,
+        stopped_state,
+        mf_params,
+        sim_params,
+        ham_params;
+        stop_condition=info -> info.step == 2 ? "unit_test_stop" : nothing,
+    )
+    @test stopped_results[CoolingTNS.RESULT_REQUESTED_STEPS] == mf_params.steps
+    @test stopped_results[CoolingTNS.RESULT_COMPLETED_STEPS] == 1
+    @test stopped_results[CoolingTNS.RESULT_STOP_REASON] == "unit_test_stop"
+    @test length(stopped_results[CoolingTNS.RESULT_ENERGY]) == 2
+    @test length(stopped_results[CoolingTNS.RESULT_DELTA_LIST]) == 2
+    @test isnan(stopped_results[CoolingTNS.RESULT_DELTA_LIST][1])
+    @test isfinite(stopped_results[CoolingTNS.RESULT_DELTA_LIST][2])
+
+    final_stop_state = CoolingTNS.setup_initial_state(problem_mf, sim_params, "product", 0.0)
+    final_stop_results = CoolingTNS.run_cooling(
+        problem_mf,
+        final_stop_state,
+        mf_params,
+        sim_params,
+        ham_params;
+        stop_condition=info -> info.step == mf_params.steps + 1 ? :final_cycle_stop : nothing,
+    )
+    @test final_stop_results[CoolingTNS.RESULT_REQUESTED_STEPS] == mf_params.steps
+    @test final_stop_results[CoolingTNS.RESULT_COMPLETED_STEPS] == mf_params.steps
+    @test final_stop_results[CoolingTNS.RESULT_STOP_REASON] == "final_cycle_stop"
+    @test length(final_stop_results[CoolingTNS.RESULT_ENERGY]) == mf_params.steps + 1
 
     @testset "Spectral detunings respect finite ED spectra" begin
         spectral_values = CoolingTNS.spectral_delta_values(

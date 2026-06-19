@@ -4,6 +4,13 @@ using HDF5
 include(joinpath(@__DIR__, "..", "scripts", "validation",
                  "run_largeN_multifrequency_tn_scaling.jl"))
 
+@testset "Large-N bond-cap stop rule" begin
+    @test isnothing(bond_cap_stop_reason(2, 10, [1, 5], [0, 6], [0, 9]))
+    @test bond_cap_stop_reason(2, 10, [1, 10], [0, 6], [0, 9]) == "bond_cap"
+    @test bond_cap_stop_reason(2, 10, [1, 5], [0, 10], [0, 9]) == "bond_cap"
+    @test bond_cap_stop_reason(2, 10, [1, 5], [0, 6], [0, 10]) == "bond_cap"
+end
+
 @testset "Large-N campaign driver Dmax ladder" begin
     cfg = parse_args([
         "--Ns", "64",
@@ -42,9 +49,11 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
         "--progress-csv", progress_path,
         "--tdvp-outputlevel", "1",
         "--tdvp-sweep-progress",
+        "--stop-on-bond-cap",
     ])
     @test tdvp_progress_cfg["tdvp_outputlevel"] == 1
     @test tdvp_progress_cfg["tdvp_sweep_progress"] == true
+    @test tdvp_progress_cfg["stop_on_bond_cap"] == true
 
     parallel_cfg = parse_args([
         "--Ns", "64",
@@ -77,6 +86,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     @test all(command -> occursin("--evolution-method continuous", command), parallel_commands)
     @test all(command -> occursin("--delta-min 0.5051167496264384", command), parallel_commands)
     @test !any(command -> occursin("--Dmax-values", command), parallel_commands)
+    @test !any(command -> occursin("--stop-on-bond-cap", command), parallel_commands)
     parallel_plan_text = sprint(io -> print_parallel_plan(parallel_cfg; io=io))
     @test all(
         line -> startswith(line, "#") || startswith(line, "julia "),
@@ -127,6 +137,32 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     )
     @test !occursin("--plan-julia-threads", only(threaded_commands))
     @test !occursin("--plan-blas-threads", only(threaded_commands))
+
+    stop_on_cap_cfg = parse_args([
+        "--methods", "mcwf",
+        "--R-values", "5",
+        "--evolution-method", "continuous",
+        "--stop-on-bond-cap",
+        "--print-parallel-plan",
+    ])
+    stop_on_cap_command = only(parallel_plan_commands(stop_on_cap_cfg))
+    @test occursin("--stop-on-bond-cap", stop_on_cap_command)
+    @test occursin("_stopcap_steps", output_path(stop_on_cap_cfg))
+    full_cap_cfg = parse_args([
+        "--methods", "mcwf",
+        "--R-values", "5",
+        "--evolution-method", "continuous",
+    ])
+    @test output_path(stop_on_cap_cfg) != output_path(full_cap_cfg)
+    explicit_stop_path = joinpath(tempdir(), "explicit_stop.h5")
+    explicit_stop_cfg = parse_args([
+        "--methods", "mcwf",
+        "--R-values", "5",
+        "--evolution-method", "continuous",
+        "--stop-on-bond-cap",
+        "--output", explicit_stop_path,
+    ])
+    @test output_path(explicit_stop_cfg) == explicit_stop_path
 
     mode_cfg = parse_args([
         "--model", "ising",
@@ -244,6 +280,11 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     @test_throws ErrorException parse_args(["--plan-julia-threads", "1"])
     @test_throws ErrorException parse_args(["--plan-blas-threads", "1"])
     @test_throws ErrorException parse_args([
+        "--methods", "mcwf",
+        "--M-mcwf", "2",
+        "--stop-on-bond-cap",
+    ])
+    @test_throws ErrorException parse_args([
         "--Dmax-values", "160,320",
         "--delta-min", "0.5",
         "--delta-max", "3.0",
@@ -265,6 +306,9 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
                 "delta_list" => [NaN, 0.5, 3.0],
                 "final_bond_dims" => [4, 8],
                 "elapsed" => 1.25,
+                "requested_steps" => 2,
+                "completed_steps" => 2,
+                "stop_reason" => "",
             ),
         ]
 
@@ -285,6 +329,9 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
             @test read(g["detuning_delta_max"]) == 3.0
             @test isnan(read(g["detuning_delta_max_factor"]))
             @test read(g["detuning_fixed_across_dmax"]) == true
+            @test read(g["requested_steps"]) == [2]
+            @test read(g["completed_steps"]) == [2]
+            @test read(g["stop_reasons"]) == [""]
 
             g_gap = f["R3_gap"]
             @test read(g_gap["delta_values"]) == [0.75, 1.875, 3.0]
@@ -317,6 +364,9 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
             "delta_list" => [NaN, 0.5, 1.5],
             "final_bond_dims" => [4, 8],
             "elapsed" => 1.25,
+            "requested_steps" => 2,
+            "completed_steps" => 2,
+            "stop_reason" => "",
             CoolingTNS.RESULT_MODE_K_INDICES => [1//2, 3//2],
             CoolingTNS.RESULT_MODE_ENERGIES => [0.4, 0.8],
             CoolingTNS.RESULT_MODE_GF => -1,

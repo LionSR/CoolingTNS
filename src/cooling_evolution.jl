@@ -110,6 +110,17 @@ The optional `evolution_kwargs` named tuple is forwarded to the low-level
 evolution routine for each cooling step. It is intended for diagnostics such as
 TDVP observers or output levels; physical parameters should remain in
 `sim_params` and `mf_params`.
+
+If `stop_condition` is supplied, it is evaluated after an `:updated` observer
+event, when the system measurement for that cycle has already been recorded.
+Returning `false` or `nothing` continues the run. Returning `true` stops with
+the generic reason `"stop_condition"`; returning a string or symbol stores that
+value as `RESULT_STOP_REASON`. Stopped runs return only the completed time
+series entries and record `RESULT_REQUESTED_STEPS` and
+`RESULT_COMPLETED_STEPS`. If the predicate fires on the final requested cycle,
+no truncation occurs; a non-empty `RESULT_STOP_REASON` with
+`RESULT_COMPLETED_STEPS == RESULT_REQUESTED_STEPS` records a final-cycle
+diagnostic event, not a partial run.
 """
 function run_cooling_multi_freq(
     problem::CoolingProblem{B},
@@ -120,10 +131,13 @@ function run_cooling_multi_freq(
     measure_modes::Bool=false,
     step_observer=nothing,
     evolution_kwargs=(;),
+    stop_condition=nothing,
 ) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
 
     steps = mf_params.steps
     pe = sim_params.pe
+    completed_step_index = 1
+    stop_reason = ""
 
     measurements = initialize_measurements(problem, state, steps; measure_modes=measure_modes, ham_params=ham_params)
     measurements[RESULT_DELTA_LIST] = fill(NaN, steps + 1)
@@ -196,11 +210,24 @@ function run_cooling_multi_freq(
 
         # Perform measurements
         perform_measurements!(measurements, step, problem, state, ham_params, bath_info)
-        notify_step_observer(
-            step_observer,
-            (stage=:updated, step=step, state=state, evolved_state=nothing, measurements=measurements,
-             delta=delta_r, te=te_step, bath_info=bath_info),
+        updated_info = (
+            stage=:updated,
+            step=step,
+            state=state,
+            evolved_state=nothing,
+            measurements=measurements,
+            delta=delta_r,
+            te=te_step,
+            bath_info=bath_info,
         )
+        notify_step_observer(step_observer, updated_info)
+        completed_step_index = step
+
+        stop_value = stop_condition === nothing ? nothing : stop_condition(updated_info)
+        if stop_value !== nothing && stop_value !== false
+            stop_reason = stop_value === true ? "stop_condition" : string(stop_value)
+            break
+        end
 
         # Print progress
         if step % 10 == 0 || step == steps + 1
@@ -208,8 +235,57 @@ function run_cooling_multi_freq(
         end
     end
 
-    println("Cooling completed")
-    return compile_results(measurements, sim_params)
+    if completed_step_index < steps + 1
+        measurements = truncate_measurements_to_step(measurements, completed_step_index)
+        println("Cooling stopped after $(completed_step_index - 1) of $steps cycles: $stop_reason")
+    elseif stop_reason != ""
+        println("Cooling completed; stop condition reached on final cycle: $stop_reason")
+    else
+        println("Cooling completed")
+    end
+
+    results = compile_results(measurements, sim_params)
+    results[RESULT_REQUESTED_STEPS] = steps
+    results[RESULT_COMPLETED_STEPS] = completed_step_index - 1
+    results[RESULT_STOP_REASON] = stop_reason
+    return results
+end
+
+# Keep this synchronized with the per-step arrays allocated by
+# initialize_measurements, add_backend_measurements!, and add_kspace_measurements!.
+const TIME_SERIES_RESULT_KEYS = Set([
+    RESULT_ENERGY,
+    RESULT_GROUND_STATE_OVERLAP,
+    RESULT_PURITY,
+    RESULT_BATH_MAGNETIZATION,
+    RESULT_BATH_SAMPLE_MAGNETIZATION,
+    RESULT_MOMENTUM_DISTRIBUTION,
+    RESULT_MODE_HK,
+    RESULT_MODE_NK,
+    RESULT_DELTA_LIST,
+    RESULT_TE_LIST,
+])
+
+"""
+    truncate_measurements_to_step(measurements, completed_step_index)
+
+Return a copy of `measurements` whose known time-series entries keep only rows
+`1:completed_step_index`.  Static metadata such as k-grids, mode energies, and
+detuning values is left unchanged.
+"""
+function truncate_measurements_to_step(measurements, completed_step_index::Integer)
+    completed_step_index >= 1 ||
+        throw(ArgumentError("completed_step_index must be at least 1"))
+    truncated = copy(measurements)
+    for key in TIME_SERIES_RESULT_KEYS
+        value = get(measurements, key, nothing)
+        if value isa AbstractVector
+            truncated[key] = value[1:completed_step_index]
+        elseif value isa AbstractMatrix
+            truncated[key] = value[1:completed_step_index, :]
+        end
+    end
+    return truncated
 end
 
 notify_step_observer(::Nothing, _) = nothing
@@ -229,6 +305,7 @@ function run_cooling(
     measure_modes::Bool=false,
     step_observer=nothing,
     evolution_kwargs=(;),
+    stop_condition=nothing,
 ) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
     return run_cooling_multi_freq(
         problem,
@@ -239,6 +316,7 @@ function run_cooling(
         measure_modes=measure_modes,
         step_observer=step_observer,
         evolution_kwargs=evolution_kwargs,
+        stop_condition=stop_condition,
     )
 end
 

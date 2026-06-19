@@ -161,6 +161,9 @@ using HDF5
         @test CoolingTNS.RESULT_MODE_NK == "mode_nk"
         @test CoolingTNS.RESULT_DELTA_LIST == "delta_list"
         @test CoolingTNS.RESULT_TE_LIST == "te_list"
+        @test CoolingTNS.RESULT_REQUESTED_STEPS == "requested_steps"
+        @test CoolingTNS.RESULT_COMPLETED_STEPS == "completed_steps"
+        @test CoolingTNS.RESULT_STOP_REASON == "stop_reason"
 
         @test CoolingTNS.RESULT_KEYS isa Tuple
         @test all(key -> key isa String, CoolingTNS.RESULT_KEYS)
@@ -173,6 +176,9 @@ using HDF5
         @test CoolingTNS.RESULT_MODE_HK in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_MODE_NK in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_DELTA_LIST in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_REQUESTED_STEPS in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_COMPLETED_STEPS in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_STOP_REASON in CoolingTNS.RESULT_KEYS
     end
 
     @testset "Result save skips duplicate parsed-argument keys" begin
