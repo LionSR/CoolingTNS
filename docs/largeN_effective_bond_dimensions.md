@@ -131,7 +131,7 @@ integrable-Ising command.  For example,
 julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
   --model ising --bc periodic --Ns 64 --R-values 1,2,5,10 \
   --methods mcwf --evolution-method continuous --steps 40 --Dmax 80 \
-  --h -1.05 --measure-modes \
+  --h -1.05 --init-state theta --theta 0.0 --measure-modes \
   --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
 ```
 
@@ -144,6 +144,15 @@ trajectory-resolved arrays
 the mode energies `mode_ek_values`, and the parity-selected fermionic boundary
 condition metadata.  This keeps the occupation-number diagnostics tied to the
 same convention as the ED and TN observable tests.
+
+For mode-energy consistency checks, the simulated state should have a definite
+Ising parity so that the fermionic momentum grid is selected by the state
+itself.  The tested large-N command above therefore uses
+`--init-state theta --theta 0.0`.  The default `--init-state product` is a
+mixed-parity state for the periodic Ising chain in the code basis; in that case
+the HDF5 metadata records `mode_gF_source = "reference"`, and the mode arrays
+should be read as a fixed-reference diagnostic rather than as a state-sector
+energy decomposition.
 
 ## Reproduction commands
 
