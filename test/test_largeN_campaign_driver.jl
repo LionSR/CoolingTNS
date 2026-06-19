@@ -444,6 +444,68 @@ end
     end
 end
 
+@testset "Large-N campaign mode measurement smoke run" begin
+    mktempdir() do dir
+        output = joinpath(dir, "mode_smoke.h5")
+        cfg = parse_args([
+            "--model", "ising",
+            "--bc", "periodic",
+            "--Ns", "2",
+            "--R-values", "1",
+            "--methods", "mcwf",
+            "--evolution-method", "continuous",
+            "--steps", "1",
+            "--Dmax", "6",
+            "--cutoff", "1e-6",
+            "--tau", "0.2",
+            "--h", "0.5",
+            "--g", "0.0",
+            "--te", "0.0",
+            "--delta-min", "0.5",
+            "--delta-max", "0.5",
+            "--measure-modes",
+            "--outdir", dir,
+            "--output", output,
+        ])
+
+        path, summaries = redirect_stdout(devnull) do
+            run_campaign(cfg)
+        end
+
+        @test path == output
+        @test length(summaries) == 1
+        @test isfile(output)
+
+        h5open(output, "r") do f
+            @test read(f["model"]) == "ising"
+            @test read(f["bc"]) == "periodic"
+            @test read(f["measure_modes"]) == true
+            @test read(f["h"]) == 0.5
+            @test isnan(read(f["hx"]))
+            @test isnan(read(f["hz"]))
+
+            g = f["N2/mcwf/R1"]
+            mode_hk = read(g[CoolingTNS.RESULT_MODE_HK])
+            mode_nk = read(g[CoolingTNS.RESULT_MODE_NK])
+            @test size(mode_hk) == (2, 2)
+            @test size(mode_nk) == (2, 2)
+            @test mode_nk ≈ CoolingTNS.mode_occupation_from_hk(mode_hk)
+            @test all(isfinite, mode_hk)
+            @test all(n -> -1e-12 <= n <= 1 + 1e-12, mode_nk)
+            @test read(g[CoolingTNS.RESULT_MODE_GF]) == -1
+            @test read(g[CoolingTNS.RESULT_MODE_GF_SOURCE]) in ("state", "reference")
+            @test read(g[CoolingTNS.RESULT_MODE_K_INDICES]) == Float64.([-1//2, 1//2])
+            @test length(read(g[CoolingTNS.RESULT_MODE_ENERGIES])) == 2
+            @test all(isfinite, read(g[CoolingTNS.RESULT_MODE_ENERGIES]))
+            @test size(read(g["mode_hk_trajectories"])) == (2, 2, 1)
+            @test size(read(g["mode_nk_trajectories"])) == (2, 2, 1)
+            @test read(g["mode_hk_stderr"]) == zeros(2, 2)
+            @test read(g["mode_nk_stderr"]) == zeros(2, 2)
+            @test !haskey(g, CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION)
+        end
+    end
+end
+
 @testset "Large-N campaign driver TDVP setup path" begin
     cfg = parse_args([
         "--Ns", "4",
