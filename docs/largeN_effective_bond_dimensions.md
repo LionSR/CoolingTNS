@@ -32,6 +32,9 @@ These two protocols should not be conflated.
 The code source of truth for these quantities is
 `scripts/validation/run_largeN_multifrequency_tn_scaling.jl`, summarized by
 `scripts/validation/summarize_largeN_bond_dimensions.jl`.
+Some historical filenames cited below predate the current default naming
+convention, which includes the evolution time `te` and a suffix for non-default
+detuning schedules.  The HDF5 metadata is the authoritative protocol record.
 
 The nominal parameter `Dmax` is not always the actual Trotter truncation cap.
 The method-specific cap is
@@ -560,3 +563,63 @@ The result therefore argues against the simple rule "make `te` smaller" as a
 scalable cooling strategy.  It points instead to a schedule problem: the
 protocol should adapt the detunings, evolution times, or compression criteria
 before a large-`Dmax` production run is interpreted as physical cooling.
+
+## Random-Schedule MCWF+TDVP Probe at te=1.0
+
+The code also supports a random detuning order using the same fixed detuning
+set.  To test whether the round-robin ordering itself was responsible for the
+early cap events, one-seed random-schedule probes were run for `R = 2` and
+`R = 5` at `te = 1.0`:
+
+```bash
+for R in 2 5; do
+  JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  BLIS_NUM_THREADS=1 \
+  julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+    --Ns 64 --R-values "$R" --methods mcwf \
+    --evolution-method continuous --steps 40 --Dmax 96 \
+    --cutoff 1e-6 --tau 0.2 --te 1.0 --M-mcwf 1 \
+    --delta-min 0.5051167496264384 \
+    --delta-max 3.0307004977586303 \
+    --schedule random \
+    --outdir .worktree/largeN_schedule_scan_20260619 \
+    --progress-csv ".worktree/largeN_schedule_scan_20260619/tdvp_progress_N64_mcwf_R${R}_Dmax96_te1.0_random.csv" \
+    --tdvp-sweep-progress --stop-on-bond-cap --verbose
+done
+```
+
+These files were generated before the driver default filename was updated to
+include `te` and non-default schedules; the HDF5 metadata remains the source of
+truth for the protocol.
+
+The HDF5 summary is
+
+| R | schedule | te | Dcap | completed/requested cycles | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | system sat | evolved sat | tdvp sweep sat | elapsed |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---:|
+| 2 | random | 1.0 | 96 | 6/40 | 0.99951656 | 0.99951656 | >=96 | >=96 | >=96 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 6 | 6 | 6 | 1051.2 s |
+| 5 | random | 1.0 | 96 | 5/40 | 1.12466000 | 1.12466000 | 78 | >=96 | >=96 | not_converged_evolved_and_tdvp_sweep_cap | none | 5 | 5 | 341.3 s |
+
+The completed-cycle prefixes from the progress CSVs are
+
+| R | cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|
+| 2 | 1 | 0.50511675 | 1.34970814 | 4 | 5 | 30.3 s |
+| 2 | 2 | 3.03070050 | 1.09502553 | 9 | 12 | 47.1 s |
+| 2 | 3 | 0.50511675 | 1.11903651 | 18 | 26 | 74.1 s |
+| 2 | 4 | 3.03070050 | 1.10864310 | 38 | 49 | 144.4 s |
+| 2 | 5 | 0.50511675 | 1.05144686 | 75 | 95 | 372.5 s |
+| 2 | 6 | 0.50511675 | 0.99951656 | 96 | 96 | 1051.2 s |
+| 5 | 1 | 1.13651269 | 1.44318374 | 4 | 5 | 30.4 s |
+| 5 | 2 | 3.03070050 | 1.26075795 | 9 | 12 | 47.0 s |
+| 5 | 3 | 0.50511675 | 1.18542501 | 19 | 26 | 74.2 s |
+| 5 | 4 | 0.50511675 | 1.15334752 | 40 | 54 | 144.2 s |
+| 5 | 5 | 0.50511675 | 1.12466000 | 78 | 96 | 341.3 s |
+
+For `R = 2`, this particular random order gives a lower capped-prefix energy
+than the round-robin `te = 1.0` run, `0.99951656` instead of `1.04543594`, but
+only after the retained system state, evolved system-bath state, and TDVP
+sweep history all reach the cap at cycle 6.  For `R = 5`, the random schedule
+is worse than the round-robin `te = 1.0` run and reaches the evolved and TDVP
+sweep caps one cycle earlier.  Thus random ordering is a real schedule
+variable, but this one-seed diagnostic does not give evidence of a scalable
+low-entanglement route to the ground state.
