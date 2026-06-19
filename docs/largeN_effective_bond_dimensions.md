@@ -177,9 +177,11 @@ the explicit positive detuning interval above was used; that estimator issue is
 tracked separately.  The mode convention itself was correct: every HDF5 group
 recorded `mode_gF_source = "state"`, and the direct Ising energy agreed with
 the mode reconstruction
-\[
-  E_{\mathrm{modes}}(t)=\frac{1}{2}\sum_k \varepsilon_k h_k(t)
-\]
+
+```math
+E_{\mathrm{modes}}(t)=\frac{1}{2}\sum_k \varepsilon_k h_k(t)
+```
+
 to numerical precision.
 
 | R | completed cycles | final E/N | best E/N | relE | Dsys | Devolved | Dtdvp sweep | mode gF source | max \(|E-E_{\mathrm{modes}}|\) |
@@ -188,6 +190,10 @@ to numerical precision.
 | 2 | 10/10 | -1.050000000002 | -1.050000000002 | 0.19542960 | 1 | 1 | 1 | state | 1.208e-12 |
 | 5 | 10/10 | -1.050000000002 | -1.050000000002 | 0.19542960 | 1 | 1 | 1 | state | 1.208e-12 |
 | 10 | 10/10 | -1.050000000002 | -1.050000000002 | 0.19542960 | 1 | 1 | 1 | state | 1.208e-12 |
+
+The observed energy density has a simple check: `theta=0` is the `|+>`
+product state, so the initial `ZZ` contribution vanishes and the field term
+gives `E/N = h = -1.05`.
 
 This scan verifies the large-N mode-observable convention, but it does not show
 cooling.  The trajectory stays at bond dimension one and at
