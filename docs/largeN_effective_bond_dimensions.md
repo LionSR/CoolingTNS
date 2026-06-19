@@ -491,30 +491,51 @@ raising `Dmax`: for example, test `te = 0.5` at `Dmax = 96`, or increase the
 cap only after identifying a detuning/time schedule that postpones cap growth
 without stalling the energy.
 
-## Focused MCWF+TDVP R=5 Probe at te=0.5
+## Focused MCWF+TDVP R=2 and R=5 Probes at te=0.5
 
-The `R = 5` schedule gave the lowest final energy in the `te = 1.0` scan, so a
-single follow-up run was made at the smaller per-cycle evolution time
-`te = 0.5`:
+The `R = 5` schedule gave the lowest final energy in the `te = 1.0` scan.  A
+single follow-up run was therefore made at the smaller per-cycle evolution time
+`te = 0.5`.  The same `te = 0.5` probe was then repeated for `R = 2` to check
+whether the observed energy stalling was specific to the five-frequency
+schedule:
 
 ```bash
-julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
-  --Ns 64 --R-values 5 --methods mcwf \
-  --evolution-method continuous --steps 40 --Dmax 96 \
-  --cutoff 1e-6 --tau 0.2 --te 0.5 --M-mcwf 1 \
-  --delta-min 0.5051167496264384 \
-  --delta-max 3.0307004977586303 \
-  --outdir .worktree/largeN_te_scan_20260619 \
-  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+for R in 2 5; do
+  julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+    --Ns 64 --R-values "$R" --methods mcwf \
+    --evolution-method continuous --steps 40 --Dmax 96 \
+    --cutoff 1e-6 --tau 0.2 --te 0.5 --M-mcwf 1 \
+    --delta-min 0.5051167496264384 \
+    --delta-max 3.0307004977586303 \
+    --outdir .worktree/largeN_te_scan_20260619 \
+    --tdvp-sweep-progress --stop-on-bond-cap --verbose
+done
 ```
 
 The HDF5 summary is
 
 | R | te | Dcap | completed/requested cycles | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | evolved sat | tdvp sweep sat | elapsed |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|
+| 2 | 0.5 | 96 | 11/40 | 1.10014440 | 1.10014440 | 86 | >=96 | >=96 | not_converged_evolved_and_tdvp_sweep_cap | 11 | 11 | 619.7 s |
 | 5 | 0.5 | 96 | 12/40 | 1.03468046 | 1.02937119 | 90 | >=96 | >=96 | not_converged_evolved_and_tdvp_sweep_cap | 12 | 12 | 744.7 s |
 
-The completed-cycle prefix is
+The `R = 2` completed-cycle prefix is
+
+| cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 0.50511675 | 1.32293350 | 2 | 3 | 29.0 s |
+| 2 | 3.03070050 | 1.32029906 | 4 | 5 | 36.2 s |
+| 3 | 0.50511675 | 1.32385375 | 6 | 8 | 44.5 s |
+| 4 | 3.03070050 | 1.32156215 | 9 | 12 | 54.2 s |
+| 5 | 0.50511675 | 1.30132150 | 14 | 17 | 67.9 s |
+| 6 | 3.03070050 | 1.29845578 | 18 | 25 | 88.9 s |
+| 7 | 0.50511675 | 1.30198653 | 29 | 35 | 118.1 s |
+| 8 | 3.03070050 | 1.24827046 | 37 | 50 | 167.8 s |
+| 9 | 0.50511675 | 1.25133930 | 55 | 68 | 248.2 s |
+| 10 | 3.03070050 | 1.18081736 | 68 | 93 | 385.2 s |
+| 11 | 0.50511675 | 1.10014440 | 86 | 96 | 619.7 s |
+
+The `R = 5` completed-cycle prefix is
 
 | cycle | delta | E/N | system max bond | evolved max bond | elapsed |
 |---:|---:|---:|---:|---:|---:|
@@ -532,10 +553,10 @@ The completed-cycle prefix is
 | 12 | 1.13651269 | 1.03468046 | 90 | 96 | 744.7 s |
 
 This confirms that reducing `te` can strongly delay the bond-cap event: for
-`R = 5`, `Dmax = 96`, the cap moves from cycle 6 at `te = 1.0` to cycle 12 at
-`te = 0.5`.  However, the energy improvement stalls after cycle 10 and remains
-worse than the `te = 1.0` `R = 5` capped prefix.  The result therefore argues
-against the simple rule "make `te` smaller" as a scalable cooling strategy.
-It points instead to a schedule problem: the protocol should adapt the
-detunings, evolution times, or compression criteria before a large-`Dmax`
-production run is interpreted as physical cooling.
+`R = 2`, the cap moves from cycle 5 at `te = 1.0` to cycle 11 at `te = 0.5`,
+and for `R = 5`, it moves from cycle 6 to cycle 12.  However, both smaller-`te`
+runs have worse capped-prefix energies than their `te = 1.0` counterparts.
+The result therefore argues against the simple rule "make `te` smaller" as a
+scalable cooling strategy.  It points instead to a schedule problem: the
+protocol should adapt the detunings, evolution times, or compression criteria
+before a large-`Dmax` production run is interpreted as physical cooling.
