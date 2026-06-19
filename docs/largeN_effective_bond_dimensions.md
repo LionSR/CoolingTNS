@@ -154,6 +154,59 @@ the HDF5 metadata records `mode_gF_source = "reference"`, and the mode arrays
 should be read as a fixed-reference diagnostic rather than as a state-sector
 energy decomposition.
 
+### First Parity-Definite N=64 Mode Scan
+
+After exposing the initial-state controls, the first nontrivial large-chain
+mode scan used the same parity-definite state for all four frequency counts:
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --model ising --bc periodic --Ns 64 --R-values 1,2,5,10 \
+  --methods mcwf --evolution-method continuous --steps 10 --Dmax 32 \
+  --cutoff 1e-6 --tau 0.2 --te 1.0 --M-mcwf 1 --h -1.05 \
+  --measure-modes --init-state theta --theta 0.0 \
+  --delta-min 0.5 --delta-max 3.0 \
+  --outdir .worktree/mode_largeN_theta_scan_20260619 \
+  --progress-csv .worktree/mode_largeN_theta_scan_20260619/tdvp_progress_N64_ising_periodic_Dmax32_te1_modes_theta0.csv \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The automatic periodic-Ising gap estimate was still negative in this run, so
+the explicit positive detuning interval above was used; that estimator issue is
+tracked separately.  The mode convention itself was correct: every HDF5 group
+recorded `mode_gF_source = "state"`, and the direct Ising energy agreed with
+the mode reconstruction
+
+```math
+E_{\mathrm{modes}}(t)=\frac{1}{2}\sum_k \varepsilon_k h_k(t)
+```
+
+to numerical precision.  Here \(\varepsilon_k\) denotes the code-unit value
+stored in HDF5 as `mode_ek_values`; relative to the dimensionless convention in
+`Notes/NotesED/MapToSpin.tex`, it includes the overall factor
+\(\Lambda = 2\sqrt{J^2+h^2}\).
+
+| R | completed cycles | final E/N | best E/N | relE | Dsys | Devolved | Dtdvp sweep | mode gF source | max \(|E-E_{\mathrm{modes}}|\) |
+|---:|---:|---:|---:|---:|---:|---:|---:|:---:|---:|
+| 1 | 10/10 | -1.050000000001 | -1.050000000001 | 0.19542960 | 1 | 1 | 1 | state | 1.208e-12 |
+| 2 | 10/10 | -1.050000000002 | -1.050000000002 | 0.19542960 | 1 | 1 | 1 | state | 1.208e-12 |
+| 5 | 10/10 | -1.050000000002 | -1.050000000002 | 0.19542960 | 1 | 1 | 1 | state | 1.208e-12 |
+| 10 | 10/10 | -1.050000000002 | -1.050000000002 | 0.19542960 | 1 | 1 | 1 | state | 1.208e-12 |
+
+The observed energy density has a simple check: `theta=0` is the `|+>`
+product state, so the initial `ZZ` contribution vanishes and the field term
+gives `E/N = h = -1.05`.
+
+This scan verifies the large-N mode-observable convention, but it does not show
+cooling.  The trajectory stays at bond dimension one and at
+`E/N = -1.05` for every tested value `R = 1, 2, 5, 10`.  Thus increasing the
+number of detunings alone does not produce cooling from this parity-definite
+theta state under the present `XX` coupling and round-robin schedule.  The next
+physics check should isolate whether this flat trajectory is imposed by a
+symmetry of the state-coupling pair, by the chosen detuning/time scale, or by a
+model-basis convention.
+
 ## Reproduction commands
 
 The four-cycle Dmax ladder was generated with
