@@ -59,6 +59,17 @@ To additionally record one CSV row after each TDVP sweep/substep, add
 `--tdvp-sweep-progress`.  To let ITensorMPS print its own TDVP sweep summary,
 use `--tdvp-outputlevel 1`.
 
+For diagnostic runs where the objective is only to locate the first
+bond-dimension cap event, add `--stop-on-bond-cap`.  This stops a trajectory
+after the first completed cycle whose retained system state or transient
+system-bath state reaches the method-specific cap.  With
+`--tdvp-sweep-progress`, this includes transient TDVP sweep states recorded
+inside the cycle.  It is intended for single-trajectory diagnostics; use
+independent jobs for ensemble members whose partial trajectories may stop at
+different cycle counts.  Unless `--output` is given explicitly, the HDF5
+filename receives a `_stopcap` suffix so these partial diagnostic files do not
+overwrite full benchmark files with the same physical parameters.
+
 To prepare independent commands for process-level parallel execution, use
 `--print-parallel-plan`.  The plan splits the campaign into one command for
 each `(N, method, R, Dmax)` tuple and assigns distinct HDF5 and progress CSV
@@ -141,6 +152,7 @@ function parse_args(args)
         "progress_csv" => nothing,
         "tdvp_outputlevel" => 0,
         "tdvp_sweep_progress" => false,
+        "stop_on_bond_cap" => false,
         "print_parallel_plan" => false,
         "plan_julia_threads" => nothing,
         "plan_blas_threads" => nothing,
@@ -184,6 +196,8 @@ function parse_args(args)
             cfg["measure_modes"] = true; i += 1
         elseif a == "--tdvp-sweep-progress"
             cfg["tdvp_sweep_progress"] = true; i += 1
+        elseif a == "--stop-on-bond-cap"
+            cfg["stop_on_bond_cap"] = true; i += 1
         elseif a == "--print-parallel-plan"
             cfg["print_parallel_plan"] = true; i += 1
         else
@@ -259,6 +273,15 @@ function parse_args(args)
     end
     if cfg["tdvp_sweep_progress"] && cfg["evolution_method"] != "continuous"
         error("--tdvp-sweep-progress requires --evolution-method continuous")
+    end
+    if cfg["stop_on_bond_cap"]
+        for method in cfg["methods"]
+            ntraj = method == "mcwf" ? cfg["M_mcwf"] : cfg["M_mpo"]
+            ntraj == 1 || error(
+                "--stop-on-bond-cap is currently restricted to one trajectory " *
+                "per selected method; run ensemble members as independent jobs"
+            )
+        end
     end
     for key in ("plan_julia_threads", "plan_blas_threads")
         value = cfg[key]
@@ -388,6 +411,7 @@ function command_args_for_config(cfg; script_path=joinpath("scripts", "validatio
     cfg["tdvp_outputlevel"] == 0 ||
         append!(args, ["--tdvp-outputlevel", string(cfg["tdvp_outputlevel"])])
     cfg["tdvp_sweep_progress"] && push!(args, "--tdvp-sweep-progress")
+    cfg["stop_on_bond_cap"] && push!(args, "--stop-on-bond-cap")
     cfg["measure_modes"] && push!(args, "--measure-modes")
     cfg["verbose"] && push!(args, "--verbose")
     return args
@@ -470,6 +494,15 @@ function bond_summary(state)
     dims = mps_or_mpo_link_dims(state)
     isempty(dims) && return (dims=dims, max=1, mean=1.0)
     return (dims=dims, max=maximum(dims), mean=mean(dims))
+end
+
+"""Return the diagnostic stop reason when any recorded bond cap is reached."""
+function bond_cap_stop_reason(step, saturation_threshold, sys_maxbond,
+                              evolved_maxbond, tdvp_sweep_maxbond)
+    system_hit = sys_maxbond[step] >= saturation_threshold
+    evolved_hit = evolved_maxbond[step] >= saturation_threshold
+    tdvp_sweep_hit = tdvp_sweep_maxbond[step] >= saturation_threshold
+    return (system_hit || evolved_hit || tdvp_sweep_hit) ? "bond_cap" : nothing
 end
 
 const PROGRESS_CSV_COLUMNS = (
@@ -629,6 +662,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
     # from peak evolved-bond summaries.
     evolved_maxbond = fill(0, steps + 1)
     evolved_meanbond = fill(NaN, steps + 1)
+    tdvp_sweep_maxbond = zeros(Int, steps + 1)
     final_dims = Ref(Int[])
     progress_csv = cfg["progress_csv"]
     progress_context = (
@@ -645,6 +679,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
     tdvp_context = Ref{Any}(nothing)
     records_tdvp_sweeps = cfg["tdvp_sweep_progress"] && progress_csv !== nothing &&
                           cfg["evolution_method"] == "continuous" && method == "mcwf"
+    saturation_threshold = CoolingTNS.tn_method_maxdim(sim_params.sim_method, cfg["Dmax"])
 
     step_observer = info -> begin
         step = info.step
@@ -655,6 +690,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
             sys_bs = progress_csv !== nothing ? bond_summary(info.state.state) : nothing
             if info.stage === :prepared
                 if records_tdvp_sweeps
+                    tdvp_sweep_maxbond[step] = 0
                     tdvp_context[] = (
                         step=step,
                         delta=info.delta,
@@ -708,11 +744,15 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
             ctx = tdvp_context[]
             ctx === nothing && return nothing
             elapsed = time() - start_time
+            evolved_bs = bond_summary(state)
+            tdvp_sweep_maxbond[ctx.step] = max(
+                tdvp_sweep_maxbond[ctx.step], evolved_bs.max,
+            )
             append_progress_csv_row(
                 progress_csv,
                 tdvp_sweep_progress_row(
                     progress_context, ctx, sweep, current_time, ham_params,
-                    bond_summary(state), elapsed,
+                    evolved_bs, elapsed,
                 ),
             )
             return nothing
@@ -728,6 +768,18 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         (;)
     end
 
+    stop_condition = if cfg["stop_on_bond_cap"]
+        info -> begin
+            step = info.step
+            return bond_cap_stop_reason(
+                step, saturation_threshold, sys_maxbond, evolved_maxbond,
+                tdvp_sweep_maxbond,
+            )
+        end
+    else
+        nothing
+    end
+
     result = nothing
     elapsed = @elapsed begin
         result = run_cooling_multi_freq(
@@ -739,13 +791,20 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
             step_observer=step_observer,
             evolution_kwargs=evolution_kwargs,
             measure_modes=cfg["measure_modes"],
+            stop_condition=stop_condition,
         )
     end
 
+    completed_steps = get(result, RESULT_COMPLETED_STEPS, steps)
+    completed_index = completed_steps + 1
     E = result[RESULT_ENERGY]
     overlap = result[RESULT_GROUND_STATE_OVERLAP]
-    purity = get(result, RESULT_PURITY, fill(NaN, steps + 1))
+    purity = get(result, RESULT_PURITY, fill(NaN, completed_index))
     delta_list = result[RESULT_DELTA_LIST]
+    sys_maxbond_completed = sys_maxbond[1:completed_index]
+    sys_meanbond_completed = sys_meanbond[1:completed_index]
+    evolved_maxbond_completed = evolved_maxbond[1:completed_index]
+    evolved_meanbond_completed = evolved_meanbond[1:completed_index]
     if cfg["measure_modes"]
         all(k -> haskey(result, k) && result[k] !== nothing, (
             RESULT_MODE_GF,
@@ -770,13 +829,16 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         "E" => E,
         "overlap" => overlap,
         "purity" => purity,
-        "sys_maxbond" => sys_maxbond,
-        "sys_meanbond" => sys_meanbond,
-        "evolved_maxbond" => evolved_maxbond,
-        "evolved_meanbond" => evolved_meanbond,
+        "sys_maxbond" => sys_maxbond_completed,
+        "sys_meanbond" => sys_meanbond_completed,
+        "evolved_maxbond" => evolved_maxbond_completed,
+        "evolved_meanbond" => evolved_meanbond_completed,
         "delta_list" => delta_list,
         "final_bond_dims" => final_dims[],
         "elapsed" => elapsed,
+        "requested_steps" => get(result, RESULT_REQUESTED_STEPS, steps),
+        "completed_steps" => completed_steps,
+        "stop_reason" => get(result, RESULT_STOP_REASON, ""),
         RESULT_MODE_GF => get(result, RESULT_MODE_GF, nothing),
         RESULT_MODE_GF_SOURCE => get(result, RESULT_MODE_GF_SOURCE, nothing),
         RESULT_MODE_HK => get(result, RESULT_MODE_HK, nothing),
@@ -797,15 +859,17 @@ function output_path(cfg)
     evolution_suffix = cfg["evolution_method"] == "trotter" ? "" : "_$(cfg["evolution_method"])"
     model_suffix = cfg["model"] == "niising" && cfg["bc"] == "open" ? "" :
         "_$(cfg["model"])_bc$(cfg["bc"])"
+    stop_suffix = cfg["stop_on_bond_cap"] ? "_stopcap" : ""
     return joinpath(
         cfg["outdir"],
         @sprintf(
-            "largeN_multifrequency_tn_N%s_R%s_%s%s%s_steps%d_Dmax%d_tau%.3g_seed%d.h5",
+            "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s_steps%d_Dmax%d_tau%.3g_seed%d.h5",
             Ns,
             Rs,
             methods,
             evolution_suffix,
             model_suffix,
+            stop_suffix,
             cfg["steps"],
             cfg["Dmax"],
             cfg["tau"],
@@ -919,6 +983,9 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     write(g, "system_saturation_cycle", system_saturation_cycles)
     write(g, "evolved_saturation_cycle", evolved_saturation_cycles)
     write(g, "elapsed_seconds", Float64[row["elapsed"] for row in traj_rows])
+    write(g, "requested_steps", Int[row["requested_steps"] for row in traj_rows])
+    write(g, "completed_steps", Int[row["completed_steps"] for row in traj_rows])
+    write(g, "stop_reasons", String[row["stop_reason"] for row in traj_rows])
     write(g, "delta_lists", delta_lists)
     write(g, "delta_list_first_trajectory", delta_lists[:, 1])
     write(g, "delta_list_is_common", common_delta_list)
@@ -976,6 +1043,7 @@ function run_campaign(cfg)
         write(f, "delta_min_override", cfg["delta_min"] === nothing ? NaN : cfg["delta_min"])
         write(f, "delta_max_override", cfg["delta_max"] === nothing ? NaN : cfg["delta_max"])
         write(f, "schedule", cfg["schedule"])
+        write(f, "stop_on_bond_cap", cfg["stop_on_bond_cap"])
         write(f, "seed", cfg["seed"])
 
         for N in cfg["Ns"]
