@@ -43,7 +43,7 @@ Mode-resolved integrable-Ising campaign:
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
         --model ising --bc periodic --Ns 64 --R-values 1,2,5,10 \
         --methods mcwf --evolution-method continuous --steps 40 --Dmax 80 \
-        --h -1.05 --measure-modes \
+        --h -1.05 --init-state theta --theta 0.0 --measure-modes \
         --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
 
 Long TDVP runs can also write a per-observer-event CSV trace. The trace includes
@@ -150,6 +150,8 @@ function parse_args(args)
         "coupling" => "XX",
         "g" => 0.3,
         "te" => 2.0,
+        "init_state" => "product",
+        "theta" => 0.0,
         "delta_max_factor" => 6.0,
         "delta_min" => nothing,
         "delta_max" => nothing,
@@ -194,11 +196,11 @@ function parse_args(args)
             cfg[key] = parse(Int, args[i + 1]); i += 2
         elseif a == "--Dmax-values"
             cfg["Dmax_values"] = parse_int_list(args[i + 1]); i += 2
-        elseif a in ("--cutoff", "--tau", "--J", "--h", "--hx", "--hz", "--g", "--te", "--delta-max-factor",
+        elseif a in ("--cutoff", "--tau", "--J", "--h", "--hx", "--hz", "--g", "--te", "--theta", "--delta-max-factor",
                      "--delta-min", "--delta-max")
             key = replace(a[3:end], "-" => "_")
             cfg[key] = parse(Float64, args[i + 1]); i += 2
-        elseif a in ("--model", "--bc", "--coupling", "--schedule", "--outdir", "--output",
+        elseif a in ("--model", "--bc", "--coupling", "--schedule", "--outdir", "--output", "--init-state",
                      "--evolution-method", "--progress-csv")
             cfg[replace(a[3:end], "-" => "_")] = args[i + 1]; i += 2
         elseif a == "--verbose"
@@ -248,6 +250,11 @@ function parse_args(args)
     end
     cfg["evolution_method"] in ("trotter", "continuous") ||
         error("--evolution-method must be trotter or continuous")
+    cfg["init_state"] in ("product", "theta", "identity") ||
+        error("--init-state must be product, theta, or identity")
+    if cfg["init_state"] == "identity" && "mcwf" in cfg["methods"]
+        error("--init-state identity is only valid for density-matrix/MPO methods")
+    end
     if cfg["evolution_method"] == "trotter" && Symbol(cfg["bc"]) != :open
         error("--evolution-method trotter currently requires --bc open in this TN campaign")
     end
@@ -396,6 +403,8 @@ function command_args_for_config(cfg; script_path=joinpath("scripts", "validatio
         "--coupling", cfg["coupling"],
         "--g", string(cfg["g"]),
         "--te", string(cfg["te"]),
+        "--init-state", cfg["init_state"],
+        "--theta", string(cfg["theta"]),
         "--delta-max-factor", string(cfg["delta_max_factor"]),
         "--schedule", cfg["schedule"],
         "--M-mcwf", string(cfg["M_mcwf"]),
@@ -665,7 +674,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
                             method, R, trajectory, E0)
     steps = cp_multi.steps
     Random.seed!(seed)
-    state = setup_initial_state(problem, sim_params, "product", 0.0)
+    state = setup_initial_state(problem, sim_params, cfg["init_state"], cfg["theta"])
 
     sys_maxbond = zeros(Int, steps + 1)
     sys_meanbond = zeros(Float64, steps + 1)
@@ -879,12 +888,19 @@ function output_path(cfg)
     stop_suffix = cfg["stop_on_bond_cap"] ? "_stopcap" : ""
     schedule_suffix = cfg["schedule"] == "round_robin" ? "" : "_sched$(cfg["schedule"])"
     random_time_suffix = cfg["randomize_times"] ? "_randtime" : ""
+    init_suffix = if cfg["init_state"] == "product"
+        ""
+    elseif cfg["init_state"] == "identity"
+        "_initidentity"
+    else
+        @sprintf("_init%s_theta%.12g", cfg["init_state"], cfg["theta"])
+    end
     # `te` is a scanned physical protocol parameter, so keep more digits than
     # the legacy `tau` token to avoid collisions between nearby evolution times.
     return joinpath(
         cfg["outdir"],
         @sprintf(
-            "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s%s_steps%d_Dmax%d_te%.12g_tau%.3g_seed%d.h5",
+            "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s%s%s_steps%d_Dmax%d_te%.12g_tau%.3g_seed%d.h5",
             Ns,
             Rs,
             methods,
@@ -892,6 +908,7 @@ function output_path(cfg)
             model_suffix,
             stop_suffix,
             schedule_suffix * random_time_suffix,
+            init_suffix,
             cfg["steps"],
             cfg["Dmax"],
             cfg["te"],
@@ -1079,6 +1096,8 @@ function run_campaign(cfg)
         write(f, "coupling", cfg["coupling"])
         write(f, "g", cfg["g"])
         write(f, "te", cfg["te"])
+        write(f, "init_state", cfg["init_state"])
+        write(f, "theta", cfg["theta"])
         write(f, "randomize_times", cfg["randomize_times"])
         write(f, "delta_max_factor", cfg["delta_max_factor"])
         write(f, "delta_min_override", cfg["delta_min"] === nothing ? NaN : cfg["delta_min"])

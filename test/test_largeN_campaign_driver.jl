@@ -45,6 +45,39 @@ end
     @test occursin("_te1_", output_path(te1_cfg))
     @test occursin("_te0.5_", output_path(te05_cfg))
 
+    default_init_cfg = parse_args(["--outdir", tempdir()])
+    @test default_init_cfg["init_state"] == "product"
+    @test default_init_cfg["theta"] == 0.0
+    default_init_command = join(command_args_for_config(default_init_cfg), " ")
+    @test occursin("--init-state product", default_init_command)
+    @test occursin("--theta 0.0", default_init_command)
+
+    theta_init_cfg = parse_args([
+        "--init-state", "theta",
+        "--theta", "0.0",
+        "--outdir", tempdir(),
+    ])
+    @test theta_init_cfg["init_state"] == "theta"
+    @test theta_init_cfg["theta"] == 0.0
+    @test output_path(theta_init_cfg) != output_path(default_init_cfg)
+    @test occursin("_inittheta_theta0_", output_path(theta_init_cfg))
+    theta_init_command = join(command_args_for_config(theta_init_cfg), " ")
+    @test occursin("--init-state theta", theta_init_command)
+    @test occursin("--theta 0.0", theta_init_command)
+
+    identity_init_cfg = parse_args([
+        "--methods", "mpo",
+        "--init-state", "identity",
+    ])
+    @test identity_init_cfg["init_state"] == "identity"
+    @test occursin("_initidentity_", output_path(identity_init_cfg))
+    @test !occursin("_initidentity_theta", output_path(identity_init_cfg))
+    @test_throws ErrorException parse_args(["--init-state", "bad"])
+    @test_throws ErrorException parse_args([
+        "--methods", "mcwf",
+        "--init-state", "identity",
+    ])
+
     random_schedule_cfg = parse_args([
         "--schedule", "random",
         "--outdir", tempdir(),
@@ -631,6 +664,8 @@ end
             "--h", "0.5",
             "--g", "0.0",
             "--te", "0.0",
+            "--init-state", "theta",
+            "--theta", "0.0",
             "--delta-min", "0.5",
             "--delta-max", "0.5",
             "--measure-modes",
@@ -650,6 +685,8 @@ end
             @test read(f["model"]) == "ising"
             @test read(f["bc"]) == "periodic"
             @test read(f["measure_modes"]) == true
+            @test read(f["init_state"]) == "theta"
+            @test read(f["theta"]) == 0.0
             @test read(f["randomize_times"]) == false
             @test read(f["h"]) == 0.5
             @test isnan(read(f["hx"]))
@@ -664,7 +701,7 @@ end
             @test all(isfinite, mode_hk)
             @test all(n -> -1e-12 <= n <= 1 + 1e-12, mode_nk)
             @test read(g[CoolingTNS.RESULT_MODE_GF]) == -1
-            @test read(g[CoolingTNS.RESULT_MODE_GF_SOURCE]) in ("state", "reference")
+            @test read(g[CoolingTNS.RESULT_MODE_GF_SOURCE]) == "state"
             @test read(g[CoolingTNS.RESULT_MODE_K_INDICES]) == Float64.([-1//2, 1//2])
             @test length(read(g[CoolingTNS.RESULT_MODE_ENERGIES])) == 2
             @test all(isfinite, read(g[CoolingTNS.RESULT_MODE_ENERGIES]))
@@ -741,6 +778,8 @@ end
         end
 
         h5open(output, "r") do f
+            @test read(f["init_state"]) == "product"
+            @test read(f["theta"]) == 0.0
             @test read(f["randomize_times"]) == true
             g = f["N2/mcwf/R1"]
             @test read(g["te_list_is_common"]) == true
