@@ -123,6 +123,15 @@ end
                 system_max_bond="6", evolved_max_bond="7", elapsed_seconds=16.0,
             ))
             println(io, tdvp_progress_line(
+                stage="prepared", step=4, cycle=3,
+                system_max_bond="6", evolved_max_bond="6", elapsed_seconds=17.0,
+            ))
+            println(io, tdvp_progress_line(
+                stage="tdvp_sweep", step=4, cycle=3,
+                system_max_bond="6", evolved_max_bond="7",
+                tdvp_sweep="1", tdvp_time="0.2", elapsed_seconds=18.0,
+            ))
+            println(io, tdvp_progress_line(
                 method="mpo", evolution="trotter", R="3", Dmax="6",
                 stage="initial", step=1, cycle=0, delta="NaN", te="NaN",
                 energy_per_site="1.0", relative_energy="2.0", overlap="0.0",
@@ -179,7 +188,9 @@ end
         @test row.max_sweep_increment == 5.0
         @test row.max_sweep_cycle == 1
         @test row.max_sweep == 2
-        @test row.last_stage == "updated"
+        @test row.last_step == 4
+        @test row.last_cycle == 3
+        @test row.last_stage == "tdvp_sweep"
         @test length(row.updates) == 2
 
         mpo_row = only(filter(row -> row.method == "mpo", rows))
@@ -195,6 +206,8 @@ end
         @test mpo_row.transient_cap_cycle == 2
         @test mpo_row.transient_cap_sweep === nothing
         @test mpo_row.max_sweep_cycle == 0
+        @test mpo_row.last_step == 3
+        @test mpo_row.last_cycle == 2
         @test mpo_row.last_stage == "updated"
 
         output = mktemp() do output_path, io
@@ -207,8 +220,10 @@ end
             read(output_path, String)
         end
         @test occursin("| file | N | method | evolution | R | traj |", output)
+        @test occursin("| last step | last cycle | last stage |", output)
         @test occursin("not_converged_system_and_evolved_cap", output)
         @test occursin("| 2 | 1 | 2 | 0.50000000 | 0.25000000 | 6 | 7 | 16.0 |", output)
+        @test occursin("| 4 | 3 | tdvp_sweep |", output)
     finally
         rm(path; force=true)
     end

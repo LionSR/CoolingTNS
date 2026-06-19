@@ -204,7 +204,10 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
     final_energy = final_update === nothing ? NaN : progress_float(final_update, "energy_per_site")
     final_system_max = final_update === nothing ? 0 : Int(round(progress_float(final_update, "system_max_bond")))
     peak_evolved = peak_evolved_bond(rows)
-    last_stage = isempty(rows) ? "none" : progress_cell(rows[end], "stage")
+    last_row = isempty(rows) ? nothing : rows[end]
+    last_stage = last_row === nothing ? "none" : progress_cell(last_row, "stage")
+    last_step = last_row === nothing ? 0 : progress_int(last_row, "step")
+    last_cycle = last_row === nothing ? 0 : progress_int(last_row, "cycle")
     status = bond_cap_status(system_cap_cycle, transient_cap_cycle)
 
     return (
@@ -231,6 +234,8 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
         max_sweep_increment=max_sweep_increment,
         max_sweep_cycle=max_sweep_cycle,
         max_sweep=max_sweep,
+        last_step=last_step,
+        last_cycle=last_cycle,
         last_stage=last_stage,
         updates=updates,
     )
@@ -266,8 +271,8 @@ function summarize_progress_files(paths::AbstractVector{<:AbstractString}; cap=n
 end
 
 function print_summary_table(rows)
-    println("| file | N | method | evolution | R | traj | seed | Dcap | completed cycles | final E/N | Dsys_eff | Dsb_eff | bond_status | sys cap | evolved cap | max sweep dt | max sweep at | last stage |")
-    println("|---|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---|---|")
+    println("| file | N | method | evolution | R | traj | seed | Dcap | completed cycles | final E/N | Dsys_eff | Dsb_eff | bond_status | sys cap | evolved cap | max sweep dt | max sweep at | last step | last cycle | last stage |")
+    println("|---|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---|---:|---:|---|")
     for row in rows
         max_sweep_label = row.max_sweep_cycle == 0 ? "none" : "$(row.max_sweep_cycle):$(row.max_sweep)"
         println(
@@ -278,7 +283,7 @@ function print_summary_table(rows)
             "$(row.bond_status) | $(saturation_cycle_label(row.system_cap_cycle)) | " *
             "$(cap_label(row.transient_cap_cycle, row.transient_cap_sweep)) | " *
             "$(format_float(row.max_sweep_increment, 1)) | $(max_sweep_label) | " *
-            "$(row.last_stage) |"
+            "$(row.last_step) | $(row.last_cycle) | $(row.last_stage) |"
         )
     end
 end
