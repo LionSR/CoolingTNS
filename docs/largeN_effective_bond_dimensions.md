@@ -33,8 +33,9 @@ The code source of truth for these quantities is
 `scripts/validation/run_largeN_multifrequency_tn_scaling.jl`, summarized by
 `scripts/validation/summarize_largeN_bond_dimensions.jl`.
 Some historical filenames cited below predate the current default naming
-convention, which includes the evolution time `te` and a suffix for non-default
-detuning schedules.  The HDF5 metadata is the authoritative protocol record.
+convention, which includes the evolution time `te` and suffixes for
+non-default detuning schedules and randomized evolution times.  The HDF5
+metadata is the authoritative protocol record.
 
 The nominal parameter `Dmax` is not always the actual Trotter truncation cap.
 The method-specific cap is

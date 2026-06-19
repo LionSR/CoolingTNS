@@ -57,6 +57,19 @@ end
     @test occursin("_schedrandom_", output_path(random_schedule_cfg))
     @test !occursin("_schedround_robin_", output_path(round_robin_cfg))
 
+    random_time_cfg = parse_args([
+        "--randomize-times",
+        "--outdir", tempdir(),
+    ])
+    fixed_time_cfg = parse_args(["--outdir", tempdir()])
+    @test random_time_cfg["randomize_times"] == true
+    @test fixed_time_cfg["randomize_times"] == false
+    @test output_path(random_time_cfg) != output_path(fixed_time_cfg)
+    @test occursin("_randtime_", output_path(random_time_cfg))
+    random_time_command = join(command_args_for_config(random_time_cfg), " ")
+    @test occursin("--randomize-times", random_time_command)
+    @test parse_args(["--randomize_times"])["randomize_times"] == true
+
     progress_path = joinpath(tempdir(), "largeN_progress.csv")
     progress_cfg = parse_args(["--progress-csv", progress_path])
     @test progress_cfg["progress_csv"] == progress_path
@@ -163,6 +176,14 @@ end
     )
     @test !occursin("--plan-julia-threads", only(threaded_commands))
     @test !occursin("--plan-blas-threads", only(threaded_commands))
+
+    random_time_plan_cfg = parse_args(vcat(
+        thread_plan_args,
+        ["--randomize-times"],
+    ))
+    random_time_plan_command = only(parallel_plan_commands(random_time_plan_cfg))
+    @test occursin("--randomize-times", random_time_plan_command)
+    @test occursin("_randtime_", output_path(random_time_plan_cfg))
 
     stop_on_cap_cfg = parse_args([
         "--methods", "mcwf",
@@ -331,6 +352,7 @@ end
                 "evolved_meanbond" => [NaN, 5.0, 7.0],
                 "tdvp_sweep_maxbond" => [0, 6, 10],
                 "delta_list" => [NaN, 0.5, 3.0],
+                "te_list" => [NaN, 1.0, 1.25],
                 "final_bond_dims" => [4, 8],
                 "elapsed" => 1.25,
                 "requested_steps" => 2,
@@ -341,6 +363,17 @@ end
 
         h5open(path, "w") do f
             write_run_group(f, "R2", traj_rows, -2.0, 8, protocol, [0.5, 3.0])
+            traj_rows_noncommon_te = [
+                traj_rows[1],
+                merge(copy(traj_rows[1]), Dict{String,Any}(
+                    "te_list" => [NaN, 0.25, 1.75],
+                    "elapsed" => 1.5,
+                )),
+            ]
+            write_run_group(
+                f, "R2_noncommon_te", traj_rows_noncommon_te,
+                -2.0, 8, protocol, [0.5, 3.0],
+            )
             gap_protocol = largeN_detuning_protocol(0.75; delta_max_factor=4.0)
             write_run_group(
                 f, "R3_gap", traj_rows, -2.0, 8,
@@ -361,6 +394,15 @@ end
             @test read(g["stop_reasons"]) == [""]
             @test vec(read(g["tdvp_sweep_max_bond"])) == [0, 6, 10]
             @test read(g["tdvp_sweep_saturation_cycle"]) == [2]
+            @test read(g["te_list_is_common"]) == true
+            @test isequal(read(g["te_list"]), [NaN, 1.0, 1.25])
+            @test isequal(vec(read(g["te_lists"])), [NaN, 1.0, 1.25])
+
+            g_noncommon_te = f["R2_noncommon_te"]
+            @test read(g_noncommon_te["te_list_is_common"]) == false
+            @test !haskey(g_noncommon_te, "te_list")
+            @test isequal(read(g_noncommon_te["te_list_first_trajectory"]), [NaN, 1.0, 1.25])
+            @test isequal(read(g_noncommon_te["te_lists"])[:, 2], [NaN, 0.25, 1.75])
 
             g_gap = f["R3_gap"]
             @test read(g_gap["delta_values"]) == [0.75, 1.875, 3.0]
@@ -392,6 +434,7 @@ end
             "evolved_meanbond" => [NaN, 5.0, 7.0],
             "tdvp_sweep_maxbond" => [0, 6, 10],
             "delta_list" => [NaN, 0.5, 1.5],
+            "te_list" => [NaN, 1.0, 1.0],
             "final_bond_dims" => [4, 8],
             "elapsed" => 1.25,
             "requested_steps" => 2,
@@ -607,6 +650,7 @@ end
             @test read(f["model"]) == "ising"
             @test read(f["bc"]) == "periodic"
             @test read(f["measure_modes"]) == true
+            @test read(f["randomize_times"]) == false
             @test read(f["h"]) == 0.5
             @test isnan(read(f["hx"]))
             @test isnan(read(f["hz"]))
@@ -660,12 +704,48 @@ end
 
         h5open(output, "r") do f
             @test read(f["tdvp_sweep_progress"]) == true
+            @test read(f["randomize_times"]) == false
             g = f["N2/mcwf/R1"]
             tdvp_sweep_max_bond = read(g["tdvp_sweep_max_bond"])
             @test size(tdvp_sweep_max_bond) == (2, 1)
             @test tdvp_sweep_max_bond[1, 1] == 0
             @test tdvp_sweep_max_bond[2, 1] >= 1
             @test size(read(g["tdvp_sweep_saturation_cycle"])) == (1,)
+        end
+    end
+end
+
+@testset "Large-N campaign randomized-time HDF5" begin
+    mktempdir() do dir
+        output = joinpath(dir, "randomized_time.h5")
+        cfg = parse_args([
+            "--Ns", "2",
+            "--R-values", "1",
+            "--methods", "mcwf",
+            "--evolution-method", "continuous",
+            "--steps", "1",
+            "--Dmax", "4",
+            "--cutoff", "1e-6",
+            "--tau", "0.2",
+            "--te", "0.0",
+            "--delta-min", "0.5",
+            "--delta-max", "0.5",
+            "--randomize-times",
+            "--outdir", dir,
+            "--output", output,
+        ])
+        @test cfg["randomize_times"] == true
+
+        redirect_stdout(devnull) do
+            run_campaign(cfg)
+        end
+
+        h5open(output, "r") do f
+            @test read(f["randomize_times"]) == true
+            g = f["N2/mcwf/R1"]
+            @test read(g["te_list_is_common"]) == true
+            @test isequal(read(g["te_list"]), [NaN, 0.0])
+            @test isequal(vec(read(g["te_lists"])), [NaN, 0.0])
         end
     end
 end
