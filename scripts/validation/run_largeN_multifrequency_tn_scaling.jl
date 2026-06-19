@@ -49,7 +49,9 @@ Mode-resolved integrable-Ising campaign:
 If `--measure-modes` is used without an explicit detuning interval, the
 gap-scaled interval is referenced to the minimum positive analytic
 Bogoliubov mode energy on the same Fourier grid as the mode observables, not
-to the generic TN excited-state DMRG estimate.
+to the generic TN excited-state DMRG estimate.  For mode-resolved Ising runs,
+the stored `gap` and `detuning_reference_gap` fields record this analytic
+reference even when an explicit fixed detuning interval is supplied.
 
 Long TDVP runs can also write a per-observer-event CSV trace. The trace includes
 the `initial`, `prepared`, `evolved`, and `updated` stages, so partial energy
