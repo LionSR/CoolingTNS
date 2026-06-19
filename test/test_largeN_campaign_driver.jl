@@ -85,6 +85,49 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     @test shell_word("~/tdvp data") == "'~/tdvp data'"
     @test shell_word("~/tdvp_data") == "~/tdvp_data"
 
+    thread_plan_args = [
+        "--Ns", "64",
+        "--R-values", "2",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--steps", "5",
+        "--Dmax", "96",
+        "--delta-min", "0.5051167496264384",
+        "--delta-max", "3.0307004977586303",
+        "--print-parallel-plan",
+    ]
+    unthreaded_command = only(parallel_plan_commands(parse_args(thread_plan_args)))
+    @test startswith(unthreaded_command, "julia ")
+    @test !occursin("_NUM_THREADS", unthreaded_command)
+
+    julia_threaded_command = only(parallel_plan_commands(parse_args(
+        vcat(thread_plan_args, ["--plan-julia-threads", "2"])
+    )))
+    @test startswith(julia_threaded_command, "JULIA_NUM_THREADS=2 julia ")
+    @test !occursin("OPENBLAS_NUM_THREADS", julia_threaded_command)
+
+    blas_threaded_command = only(parallel_plan_commands(parse_args(
+        vcat(thread_plan_args, ["--plan-blas-threads", "1"])
+    )))
+    @test startswith(
+        blas_threaded_command,
+        "OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 julia ",
+    )
+    @test !occursin("JULIA_NUM_THREADS", blas_threaded_command)
+
+    threaded_plan_cfg = parse_args(vcat(
+        thread_plan_args,
+        ["--plan-julia-threads", "2", "--plan-blas-threads", "1"],
+    ))
+    threaded_commands = parallel_plan_commands(threaded_plan_cfg)
+    @test length(threaded_commands) == 1
+    @test startswith(
+        only(threaded_commands),
+        "JULIA_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 julia ",
+    )
+    @test !occursin("--plan-julia-threads", only(threaded_commands))
+    @test !occursin("--plan-blas-threads", only(threaded_commands))
+
     mode_cfg = parse_args([
         "--model", "ising",
         "--bc", "periodic",
@@ -196,6 +239,10 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     @test_throws ErrorException parse_args(["--R-values", "2,2"])
     @test_throws ErrorException parse_args(["--methods", "mcwf,mcwf"])
     @test_throws ErrorException parse_args(["--Dmax-values", "160,320"])
+    @test_throws ErrorException parse_args(["--plan-julia-threads", "0"])
+    @test_throws ErrorException parse_args(["--plan-blas-threads", "0"])
+    @test_throws ErrorException parse_args(["--plan-julia-threads", "1"])
+    @test_throws ErrorException parse_args(["--plan-blas-threads", "1"])
     @test_throws ErrorException parse_args([
         "--Dmax-values", "160,320",
         "--delta-min", "0.5",

@@ -71,6 +71,15 @@ paths:
         --progress-csv /tmp/tdvp_progress.csv --tdvp-sweep-progress \
         --print-parallel-plan
 
+For reproducible core-scaling benchmarks, the printed commands can also pin
+Julia and BLAS thread counts:
+
+    julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+        --Ns 64 --R-values 2,5 --methods mcwf --evolution-method continuous \
+        --steps 5 --Dmax 96 \
+        --delta-min 0.5051167496264384 --delta-max 3.0307004977586303 \
+        --print-parallel-plan --plan-julia-threads 1 --plan-blas-threads 1
+
 Fast path check:
 
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl --quick
@@ -133,6 +142,8 @@ function parse_args(args)
         "tdvp_outputlevel" => 0,
         "tdvp_sweep_progress" => false,
         "print_parallel_plan" => false,
+        "plan_julia_threads" => nothing,
+        "plan_blas_threads" => nothing,
         "measure_modes" => false,
         "verbose" => false,
     )
@@ -154,7 +165,8 @@ function parse_args(args)
             cfg["R_values"] = parse_int_list(args[i + 1]); i += 2
         elseif a == "--methods"
             cfg["methods"] = parse_method_list(args[i + 1]); i += 2
-        elseif a in ("--steps", "--Dmax", "--M-mcwf", "--M-mpo", "--seed", "--tdvp-outputlevel")
+        elseif a in ("--steps", "--Dmax", "--M-mcwf", "--M-mpo", "--seed",
+                     "--tdvp-outputlevel", "--plan-julia-threads", "--plan-blas-threads")
             key = replace(a[3:end], "-" => "_")
             cfg[key] = parse(Int, args[i + 1]); i += 2
         elseif a == "--Dmax-values"
@@ -247,6 +259,15 @@ function parse_args(args)
     end
     if cfg["tdvp_sweep_progress"] && cfg["evolution_method"] != "continuous"
         error("--tdvp-sweep-progress requires --evolution-method continuous")
+    end
+    for key in ("plan_julia_threads", "plan_blas_threads")
+        value = cfg[key]
+        value === nothing || value >= 1 ||
+            error("--$(replace(key, "_" => "-")) must be at least 1")
+    end
+    if !cfg["print_parallel_plan"] &&
+       (cfg["plan_julia_threads"] !== nothing || cfg["plan_blas_threads"] !== nothing)
+        error("--plan-julia-threads and --plan-blas-threads only apply with --print-parallel-plan")
     end
     return cfg
 end
@@ -372,9 +393,35 @@ function command_args_for_config(cfg; script_path=joinpath("scripts", "validatio
     return args
 end
 
+function parallel_plan_environment_assignments(cfg)
+    assignments = String[]
+    if cfg["plan_julia_threads"] !== nothing
+        push!(assignments, "JULIA_NUM_THREADS=$(cfg["plan_julia_threads"])")
+    end
+    if cfg["plan_blas_threads"] !== nothing
+        blas_threads = cfg["plan_blas_threads"]
+        append!(
+            assignments,
+            [
+                "OPENBLAS_NUM_THREADS=$blas_threads",
+                "MKL_NUM_THREADS=$blas_threads",
+                "BLIS_NUM_THREADS=$blas_threads",
+            ],
+        )
+    end
+    return assignments
+end
+
+function parallel_plan_command(run_cfg)
+    words = vcat(
+        parallel_plan_environment_assignments(run_cfg),
+        command_args_for_config(run_cfg),
+    )
+    return join(shell_word.(words), " ")
+end
+
 parallel_plan_commands(cfg) =
-    [join(shell_word.(command_args_for_config(run_cfg)), " ")
-     for run_cfg in parallel_plan_configs(cfg)]
+    [parallel_plan_command(run_cfg) for run_cfg in parallel_plan_configs(cfg)]
 
 function print_parallel_plan(cfg; io=stdout)
     commands = parallel_plan_commands(cfg)
