@@ -44,8 +44,12 @@ end
         include("test_plot_momentum_distribution.jl")
         include("test_ed_dm_kspace_examples.jl")
         include("test_ed_kspace_smoke_example.jl")
+    end
+
+    @testset "Text Consistency" begin
         include("test_ed_kspace_demo_text.jl")
         include("test_bogoliubov_notation_text.jl")
+        include("test_tn_note_largeN_text.jl")
     end
 
     if RUN_FULL_TESTS
