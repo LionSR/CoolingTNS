@@ -425,10 +425,7 @@ end
         expected_even = minimum(filter(
             >(sqrt(eps(Float64))),
             mode_energies_Jh(
-                filter(
-                    k -> abs(sin(2π * Float64(k) / ham.N)) > sqrt(eps(Float64)),
-                    allowed_k_indices(ham.N, fermionic_bc(ham.bc, 1)),
-                ),
+                generic_k_indices(ham.N, fermionic_bc(ham.bc, 1)),
                 ham.params.J,
                 ham.params.h,
                 ham.N,
@@ -437,10 +434,7 @@ end
         expected_odd = minimum(filter(
             >(sqrt(eps(Float64))),
             mode_energies_Jh(
-                filter(
-                    k -> abs(sin(2π * Float64(k) / ham.N)) > sqrt(eps(Float64)),
-                    allowed_k_indices(ham.N, fermionic_bc(ham.bc, -1)),
-                ),
+                generic_k_indices(ham.N, fermionic_bc(ham.bc, -1)),
                 ham.params.J,
                 ham.params.h,
                 ham.N,
@@ -543,7 +537,7 @@ end
         # The cheapest excitation: flip the special mode with min(w_k)
         w_special = [Λ * w_k_coefficient(Float64(k), θ, N)
                      for k in allowed_k_indices(N, gF_odd)
-                     if abs(sin(2π * Float64(k) / N)) < 1e-12]
+                     if !is_generic_mode(k, N)]
         E_odd_predicted = E_vac_odd + minimum(w_special)
         @test E_gs_odd ≈ E_odd_predicted atol=1e-10
     end
@@ -602,8 +596,8 @@ end
         # For gF=-1: all modes are paired (k, -k) with k > 0
         # For gF=+1: special modes k=0, N/2 plus paired modes
         positive_ks = [k for k in ks if Float64(k) > 0]
-        special_ks = [k for k in ks if abs(sin(2π * Float64(k) / N)) < 1e-12]
-        paired_ks = [k for k in ks if Float64(k) > 0 && abs(sin(2π * Float64(k) / N)) > 1e-12]
+        special_ks = [k for k in ks if !is_generic_mode(k, N)]
+        paired_ks = [k for k in ks if Float64(k) > 0 && is_generic_mode(k, N)]
 
         # Build spectrum
         predicted = Float64[]

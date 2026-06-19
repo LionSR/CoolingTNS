@@ -224,6 +224,26 @@ function mode_energies_Jh(k_indices, J, h, N)
 end
 
 """
+    is_generic_mode(k, N) -> Bool
+
+Return whether the Fourier index ``k`` is a generic Ising mode.  The special
+integer-grid modes have ``sin(2π k/N)=0`` and are excluded from the generic
+two-quasiparticle detuning reference.
+"""
+function is_generic_mode(k, N::Int)
+    return abs(sin(2π * Float64(k) / N)) > sqrt(eps(Float64))
+end
+
+"""
+    generic_k_indices(N, gF) -> Vector
+
+Allowed Fourier indices with the special modes removed.
+"""
+function generic_k_indices(N::Int, gF)
+    return filter(k -> is_generic_mode(k, N), allowed_k_indices(N, gF))
+end
+
+"""
     ising_mode_detuning_reference(ham_params; parity=1) -> Float64
 
 Return the lowest parity-preserving generic two-quasiparticle energy on the
@@ -251,11 +271,7 @@ function ising_mode_detuning_reference(
     N = ham_params.N
     J, h = ham_params.params.J, ham_params.params.h
     gF = fermionic_bc(ham_params.bc, parity)
-    generic_ks = filter(
-        k -> abs(sin(2π * Float64(k) / N)) > sqrt(eps(Float64)),
-        allowed_k_indices(N, gF),
-    )
-    energies = mode_energies_Jh(generic_ks, J, h, N)
+    energies = mode_energies_Jh(generic_k_indices(N, gF), J, h, N)
     positive_energies = filter(>(sqrt(eps(Float64))), energies)
     isempty(positive_energies) && throw(ArgumentError(
         "the reference Fourier grid has no strictly positive generic quasiparticle energy"

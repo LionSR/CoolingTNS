@@ -320,7 +320,7 @@ function _build_hk_operator(k, θ, N, a_ops, a_dag_ops)
 
     ãk, ãkd = _build_fourier_ops(a_ops, a_dag_ops, k, N)
 
-    if abs(sin(2π * Float64(k) / N)) < 1e-12
+    if !is_generic_mode(k, N)
         # Special mode: k=0 or k=N/2 — Bogoliubov angle is 0
         # h_k = 2 ã†_k ã_k - 1
         nk_op = ãkd * ãk
