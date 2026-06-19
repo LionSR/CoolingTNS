@@ -172,11 +172,11 @@ julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
   --tdvp-sweep-progress --stop-on-bond-cap --verbose
 ```
 
-The automatic periodic-Ising gap estimate was still negative in this run, so
-the explicit positive detuning interval above was used; that estimator issue is
-tracked separately.  The mode convention itself was correct: every HDF5 group
-recorded `mode_gF_source = "state"`, and the direct Ising energy agreed with
-the mode reconstruction
+This scan predated the analytic mode-detuning reference introduced in PR #232,
+so it used the explicit positive detuning interval above instead of the then
+negative automatic TN excited-state estimate.  The mode convention itself was
+correct: every HDF5 group recorded `mode_gF_source = "state"`, and the direct
+Ising energy agreed with the mode reconstruction
 
 ```math
 E_{\mathrm{modes}}(t)=\frac{1}{2}\sum_k \varepsilon_k h_k(t)
@@ -206,6 +206,54 @@ theta state under the present `XX` coupling and round-robin schedule.  The next
 physics check should isolate whether this flat trajectory is imposed by a
 symmetry of the state-coupling pair, by the chosen detuning/time scale, or by a
 model-basis convention.
+
+### Automatic Analytic Detuning Check
+
+After PR #232, the same mode-resolved driver no longer uses the generic TN
+excited-state DMRG estimate as the automatic detuning reference.  For
+periodic/antiperiodic integrable-Ising mode campaigns it records the minimum
+positive Bogoliubov mode energy on the same parity-aware Fourier grid as
+`mode_hk`.  A short `N = 64` check without `--delta-min` or `--delta-max` used
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --model ising --bc periodic --Ns 64 --R-values 1 \
+  --methods mcwf --evolution-method continuous --steps 2 --Dmax 32 \
+  --cutoff 1e-6 --tau 0.2 --te 0.1 --M-mcwf 1 --h -1.05 \
+  --measure-modes --init-state theta --theta 0.0 \
+  --tdvp-sweep-progress \
+  --outdir .worktree/mode_auto_reference_20260620 \
+  --output .worktree/mode_auto_reference_20260620/N64_mode_auto_R1_steps2_Dmax32.h5
+```
+
+The run selected the analytic reference
+`detuning_reference_gap_source = "ising_mode_reference"` with
+
+```text
+gap = detuning_delta_min = 0.141838527476,
+detuning_delta_max = 0.851031164856,
+mode_ek_values range = [0.141838527476, 4.098765891354].
+```
+
+The HDF5 output kept the state-selected half-integer grid
+(`mode_gF = -1`, `mode_gF_source = "state"`) and stored mode arrays of shape
+`3 x 64`, namely the initial row plus two completed cooling cycles.  The direct
+energy and the mode reconstruction agreed with
+
+```text
+max_t |E(t) - E_modes(t)| = 1.18e-12.
+```
+
+The short-run summary is:
+
+| R | completed cycles | detuning protocol | final E/N | best E/N | relE | Dsys | Devolved | Dtdvp sweep | mode gF source | max \(|E-E_{\mathrm{modes}}|\) |
+|---:|---:|:---|---:|---:|---:|---:|---:|---:|:---:|---:|
+| 1 | 2/2 | gap-scaled analytic mode reference | -1.04991223 | -1.05000000 | 0.19550 | 5 | 6 | 6 | state | 1.18e-12 |
+
+This is a convention and execution check, not a cooling claim.  It verifies
+that the formerly failing automatic-detuning path now reaches the actual TDVP
+evolution and records physically interpretable mode data at `N = 64`.
 
 ## Reproduction commands
 
