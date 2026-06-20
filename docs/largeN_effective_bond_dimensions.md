@@ -161,9 +161,9 @@ uses the library routine `ising_energy_from_mode_hk` to reconstruct the
 integrable-Ising energy on the measured mode rows.  The full summary reports
 the selected `mode gF`, the `mode source`, the measured-row fraction, the final
 mode-reconstructed energy per spin, and the final and maximum absolute
-discrepancy from the stored direct energy.  Runs without mode data are reported
-as `n/a` in these columns.  A small discrepancy is the expected target for a
-parity-definite trajectory; a reference-grid entry with
+discrepancy per spin from the stored direct energy.  Runs without mode data are
+reported as `n/a` in these columns.  A small discrepancy is the expected target
+for a parity-definite trajectory; a reference-grid entry with
 `mode_gF_source = "reference"` is a diagnostic of a chosen sector and should
 not be read as an exact energy decomposition for a mixed-parity state.
 

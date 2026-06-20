@@ -138,8 +138,8 @@ function missing_mode_reconstruction_summary()
         mode_gF_source=missing,
         mode_measured_rows=missing,
         mode_final_e_over_n=missing,
-        mode_final_abs_err=missing,
-        mode_max_abs_err=missing,
+        mode_final_abs_err_over_n=missing,
+        mode_max_abs_err_over_n=missing,
     )
 end
 
@@ -174,6 +174,9 @@ function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean)
     haskey(root, "J") && haskey(root, "h") ||
         error("mode measurements are present, but root datasets J and h are missing")
 
+    # The stored k-grid determines the fermionic sector.  Here `ham_params`
+    # supplies the common Ising parameters needed by the shared reconstruction
+    # routine.
     ham_params = IsingParameters(N, Float64(read(root["J"])), Float64(read(root["h"])), Symbol(bc))
     mode_hk = Float64.(read(run_group[RESULT_MODE_HK]))
     mode_hk isa AbstractMatrix ||
@@ -195,20 +198,20 @@ function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean)
         mode_gF_source=mode_gF_source,
         mode_measured_rows=measured_label,
         mode_final_e_over_n=missing,
-        mode_final_abs_err=missing,
-        mode_max_abs_err=missing,
+        mode_final_abs_err_over_n=missing,
+        mode_max_abs_err_over_n=missing,
     )
 
     mode_energy = ising_energy_from_mode_hk(k_indices, mode_hk[valid_rows, :], ham_params)
     direct_energy = Float64.(energy_mean[valid_rows])
-    abs_error = abs.(mode_energy .- direct_energy)
+    abs_error_over_n = abs.(mode_energy .- direct_energy) ./ N
     return (
         mode_gF=mode_gF,
         mode_gF_source=mode_gF_source,
         mode_measured_rows=measured_label,
         mode_final_e_over_n=mode_energy[end] / N,
-        mode_final_abs_err=abs_error[end],
-        mode_max_abs_err=maximum(abs_error),
+        mode_final_abs_err_over_n=abs_error_over_n[end],
+        mode_max_abs_err_over_n=maximum(abs_error_over_n),
     )
 end
 
@@ -415,8 +418,8 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         mode_gF_source=mode_summary.mode_gF_source,
         mode_measured_rows=mode_summary.mode_measured_rows,
         mode_final_e_over_n=mode_summary.mode_final_e_over_n,
-        mode_final_abs_err=mode_summary.mode_final_abs_err,
-        mode_max_abs_err=mode_summary.mode_max_abs_err,
+        mode_final_abs_err_over_n=mode_summary.mode_final_abs_err_over_n,
+        mode_max_abs_err_over_n=mode_summary.mode_max_abs_err_over_n,
         system_effective_bond=system_effective_bond,
         evolved_effective_bond=evolved_effective_bond,
         tdvp_sweep_effective_bond=tdvp_sweep_effective_bond,
@@ -470,7 +473,7 @@ function sorted_rows(rows)
 end
 
 function print_markdown(rows)
-    println("| file | N | method | evolution | R | M | completed/requested | elapsed_total | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode final E/N | mode final abs dE | mode max abs dE | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("| file | N | method | evolution | R | M | completed/requested | elapsed_total | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode final E/N | mode final abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
     println("|---|---:|---|---|---:|---:|---|---:|---|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for row in sorted_rows(rows)
         println(
@@ -488,8 +491,8 @@ function print_markdown(rows)
             "$(format_string_or_na(row.mode_gF)) | $(format_string_or_na(row.mode_gF_source)) | " *
             "$(format_string_or_na(row.mode_measured_rows)) | " *
             "$(format_float_or_na(row.mode_final_e_over_n, 8)) | " *
-            "$(format_float_or_na(row.mode_final_abs_err, 3)) | " *
-            "$(format_float_or_na(row.mode_max_abs_err, 3)) | " *
+            "$(format_float_or_na(row.mode_final_abs_err_over_n, 3)) | " *
+            "$(format_float_or_na(row.mode_max_abs_err_over_n, 3)) | " *
             "$(row.final_system_max) | $(format_float(row.final_system_mean, 2)) | " *
             "$(row.peak_evolved_max) | $(format_float(row.peak_evolved_mean, 2)) | " *
             "$(format_integer_or_na(row.peak_tdvp_sweep_max)) | " *
@@ -505,7 +508,7 @@ function print_markdown(rows)
 end
 
 function print_compact_markdown(rows)
-    println("| file | N | method | evolution | R | M | completed/requested | final E/N | best E/N | mode max abs dE | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | stop_reason |")
+    println("| file | N | method | evolution | R | M | completed/requested | final E/N | best E/N | mode max abs dE/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | stop_reason |")
     println("|---|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---:|---|")
     for row in sorted_rows(rows)
         println(
@@ -513,7 +516,7 @@ function print_compact_markdown(rows)
             "$(row.R) | $(row.M) | $(row.completed_requested) | " *
             "$(format_float(row.final_e_over_n, 8)) | " *
             "$(format_float(row.best_e_over_n, 8)) | " *
-            "$(format_float_or_na(row.mode_max_abs_err, 3)) | $(row.threshold) | " *
+            "$(format_float_or_na(row.mode_max_abs_err_over_n, 3)) | $(row.threshold) | " *
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
             "$(row.tdvp_sweep_effective_bond) | $(row.bond_status) | " *
             "$(format_float(row.elapsed_total_seconds, 1)) | $(row.stop_reason) |"

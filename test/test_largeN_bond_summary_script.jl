@@ -116,7 +116,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | R | M | completed/requested | final E/N | best E/N | mode max abs dE | Dcap |",
+            "| file | N | method | evolution | R | M | completed/requested | final E/N | best E/N | mode max abs dE/N | Dcap |",
             compact_output,
         )
         @test occursin("| elapsed_total | stop_reason |", compact_output)
@@ -202,7 +202,7 @@ end
         mode_energy = CoolingTNS.ising_energy_from_mode_hk(
             k_indices, mode_hk[[1, 3], :], ham_params
         )
-        final_energy_offset = 0.025
+        final_energy_offset = 0.04
 
         h5open(path, "w") do f
             write(f, "Dmax", 8)
@@ -235,8 +235,8 @@ end
         @test row.mode_gF_source == "state"
         @test row.mode_measured_rows == "2/3"
         @test row.mode_final_e_over_n ≈ mode_energy[2] / N
-        @test row.mode_final_abs_err ≈ final_energy_offset
-        @test row.mode_max_abs_err ≈ final_energy_offset
+        @test row.mode_final_abs_err_over_n ≈ final_energy_offset / N
+        @test row.mode_max_abs_err_over_n ≈ final_energy_offset / N
 
         output = mktemp() do output_path, io
             close(io)
@@ -248,7 +248,7 @@ end
             read(output_path, String)
         end
         @test occursin(
-            "| mode gF | mode source | mode rows | mode final E/N | mode final abs dE | mode max abs dE |",
+            "| mode gF | mode source | mode rows | mode final E/N | mode final abs dE/N | mode max abs dE/N |",
             output,
         )
         @test occursin("| -1 | state | 2/3 |", output)
@@ -262,8 +262,52 @@ end
             end
             read(output_path, String)
         end
-        @test occursin("| mode max abs dE |", compact_output)
-        @test occursin("| $(format_float(final_energy_offset, 3)) | 8 |", compact_output)
+        @test occursin("| mode max abs dE/N |", compact_output)
+        @test occursin("| $(format_float(final_energy_offset / N, 3)) | 8 |", compact_output)
+    finally
+        rm(path; force=true)
+    end
+end
+
+@testset "Large-N summary rejects nonintegrable mode metadata" begin
+    path = tempname() * ".h5"
+    try
+        h5open(path, "w") do f
+            write(f, "Dmax", 8)
+            write(f, "model", "niising")
+            write(f, "bc", "open")
+            write(f, "J", 1.0)
+            write(f, "h", NaN)
+            gn = create_group(f, "N4")
+            write(gn, "N", 4)
+            gm = create_group(gn, "mcwf")
+            gr = create_group(gm, "R1")
+
+            write(gr, "M", 1)
+            write(gr, "E_mean", [0.0])
+            write(gr, "relative_energy_mean", [0.0])
+            write(gr, "system_max_bond", [1])
+            write(gr, "system_mean_bond", [1.0])
+            write(gr, "evolved_max_bond", [0])
+            write(gr, "evolved_mean_bond", [NaN])
+            write(gr, CoolingTNS.RESULT_MODE_HK, reshape(fill(-1.0, 4), 1, 4))
+            write(gr, CoolingTNS.RESULT_MODE_K_INDICES, Float64.([-1.5, -0.5, 0.5, 1.5]))
+            write(gr, CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES, [0])
+            write(gr, CoolingTNS.RESULT_MODE_GF, -1)
+            write(gr, CoolingTNS.RESULT_MODE_GF_SOURCE, "state")
+        end
+
+        err = try
+            summarize_file(path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ErrorException
+        @test occursin(
+            "mode-energy reconstruction is defined here only for the integrable Ising chain",
+            sprint(showerror, err),
+        )
     finally
         rm(path; force=true)
     end
