@@ -18,7 +18,8 @@ protocol interval; for `R=1`, the campaign samples only the lower endpoint.  For
 multi-trajectory data, final-link quantiles and threshold fractions are computed
 per trajectory and then averaged over trajectories.  Stop-on-cap provenance is
 read directly from the HDF5 fields `requested_steps`, `completed_steps`,
-`stop_reasons`, and `elapsed_seconds` when available.
+`stop_reasons`, and `elapsed_seconds` when available.  The elapsed column is a
+sum over trajectory elapsed times, matching the sequential campaign driver.
 """
 
 using CoolingTNS
@@ -137,10 +138,16 @@ function range_label(values::AbstractVector{<:Integer})
 end
 
 function stop_reason_label(reasons::AbstractVector{<:AbstractString})
-    nonempty = unique(filter(!isempty, String.(reasons)))
+    values = String.(reasons)
+    nonempty = filter(!isempty, values)
     isempty(nonempty) && return "none"
-    length(nonempty) == 1 && return only(nonempty)
-    return join(sort(nonempty), "+")
+    unique_reasons = sort(unique(nonempty))
+    length(unique_reasons) == 1 && length(nonempty) == length(values) &&
+        return only(unique_reasons)
+    return join(
+        ["$(reason)x$(count(==(reason), nonempty))/$(length(values))" for reason in unique_reasons],
+        "+",
+    )
 end
 
 function method_from_name(method_name::AbstractString)
@@ -306,7 +313,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         R=R,
         M=M,
         completed_requested="$(range_label(completed_steps_values))/$(range_label(requested_steps_values))",
-        elapsed_seconds=elapsed_seconds,
+        elapsed_total_seconds=elapsed_seconds,
         stop_reason=stop_reason_label(stop_reasons),
         delta_protocol=detuning.delta_protocol,
         delta_range=detuning.delta_range,
@@ -367,13 +374,17 @@ function summarize_file(path::AbstractString)
     return rows
 end
 
+function sorted_rows(rows)
+    return sort(rows; by=row -> (row.N, row.method, row.evolution, row.R, row.file))
+end
+
 function print_markdown(rows)
-    println("| file | N | method | evolution | R | M | completed/requested | elapsed | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("| file | N | method | evolution | R | M | completed/requested | elapsed_total | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
     println("|---|---:|---|---|---:|---:|---|---:|---|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
-    for row in sort(rows; by=row -> (row.N, row.method, row.evolution, row.R, row.file))
+    for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | $(row.R) | $(row.M) | " *
-            "$(row.completed_requested) | $(format_float(row.elapsed_seconds, 1)) | " *
+            "$(row.completed_requested) | $(format_float(row.elapsed_total_seconds, 1)) | " *
             "$(row.stop_reason) | " *
             "$(row.delta_protocol) | $(row.delta_range) | $(row.delta_factor) | " *
             "$(row.threshold) | " *
@@ -398,9 +409,9 @@ function print_markdown(rows)
 end
 
 function print_compact_markdown(rows)
-    println("| file | N | method | evolution | R | M | completed/requested | final E/N | best E/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed | stop_reason |")
+    println("| file | N | method | evolution | R | M | completed/requested | final E/N | best E/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | stop_reason |")
     println("|---|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---|---:|---|")
-    for row in sort(rows; by=row -> (row.N, row.method, row.evolution, row.R, row.file))
+    for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | " *
             "$(row.R) | $(row.M) | $(row.completed_requested) | " *
@@ -408,7 +419,7 @@ function print_compact_markdown(rows)
             "$(format_float(row.best_e_over_n, 8)) | $(row.threshold) | " *
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
             "$(row.tdvp_sweep_effective_bond) | $(row.bond_status) | " *
-            "$(format_float(row.elapsed_seconds, 1)) | $(row.stop_reason) |"
+            "$(format_float(row.elapsed_total_seconds, 1)) | $(row.stop_reason) |"
         )
     end
 end

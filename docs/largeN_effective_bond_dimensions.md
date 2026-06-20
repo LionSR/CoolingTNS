@@ -41,7 +41,9 @@ The summary script also reports the stored `completed_steps`,
 `requested_steps`, `elapsed_seconds`, and `stop_reasons` fields.  The
 `completed/requested` column is therefore the HDF5 record of how far a
 stop-on-cap trajectory actually ran, not a value transcribed from the progress
-log by hand.  Use
+log by hand.  The `elapsed_total` column sums per-trajectory elapsed times,
+matching the sequential large-N campaign driver, and partial stop reasons are
+reported with counts such as `bond_capx1/2`.  Use
 `scripts/validation/summarize_largeN_bond_dimensions.jl --compact` for the
 short table format used in the notes.
 

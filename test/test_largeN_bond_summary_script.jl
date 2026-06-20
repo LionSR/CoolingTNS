@@ -48,8 +48,8 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
         @test row.R == 2
         @test row.M == 2
         @test row.completed_requested == "2/3"
-        @test row.elapsed_seconds == 25.5
-        @test row.stop_reason == "bond_cap"
+        @test row.elapsed_total_seconds == 25.5
+        @test row.stop_reason == "bond_capx1/2"
         @test row.delta_protocol == "fixed_range"
         @test row.delta_range == "[0.50000000,3.00000000]"
         @test row.delta_factor == "n/a"
@@ -91,20 +91,20 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | R | M | completed/requested | elapsed | stop_reason | delta_protocol | delta_range | delta_factor | Dcap |",
+            "| file | N | method | evolution | R | M | completed/requested | elapsed_total | stop_reason | delta_protocol | delta_range | delta_factor | Dcap |",
             output,
         )
         @test occursin("| final E/N | relE | best E/N | best relE | tail E/N |", output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | " *
-            "2/3 | 25.5 | bond_cap | fixed_range | " *
+            "2/3 | 25.5 | bond_capx1/2 | fixed_range | " *
             "[0.50000000,3.00000000] | n/a | 12 | >=12 | >=14 | >=14 | " *
             "not_converged_system_and_evolved_and_tdvp_sweep_cap | " *
             "1.00000000 | 2.00000 | " *
             "-0.25000000 | 0.00000 | 0.41666667 | 1.00000 | 3 |",
             output,
         )
-        @test occursin("| 2 | 2 | 2/3 | 25.5 | bond_cap | fixed_range |", output)
+        @test occursin("| 2 | 2 | 2/3 | 25.5 | bond_capx1/2 | fixed_range |", output)
 
         compact_output = mktemp() do output_path, io
             close(io)
@@ -119,10 +119,11 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
             "| file | N | method | evolution | R | M | completed/requested | final E/N | best E/N | Dcap |",
             compact_output,
         )
+        @test occursin("| elapsed_total | stop_reason |", compact_output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | " *
             "2/3 | 1.00000000 | -0.25000000 | 12 | >=12 | >=14 | >=14 | " *
-            "not_converged_system_and_evolved_and_tdvp_sweep_cap | 25.5 | bond_cap |",
+            "not_converged_system_and_evolved_and_tdvp_sweep_cap | 25.5 | bond_capx1/2 |",
             compact_output,
         )
         @test parse_args(["--compact", path]).compact
@@ -155,7 +156,7 @@ end
         row = only(summarize_file(path))
         @test row.evolution == "unknown"
         @test row.completed_requested == "1/1"
-        @test isnan(row.elapsed_seconds)
+        @test isnan(row.elapsed_total_seconds)
         @test row.stop_reason == "none"
         @test row.delta_protocol == "unknown"
         @test row.delta_range == "unknown"
