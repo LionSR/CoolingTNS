@@ -116,13 +116,13 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | R | M | completed/requested | final E/N | best E/N | Dcap |",
+            "| file | N | method | evolution | R | M | completed/requested | final E/N | best E/N | mode max abs dE | Dcap |",
             compact_output,
         )
         @test occursin("| elapsed_total | stop_reason |", compact_output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | " *
-            "2/3 | 1.00000000 | -0.25000000 | 12 | >=12 | >=14 | >=14 | " *
+            "2/3 | 1.00000000 | -0.25000000 | n/a | 12 | >=12 | >=14 | >=14 | " *
             "not_converged_system_and_evolved_and_tdvp_sweep_cap | 25.5 | bond_capx1/2 |",
             compact_output,
         )
@@ -183,6 +183,87 @@ end
         )
         @test occursin("| 1 | 1 | 1/1 | NaN | none | unknown |", output)
         @test occursin("| 4.00 | n/a | none | 1 | n/a |", output)
+    finally
+        rm(path; force=true)
+    end
+end
+
+@testset "Large-N summary reports mode energy reconstruction" begin
+    path = tempname() * ".h5"
+    try
+        N = 4
+        J, h = 1.0, 0.5
+        ham_params = CoolingTNS.IsingParameters(N, J, h, :periodic)
+        k_indices = CoolingTNS.allowed_k_indices(N, -1)
+        mode_hk = Matrix{Float64}(undef, 3, length(k_indices))
+        mode_hk[1, :] .= -1.0
+        mode_hk[2, :] .= NaN
+        mode_hk[3, :] .= -0.2
+        mode_energy = CoolingTNS.ising_energy_from_mode_hk(
+            k_indices, mode_hk[[1, 3], :], ham_params
+        )
+        final_energy_offset = 0.025
+
+        h5open(path, "w") do f
+            write(f, "Dmax", 8)
+            write(f, "model", "ising")
+            write(f, "bc", "periodic")
+            write(f, "J", J)
+            write(f, "h", h)
+            write(f, "evolution_method", "continuous")
+            gn = create_group(f, "N4")
+            write(gn, "N", N)
+            gm = create_group(gn, "mcwf")
+            gr = create_group(gm, "R1")
+
+            write(gr, "M", 1)
+            write(gr, "E_mean", [mode_energy[1], 100.0, mode_energy[2] + final_energy_offset])
+            write(gr, "relative_energy_mean", [0.0, 1.0, 2.0])
+            write(gr, "system_max_bond", [1, 2, 3])
+            write(gr, "system_mean_bond", [1.0, 2.0, 3.0])
+            write(gr, "evolved_max_bond", [0, 3, 4])
+            write(gr, "evolved_mean_bond", [NaN, 3.0, 4.0])
+            write(gr, CoolingTNS.RESULT_MODE_HK, mode_hk)
+            write(gr, CoolingTNS.RESULT_MODE_K_INDICES, Float64.(k_indices))
+            write(gr, CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES, [0, 2])
+            write(gr, CoolingTNS.RESULT_MODE_GF, -1)
+            write(gr, CoolingTNS.RESULT_MODE_GF_SOURCE, "state")
+        end
+
+        row = only(summarize_file(path))
+        @test row.mode_gF == -1
+        @test row.mode_gF_source == "state"
+        @test row.mode_measured_rows == "2/3"
+        @test row.mode_final_e_over_n ≈ mode_energy[2] / N
+        @test row.mode_final_abs_err ≈ final_energy_offset
+        @test row.mode_max_abs_err ≈ final_energy_offset
+
+        output = mktemp() do output_path, io
+            close(io)
+            open(output_path, "w") do out
+                redirect_stdout(out) do
+                    print_markdown([row])
+                end
+            end
+            read(output_path, String)
+        end
+        @test occursin(
+            "| mode gF | mode source | mode rows | mode final E/N | mode final abs dE | mode max abs dE |",
+            output,
+        )
+        @test occursin("| -1 | state | 2/3 |", output)
+
+        compact_output = mktemp() do output_path, io
+            close(io)
+            open(output_path, "w") do out
+                redirect_stdout(out) do
+                    print_compact_markdown([row])
+                end
+            end
+            read(output_path, String)
+        end
+        @test occursin("| mode max abs dE |", compact_output)
+        @test occursin("| $(format_float(final_energy_offset, 3)) | 8 |", compact_output)
     finally
         rm(path; force=true)
     end
