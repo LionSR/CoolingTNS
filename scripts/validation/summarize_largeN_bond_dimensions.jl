@@ -20,6 +20,8 @@ per trajectory and then averaged over trajectories.  Stop-on-cap provenance is
 read directly from the HDF5 fields `requested_steps`, `completed_steps`,
 `stop_reasons`, and `elapsed_seconds` when available.  The elapsed column is a
 sum over trajectory elapsed times, matching the sequential campaign driver.
+The `traj cycles/hour` column is the corresponding completed trajectory-cycle
+throughput, `3600 * sum(completed_steps) / elapsed_total`.
 """
 
 using CoolingTNS
@@ -237,6 +239,12 @@ function stop_reason_label(reasons::AbstractVector{<:AbstractString})
     )
 end
 
+function trajectory_cycles_per_hour(completed_steps::AbstractVector{<:Integer},
+                                    elapsed_seconds::Real)
+    isfinite(elapsed_seconds) && elapsed_seconds > 0 || return NaN
+    return 3600.0 * sum(completed_steps) / elapsed_seconds
+end
+
 function method_from_name(method_name::AbstractString)
     # HDF5 stores method names as strings; the cap itself is still determined
     # by the library dispatch rule in `tn_method_maxdim`.
@@ -323,6 +331,9 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     )
     elapsed_values = read_float_vector(run_group, "elapsed_seconds")
     elapsed_seconds = isempty(elapsed_values) ? NaN : sum(elapsed_values)
+    traj_cycles_per_hour = trajectory_cycles_per_hour(
+        completed_steps_values, elapsed_seconds
+    )
     stop_reasons = read_string_vector(run_group, "stop_reasons")
     system_max_bond = bond_history_matrix(read(run_group["system_max_bond"]))
     system_mean_bond = bond_history_matrix(read(run_group["system_mean_bond"]))
@@ -402,6 +413,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         M=M,
         completed_requested="$(range_label(completed_steps_values))/$(range_label(requested_steps_values))",
         elapsed_total_seconds=elapsed_seconds,
+        traj_cycles_per_hour=traj_cycles_per_hour,
         stop_reason=stop_reason_label(stop_reasons),
         delta_protocol=detuning.delta_protocol,
         delta_range=detuning.delta_range,
@@ -473,13 +485,13 @@ function sorted_rows(rows)
 end
 
 function print_markdown(rows)
-    println("| file | N | method | evolution | R | M | completed/requested | elapsed_total | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
-    println("|---|---:|---|---|---:|---:|---|---:|---|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
+    println("| file | N | method | evolution | R | M | completed/requested | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("|---|---:|---|---|---:|---:|---|---:|---:|---|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | $(row.R) | $(row.M) | " *
             "$(row.completed_requested) | $(format_float(row.elapsed_total_seconds, 1)) | " *
-            "$(row.stop_reason) | " *
+            "$(format_float(row.traj_cycles_per_hour, 2)) | $(row.stop_reason) | " *
             "$(row.delta_protocol) | $(row.delta_range) | $(row.delta_factor) | " *
             "$(row.threshold) | " *
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
@@ -508,8 +520,8 @@ function print_markdown(rows)
 end
 
 function print_compact_markdown(rows)
-    println("| file | N | method | evolution | R | M | completed/requested | final E/N | best E/N | mode max abs dE/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | stop_reason |")
-    println("|---|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---:|---|")
+    println("| file | N | method | evolution | R | M | completed/requested | final E/N | best E/N | mode max abs dE/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | traj cycles/hour | stop_reason |")
+    println("|---|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---|")
     for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | " *
@@ -519,7 +531,8 @@ function print_compact_markdown(rows)
             "$(format_float_or_na(row.mode_max_abs_err_over_n, 3)) | $(row.threshold) | " *
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
             "$(row.tdvp_sweep_effective_bond) | $(row.bond_status) | " *
-            "$(format_float(row.elapsed_total_seconds, 1)) | $(row.stop_reason) |"
+            "$(format_float(row.elapsed_total_seconds, 1)) | " *
+            "$(format_float(row.traj_cycles_per_hour, 2)) | $(row.stop_reason) |"
         )
     end
 end

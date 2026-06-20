@@ -254,6 +254,13 @@ only increased CPU consumption.  The benchmark artifacts are stored under
 `/tmp/coolingtns_parallel_bench_parallel_blas1_R2_20260619`,
 `/tmp/coolingtns_parallel_bench_parallel_blas1_R5_20260619`, and
 `/tmp/coolingtns_parallel_bench_serial_blas16_20260619`.
+For later timing tables, the HDF5 summary script reports
+`traj cycles/hour = 3600 sum(completed_steps) / elapsed_total`.  This is the
+single-run throughput from the stored HDF5 provenance.  For externally parallel
+job groups, the group wall time should still be measured by the launcher, or
+approximated by the maximum elapsed time among simultaneously launched
+single-job HDF5 files; the per-row throughput column remains useful for
+detecting slow jobs and comparing thread settings without hand recomputation.
 
 These data should be used to design the next production campaign.  The table
 above is therefore a target plan, not evidence that the listed bond dimensions
