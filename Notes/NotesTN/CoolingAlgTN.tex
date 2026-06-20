@@ -607,6 +607,28 @@ controlled ground-state cooling result: the calculation is still cap-limited
 and the best observed energy density remains far above
 \(E_0/N=-1.3246328892\).
 
+The same \(D_{\max}=64\) descending diagnostic was then run for all four
+frequency counts \(R=1,2,5,10\) in a single campaign, using the same default
+seed as the standalone \(R=10\) follow-up above.  The identical \(R=10\) energy
+prefix is therefore a reproducibility check; the different elapsed times are
+wall-clock measurements and are not physics observables.  The best energy
+densities reached before the stop-on-cap condition were as follows:
+\[
+\begin{array}{c|c|c|c}
+R & \text{completed cycles} & \min(E/N) & D_{\mathrm{sys}}^{\mathrm{eff}}\\
+\hline
+1 & 5/8 & 1.37238762 & \geq 64\\
+2 & 4/8 & 1.00906275 & 56\\
+5 & 4/8 & 1.07479551 & 55\\
+10 & 4/8 & 0.87319302 & 56
+\end{array}
+\]
+In all four cases the transient system-bath state and the TDVP sweep observer
+reach bond dimension \(64\), so their effective dimensions are lower bounded
+by \(64\).  Thus \(R=10\) is the best of this fixed descending set at the
+tested cap, but the whole scan is still a cap-limited bond-growth diagnostic,
+not evidence of scalable cooling to the ground state.
+
 \section{Bayesian Optimization for Hyperparameter Tuning}
 Optimizing the performance of the cooling algorithm requires finding the optimal values for hyperparameters such as the coupling strength $g$ and the evolution time $t_e$. However, the relationship between these hyperparameters and the cooling efficiency is complex and evaluating the cooling efficiency for a given set of hyperparameters is computationally expensive. We employ Bayesian optimization, a framework for global optimization of expensive black-box functions~\cite{Frazier2018Tutorial}, to address this challenge.
 
