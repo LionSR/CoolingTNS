@@ -102,6 +102,8 @@ end
     @test_throws ArgumentError select_evolution_steps(0)
     @test_throws ArgumentError select_evolution_steps(3; steps_to_plot=[0, 1])
     @test_throws ArgumentError select_evolution_steps(3; steps_to_plot=[1, 4])
+    @test length(get_evolution_colors(get_pyplot(), 1)) == 1
+    @test_throws ArgumentError get_evolution_colors(get_pyplot(), 0)
 end
 
 @testset "Momentum distribution orientation helper" begin
@@ -203,5 +205,11 @@ end
         @test all(values -> all(isfinite, values), plotted_ydata)
 
         get_pyplot().close(fig)
+
+        selected_fig = plot_ek_evolution(filename; steps_to_plot=[2], save_fig=false)
+        selected_labels = _ek_line_label.(_ek_axis_lines(selected_fig.axes[0]))
+        @test "Cycle 2" in selected_labels
+        @test !("Initial" in selected_labels)
+        get_pyplot().close(selected_fig)
     end
 end

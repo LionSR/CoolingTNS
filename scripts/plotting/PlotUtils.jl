@@ -180,6 +180,8 @@ end
 Generate a Julia-indexed color vector for evolution plots using the viridis colormap.
 """
 function get_evolution_colors(plt, n_steps::Int)
+    n_steps >= 1 || throw(ArgumentError("n_steps must be positive; got $n_steps"))
+    n_steps == 1 && return [plt.cm.viridis(0.0)]
     return pyconvert(Vector, plt.cm.viridis(range(0, 1, length=n_steps)))
 end
 

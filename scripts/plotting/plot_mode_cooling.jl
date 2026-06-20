@@ -179,11 +179,13 @@ end
 
 """
     plot_mode_cooling_from_data(mode_hk, k_indices, εk_values;
-                                delta=nothing, savepath=nothing, title=nothing)
+                                delta=nothing, savepath=nothing, title=nothing,
+                                measurement_cycles=nothing)
 
 Legacy entry point accepting the Bogoliubov observable `h_k`. The plotted
 quantity is still the Bogoliubov occupation `n_k^Bog`, obtained from
-`CoolingTNS.mode_occupation_from_hk`.
+`CoolingTNS.mode_occupation_from_hk`.  The optional `measurement_cycles`
+keyword has the same convention as in `plot_mode_occupation_from_data`.
 """
 function plot_mode_cooling_from_data(mode_hk::AbstractMatrix, k_indices, εk_values;
                                      delta=nothing, savepath=nothing, title=nothing,
