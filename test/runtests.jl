@@ -52,6 +52,7 @@ end
         include("test_slide_kspace_notation_text.jl")
         include("test_tn_note_largeN_text.jl")
         include("test_late_time_plot_label_text.jl")
+        include("test_vqa_comparison_note_text.jl")
     end
 
     if RUN_FULL_TESTS
