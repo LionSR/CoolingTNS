@@ -53,9 +53,9 @@ function run_ed_kspace_case(; bc::Symbol, sim_method, init_state::String, steps:
     println("\n$(typeof(sim_method)) with $bc spin boundary conditions")
     println("Number of momentum points: $(length(k_values))")
     _print_momentum_row(k_values, momentum_dist[1, :];
-        label="Initial raw Fourier occupations:", symbol="tilde n_k")
+        label="Initial raw Fourier occupations:", symbol="\\tilde n_k")
     _print_momentum_row(k_values, momentum_dist[end, :];
-        label="Final raw Fourier occupations:", symbol="tilde n_k")
+        label="Final raw Fourier occupations:", symbol="\\tilde n_k")
 
     if haskey(results, CoolingTNS.RESULT_MODE_NK)
         mode_nk = results[CoolingTNS.RESULT_MODE_NK]
