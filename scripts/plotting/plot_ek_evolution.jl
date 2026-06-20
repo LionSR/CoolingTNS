@@ -118,10 +118,9 @@ function plot_ek_evolution(filename; steps_to_plot=nothing, save_fig=true)
     coeffs = _checked_mode_energy_coefficients(εk_values, k_indices, N, J, h)
     n_steps_expected = haskey(data, CoolingTNS.RESULT_ENERGY) ?
                        length(data[CoolingTNS.RESULT_ENERGY]) : nothing
-    hk_steps_by_modes = _mode_matrix_steps_by_modes(
-        mode_hk, length(coeffs), CoolingTNS.RESULT_MODE_HK; n_steps=n_steps_expected)
-    measured = _mode_measurement_cycle_rows(data, size(hk_steps_by_modes, 1))
-    energy_contrib = hk_steps_by_modes[measured.rows, :] .* reshape(coeffs, 1, :)
+    energy_contrib_full = _mode_energy_contributions(mode_hk, coeffs; n_steps=n_steps_expected)
+    measured = _mode_measurement_cycle_rows(data, size(energy_contrib_full, 1))
+    energy_contrib = energy_contrib_full[measured.rows, :]
     x_values = _mode_phase_over_pi(k_indices, N)
     total_steps = size(energy_contrib, 1)
     step_indices = select_evolution_steps(total_steps; steps_to_plot=steps_to_plot)
