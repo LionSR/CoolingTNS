@@ -25,6 +25,7 @@ markdown_column_counts(text::AbstractString) = [
         3.0 3.0
     ]
     @test distinct_completed_delta_counts(delta_history, [3, 4]) == [2, 2]
+    @test_throws ErrorException distinct_completed_delta_counts(delta_history, [3, 4, 2])
 
     path = tempname() * ".h5"
     try

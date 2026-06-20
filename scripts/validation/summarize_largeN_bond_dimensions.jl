@@ -282,7 +282,10 @@ function distinct_completed_delta_counts(delta_history, completed_steps::Abstrac
     counts = Int[]
     for (trajectory, completed) in enumerate(completed_steps)
         column = ncols == 1 ? 1 : trajectory
-        column <= ncols || break
+        column <= ncols || error(
+            "delta_lists has $ncols trajectory columns, but completed_steps " *
+            "contains at least $trajectory trajectories"
+        )
         last_row = min(Int(completed) + 1, size(delta_history, 1))
         if last_row < 2
             push!(counts, 0)
