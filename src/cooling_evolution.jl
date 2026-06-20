@@ -23,10 +23,16 @@ using Statistics
 
 Run cooling simulation with type dispatch. This is the main entry point that delegates
 to specialized implementations based on backend and method types.
+
+With `measure_modes=true`, `mode_measurement_stride` can be used to sample
+expensive mode observables on a coarser cycle grid while leaving ordinary
+energy and bond diagnostics dense.
 """
 function run_cooling(problem::CoolingProblem{B}, state::QuantumState{B,S,E}, 
                     coupling_params, sim_params, 
-                    ham_params; measure_modes::Bool=false) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
+                    ham_params;
+                    measure_modes::Bool=false,
+                    mode_measurement_stride::Union{Nothing,Integer}=nothing) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
     
     # Common setup
     steps = coupling_params.steps
@@ -34,7 +40,14 @@ function run_cooling(problem::CoolingProblem{B}, state::QuantumState{B,S,E},
     pe = sim_params.pe
     
     # Initialize measurement arrays
-    measurements = initialize_measurements(problem, state, steps; measure_modes=measure_modes, ham_params=ham_params)
+    measurements = initialize_measurements(
+        problem,
+        state,
+        steps;
+        measure_modes=measure_modes,
+        ham_params=ham_params,
+        mode_measurement_stride=mode_measurement_stride,
+    )
     
     # Initial measurements
     perform_measurements!(measurements, 1, problem, state, ham_params)
@@ -115,6 +128,11 @@ The optional `rng` controls only the multi-frequency schedule draws:
 random detuning order and randomized cycle times.  It does not alter other
 randomness in the backend, such as MCWF bath measurements.
 
+When `measure_modes=true`, `mode_measurement_stride=s` records Bogoliubov mode
+rows only at cooling cycles `0, s, 2s, ...` and at the requested final cycle.
+The full mode arrays are retained, with unmeasured rows left as `NaN`; the
+measured cycles are stored in `RESULT_MODE_MEASUREMENT_CYCLES`.
+
 If `stop_condition` is supplied, it is evaluated after an `:updated` observer
 event, when the system measurement for that cycle has already been recorded.
 Returning `false` or `nothing` continues the run. Returning `true` stops with
@@ -137,6 +155,7 @@ function run_cooling_multi_freq(
     evolution_kwargs=(;),
     stop_condition=nothing,
     rng::AbstractRNG=Random.default_rng(),
+    mode_measurement_stride::Union{Nothing,Integer}=nothing,
 ) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
 
     steps = mf_params.steps
@@ -144,7 +163,14 @@ function run_cooling_multi_freq(
     completed_step_index = 1
     stop_reason = ""
 
-    measurements = initialize_measurements(problem, state, steps; measure_modes=measure_modes, ham_params=ham_params)
+    measurements = initialize_measurements(
+        problem,
+        state,
+        steps;
+        measure_modes=measure_modes,
+        ham_params=ham_params,
+        mode_measurement_stride=mode_measurement_stride,
+    )
     measurements[RESULT_DELTA_LIST] = fill(NaN, steps + 1)
     measurements[RESULT_TE_LIST] = fill(NaN, steps + 1)
     measurements[RESULT_DELTA_VALUES] = copy(mf_params.delta_values)
@@ -285,6 +311,13 @@ function truncate_measurements_to_step(measurements, completed_step_index::Integ
             truncated[key] = value[1:completed_step_index, :]
         end
     end
+    if haskey(truncated, RESULT_MODE_MEASUREMENT_CYCLES)
+        completed_cycle = completed_step_index - 1
+        truncated[RESULT_MODE_MEASUREMENT_CYCLES] = [
+            cycle for cycle in Int.(truncated[RESULT_MODE_MEASUREMENT_CYCLES])
+            if cycle <= completed_cycle
+        ]
+    end
     return truncated
 end
 
@@ -307,6 +340,7 @@ function run_cooling(
     evolution_kwargs=(;),
     stop_condition=nothing,
     rng::AbstractRNG=Random.default_rng(),
+    mode_measurement_stride::Union{Nothing,Integer}=nothing,
 ) where {B<:CoolingBackend, S<:SimulationMethod, E<:EvolutionMethod}
     return run_cooling_multi_freq(
         problem,
@@ -319,6 +353,7 @@ function run_cooling(
         evolution_kwargs=evolution_kwargs,
         stop_condition=stop_condition,
         rng=rng,
+        mode_measurement_stride=mode_measurement_stride,
     )
 end
 
@@ -486,7 +521,8 @@ end
 
 """Initialize measurement arrays based on backend and method"""
 function initialize_measurements(problem::CoolingProblem, state::QuantumState, steps::Int;
-                                 measure_modes::Bool=false, ham_params=nothing)
+                                 measure_modes::Bool=false, ham_params=nothing,
+                                 mode_measurement_stride::Union{Nothing,Integer}=nothing)
     # Basic measurements available for all backends
     measurements = Dict{String, Any}(
         RESULT_ENERGY => zeros(Float64, steps + 1),
@@ -499,10 +535,27 @@ function initialize_measurements(problem::CoolingProblem, state::QuantumState, s
     # Add mode energy measurements if requested for states whose backend has a
     # convention-matched Ising Fourier observable implementation.
     if measure_modes
-        add_mode_measurements!(measurements, problem, state, steps, ham_params)
+        add_mode_measurements!(
+            measurements,
+            problem,
+            state,
+            steps,
+            ham_params,
+            mode_measurement_stride,
+        )
     end
     
     return measurements
+end
+
+function mode_measurement_cycles(steps::Integer,
+                                 stride::Union{Nothing,Integer}=nothing)
+    steps >= 0 || throw(ArgumentError("steps must be nonnegative"))
+    stride === nothing && return collect(0:Int(steps))
+    stride >= 1 || throw(ArgumentError("mode measurement stride must be at least 1"))
+    cycles = collect(0:Int(stride):Int(steps))
+    cycles[end] == steps || push!(cycles, Int(steps))
+    return cycles
 end
 
 # Default: no additional measurements
@@ -553,7 +606,8 @@ function _measurement_ham_params(problem::CoolingProblem, ham_params)
 end
 
 function _add_ising_mode_measurement_slots!(measurements, ::CoolingProblem,
-                                            state::QuantumState, ham_params)
+                                            state::QuantumState, steps::Int,
+                                            ham_params, mode_measurement_stride)
     supports_ising_fourier_observables(ham_params) || return false
 
     # Use the state parity when it selects a definite fermionic sector.  If the
@@ -570,12 +624,33 @@ function _add_ising_mode_measurement_slots!(measurements, ::CoolingProblem,
     measurements[RESULT_MODE_NK] = nothing
     measurements[RESULT_MODE_K_INDICES] = nothing
     measurements[RESULT_MODE_ENERGIES] = nothing
+    measurements[RESULT_MODE_MEASUREMENT_CYCLES] =
+        mode_measurement_cycles(steps, mode_measurement_stride)
     return true
+end
+
+function _add_ising_mode_measurement_slots!(measurements, problem::CoolingProblem,
+                                            state::QuantumState, ham_params)
+    steps = haskey(measurements, RESULT_ENERGY) ?
+        size(measurements[RESULT_ENERGY], 1) - 1 :
+        0
+    return _add_ising_mode_measurement_slots!(
+        measurements,
+        problem,
+        state,
+        steps,
+        ham_params,
+        nothing,
+    )
 end
 
 function _record_ising_mode_measurements!(measurements, step::Int, state, ham_params)
     haskey(measurements, RESULT_MODE_HK) || return false
     supports_ising_fourier_observables(ham_params) || return false
+    if haskey(measurements, RESULT_MODE_MEASUREMENT_CYCLES)
+        cycle = step - 1
+        cycle in measurements[RESULT_MODE_MEASUREMENT_CYCLES] || return false
+    end
 
     gF_kwarg = haskey(measurements, RESULT_MODE_GF) ? measurements[RESULT_MODE_GF] : nothing
     k_indices, hk_values, εk_values = measure_all_mode_energies(state, ham_params; gF=gF_kwarg)
@@ -605,27 +680,35 @@ function _copy_previous_ising_mode_measurements!(measurements, step::Int)
 end
 
 # Helper for mode energy measurements ⟨h_k⟩ (Ising PBC/APBC)
-function add_mode_measurements!(measurements, problem::CoolingProblem{EDBackend}, state::QuantumState{EDBackend}, steps, ham_params)
+function add_mode_measurements!(measurements, problem::CoolingProblem{EDBackend},
+                                state::QuantumState{EDBackend}, steps, ham_params,
+                                mode_measurement_stride=nothing)
     _add_ising_mode_measurement_slots!(
         measurements,
         problem,
         state,
+        steps,
         _measurement_ham_params(problem, ham_params),
+        mode_measurement_stride,
     )
 end
 
 function add_mode_measurements!(measurements, problem::CoolingProblem{TNBackend},
-                                state::QuantumState{TNBackend}, steps, ham_params)
+                                state::QuantumState{TNBackend}, steps, ham_params,
+                                mode_measurement_stride=nothing)
     _add_ising_mode_measurement_slots!(
         measurements,
         problem,
         state,
+        steps,
         _measurement_ham_params(problem, ham_params),
+        mode_measurement_stride,
     )
 end
 
 # Fallback: mode measurements not supported for this backend/state pair.
-add_mode_measurements!(measurements, problem, state, steps, ham_params) = nothing
+add_mode_measurements!(measurements, problem, state, steps, ham_params,
+                       mode_measurement_stride=nothing) = nothing
 
 """Perform measurements on current state"""
 function perform_measurements!(measurements, step::Int, problem::CoolingProblem, state::QuantumState, ham_params, bath_info=nothing)

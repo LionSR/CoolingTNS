@@ -56,6 +56,10 @@ antiperiodic reference sector; use an explicit `--delta-min/--delta-max` there.
 For mode-resolved Ising runs with this periodic parity-preserving coupling, the
 stored `gap` and `detuning_reference_gap` fields record this analytic reference
 even when an explicit fixed detuning interval is supplied.
+For long large-`N` mode diagnostics, `--mode-measurement-stride s` measures
+the Bogoliubov mode rows only at cooling cycles `0, s, 2s, ...` and at the
+requested final cycle; unmeasured rows in `mode_hk` and `mode_nk` are stored as
+`NaN`, with the measured cycles recorded in `mode_measurement_cycles`.
 
 Long TDVP runs can also write a per-observer-event CSV trace. The trace includes
 the `initial`, `prepared`, `evolved`, and `updated` stages, so partial energy
@@ -181,6 +185,7 @@ function parse_args(args)
         "plan_julia_threads" => nothing,
         "plan_blas_threads" => nothing,
         "measure_modes" => false,
+        "mode_measurement_stride" => 1,
         "verbose" => false,
     )
 
@@ -202,6 +207,7 @@ function parse_args(args)
         elseif a == "--methods"
             cfg["methods"] = parse_method_list(args[i + 1]); i += 2
         elseif a in ("--steps", "--Dmax", "--M-mcwf", "--M-mpo", "--seed",
+                     "--mode-measurement-stride",
                      "--tdvp-outputlevel", "--plan-julia-threads", "--plan-blas-threads")
             key = replace(a[3:end], "-" => "_")
             cfg[key] = parse(Int, args[i + 1]); i += 2
@@ -283,6 +289,11 @@ function parse_args(args)
             error("--measure-modes is currently supported in this TN campaign only for --methods mcwf")
         cfg["evolution_method"] == "continuous" ||
             error("--measure-modes requires --evolution-method continuous in this TN campaign")
+    end
+    cfg["mode_measurement_stride"] >= 1 ||
+        error("--mode-measurement-stride must be at least 1")
+    if !cfg["measure_modes"] && cfg["mode_measurement_stride"] != 1
+        error("--mode-measurement-stride requires --measure-modes")
     end
     cfg["schedule_symbol"] = Symbol(cfg["schedule"])
     cfg["schedule_symbol"] in (:round_robin, :random) ||
@@ -490,6 +501,8 @@ function command_args_for_config(cfg; script_path=joinpath("scripts", "validatio
     cfg["stop_on_bond_cap"] && push!(args, "--stop-on-bond-cap")
     cfg["randomize_times"] && push!(args, "--randomize-times")
     cfg["measure_modes"] && push!(args, "--measure-modes")
+    cfg["mode_measurement_stride"] == 1 ||
+        append!(args, ["--mode-measurement-stride", string(cfg["mode_measurement_stride"])])
     cfg["verbose"] && push!(args, "--verbose")
     return args
 end
@@ -871,6 +884,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
             evolution_kwargs=evolution_kwargs,
             measure_modes=cfg["measure_modes"],
             stop_condition=stop_condition,
+            mode_measurement_stride=cfg["mode_measurement_stride"],
         )
     end
 
@@ -894,6 +908,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
             RESULT_MODE_NK,
             RESULT_MODE_K_INDICES,
             RESULT_MODE_ENERGIES,
+            RESULT_MODE_MEASUREMENT_CYCLES,
         )) || error(
             "--measure-modes was requested, but the run did not produce a complete " *
             "Ising Fourier-mode measurement set"
@@ -902,8 +917,13 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         mode_nk = result[RESULT_MODE_NK]
         (mode_hk isa AbstractMatrix && mode_nk isa AbstractMatrix) ||
             error("--measure-modes produced mode data with an unexpected shape")
-        all(isfinite, mode_hk) && all(isfinite, mode_nk) ||
-            error("--measure-modes produced non-finite mode data")
+        mode_cycles = Int.(result[RESULT_MODE_MEASUREMENT_CYCLES])
+        mode_rows = mode_cycles .+ 1
+        all(row -> 1 <= row <= size(mode_hk, 1), mode_rows) ||
+            error("--measure-modes produced mode measurement cycles outside the recorded time series")
+        all(isfinite, view(mode_hk, mode_rows, :)) &&
+            all(isfinite, view(mode_nk, mode_rows, :)) ||
+            error("--measure-modes produced non-finite data on measured mode rows")
     end
 
     return Dict{String,Any}(
@@ -928,6 +948,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         RESULT_MODE_NK => get(result, RESULT_MODE_NK, nothing),
         RESULT_MODE_K_INDICES => get(result, RESULT_MODE_K_INDICES, nothing),
         RESULT_MODE_ENERGIES => get(result, RESULT_MODE_ENERGIES, nothing),
+        RESULT_MODE_MEASUREMENT_CYCLES => get(result, RESULT_MODE_MEASUREMENT_CYCLES, nothing),
     )
 end
 
@@ -945,6 +966,8 @@ function output_path(cfg)
     stop_suffix = cfg["stop_on_bond_cap"] ? "_stopcap" : ""
     schedule_suffix = cfg["schedule"] == "round_robin" ? "" : "_sched$(cfg["schedule"])"
     random_time_suffix = cfg["randomize_times"] ? "_randtime" : ""
+    mode_stride_suffix = cfg["mode_measurement_stride"] == 1 ? "" :
+        "_modestride$(cfg["mode_measurement_stride"])"
     init_suffix = if cfg["init_state"] == "product"
         ""
     elseif cfg["init_state"] == "identity"
@@ -957,7 +980,7 @@ function output_path(cfg)
     return joinpath(
         cfg["outdir"],
         @sprintf(
-            "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s%s%s_steps%d_Dmax%d_te%.12g_tau%.3g_seed%d.h5",
+            "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s%s%s%s_steps%d_Dmax%d_te%.12g_tau%.3g_seed%d.h5",
             Ns,
             Rs,
             methods,
@@ -965,6 +988,7 @@ function output_path(cfg)
             model_suffix,
             stop_suffix,
             schedule_suffix * random_time_suffix,
+            mode_stride_suffix,
             init_suffix,
             cfg["steps"],
             cfg["Dmax"],
@@ -1001,6 +1025,7 @@ function write_mode_measurement_group!(g, traj_rows)
         RESULT_MODE_NK,
         RESULT_MODE_K_INDICES,
         RESULT_MODE_ENERGIES,
+        RESULT_MODE_MEASUREMENT_CYCLES,
         RESULT_MODE_GF,
         RESULT_MODE_GF_SOURCE,
     )
@@ -1010,6 +1035,7 @@ function write_mode_measurement_group!(g, traj_rows)
 
     k_indices = common_mode_metadata(traj_rows, RESULT_MODE_K_INDICES)
     mode_energies = common_mode_metadata(traj_rows, RESULT_MODE_ENERGIES)
+    mode_cycles = common_mode_metadata(traj_rows, RESULT_MODE_MEASUREMENT_CYCLES)
     mode_gF = common_mode_metadata(traj_rows, RESULT_MODE_GF)
     mode_gF_source = common_mode_metadata(traj_rows, RESULT_MODE_GF_SOURCE)
 
@@ -1022,11 +1048,18 @@ function write_mode_measurement_group!(g, traj_rows)
         dropdims(std(mode_hk; dims=3); dims=3) ./ sqrt(M)
     mode_nk_stderr = M == 1 ? zeros(size(mode_nk_mean)) :
         dropdims(std(mode_nk; dims=3); dims=3) ./ sqrt(M)
+    measured_rows = Int.(mode_cycles) .+ 1
+    unmeasured_rows = setdiff(1:size(mode_hk_mean, 1), measured_rows)
+    if !isempty(unmeasured_rows)
+        mode_hk_stderr[unmeasured_rows, :] .= NaN
+        mode_nk_stderr[unmeasured_rows, :] .= NaN
+    end
 
     write(g, RESULT_MODE_HK, mode_hk_mean)
     write(g, RESULT_MODE_NK, mode_nk_mean)
     write(g, RESULT_MODE_K_INDICES, Float64.(k_indices))
     write(g, RESULT_MODE_ENERGIES, Float64.(mode_energies))
+    write(g, RESULT_MODE_MEASUREMENT_CYCLES, Int.(mode_cycles))
     write(g, RESULT_MODE_GF, Int(mode_gF))
     write(g, RESULT_MODE_GF_SOURCE, String(mode_gF_source))
     write(g, "mode_hk_trajectories", mode_hk)
@@ -1149,6 +1182,7 @@ function run_campaign(cfg)
         write(f, "hx", cfg["model"] == "niising" ? cfg["hx"] : NaN)
         write(f, "hz", cfg["model"] == "niising" ? cfg["hz"] : NaN)
         write(f, "measure_modes", cfg["measure_modes"])
+        write(f, "mode_measurement_stride", cfg["mode_measurement_stride"])
         write(f, "tdvp_sweep_progress", cfg["tdvp_sweep_progress"])
         write(f, "coupling", cfg["coupling"])
         write(f, "g", cfg["g"])

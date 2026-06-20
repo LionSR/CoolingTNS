@@ -145,6 +145,15 @@ the mode energies `mode_ek_values`, and the parity-selected fermionic boundary
 condition metadata.  This keeps the occupation-number diagnostics tied to the
 same convention as the ED and TN observable tests.
 
+The full TN mode measurement currently evaluates the split-string correlator
+formula for all Fourier modes, and is much more expensive than the scalar
+energy and bond diagnostics.  Long large-`N` runs may therefore use
+`--mode-measurement-stride s` together with `--measure-modes`.  In that case
+`mode_hk` and `mode_nk` retain the ordinary step-by-mode shape, but only cycles
+`0, s, 2s, ...` and the requested final cycle are evaluated; unmeasured rows
+are stored as `NaN`, and the measured cooling cycles are listed in
+`mode_measurement_cycles`.
+
 For mode-energy consistency checks, the simulated state should have a definite
 Ising parity so that the fermionic momentum grid is selected by the state
 itself.  The tested large-N command above therefore uses
@@ -259,6 +268,53 @@ The short-run summary is:
 This is a convention and execution check, not a cooling claim.  It verifies
 that the formerly failing automatic-detuning path now reaches the actual TDVP
 evolution and records physically interpretable mode data at `N = 64`.
+
+### Ten-Cycle Strided Mode Scan With Pair Detuning
+
+The two-cycle check above is too short to assess cooling.  A longer
+mode-resolved scan was therefore run over `R = 1, 2, 5, 10`, still using the
+automatic periodic Ising pair reference.  Since the TN mode observable evaluates
+all split-string correlators, the run used `--mode-measurement-stride 5`: mode
+rows were measured only at cycles `0`, `5`, and `10`, while energy and bond
+diagnostics were still recorded every cycle.
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --model ising --bc periodic --Ns 64 --R-values 1,2,5,10 \
+  --methods mcwf --evolution-method continuous --steps 10 --Dmax 32 \
+  --cutoff 1e-6 --tau 0.2 --te 0.1 --M-mcwf 1 --h -1.05 \
+  --measure-modes --mode-measurement-stride 5 \
+  --init-state theta --theta 0.0 --tdvp-sweep-progress --stop-on-bond-cap \
+  --outdir .worktree/mode_pair_stride_20260620 \
+  --output .worktree/mode_pair_stride_20260620/N64_mode_pair_R1-2-5-10_steps10_Dmax32_te0.1_stride5.h5
+```
+
+The output records `mode_measurement_cycles = [0, 5, 10]` for every `R`.
+Unmeasured mode rows are intentionally stored as `NaN`.  On the measured rows,
+the direct energy and the mode reconstruction agree to
+`max |E-E_modes| = 1.18e-12` for all four frequency counts.
+
+| R | completed cycles | final E/N | best E/N | relE | Dsys_eff | Dsb_eff | Dtdvp sweep eff | bond status | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|:---|---:|
+| 1 | 10/10 | -1.04974606 | -1.05000000 | 0.19562 | 17 | 22 | 22 | no cap | 399.2 s |
+| 2 | 10/10 | -1.04976505 | -1.05000000 | 0.19561 | 17 | 22 | 22 | no cap | 330.7 s |
+| 5 | 10/10 | -1.01930043 | -1.05000000 | 0.21895 | 17 | 21 | 21 | no cap | 313.4 s |
+| 10 | 10/10 | -1.01557750 | -1.05000000 | 0.22181 | 17 | 22 | 22 | no cap | 319.3 s |
+
+This scan is more informative than the two-cycle check and is still not a
+cooling success.  For `R = 1` and `R = 2`, the energy remains essentially near
+the initial theta-state value and drifts slightly upward.  For `R = 5` and
+`R = 10`, the single trajectory heats substantially.  None of these runs comes
+close to the finite-chain DMRG reference `E0/N = -1.3050442852`.
+
+The main algorithmic conclusion is that, after the detuning convention is
+corrected, the present `XX` round-robin pair-detuning schedule does not cool
+this `N = 64` theta state toward the ground state on a ten-cycle prefix.  The
+main computational conclusion is that full TN mode snapshots are expensive once
+the MPS bond dimension grows; striding makes diagnostic runs possible, but a
+production mode-occupation calculation will need either optimized correlator
+contractions, a coarser observable schedule, or both.
 
 ## Reproduction commands
 
