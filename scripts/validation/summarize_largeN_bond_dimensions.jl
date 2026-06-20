@@ -24,7 +24,9 @@ The `traj cycles/hour` column is the corresponding completed trajectory-cycle
 throughput, `3600 * sum(completed_steps) / elapsed_total`.  For deterministic
 multi-frequency schedules, `completed/requested periods` converts the same cycle
 counts into full detuning-grid passes by dividing by `R`.  Random schedules and
-legacy files without schedule metadata are reported as `n/a`.
+legacy files without schedule metadata are reported as `n/a`.  The
+`visited detunings` column counts distinct stored detuning values used during
+completed cycles, again excluding the initial `NaN` measurement row.
 """
 
 using CoolingTNS
@@ -262,6 +264,46 @@ function completed_requested_periods_label(
     return "$(range_float_label(completed_periods))/$(range_float_label(requested_periods))"
 end
 
+function delta_history_matrix(run_group)
+    if haskey(run_group, "delta_lists")
+        values = Float64.(read(run_group["delta_lists"]))
+        values isa AbstractVector && return reshape(values, :, 1)
+        return Matrix(values)
+    elseif haskey(run_group, "delta_list")
+        values = Float64.(read(run_group["delta_list"]))
+        return reshape(values, :, 1)
+    end
+    return nothing
+end
+
+function distinct_completed_delta_counts(delta_history, completed_steps::AbstractVector{<:Integer})
+    delta_history === nothing && return Int[]
+    ncols = size(delta_history, 2)
+    counts = Int[]
+    for (trajectory, completed) in enumerate(completed_steps)
+        column = ncols == 1 ? 1 : trajectory
+        column <= ncols || break
+        last_row = min(Int(completed) + 1, size(delta_history, 1))
+        if last_row < 2
+            push!(counts, 0)
+            continue
+        end
+        used_values = [
+            value for value in view(delta_history, 2:last_row, column)
+            if isfinite(value)
+        ]
+        push!(counts, length(unique(used_values)))
+    end
+    return counts
+end
+
+function visited_detunings_label(run_group, completed_steps::AbstractVector{<:Integer}, R::Integer)
+    R > 0 || return "n/a"
+    counts = distinct_completed_delta_counts(delta_history_matrix(run_group), completed_steps)
+    isempty(counts) && return "n/a"
+    return "$(range_label(counts))/$(R)"
+end
+
 function stop_reason_label(reasons::AbstractVector{<:AbstractString})
     values = String.(reasons)
     nonempty = filter(!isempty, values)
@@ -369,6 +411,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     completed_requested_periods = completed_requested_periods_label(
         completed_steps_values, requested_steps_values, R, schedule
     )
+    visited_detunings = visited_detunings_label(run_group, completed_steps_values, R)
     elapsed_values = read_float_vector(run_group, "elapsed_seconds")
     elapsed_seconds = isempty(elapsed_values) ? NaN : sum(elapsed_values)
     traj_cycles_per_hour = trajectory_cycles_per_hour(
@@ -454,6 +497,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         schedule=schedule,
         completed_requested="$(range_label(completed_steps_values))/$(range_label(requested_steps_values))",
         completed_requested_periods=completed_requested_periods,
+        visited_detunings=visited_detunings,
         elapsed_total_seconds=elapsed_seconds,
         traj_cycles_per_hour=traj_cycles_per_hour,
         stop_reason=stop_reason_label(stop_reasons),
@@ -527,12 +571,13 @@ function sorted_rows(rows)
 end
 
 function print_markdown(rows)
-    println("| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
-    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---:|---|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
+    println("| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---:|---:|---|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | $(row.R) | $(row.M) | " *
             "$(row.schedule) | $(row.completed_requested) | $(row.completed_requested_periods) | " *
+            "$(row.visited_detunings) | " *
             "$(format_float(row.elapsed_total_seconds, 1)) | " *
             "$(format_float(row.traj_cycles_per_hour, 2)) | $(row.stop_reason) | " *
             "$(row.delta_protocol) | $(row.delta_range) | $(row.delta_factor) | " *
@@ -563,13 +608,13 @@ function print_markdown(rows)
 end
 
 function print_compact_markdown(rows)
-    println("| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | final E/N | best E/N | mode max abs dE/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | traj cycles/hour | stop_reason |")
-    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---|")
+    println("| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | final E/N | best E/N | mode max abs dE/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | traj cycles/hour | stop_reason |")
+    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---|")
     for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | " *
             "$(row.R) | $(row.M) | $(row.schedule) | $(row.completed_requested) | " *
-            "$(row.completed_requested_periods) | " *
+            "$(row.completed_requested_periods) | $(row.visited_detunings) | " *
             "$(format_float(row.final_e_over_n, 8)) | " *
             "$(format_float(row.best_e_over_n, 8)) | " *
             "$(format_float_or_na(row.mode_max_abs_err_over_n, 3)) | $(row.threshold) | " *
