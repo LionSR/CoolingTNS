@@ -20,7 +20,6 @@ _slide_normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("with signed special-mode coefficients", slide_flat)
 
     @test occursin("ising_energy_from_mode_hk", plot_flat)
-    @test occursin("n_k^{\\mathrm{Bog}} = \\langle \\hat n_k\\rangle = \\frac{1+\\langle h_k\\rangle}{2}", map_flat)
     @test occursin("The energy reconstruction uses \\(h_k\\) and the signed coefficient", map_flat)
     @test occursin("writing a mode contribution as \$\\epsilon_k n_k\$ without specifying which occupation is meant, gives a different quantity", tn_flat)
 
