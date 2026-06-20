@@ -26,6 +26,7 @@ const RESULT_MODE_HK = "mode_hk"
 const RESULT_MODE_NK = "mode_nk"
 const RESULT_MODE_K_INDICES = "mode_k_indices"
 const RESULT_MODE_ENERGIES = "mode_ek_values"
+const RESULT_MODE_MEASUREMENT_CYCLES = "mode_measurement_cycles"
 
 const RESULT_DELTA_LIST = "delta_list"
 const RESULT_TE_LIST = "te_list"
@@ -63,6 +64,7 @@ const RESULT_KEYS = (
     RESULT_MODE_NK,
     RESULT_MODE_K_INDICES,
     RESULT_MODE_ENERGIES,
+    RESULT_MODE_MEASUREMENT_CYCLES,
     RESULT_DELTA_LIST,
     RESULT_TE_LIST,
     RESULT_DELTA_VALUES,

@@ -335,6 +335,45 @@ end
         @test measurements[RESULT_MODE_NK][2, :] == measurements[RESULT_MODE_NK][1, :]
     end
 
+    @testset "TN MCWF mode stride keeps skipped mismatch rows as NaN" begin
+        N = 4
+        ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
+        coupling_params = BasicCouplingParameters("XX", 0.0, 2, 0.0, 0.5)
+        sim_params = UnifiedSimulationParameters(MonteCarloWavefunction(), ContinuousEvolution(); maxiter=20)
+
+        problem = setup_problem(TNBackend(), ham_params, coupling_params, sim_params)
+        state = setup_initial_state(problem, sim_params, "theta", 0.0)
+        measurements = CoolingTNS.initialize_measurements(
+            problem,
+            state,
+            coupling_params.steps;
+            measure_modes=true,
+            ham_params=ham_params,
+            mode_measurement_stride=2,
+        )
+        CoolingTNS.perform_backend_measurements!(measurements, 1, problem, state, ham_params)
+
+        wrong_length_state = QuantumState(
+            problem.backend,
+            sim_params.sim_method,
+            sim_params.evolution_method,
+            MPS(problem.extra.sites, "Up"),
+        )
+        @test_logs (:warn, r"Dimension mismatch") (:warn, r"Skipping measurement") begin
+            CoolingTNS.perform_backend_measurements!(
+                measurements,
+                2,
+                problem,
+                wrong_length_state,
+                ham_params,
+            )
+        end
+
+        @test measurements[RESULT_MODE_MEASUREMENT_CYCLES] == [0, 2]
+        @test all(isnan, measurements[RESULT_MODE_HK][2, :])
+        @test all(isnan, measurements[RESULT_MODE_NK][2, :])
+    end
+
     @testset "TN MCWF continuous cooling records nonzero-step mode rows" begin
         N = 4
         ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
@@ -376,6 +415,42 @@ end
         @test results_tn[RESULT_MODE_NK] ≈
             mode_occupation_from_hk(results_tn[RESULT_MODE_HK]) atol=1e-12
         @test all(nk -> -1e-12 <= nk <= 1 + 1e-12, results_tn[RESULT_MODE_NK])
+    end
+
+    @testset "TN MCWF mode measurement stride records selected cycles" begin
+        N = 4
+        ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
+        coupling_params = BasicCouplingParameters("XX", 0.0, 3, 0.0, 0.5)
+        sim_params = UnifiedSimulationParameters(
+            MonteCarloWavefunction(),
+            ContinuousEvolution();
+            maxiter=20,
+            cutoff=1e-12,
+            Dmax=64,
+        )
+
+        problem = setup_problem(TNBackend(), ham_params, coupling_params, sim_params)
+        state = setup_initial_state(problem, sim_params, "theta", 0.0)
+        results = redirect_stdout(devnull) do
+            run_cooling(
+                problem,
+                state,
+                coupling_params,
+                sim_params,
+                ham_params;
+                measure_modes=true,
+                mode_measurement_stride=2,
+            )
+        end
+
+        @test results[RESULT_MODE_MEASUREMENT_CYCLES] == [0, 2, 3]
+        hk = results[RESULT_MODE_HK]
+        nk = results[RESULT_MODE_NK]
+        @test size(hk) == (4, N)
+        @test all(isfinite, hk[[1, 3, 4], :])
+        @test all(isfinite, nk[[1, 3, 4], :])
+        @test all(isnan, hk[2, :])
+        @test all(isnan, nk[2, :])
     end
 
     @testset "TN density-matrix zero-step cooling records MPO Fourier modes" begin

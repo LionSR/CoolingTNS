@@ -261,6 +261,7 @@ end
     @test mode_cfg["model"] == "ising"
     @test mode_cfg["bc"] == "periodic"
     @test mode_cfg["h"] == -0.75
+    @test mode_cfg["mode_measurement_stride"] == 1
     mode_ham = campaign_hamiltonian_parameters(64, mode_cfg)
     @test mode_ham.model isa CoolingTNS.IsingModel
     @test mode_ham.bc == :periodic
@@ -350,6 +351,35 @@ end
     @test !occursin("--hx", mode_command)
     @test !occursin("--hz", mode_command)
     @test occursin("--measure-modes", mode_command)
+    @test !occursin("--mode-measurement-stride", mode_command)
+
+    stride_mode_cfg = parse_args([
+        "--model", "ising",
+        "--bc", "periodic",
+        "--Ns", "64",
+        "--R-values", "1",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--steps", "10",
+        "--Dmax", "32",
+        "--h", "-0.75",
+        "--measure-modes",
+        "--mode-measurement-stride", "5",
+        "--outdir", tempdir(),
+    ])
+    @test stride_mode_cfg["mode_measurement_stride"] == 5
+    @test occursin("_modestride5", output_path(stride_mode_cfg))
+    stride_mode_command = join(command_args_for_config(stride_mode_cfg), " ")
+    @test occursin("--mode-measurement-stride 5", stride_mode_command)
+    @test_throws ErrorException parse_args(["--mode-measurement-stride", "2"])
+    @test_throws ErrorException parse_args([
+        "--model", "ising",
+        "--bc", "periodic",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--measure-modes",
+        "--mode-measurement-stride", "0",
+    ])
 
     @test parse_args([
         "--model", "ising",
@@ -551,6 +581,7 @@ end
             "stop_reason" => "",
             CoolingTNS.RESULT_MODE_K_INDICES => [1//2, 3//2],
             CoolingTNS.RESULT_MODE_ENERGIES => [0.4, 0.8],
+            CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES => [0, 1, 2],
             CoolingTNS.RESULT_MODE_GF => -1,
             CoolingTNS.RESULT_MODE_GF_SOURCE => "state",
         )
@@ -569,6 +600,42 @@ end
 
         h5open(mode_path, "w") do f
             write_run_group(f, "R_modes", traj_rows, -2.0, 8, protocol, [0.5, 1.5])
+
+            sparse_hk_1 = [-1.0 0.0; NaN NaN; 0.0 1.0]
+            sparse_hk_2 = [-0.8 0.2; NaN NaN; 0.2 0.8]
+            sparse_nk_1 = CoolingTNS.mode_occupation_from_hk(sparse_hk_1)
+            sparse_nk_2 = CoolingTNS.mode_occupation_from_hk(sparse_hk_2)
+            sparse_base = merge(copy(base_row), Dict{String,Any}(
+                CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES => [0, 2],
+            ))
+            sparse_row_1 = merge(copy(sparse_base), Dict{String,Any}(
+                CoolingTNS.RESULT_MODE_HK => sparse_hk_1,
+                CoolingTNS.RESULT_MODE_NK => sparse_nk_1,
+            ))
+            sparse_row_2 = merge(copy(sparse_base), Dict{String,Any}(
+                "E" => [-2.0, -1.75, -1.25],
+                CoolingTNS.RESULT_MODE_HK => sparse_hk_2,
+                CoolingTNS.RESULT_MODE_NK => sparse_nk_2,
+                "elapsed" => 1.5,
+            ))
+            write_run_group(
+                f,
+                "R_sparse_single",
+                [sparse_row_1],
+                -2.0,
+                8,
+                protocol,
+                [0.5, 1.5],
+            )
+            write_run_group(
+                f,
+                "R_sparse_ensemble",
+                [sparse_row_1, sparse_row_2],
+                -2.0,
+                8,
+                protocol,
+                [0.5, 1.5],
+            )
         end
         h5open(mode_path, "r") do f
             g = f["R_modes"]
@@ -576,12 +643,39 @@ end
             @test read(g[CoolingTNS.RESULT_MODE_NK]) ≈ (mode_nk_1 .+ mode_nk_2) ./ 2
             @test read(g[CoolingTNS.RESULT_MODE_K_INDICES]) == Float64.([1//2, 3//2])
             @test read(g[CoolingTNS.RESULT_MODE_ENERGIES]) == [0.4, 0.8]
+            @test read(g[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 1, 2]
             @test read(g[CoolingTNS.RESULT_MODE_GF]) == -1
             @test read(g[CoolingTNS.RESULT_MODE_GF_SOURCE]) == "state"
             @test size(read(g["mode_hk_trajectories"])) == (3, 2, 2)
             @test read(g["mode_hk_trajectories"])[:, :, 1] ≈ mode_hk_1
             @test read(g["mode_hk_trajectories"])[:, :, 2] ≈ mode_hk_2
             @test size(read(g["mode_nk_stderr"])) == (3, 2)
+
+            g_single = f["R_sparse_single"]
+            single_hk = read(g_single[CoolingTNS.RESULT_MODE_HK])
+            single_nk = read(g_single[CoolingTNS.RESULT_MODE_NK])
+            single_hk_stderr = read(g_single["mode_hk_stderr"])
+            single_nk_stderr = read(g_single["mode_nk_stderr"])
+            @test read(g_single[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 2]
+            @test all(isnan, single_hk[2, :])
+            @test all(isnan, single_nk[2, :])
+            @test all(isnan, single_hk_stderr[2, :])
+            @test all(isnan, single_nk_stderr[2, :])
+            @test single_hk_stderr[[1, 3], :] == zeros(2, 2)
+            @test single_nk_stderr[[1, 3], :] == zeros(2, 2)
+
+            g_ensemble = f["R_sparse_ensemble"]
+            ensemble_hk = read(g_ensemble[CoolingTNS.RESULT_MODE_HK])
+            ensemble_nk = read(g_ensemble[CoolingTNS.RESULT_MODE_NK])
+            ensemble_hk_stderr = read(g_ensemble["mode_hk_stderr"])
+            ensemble_nk_stderr = read(g_ensemble["mode_nk_stderr"])
+            @test read(g_ensemble[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 2]
+            @test all(isnan, ensemble_hk[2, :])
+            @test all(isnan, ensemble_nk[2, :])
+            @test all(isnan, ensemble_hk_stderr[2, :])
+            @test all(isnan, ensemble_nk_stderr[2, :])
+            @test all(isfinite, ensemble_hk_stderr[[1, 3], :])
+            @test all(isfinite, ensemble_nk_stderr[[1, 3], :])
         end
     finally
         rm(mode_path; force=true)
@@ -759,6 +853,7 @@ end
             @test read(f["model"]) == "ising"
             @test read(f["bc"]) == "periodic"
             @test read(f["measure_modes"]) == true
+            @test read(f["mode_measurement_stride"]) == 1
             @test read(f["init_state"]) == "theta"
             @test read(f["theta"]) == 0.0
             @test read(f["randomize_times"]) == false
@@ -792,6 +887,7 @@ end
             @test read(g[CoolingTNS.RESULT_MODE_K_INDICES]) == Float64.([-1//2, 1//2])
             @test length(read(g[CoolingTNS.RESULT_MODE_ENERGIES])) == 2
             @test all(isfinite, read(g[CoolingTNS.RESULT_MODE_ENERGIES]))
+            @test read(g[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 1]
             @test size(read(g["mode_hk_trajectories"])) == (2, 2, 1)
             @test size(read(g["mode_nk_trajectories"])) == (2, 2, 1)
             @test read(g["mode_hk_stderr"]) == zeros(2, 2)
