@@ -671,6 +671,10 @@ end
 
 function _copy_previous_ising_mode_measurements!(measurements, step::Int)
     step > 1 || return false
+    if haskey(measurements, RESULT_MODE_MEASUREMENT_CYCLES)
+        cycle = step - 1
+        cycle in measurements[RESULT_MODE_MEASUREMENT_CYCLES] || return false
+    end
     hk = get(measurements, RESULT_MODE_HK, nothing)
     nk = get(measurements, RESULT_MODE_NK, nothing)
     (hk isa AbstractMatrix && nk isa AbstractMatrix) || return false
