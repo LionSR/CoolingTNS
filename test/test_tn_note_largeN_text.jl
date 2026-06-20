@@ -17,6 +17,10 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
 
     # These anchors intentionally couple the note to the source documents.
     # Update them together when the notation or bond-dimension evidence changes.
+    @test occursin("We study a repeated bath-reset cooling map whose intended fixed point", note_flat)
+    @test occursin("Whether a given implementation prepares the ground state is a dynamical and numerical question", note_flat)
+    @test occursin("This low-entanglement assumption is part of the numerical validation problem", note_flat)
+    @test occursin("when the transient system-bath state or the TDVP sweep reaches the imposed bond cap", note_flat)
     @test occursin("not as a final demonstration of ground-state preparation", note_flat)
     @test occursin("Two cooling cycles are not physically meaningful", note_flat)
     @test occursin("they do not establish scalable cooling to the ground state", note_flat)
@@ -149,6 +153,10 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("\\operatorname{coeff}_k=w_k", map_flat)
 
     forbidden = [
+        "allows for the preparation of the ground state",
+        "the energy of the system is reduced via its interaction",
+        "exploiting the low-entanglement structure of the steady states",
+        "exploiting the low-entanglement structure of the states involved in the process",
         "algorithm effectively prepares the ground state",
         "confirming the ability of the cooling algorithm to prepare low-energy states",
         "demonstrating the effectiveness of the cooling algorithm in preparing low-energy states",

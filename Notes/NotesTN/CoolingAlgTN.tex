@@ -15,8 +15,8 @@
 
 \section{Cooling Algorithm}
 
-Consider a spin system consisting of $N$ particles on a lattice governed by a local Hamiltonian $H_S$. We describe a cooling algorithm that allows for the preparation of the ground state of the Hamiltonian~\cite{Terhal2000Problem,Kraus2008Preparation,Diehl2008Quantum,Verstraete2009Quantum,Shabani2016Artificial,Metcalf2020Engineered,Polla2021Quantum,Shtanko2021Algorithms}.
-In nature, the cooling of hot objects occurs when they are coupled to cooler reservoirs. The cooling algorithm mimics this process. It consists of multiple cycles, and in each cycle, the energy of the system is reduced via its interaction with a fresh ancillary bath $B$, which consists of $N_B$ particles initialized at the ground state of its Hamiltonian $H_B$. To ensure scalability, the number of ancillas $N_B$ is taken to be extensive, i.e., proportional to the system size $N$. This is necessary to handle the extensive entropy increase due to noise, which a single ancilla would not be sufficient to counteract.
+Consider a spin system consisting of $N$ particles on a lattice governed by a local Hamiltonian $H_S$. We study a repeated bath-reset cooling map whose intended fixed point, for suitable couplings and schedules, is a low-energy state of $H_S$~\cite{Terhal2000Problem,Kraus2008Preparation,Diehl2008Quantum,Verstraete2009Quantum,Shabani2016Artificial,Metcalf2020Engineered,Polla2021Quantum,Shtanko2021Algorithms}. Whether a given implementation prepares the ground state is a dynamical and numerical question; it must be checked against exact diagonalization at small size and against bond-dimension and trajectory-convergence diagnostics at large size.
+In nature, the cooling of hot objects occurs when they are coupled to cooler reservoirs. The cooling algorithm mimics this process. It consists of multiple cycles, and in a favorable resonant regime energy can be transferred from the system to a fresh ancillary bath $B$, which consists of $N_B$ particles initialized at the ground state of its Hamiltonian $H_B$. To make this mechanism extensive, the number of ancillas $N_B$ is taken to be proportional to the system size $N$. This is necessary to handle the extensive entropy increase due to noise, which a single ancilla would not be sufficient to counteract.
 The Hamiltonian of the composite system is given by
 \begin{equation}
 	H = H_S \otimes \Id_B + \Id_S \otimes H_B + gV,
@@ -40,7 +40,7 @@ where $\tr_B\{\cdot\}$ denotes the partial trace over the bath degrees of freedo
 An evolution under the Hamiltonian $H$ conserves the energy corresponding to the same Hamiltonian $\langle H_S + H_B + gV\rangle$.
 In the case of weak interaction $\min\{\|H_B\|,\|H_S\|\} \gg g > 0$, the expectation value $\langle H_S + H_B\rangle$ is almost conserved. As the ancillary system $B$ is excited from its ground state to excited states (an increase of $\langle H_B \rangle$), the energy exchange between the system $S$ and the bath $B$ leads to a decrease of $\langle H_S \rangle$, indicating that the system is cooled.
 
-To study the performance of the cooling algorithm and optimize its parameters, we employ efficient numerical simulation methods based on tensor networks. Specifically, we use matrix product operator (MPO) and matrix product state (MPS) techniques to simulate the cooling dynamics for large system sizes, exploiting the low-entanglement structure of the steady states. These methods will be discussed in detail in the following sections.
+To study the performance of the cooling algorithm and optimize its parameters, we employ numerical simulation methods based on tensor networks. Specifically, we use matrix product operator (MPO) and matrix product state (MPS) techniques to simulate the cooling dynamics when the relevant states or operators remain sufficiently low-entangled. This low-entanglement assumption is part of the numerical validation problem, not an a priori consequence of the cooling map; the large-\(N\) diagnostics below therefore track effective system, system-bath, and TDVP-sweep bond dimensions explicitly.
 
 \begin{figure}
 	\centering
@@ -72,7 +72,7 @@ To study the performance of the cooling algorithm and optimize its parameters, w
 \section{Numerical Simulation Methods}
 \label{sec:NumMethods}
 
-In this section, we present efficient numerical methods to simulate the cooling algorithm for large system sizes, focusing on matrix product operator (MPO) and matrix product state (MPS) quantum trajectory simulations. These tensor network techniques enable us to study the performance of the algorithm and optimize its parameters by exploiting the low-entanglement structure of the steady states. We also simulate the effects of noise to investigate the robustness of the cooling algorithm in realistic scenarios.
+In this section, we present numerical methods to simulate the cooling algorithm for large system sizes, focusing on matrix product operator (MPO) and matrix product state (MPS) quantum trajectory simulations. These tensor-network techniques are efficient only in regimes where the relevant density operators or trajectories admit controlled bond dimensions. We therefore use them both to study cooling performance and to diagnose when the proposed protocol has left the controlled low-entanglement regime. We also simulate the effects of noise to investigate the robustness of the cooling algorithm in realistic scenarios.
 
 For a more detailed explanation of the procedure, let us first review the definition of matrix product state and the matrix product operator. A matrix product state (MPS) of a chain of $N$ spins is described as (also see Fig.~\ref{fig:MPS} for an illustration)
 \begin{equation}
@@ -412,7 +412,7 @@ The matrix product operator simulations were performed using the ITensor.jl~\cit
 
 \section{Quantum Trajectory Simulation with Matrix Product States}
 
-As an alternative to solving the many-body dynamical equation (\ref{eq:rhokp1}) directly, the quantum trajectory method allows us to work with stochastic wavefunctions instead of density operators. This approach is advantageous because MPO simulations without purification may lead to unphysical states, even though the steady state is physical. During the evolution, the truncation might result in states with lower energies than the ground state, which is incorrect. By combining quantum trajectories with matrix product state techniques, we can efficiently simulate the cooling dynamics for large system sizes, exploiting the low-entanglement structure of the states involved in the process.
+As an alternative to solving the many-body dynamical equation (\ref{eq:rhokp1}) directly, the quantum trajectory method allows us to work with stochastic wavefunctions instead of density operators. This approach is advantageous because MPO simulations without purification may lead to unphysical states, even though the steady state is physical. During the evolution, the truncation might result in states with lower energies than the ground state, which is incorrect. By combining quantum trajectories with matrix product state techniques, we can simulate large systems when the trajectory entanglement remains controlled; when the transient system-bath state or the TDVP sweep reaches the imposed bond cap, the run should be interpreted as a truncation diagnostic rather than as converged cooling dynamics.
 
 
 Each stochastic trajectory begins from the same initial normalized pure state $\ket{\Psi_S^1}$ and evolves according to the following procedure.
