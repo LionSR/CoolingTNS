@@ -666,6 +666,7 @@ end
             @test read(g[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 1, 2]
             @test read(g[CoolingTNS.RESULT_MODE_GF]) == -1
             @test read(g[CoolingTNS.RESULT_MODE_GF_SOURCE]) == "state"
+            @test read(g["trajectory_seeds"]) == [101, 102]
             @test size(read(g["mode_hk_trajectories"])) == (3, 2, 2)
             @test read(g["mode_hk_trajectories"])[:, :, 1] ≈ mode_hk_1
             @test read(g["mode_hk_trajectories"])[:, :, 2] ≈ mode_hk_2
@@ -677,6 +678,7 @@ end
             single_hk_stderr = read(g_single["mode_hk_stderr"])
             single_nk_stderr = read(g_single["mode_nk_stderr"])
             @test read(g_single[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 2]
+            @test read(g_single["trajectory_seeds"]) == [101]
             @test all(isnan, single_hk[2, :])
             @test all(isnan, single_nk[2, :])
             @test all(isnan, single_hk_stderr[2, :])
@@ -690,6 +692,7 @@ end
             ensemble_hk_stderr = read(g_ensemble["mode_hk_stderr"])
             ensemble_nk_stderr = read(g_ensemble["mode_nk_stderr"])
             @test read(g_ensemble[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 2]
+            @test read(g_ensemble["trajectory_seeds"]) == [101, 102]
             @test all(isnan, ensemble_hk[2, :])
             @test all(isnan, ensemble_nk[2, :])
             @test all(isnan, ensemble_hk_stderr[2, :])
