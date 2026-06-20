@@ -947,6 +947,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         "te_list" => te_list,
         "final_bond_dims" => final_dims[],
         "elapsed" => elapsed,
+        "seed" => seed,
         "requested_steps" => get(result, RESULT_REQUESTED_STEPS, steps),
         "completed_steps" => completed_steps,
         "stop_reason" => get(result, RESULT_STOP_REASON, ""),
@@ -1131,6 +1132,7 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     write(g, "evolved_saturation_cycle", evolved_saturation_cycles)
     write(g, "tdvp_sweep_saturation_cycle", tdvp_sweep_saturation_cycles)
     write(g, "elapsed_seconds", Float64[row["elapsed"] for row in traj_rows])
+    write(g, "trajectory_seeds", Int[row["seed"] for row in traj_rows])
     write(g, "requested_steps", Int[row["requested_steps"] for row in traj_rows])
     write(g, "completed_steps", Int[row["completed_steps"] for row in traj_rows])
     write(g, "stop_reasons", String[row["stop_reason"] for row in traj_rows])
@@ -1205,6 +1207,7 @@ function run_campaign(cfg)
         write(f, "schedule", cfg["schedule"])
         write(f, "stop_on_bond_cap", cfg["stop_on_bond_cap"])
         write(f, "seed", cfg["seed"])
+        write(f, "trajectory_seed_rule", LARGE_N_TRAJECTORY_SEED_RULE)
 
         for N in cfg["Ns"]
             ham_params = campaign_hamiltonian_parameters(N, cfg)
@@ -1276,7 +1279,7 @@ function run_campaign(cfg)
 
                     traj_rows = Vector{Dict{String,Any}}()
                     for m in 1:M
-                        seed = cfg["seed"] + 1_000_000 * N + 10_000 * R + m
+                        seed = largeN_trajectory_seed(cfg["seed"], N, R, m)
                         row = run_one_trajectory(problem, ham_params, cp_multi, sim_params,
                                                  cfg, seed; method=method, R=R,
                                                  trajectory=m, E0=E0)
