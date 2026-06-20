@@ -28,6 +28,7 @@ using CoolingTNS:
     RESULT_MODE_NK,
     RESULT_MODE_K_INDICES,
     RESULT_MODE_ENERGIES,
+    RESULT_MODE_MEASUREMENT_CYCLES,
     mode_occupation_from_hk,
     bath_detuning_energy,
     nearest_bath_resonance_indices
@@ -64,7 +65,8 @@ _mode_index_label(k) = k isa Rational ? "$(numerator(k))/$(denominator(k))" : "$
 
 """
     plot_mode_occupation_from_data(mode_nk, k_indices, εk_values;
-                                   delta=nothing, savepath=nothing, title=nothing)
+                                   delta=nothing, savepath=nothing, title=nothing,
+                                   measurement_cycles=nothing)
 
 Plot the Bogoliubov quasiparticle occupation ``n_k^{Bog}`` vs cooling step for
 each mode.
@@ -77,13 +79,19 @@ each mode.
 - `delta`: Bath detuning Δ (optional, used to highlight resonant mode)
 - `savepath`: Path to save figure (optional)
 - `title`: Figure title (optional)
+- `measurement_cycles`: Optional zero-based physical cooling cycles for measured
+  rows.  When omitted, every row is treated as measured.
 """
 function plot_mode_occupation_from_data(mode_nk::AbstractMatrix, k_indices, εk_values;
-                                        delta=nothing, savepath=nothing, title=nothing)
+                                        delta=nothing, savepath=nothing, title=nothing,
+                                        measurement_cycles=nothing)
     plt = get_pyplot()
     n_steps, n_modes = size(mode_nk)
     length(k_indices) == n_modes || throw(ArgumentError("k_indices length must match mode_nk columns"))
     length(εk_values) == n_modes || throw(ArgumentError("εk_values length must match mode_nk columns"))
+    measured = _mode_measurement_cycle_rows(n_steps, measurement_cycles)
+    cycles = measured.cycles
+    measured_mode_nk = Float64.(mode_nk[measured.rows, :])
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 
@@ -92,13 +100,11 @@ function plot_mode_occupation_from_data(mode_nk::AbstractMatrix, k_indices, εk_
     norm = plt.matplotlib.colors.Normalize(vmin=ε_min, vmax=ε_max)
     cmap = plt.cm.coolwarm
 
-    steps = 0:(n_steps - 1)
-
     # --- Left panel: Bogoliubov occupation vs step ---
     for i in 1:n_modes
         color = cmap(norm(εk_values[i]))
         k_label = _mode_index_label(k_indices[i])
-        ax1.plot(steps, mode_nk[:, i], color=color, linewidth=1.5,
+        ax1.plot(cycles, measured_mode_nk[:, i], color=color, linewidth=1.5,
                  label=L"k = %$k_label" * L", \varepsilon_k = %$(round(εk_values[i], digits=3))")
     end
 
@@ -114,17 +120,17 @@ function plot_mode_occupation_from_data(mode_nk::AbstractMatrix, k_indices, εk_
     if δ_abs !== nothing
         for res_idx in nearest_bath_resonance_indices(εk_values, delta)
             k_label = _mode_index_label(k_indices[res_idx])
-            ax1.plot(steps, mode_nk[:, res_idx], color="red", linewidth=3, alpha=0.4,
+            ax1.plot(cycles, measured_mode_nk[:, res_idx], color="red", linewidth=3, alpha=0.4,
                      label=L"resonant: k=%$k_label" * L", \Delta=%$(round(δ_abs, digits=3))")
         end
     end
 
-    ax1.set_xlabel("Cooling step")
+    ax1.set_xlabel("Cooling cycle")
     ax1.set_ylabel(BOGOLIUBOV_OCCUPATION_LABEL)
     ax1.set_title(title !== nothing ? title : "Bogoliubov Mode Occupation Evolution")
     ax1.legend(fontsize=8, loc="best")
     ax1.grid(true, alpha=0.3)
-    ymin, ymax = _occupation_ylim(mode_nk)
+    ymin, ymax = _occupation_ylim(measured_mode_nk)
     ax1.set_ylim(ymin, ymax)
 
     # Colorbar
@@ -134,13 +140,15 @@ function plot_mode_occupation_from_data(mode_nk::AbstractMatrix, k_indices, εk_
     cbar.set_label(L"\varepsilon_k \; \mathrm{(code\;units)}")
 
     # --- Right panel: final Bogoliubov occupation vs ε_k ---
-    initial_nk = mode_nk[1, :]
-    final_nk = mode_nk[end, :]
+    initial_nk = measured_mode_nk[1, :]
+    final_nk = measured_mode_nk[end, :]
+    initial_label = first(cycles) == 0 ? "Initial" : "Cycle $(first(cycles))"
+    final_label = last(cycles) == n_steps - 1 ? "Final" : "Cycle $(last(cycles))"
 
     ax2.scatter(εk_values, initial_nk, marker="o", s=80, color="blue", alpha=0.6,
-                label="Initial", zorder=3)
+                label=initial_label, zorder=3)
     ax2.scatter(εk_values, final_nk, marker="s", s=80, color="red", alpha=0.6,
-                label="Final", zorder=3)
+                label=final_label, zorder=3)
     ax2.axhline(y=0.0, color="black", linestyle="--", alpha=0.5,
                 label=BOGOLIUBOV_GS_OCCUPATION_LABEL)
     ax2.axhline(y=0.5, color="gray", linestyle=":", alpha=0.3,
@@ -171,16 +179,20 @@ end
 
 """
     plot_mode_cooling_from_data(mode_hk, k_indices, εk_values;
-                                delta=nothing, savepath=nothing, title=nothing)
+                                delta=nothing, savepath=nothing, title=nothing,
+                                measurement_cycles=nothing)
 
 Legacy entry point accepting the Bogoliubov observable `h_k`. The plotted
 quantity is still the Bogoliubov occupation `n_k^Bog`, obtained from
-`CoolingTNS.mode_occupation_from_hk`.
+`CoolingTNS.mode_occupation_from_hk`.  The optional `measurement_cycles`
+keyword has the same convention as in `plot_mode_occupation_from_data`.
 """
 function plot_mode_cooling_from_data(mode_hk::AbstractMatrix, k_indices, εk_values;
-                                     delta=nothing, savepath=nothing, title=nothing)
+                                     delta=nothing, savepath=nothing, title=nothing,
+                                     measurement_cycles=nothing)
     return plot_mode_occupation_from_data(mode_occupation_from_hk(mode_hk), k_indices, εk_values;
-                                          delta=delta, savepath=savepath, title=title)
+                                          delta=delta, savepath=savepath, title=title,
+                                          measurement_cycles=measurement_cycles)
 end
 
 """
@@ -200,10 +212,12 @@ function plot_mode_cooling_from_h5(filepath::String; savepath=nothing)
     k_indices = data[RESULT_MODE_K_INDICES]
     εk_values = data[RESULT_MODE_ENERGIES]
     delta = get(data, "delta", nothing)
+    measurement_cycles = get(data, RESULT_MODE_MEASUREMENT_CYCLES, nothing)
 
     return plot_mode_occupation_from_data(mode_nk, k_indices, εk_values;
                                           delta=delta, savepath=savepath,
-                                          title=extract_filename_base(filepath))
+                                          title=extract_filename_base(filepath),
+                                          measurement_cycles=measurement_cycles)
 end
 
 end

@@ -90,7 +90,9 @@ Plot the evolution of the mode energy contributions
 This uses the Bogoliubov mode observable ``h_k`` from `RESULT_MODE_HK`, in the
 notation of `Notes/NotesED/MapToSpin.tex`. The Fourier occupation
 ``<tilde a_k^dag tilde a_k>`` stored in `RESULT_MOMENTUM_DISTRIBUTION` is not a
-mode energy and is deliberately not used here.
+mode energy and is deliberately not used here.  If the file contains
+`RESULT_MODE_MEASUREMENT_CYCLES`, `steps_to_plot` selects among the measured
+rows and the plotted labels use the corresponding physical cooling cycles.
 """
 function plot_ek_evolution(filename; steps_to_plot=nothing, save_fig=true)
     plt = get_pyplot()
@@ -116,7 +118,9 @@ function plot_ek_evolution(filename; steps_to_plot=nothing, save_fig=true)
     coeffs = _checked_mode_energy_coefficients(εk_values, k_indices, N, J, h)
     n_steps_expected = haskey(data, CoolingTNS.RESULT_ENERGY) ?
                        length(data[CoolingTNS.RESULT_ENERGY]) : nothing
-    energy_contrib = _mode_energy_contributions(mode_hk, coeffs; n_steps=n_steps_expected)
+    energy_contrib_full = _mode_energy_contributions(mode_hk, coeffs; n_steps=n_steps_expected)
+    measured = _mode_measurement_cycle_rows(data, size(energy_contrib_full, 1))
+    energy_contrib = energy_contrib_full[measured.rows, :]
     x_values = _mode_phase_over_pi(k_indices, N)
     total_steps = size(energy_contrib, 1)
     step_indices = select_evolution_steps(total_steps; steps_to_plot=steps_to_plot)
@@ -127,7 +131,8 @@ function plot_ek_evolution(filename; steps_to_plot=nothing, save_fig=true)
     for (idx, step_idx) in enumerate(step_indices)
         if step_idx <= total_steps
             E_k = energy_contrib[step_idx, :]
-            label = step_idx == 1 ? "Initial" : "Step $(step_idx-1)"
+            cycle = measured.cycles[step_idx]
+            label = cycle == 0 ? "Initial" : "Cycle $cycle"
             ax.plot(x_values, E_k, "o-",
                    color=colors[idx], linewidth=2, markersize=6, label=label)
         end
