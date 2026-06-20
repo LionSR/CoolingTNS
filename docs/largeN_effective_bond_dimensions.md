@@ -1181,3 +1181,71 @@ sweep dimensions are still only lower bounded by `128`, and the best observed
 energy density `0.84528025` remains far above the DMRG reference
 `E0/N = -1.3246328892`.  This is useful evidence for the required bond scale of
 the descending schedule, not evidence of scalable cooling to the ground state.
+
+### Dmax=128 Descending Remaining Frequencies
+
+The remaining frequency counts were then run at the same cap, fixed detuning
+interval, schedule, stopping rule, and thread pinning.  The already-recorded
+`R = 10` file above is reused for the all-frequency comparison rather than
+recomputed.
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 1,2,5 --methods mcwf \
+  --evolution-method continuous --steps 12 --Dmax 128 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending \
+  --progress-csv .worktree/descending_schedule_dmax128_R1_R2_R5_20260620/tdvp_progress_N64_niising_open_mcwf_R1-2-5_Dmax128_te1.0_descending.csv \
+  --outdir .worktree/descending_schedule_dmax128_R1_R2_R5_20260620 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The HDF5 output records the same root seed `20260617` and seed rule as the
+`R = 10` run.  The new trajectory seeds are `[84270618, 84280618, 84310618]`
+for `R = 1, 2, 5`; the previously recorded `R = 10` seed is `[84360618]`.
+For `R = 1`, the descending grid has a single point, which the driver stores
+as `delta_min`; this row is therefore a fixed-minimum-detuning reference rather
+than a multi-detuning descending cycle.
+
+Combining the new file with the `R = 10` file gives
+
+| R | Dcap | completed/requested cycles | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | system sat | evolved sat | tdvp sweep sat | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---:|
+| 1 | 128 | 6/12 | 1.38967820 | 1.37238762 | 126 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 6 | 6 | 1741.8 s |
+| 2 | 128 | 5/12 | 0.88774576 | 0.88774576 | 116 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 5 | 5 | 933.0 s |
+| 5 | 128 | 5/12 | 1.04315832 | 1.04315832 | 115 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 5 | 5 | 843.8 s |
+| 10 | 128 | 5/12 | 0.84528025 | 0.84528025 | 116 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 5 | 5 | 803.4 s |
+
+The completed-cycle prefixes for the new runs are
+
+| R | cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 1 | 0.50511675 | 1.47291896 | 4 | 6 | 33.5 s |
+| 1 | 2 | 0.50511675 | 1.42012553 | 11 | 15 | 51.5 s |
+| 1 | 3 | 0.50511675 | 1.41672905 | 23 | 31 | 88.5 s |
+| 1 | 4 | 0.50511675 | 1.37238762 | 48 | 62 | 203.7 s |
+| 1 | 5 | 0.50511675 | 1.39314083 | 92 | 123 | 611.6 s |
+| 1 | 6 | 0.50511675 | 1.38967820 | 126 | 128 | 1741.8 s |
+| 2 | 1 | 3.03070050 | 1.05928265 | 4 | 6 | 11.4 s |
+| 2 | 2 | 0.50511675 | 1.01793111 | 11 | 15 | 34.0 s |
+| 2 | 3 | 3.03070050 | 1.00906275 | 25 | 33 | 92.4 s |
+| 2 | 4 | 0.50511675 | 1.03055230 | 57 | 72 | 258.6 s |
+| 2 | 5 | 3.03070050 | 0.88774576 | 116 | 128 | 933.0 s |
+| 5 | 1 | 3.03070050 | 1.38240655 | 4 | 6 | 9.1 s |
+| 5 | 2 | 2.39930456 | 1.27834942 | 11 | 15 | 25.4 s |
+| 5 | 3 | 1.76790862 | 1.21579249 | 24 | 33 | 63.1 s |
+| 5 | 4 | 1.13651269 | 1.07479517 | 55 | 70 | 193.2 s |
+| 5 | 5 | 0.50511675 | 1.04315832 | 115 | 128 | 843.8 s |
+
+At `Dcap = 128`, descending `R = 10` remains the best capped prefix among the
+tested frequency counts.  The ordering of final energies is
+`R = 10 < R = 2 < R = 5 < R = 1`, while all four runs reach the transient and
+TDVP-sweep cap before approaching the ground-state energy density.  The
+low-frequency `R = 1` trajectory is especially unfavorable: it reaches its best
+energy density at cycle 4 and then heats while the bond dimension continues to
+grow.  Thus the larger cap strengthens the bond-growth conclusion; it does not
+turn the fixed descending schedule into a scalable ground-state cooling
+protocol.
