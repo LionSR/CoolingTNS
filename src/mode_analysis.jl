@@ -224,16 +224,42 @@ function mode_energies_Jh(k_indices, J, h, N)
 end
 
 """
+    is_generic_mode(k, N) -> Bool
+
+Return whether the Fourier index ``k`` is a generic Ising mode.  The special
+integer-grid modes have ``sin(2π k/N)=0`` and are excluded from the generic
+two-quasiparticle detuning reference.
+"""
+function is_generic_mode(k, N::Int)
+    return abs(sin(2π * Float64(k) / N)) > sqrt(eps(Float64))
+end
+
+"""
+    generic_k_indices(N, gF) -> Vector
+
+Allowed Fourier indices with the special modes removed.
+"""
+function generic_k_indices(N::Int, gF)
+    return filter(k -> is_generic_mode(k, N), allowed_k_indices(N, gF))
+end
+
+"""
     ising_mode_detuning_reference(ham_params; parity=1) -> Float64
 
-Return the minimum positive Bogoliubov quasiparticle energy on the Fourier
-grid used by the periodic/antiperiodic Ising mode observables.  The default
-`parity=1` is the deterministic reference sector also used when a measured
-state parity is not yet available.
+Return the lowest parity-preserving generic two-quasiparticle energy on the
+Fourier grid used by the periodic/antiperiodic Ising mode observables.  The
+default `parity=1` is the deterministic reference sector also used when a
+measured state parity is not yet available.
 
-This is a bath-detuning reference for mode-resolved Ising diagnostics.  It is
-not the full finite-size many-body gap across parity sectors, and it should
-not be confused with a variational DMRG excited-state estimate.
+This is the bath-detuning reference for the parity-preserving local ``X``
+system coupling used by the default mode-resolved Ising cooling diagnostics:
+the coupling can create or remove generic quasiparticles only in pairs, so the
+reference scale is ``2 min_{sin φ_k != 0} ε_k``.  It is not the
+single-quasiparticle mode energy, not the cross-parity many-body gap, and not a
+variational DMRG excited-state estimate.  On Fourier grids containing special
+modes this generic two-quasiparticle scale can exceed lower same-parity
+special-mode transitions, so direct callers should use it only when the generic
+pair scale is the intended reference.
 """
 function ising_mode_detuning_reference(
     ham_params::HamiltonianParameters{IsingModel};
@@ -248,12 +274,12 @@ function ising_mode_detuning_reference(
     N = ham_params.N
     J, h = ham_params.params.J, ham_params.params.h
     gF = fermionic_bc(ham_params.bc, parity)
-    energies = mode_energies_Jh(allowed_k_indices(N, gF), J, h, N)
+    energies = mode_energies_Jh(generic_k_indices(N, gF), J, h, N)
     positive_energies = filter(>(sqrt(eps(Float64))), energies)
     isempty(positive_energies) && throw(ArgumentError(
-        "the reference Fourier grid has no strictly positive quasiparticle energy"
+        "the reference Fourier grid has no strictly positive generic quasiparticle energy"
     ))
-    return minimum(positive_energies)
+    return 2 * minimum(positive_energies)
 end
 
 function ising_mode_detuning_reference(
@@ -412,7 +438,7 @@ formula.
 function bogoliubov_angle(k, θ, N)
     wk = w_k_coefficient(k, θ, N)
     rk = r_k_coefficient(k, θ, N)
-    if abs(rk) < 1e-15
+    if !is_generic_mode(k, N)
         return 0.0
     end
     return atan(rk, wk) / 2
@@ -430,9 +456,7 @@ For generic modes, ``coeff_k = ε_k``.  For the special modes ``k = 0`` and
 This is in **notes units**; multiply by ``Λ`` for code units.
 """
 function coeff_k(k, θ, N)
-    φk = 2π * k / N
-    # Special modes have sin(φ_k) = 0
-    if abs(sin(φk)) < 1e-12
+    if !is_generic_mode(k, N)
         return w_k_coefficient(k, θ, N)  # signed
     else
         return mode_energy(k, θ, N)  # always positive
