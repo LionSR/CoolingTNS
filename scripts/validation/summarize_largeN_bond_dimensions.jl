@@ -137,8 +137,8 @@ function missing_mode_reconstruction_summary()
         mode_gF=missing,
         mode_gF_source=missing,
         mode_measured_rows=missing,
-        mode_final_e_over_n=missing,
-        mode_final_abs_err_over_n=missing,
+        mode_last_measured_e_over_n=missing,
+        mode_last_measured_abs_err_over_n=missing,
         mode_max_abs_err_over_n=missing,
     )
 end
@@ -197,8 +197,8 @@ function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean)
         mode_gF=mode_gF,
         mode_gF_source=mode_gF_source,
         mode_measured_rows=measured_label,
-        mode_final_e_over_n=missing,
-        mode_final_abs_err_over_n=missing,
+        mode_last_measured_e_over_n=missing,
+        mode_last_measured_abs_err_over_n=missing,
         mode_max_abs_err_over_n=missing,
     )
 
@@ -209,8 +209,8 @@ function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean)
         mode_gF=mode_gF,
         mode_gF_source=mode_gF_source,
         mode_measured_rows=measured_label,
-        mode_final_e_over_n=mode_energy[end] / N,
-        mode_final_abs_err_over_n=abs_error_over_n[end],
+        mode_last_measured_e_over_n=mode_energy[end] / N,
+        mode_last_measured_abs_err_over_n=abs_error_over_n[end],
         mode_max_abs_err_over_n=maximum(abs_error_over_n),
     )
 end
@@ -417,8 +417,8 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         mode_gF=mode_summary.mode_gF,
         mode_gF_source=mode_summary.mode_gF_source,
         mode_measured_rows=mode_summary.mode_measured_rows,
-        mode_final_e_over_n=mode_summary.mode_final_e_over_n,
-        mode_final_abs_err_over_n=mode_summary.mode_final_abs_err_over_n,
+        mode_last_measured_e_over_n=mode_summary.mode_last_measured_e_over_n,
+        mode_last_measured_abs_err_over_n=mode_summary.mode_last_measured_abs_err_over_n,
         mode_max_abs_err_over_n=mode_summary.mode_max_abs_err_over_n,
         system_effective_bond=system_effective_bond,
         evolved_effective_bond=evolved_effective_bond,
@@ -473,7 +473,7 @@ function sorted_rows(rows)
 end
 
 function print_markdown(rows)
-    println("| file | N | method | evolution | R | M | completed/requested | elapsed_total | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode final E/N | mode final abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("| file | N | method | evolution | R | M | completed/requested | elapsed_total | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
     println("|---|---:|---|---|---:|---:|---|---:|---|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for row in sorted_rows(rows)
         println(
@@ -490,8 +490,8 @@ function print_markdown(rows)
             "$(row.tail_count) | " *
             "$(format_string_or_na(row.mode_gF)) | $(format_string_or_na(row.mode_gF_source)) | " *
             "$(format_string_or_na(row.mode_measured_rows)) | " *
-            "$(format_float_or_na(row.mode_final_e_over_n, 8)) | " *
-            "$(format_float_or_na(row.mode_final_abs_err_over_n, 3)) | " *
+            "$(format_float_or_na(row.mode_last_measured_e_over_n, 8)) | " *
+            "$(format_float_or_na(row.mode_last_measured_abs_err_over_n, 3)) | " *
             "$(format_float_or_na(row.mode_max_abs_err_over_n, 3)) | " *
             "$(row.final_system_max) | $(format_float(row.final_system_mean, 2)) | " *
             "$(row.peak_evolved_max) | $(format_float(row.peak_evolved_mean, 2)) | " *

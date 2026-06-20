@@ -234,8 +234,8 @@ end
         @test row.mode_gF == -1
         @test row.mode_gF_source == "state"
         @test row.mode_measured_rows == "2/3"
-        @test row.mode_final_e_over_n ≈ mode_energy[2] / N
-        @test row.mode_final_abs_err_over_n ≈ final_energy_offset / N
+        @test row.mode_last_measured_e_over_n ≈ mode_energy[2] / N
+        @test row.mode_last_measured_abs_err_over_n ≈ final_energy_offset / N
         @test row.mode_max_abs_err_over_n ≈ final_energy_offset / N
 
         output = mktemp() do output_path, io
@@ -248,7 +248,7 @@ end
             read(output_path, String)
         end
         @test occursin(
-            "| mode gF | mode source | mode rows | mode final E/N | mode final abs dE/N | mode max abs dE/N |",
+            "| mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N |",
             output,
         )
         @test occursin("| -1 | state | 2/3 |", output)
