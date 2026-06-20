@@ -1128,3 +1128,56 @@ and TDVP-sweep bond dimensions are at least `64` across the whole descending
 scan.  The best observed energy density, `0.87319302`, is still far above the
 DMRG reference `E0/N = -1.3246328892`, so this remains a bond-growth and
 schedule-order diagnostic rather than a controlled cooling result.
+
+### Dmax=128 Descending R=10 Follow-up
+
+The best `Dcap = 64` descending prefix was then repeated for `R = 10` at
+`Dmax = 128`, again with the fixed detuning interval, stop-on-cap rule, and
+one pinned Julia/BLAS thread:
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 10 --methods mcwf \
+  --evolution-method continuous --steps 12 --Dmax 128 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending \
+  --progress-csv .worktree/descending_schedule_dmax128_20260620/tdvp_progress_N64_niising_open_mcwf_R10_Dmax128_te1.0_descending.csv \
+  --outdir .worktree/descending_schedule_dmax128_20260620 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The HDF5 file records the root seed `20260617`, the stored seed rule, and the
+trajectory seed `[84360618]`.  Thus this is the same stochastic trajectory as
+the earlier `R = 10` descending runs: the first three completed-cycle energies
+match exactly, while the fourth agrees to six decimal places and then differs
+because the larger cap reduces truncation in that cycle.
+
+The HDF5 summary is
+
+| R | Dcap | completed/requested cycles | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | system sat | evolved sat | tdvp sweep sat | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---:|
+| 10 | 128 | 5/12 | 0.84528025 | 0.84528025 | 116 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 5 | 5 | 803.4 s |
+
+The completed-cycle prefix is
+
+| cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 3.03070050 | 1.30592953 | 4 | 6 | 31.1 s |
+| 2 | 2.75008008 | 1.13874047 | 11 | 15 | 47.5 s |
+| 3 | 2.46945966 | 0.95514768 | 24 | 33 | 84.0 s |
+| 4 | 2.18883925 | 0.87319255 | 57 | 73 | 211.2 s |
+| 5 | 1.90821883 | 0.84528025 | 116 | 128 | 803.4 s |
+
+This confirms that the `Dcap = 64` cycle-four result was still truncation
+limited: the same trajectory continues to cycle 5 when the cap is raised to
+`128`.  The improvement, however, is modest compared with the additional bond
+dimension and wall time.  The transient system-bath state and TDVP sweep
+observer both reach bond dimension `128` in cycle 5, while the retained system
+state reaches bond dimension `116`.  Therefore the effective transient and
+sweep dimensions are still only lower bounded by `128`, and the best observed
+energy density `0.84528025` remains far above the DMRG reference
+`E0/N = -1.3246328892`.  This is useful evidence for the required bond scale of
+the descending schedule, not evidence of scalable cooling to the ground state.

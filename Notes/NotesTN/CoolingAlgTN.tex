@@ -629,6 +629,31 @@ by \(64\).  Thus \(R=10\) is the best of this fixed descending set at the
 tested cap, but the whole scan is still a cap-limited bond-growth diagnostic,
 not evidence of scalable cooling to the ground state.
 
+The same descending \(R=10\) trajectory was next repeated at
+\(D_{\max}=128\).  The HDF5 output records the base seed \(20260617\) and
+trajectory seed \(84360618\), so the first three completed-cycle energies are
+identical to the stored \(D_{\max}=64\), \(R=10\) trajectory prefix.  The
+fourth agrees to six decimal places but differs in the seventh because the
+larger cap reduces truncation in that cycle.  With the larger cap the run
+completes one additional cycle before stopping:
+\[
+\begin{aligned}
+	&1.30592953,\quad 1.13874047,\quad 0.95514768,\\
+	&0.87319255,\quad 0.84528025 .
+\end{aligned}
+\]
+The stop occurs after \(5/12\) requested cycles with
+\[
+	D_{\mathrm{sys}}^{\mathrm{eff}}=116,\qquad
+	D_{\mathrm{sb}}^{\mathrm{eff}}\geq 128,\qquad
+	D_{\mathrm{TDVP\ sweep}}^{\mathrm{eff}}\geq 128 .
+\]
+Thus the \(D_{\max}=64\) cycle-four point was still truncation limited, but
+raising the cap to \(128\) only lowers the capped prefix to
+\(E/N=0.84528025\) before the transient and sweep observers again reach the
+cap.  The result is evidence for the bond scale required by this descending
+schedule, not evidence of scalable cooling to the ground state.
+
 \section{Bayesian Optimization for Hyperparameter Tuning}
 Optimizing the performance of the cooling algorithm requires finding the optimal values for hyperparameters such as the coupling strength $g$ and the evolution time $t_e$. However, the relationship between these hyperparameters and the cooling efficiency is complex and evaluating the cooling efficiency for a given set of hyperparameters is computationally expensive. We employ Bayesian optimization, a framework for global optimization of expensive black-box functions~\cite{Frazier2018Tutorial}, to address this challenge.
 
