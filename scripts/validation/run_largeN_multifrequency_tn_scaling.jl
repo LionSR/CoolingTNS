@@ -304,7 +304,7 @@ function parse_args(args)
         cfg["schedule_symbol"] = parse_multi_frequency_schedule(cfg["schedule"])
     catch e
         e isa ArgumentError || rethrow()
-        error("--schedule $(e.msg)")
+        error("--schedule: $(e.msg)")
     end
     if (cfg["delta_min"] === nothing) != (cfg["delta_max"] === nothing)
         error("--delta-min and --delta-max must be supplied together")
@@ -972,7 +972,8 @@ function output_path(cfg)
     model_suffix = cfg["model"] == "niising" && cfg["bc"] == "open" ? "" :
         "_$(cfg["model"])_bc$(cfg["bc"])"
     stop_suffix = cfg["stop_on_bond_cap"] ? "_stopcap" : ""
-    schedule_suffix = cfg["schedule"] == "round_robin" ? "" : "_sched$(cfg["schedule"])"
+    schedule_suffix = cfg["schedule_symbol"] == :round_robin ? "" :
+        "_sched$(multi_frequency_schedule_token(cfg["schedule_symbol"]))"
     random_time_suffix = cfg["randomize_times"] ? "_randtime" : ""
     mode_stride_suffix = cfg["mode_measurement_stride"] == 1 ? "" :
         "_modestride$(cfg["mode_measurement_stride"])"
