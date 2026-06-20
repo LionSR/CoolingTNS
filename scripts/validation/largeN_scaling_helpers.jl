@@ -3,8 +3,11 @@ const _COOLINGTNS_LARGEN_SCALING_HELPERS_INCLUDED = true
 
 using Statistics
 
+const LARGE_N_TRAJECTORY_SEED_N_STRIDE = 1_000_000
+const LARGE_N_TRAJECTORY_SEED_R_STRIDE = 10_000
 const LARGE_N_TRAJECTORY_SEED_RULE =
-    "trajectory_seed = base_seed + 1_000_000*N + 10_000*R + trajectory"
+    "trajectory_seed = base_seed + 1_000_000*N + 10_000*R + trajectory; " *
+    "valid for 1 <= R < 100 and 1 <= trajectory < 10000"
 
 """
     largeN_trajectory_seed(base_seed, N, R, trajectory)
@@ -17,10 +20,17 @@ stochastic trajectory, independent of how other frequency counts are grouped.
 function largeN_trajectory_seed(base_seed::Integer, N::Integer, R::Integer,
                                 trajectory::Integer)
     R >= 1 || throw(ArgumentError("R must be positive, got $R"))
+    R < div(LARGE_N_TRAJECTORY_SEED_N_STRIDE, LARGE_N_TRAJECTORY_SEED_R_STRIDE) ||
+        throw(ArgumentError("R must be less than 100 for the stored seed rule, got $R"))
     trajectory >= 1 ||
         throw(ArgumentError("trajectory must be positive, got $trajectory"))
-    return Int(base_seed) + 1_000_000 * Int(N) + 10_000 * Int(R) +
-           Int(trajectory)
+    trajectory < LARGE_N_TRAJECTORY_SEED_R_STRIDE ||
+        throw(ArgumentError(
+            "trajectory must be less than $(LARGE_N_TRAJECTORY_SEED_R_STRIDE) " *
+            "for the stored seed rule, got $trajectory"
+        ))
+    return Int(base_seed) + LARGE_N_TRAJECTORY_SEED_N_STRIDE * Int(N) +
+           LARGE_N_TRAJECTORY_SEED_R_STRIDE * Int(R) + Int(trajectory)
 end
 
 """

@@ -5,11 +5,14 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
 
 @testset "Large-N scaling helper functions" begin
     @test LARGE_N_TRAJECTORY_SEED_RULE ==
-          "trajectory_seed = base_seed + 1_000_000*N + 10_000*R + trajectory"
+          "trajectory_seed = base_seed + 1_000_000*N + 10_000*R + trajectory; " *
+          "valid for 1 <= R < 100 and 1 <= trajectory < 10000"
     @test largeN_trajectory_seed(20260617, 64, 10, 1) == 84360618
     @test largeN_trajectory_seed(7, 2, 1, 3) == 2010010
     @test_throws ArgumentError largeN_trajectory_seed(7, 2, 0, 1)
+    @test_throws ArgumentError largeN_trajectory_seed(7, 2, 100, 1)
     @test_throws ArgumentError largeN_trajectory_seed(7, 2, 1, 0)
+    @test_throws ArgumentError largeN_trajectory_seed(7, 2, 1, 10_000)
 
     gap_protocol = largeN_detuning_protocol(0.5; delta_max_factor=6.0)
     @test gap_protocol.source == "gap_scaled_range"
