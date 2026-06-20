@@ -86,6 +86,11 @@ end
     end
 
     @testset "Bath Ground State Convention" begin
+        @test :bath_ground_state_amplitudes in names(CoolingTNS)
+        @test :get_bath_ground_state in names(CoolingTNS)
+        @test CoolingTNS.bath_ground_state_amplitudes("YZ")[1] == "X-"
+        @test CoolingTNS.get_bath_ground_state("ZX")[1] == "Y-"
+
         xz_label, xz_amps = CoolingTNS.bath_ground_state_amplitudes("XZ")
         tn_xz_label, tn_xz_amps = CoolingTNS.get_bath_ground_state("XZ")
         @test xz_label == "Y-"

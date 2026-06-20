@@ -6,16 +6,6 @@ function energy(ψ::MPS, H::MPO)
 end
 
 """
-    get_bath_ground_state(coupling::String) -> (String, Vector{ComplexF64})
-
-Return the one-site bath ground state name and amplitudes selected by the
-shared bath Hamiltonian convention.
-
-Bath absorbs energy |Δ| when excited from ground to excited state.
-"""
-get_bath_ground_state(coupling::String) = bath_ground_state_amplitudes(coupling)
-
-"""
     appendzeros_MPS(ψ::MPS, sites::Vector{<:Index}, coupling::String="XX")
 
 Append bath qubits in appropriate ground state to system MPS.

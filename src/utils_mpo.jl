@@ -1,6 +1,6 @@
 using ITensors
 
-# get_bath_ground_state is defined in utils_mps.jl, which is included before this file
+# get_bath_ground_state is defined with the shared coupling convention in coupling_utils.jl.
 
 """
     appendzeros_MPO(ρ::MPO, sites::Vector{<:Index}, coupling::String="XX")

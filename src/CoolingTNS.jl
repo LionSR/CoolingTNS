@@ -73,6 +73,7 @@ export setup_common_parameters, create_filename, save_results, HDF5_PARSED_ARGS_
 export get_backend, get_sim_method, get_evolution_method, mean_last_window, relative_energy
 export create_sim_params_from_args, normalize_optimization_args!
 export parse_coupling, coupling_operator_terms, get_bath_operator
+export bath_ground_state_amplitudes, get_bath_ground_state
 export interleaved_total_sites
 export interleaved_system_site, interleaved_bath_site
 export interleaved_system_sites, interleaved_bath_sites

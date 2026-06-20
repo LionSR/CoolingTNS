@@ -36,8 +36,9 @@ function setup_system(ham_params::HamiltonianParameters, backend::TNBackend, sit
     
     # Find ground state and gap using dispatch
     e₀, ϕ₀, gap = find_ground_state(H_sys, backend, sites)
-    # Δ > 0 so bath ground state is Z=-1 (|↓⟩) for Z-coupling,
-    # or X=-1 (|−⟩) for X-coupling. Bath absorbs energy gap when excited.
+    # Delta is positive. Downstream system-bath setup chooses the bath Pauli
+    # with get_bath_operator(coupling), and the prepared bath state is its
+    # eigenvalue -1 state.
     Δ_dmrg = gap
 
     return H_sys, Δ_dmrg, e₀, ϕ₀
@@ -63,12 +64,12 @@ function setup_system(ham_params::HamiltonianParameters, backend::EDBackend)
     
     # Find ground state and gap using dispatch
     e₀, ϕ₀, gap = find_ground_state(H_sys, backend)
-    # Δ > 0 so bath ground state is Z=-1 (|↓⟩) for Z-coupling,
-    # or X=-1 (|−⟩) for X-coupling. Bath absorbs energy gap when excited.
+    # Delta is positive. Downstream system-bath setup chooses the bath Pauli
+    # with get_bath_operator(coupling), and the prepared bath state is its
+    # eigenvalue -1 state.
     Δ_ed = gap
 
     return H_sys, Δ_ed, e₀, ϕ₀
 end
 
 # Ground state computation now handled by ground_state.jl
-
