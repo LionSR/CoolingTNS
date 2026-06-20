@@ -52,6 +52,10 @@ end
 
 format_integer_or_na(value::Integer) = string(value)
 format_integer_or_na(::Missing) = "n/a"
+format_float_or_na(value::Real, digits::Int=2) = format_float(value, digits)
+format_float_or_na(::Missing, digits::Int=2) = "n/a"
+format_string_or_na(value) = string(value)
+format_string_or_na(::Missing) = "n/a"
 
 function scalar_or_vector(value)
     value isa AbstractArray && return vec(value)
@@ -125,6 +129,89 @@ function detuning_protocol_summary(method_group, run_group)
         delta_protocol=source,
         delta_range=interval,
         delta_factor=detuning_factor_label(source, factor),
+    )
+end
+
+function missing_mode_reconstruction_summary()
+    return (
+        mode_gF=missing,
+        mode_gF_source=missing,
+        mode_measured_rows=missing,
+        mode_last_measured_e_over_n=missing,
+        mode_last_measured_abs_err_over_n=missing,
+        mode_max_abs_err_over_n=missing,
+    )
+end
+
+function mode_measurement_row_label(n_measured::Integer, n_rows::Integer)
+    n_rows <= 0 && return "n/a"
+    return "$(n_measured)/$(n_rows)"
+end
+
+function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean)
+    mode_keys = (
+        RESULT_MODE_HK,
+        RESULT_MODE_K_INDICES,
+        RESULT_MODE_MEASUREMENT_CYCLES,
+        RESULT_MODE_GF,
+        RESULT_MODE_GF_SOURCE,
+    )
+    all(key -> haskey(run_group, key), mode_keys) ||
+        return missing_mode_reconstruction_summary()
+
+    mode_gF = Int(read(run_group[RESULT_MODE_GF]))
+    mode_gF_source = String(read(run_group[RESULT_MODE_GF_SOURCE]))
+
+    model = haskey(root, "model") ? String(read(root["model"])) : "unknown"
+    bc = haskey(root, "bc") ? String(read(root["bc"])) : "unknown"
+    if model != "ising" || !(bc in ("periodic", "antiperiodic"))
+        error(
+            "mode measurements are present, but the file describes model='$model' " *
+            "with bc='$bc'; mode-energy reconstruction is defined here only for " *
+            "the integrable Ising chain with periodic or antiperiodic spin BC"
+        )
+    end
+    haskey(root, "J") && haskey(root, "h") ||
+        error("mode measurements are present, but root datasets J and h are missing")
+
+    # The stored k-grid determines the fermionic sector.  Here `ham_params`
+    # supplies the common Ising parameters needed by the shared reconstruction
+    # routine.
+    ham_params = IsingParameters(N, Float64(read(root["J"])), Float64(read(root["h"])), Symbol(bc))
+    mode_hk = Float64.(read(run_group[RESULT_MODE_HK]))
+    mode_hk isa AbstractMatrix ||
+        error("$RESULT_MODE_HK must be a steps-by-modes matrix")
+    k_indices = Float64.(vec(read(run_group[RESULT_MODE_K_INDICES])))
+    cycles = Int.(scalar_or_vector(read(run_group[RESULT_MODE_MEASUREMENT_CYCLES])))
+    rows = cycles .+ 1
+    valid_rows = [
+        row for row in rows
+        if 1 <= row <= size(mode_hk, 1) &&
+           row <= length(energy_mean) &&
+           isfinite(energy_mean[row]) &&
+           all(isfinite, view(mode_hk, row, :))
+    ]
+
+    measured_label = mode_measurement_row_label(length(valid_rows), length(energy_mean))
+    isempty(valid_rows) && return (
+        mode_gF=mode_gF,
+        mode_gF_source=mode_gF_source,
+        mode_measured_rows=measured_label,
+        mode_last_measured_e_over_n=missing,
+        mode_last_measured_abs_err_over_n=missing,
+        mode_max_abs_err_over_n=missing,
+    )
+
+    mode_energy = ising_energy_from_mode_hk(k_indices, mode_hk[valid_rows, :], ham_params)
+    direct_energy = Float64.(energy_mean[valid_rows])
+    abs_error_over_n = abs.(mode_energy .- direct_energy) ./ N
+    return (
+        mode_gF=mode_gF,
+        mode_gF_source=mode_gF_source,
+        mode_measured_rows=measured_label,
+        mode_last_measured_e_over_n=mode_energy[end] / N,
+        mode_last_measured_abs_err_over_n=abs_error_over_n[end],
+        mode_max_abs_err_over_n=maximum(abs_error_over_n),
     )
 end
 
@@ -304,6 +391,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     quantiles = mean_link_quantiles(link_dims)
     fractions = mean_link_threshold_fractions(link_dims, threshold)
     detuning = detuning_protocol_summary(method_group, run_group)
+    mode_summary = mode_reconstruction_summary(root, run_group, N, energy_mean)
 
     return (
         file=basename(file_name),
@@ -326,6 +414,12 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         tail_e_over_n=tail_e_over_n,
         tail_relative_energy=tail_relative_energy,
         tail_count=tail_count,
+        mode_gF=mode_summary.mode_gF,
+        mode_gF_source=mode_summary.mode_gF_source,
+        mode_measured_rows=mode_summary.mode_measured_rows,
+        mode_last_measured_e_over_n=mode_summary.mode_last_measured_e_over_n,
+        mode_last_measured_abs_err_over_n=mode_summary.mode_last_measured_abs_err_over_n,
+        mode_max_abs_err_over_n=mode_summary.mode_max_abs_err_over_n,
         system_effective_bond=system_effective_bond,
         evolved_effective_bond=evolved_effective_bond,
         tdvp_sweep_effective_bond=tdvp_sweep_effective_bond,
@@ -379,8 +473,8 @@ function sorted_rows(rows)
 end
 
 function print_markdown(rows)
-    println("| file | N | method | evolution | R | M | completed/requested | elapsed_total | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
-    println("|---|---:|---|---|---:|---:|---|---:|---|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
+    println("| file | N | method | evolution | R | M | completed/requested | elapsed_total | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("|---|---:|---|---|---:|---:|---|---:|---|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | $(row.R) | $(row.M) | " *
@@ -394,6 +488,11 @@ function print_markdown(rows)
             "$(format_float(row.best_e_over_n, 8)) | $(format_float(row.best_relative_energy, 5)) | " *
             "$(format_float(row.tail_e_over_n, 8)) | $(format_float(row.tail_relative_energy, 5)) | " *
             "$(row.tail_count) | " *
+            "$(format_string_or_na(row.mode_gF)) | $(format_string_or_na(row.mode_gF_source)) | " *
+            "$(format_string_or_na(row.mode_measured_rows)) | " *
+            "$(format_float_or_na(row.mode_last_measured_e_over_n, 8)) | " *
+            "$(format_float_or_na(row.mode_last_measured_abs_err_over_n, 3)) | " *
+            "$(format_float_or_na(row.mode_max_abs_err_over_n, 3)) | " *
             "$(row.final_system_max) | $(format_float(row.final_system_mean, 2)) | " *
             "$(row.peak_evolved_max) | $(format_float(row.peak_evolved_mean, 2)) | " *
             "$(format_integer_or_na(row.peak_tdvp_sweep_max)) | " *
@@ -409,14 +508,15 @@ function print_markdown(rows)
 end
 
 function print_compact_markdown(rows)
-    println("| file | N | method | evolution | R | M | completed/requested | final E/N | best E/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | stop_reason |")
-    println("|---|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---|---:|---|")
+    println("| file | N | method | evolution | R | M | completed/requested | final E/N | best E/N | mode max abs dE/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | stop_reason |")
+    println("|---|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---:|---|")
     for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | " *
             "$(row.R) | $(row.M) | $(row.completed_requested) | " *
             "$(format_float(row.final_e_over_n, 8)) | " *
-            "$(format_float(row.best_e_over_n, 8)) | $(row.threshold) | " *
+            "$(format_float(row.best_e_over_n, 8)) | " *
+            "$(format_float_or_na(row.mode_max_abs_err_over_n, 3)) | $(row.threshold) | " *
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
             "$(row.tdvp_sweep_effective_bond) | $(row.bond_status) | " *
             "$(format_float(row.elapsed_total_seconds, 1)) | $(row.stop_reason) |"

@@ -155,6 +155,19 @@ the mode energies `mode_ek_values`, and the parity-selected fermionic boundary
 condition metadata.  This keeps the occupation-number diagnostics tied to the
 same convention as the ED and TN observable tests.
 
+The large-N HDF5 summary also audits this convention directly.  When a run
+contains `mode_hk`, `scripts/validation/summarize_largeN_bond_dimensions.jl`
+uses the library routine `ising_energy_from_mode_hk` to reconstruct the
+integrable-Ising energy on the measured mode rows.  The full summary reports
+the selected `mode gF`, the `mode source`, the measured-row fraction, the final
+mode-reconstructed energy per spin on the last measured mode row, and the last
+measured and maximum absolute discrepancy per spin from the stored direct
+energy.  Runs without mode data are reported as `n/a` in these columns.  A small
+discrepancy is the expected target for a parity-definite trajectory; a
+reference-grid entry with
+`mode_gF_source = "reference"` is a diagnostic of a chosen sector and should
+not be read as an exact energy decomposition for a mixed-parity state.
+
 The full TN mode measurement currently evaluates the split-string correlator
 formula for all Fourier modes, and is much more expensive than the scalar
 energy and bond diagnostics.  Long large-`N` runs may therefore use
