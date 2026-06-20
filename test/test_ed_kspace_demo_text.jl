@@ -10,12 +10,21 @@ using Test
     canonical_sign = "1 - " * "sin(2θ)cos"
     canonical_angle = "θ = atan(h, J)"
     resonance_condition = "ε_k ≈ |δ|"
+    raw_fourier_label = raw"raw Fourier occupation \\tilde n_k"
+    bogoliubov_label = "n_k^Bog = (1 + <h_k>)/2"
+    not_raw_energy = raw"not ε_k \\tilde n_k"
     guide_canonical = "2sqrt(J^2+h^2) * sqrt(1 - sin(2θ) * cos(2π*k/N))"
     guide_real_label = raw"\ref{eq:bdg_block}"
+    guide_raw_fourier = raw"raw Fourier occupation \(\tilde n_k="
+    guide_bogoliubov_occupation = raw"n_k^{\mathrm{Bog}}=(h_k+1)/2"
 
     legacy_sign = "1 + " * "sin(2θ)cos"
     legacy_resonance = "ε_k ≈ δ " * "(bath frequency)"
     spin_bc_grid_label = "PBC: k ∈"
+    ambiguous_occupation = "Shows n_k (occupation number)"
+    misleading_energy_flow = "population transfer to lower energy modes"
+    obsolete_energy_label = raw"ε_k n_k"
+    guide_plain_fourier = raw"Fourier occupation \(n_k"
     guide_legacy = "sqrt(1 + sin(2θ) * cos(2π*k/N))"
     guide_missing_label = "eq:mode_energy"
 
@@ -23,12 +32,21 @@ using Test
     @test occursin(canonical_sign, text)
     @test occursin(canonical_angle, text)
     @test occursin(resonance_condition, text)
+    @test occursin(raw_fourier_label, text)
+    @test occursin(bogoliubov_label, text)
+    @test occursin(not_raw_energy, text)
     @test occursin(guide_canonical, guide_text)
     @test occursin(guide_real_label, guide_text)
+    @test occursin(guide_raw_fourier, guide_text)
+    @test occursin(guide_bogoliubov_occupation, guide_text)
 
     @test !occursin(legacy_sign, text)
     @test !occursin(legacy_resonance, text)
     @test !occursin(spin_bc_grid_label, text)
+    @test !occursin(ambiguous_occupation, text)
+    @test !occursin(misleading_energy_flow, text)
+    @test !occursin(obsolete_energy_label, text)
+    @test !occursin(guide_plain_fourier, guide_text)
     @test !occursin(guide_legacy, guide_text)
     @test !occursin(guide_missing_label, guide_text)
 end

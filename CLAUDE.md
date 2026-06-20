@@ -217,11 +217,11 @@ Files are named: `Cooling_Ham{model}_Coupling{type}_Sim{backend}Dmax{D}`
 ### K-Space Measurements
 
 For ED simulations with periodic/antiperiodic boundary conditions:
-- Automatically computes the Fourier occupation \(n_k=\langle\tilde a_k^\dagger \tilde a_k\rangle\) using the notes-aligned Jordan-Wigner transformation
+- Automatically computes the raw Fourier occupation \(\tilde n_k=\langle\tilde a_k^\dagger \tilde a_k\rangle\) using the notes-aligned Jordan-Wigner transformation
 - Separately records Bogoliubov mode observables \(h_k\), whose energy contributions are \(E_k=(\Lambda/2)\,\mathrm{coeff}_k\langle h_k\rangle\)
-- Do not identify the Fourier occupation \(n_k\) with a Bogoliubov mode energy; `plot_ek_evolution.jl` deliberately refuses Fourier occupations as energies
+- Do not identify the raw Fourier occupation \(\tilde n_k\) with a Bogoliubov mode energy; `plot_ek_evolution.jl` deliberately refuses Fourier occupations as energies
 - Only enabled for Ising model (integrable system)
-- Ground-state mode occupations \( (h_k+1)/2 \) should vanish for the exact Bogoliubov vacuum; Fourier occupations \(n_k\) instead follow the Jordan-Wigner convention in `Notes/NotesED/MapToSpin.tex`
+- Ground-state Bogoliubov occupations \(n_k^{\mathrm{Bog}}=(h_k+1)/2\) should vanish for the exact Bogoliubov vacuum; raw Fourier occupations \(\tilde n_k\) instead follow the Jordan-Wigner convention in `Notes/NotesED/MapToSpin.tex`
 
 ### Getting doucmentations from Julia packages:
 Use ITensors.jl or ITensorMPS.jl, you can get the documentation of a function by running:

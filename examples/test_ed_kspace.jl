@@ -12,10 +12,10 @@ nonintegrable Ising model.
 using CoolingTNS
 using Printf
 
-function _print_momentum_row(k_values, n_values; label)
+function _print_momentum_row(k_values, values; label, symbol)
     println(label)
-    for (φ, n_k) in zip(k_values, n_values)
-        @printf("  φ/π = %+8.5f  (φ = %+9.6f):  n_k = %.6f\n", φ / π, φ, n_k)
+    for (φ, value) in zip(k_values, values)
+        @printf("  φ/π = %+8.5f  (φ = %+9.6f):  %s = %.6f\n", φ / π, φ, symbol, value)
     end
 end
 
@@ -52,14 +52,17 @@ function run_ed_kspace_case(; bc::Symbol, sim_method, init_state::String, steps:
 
     println("\n$(typeof(sim_method)) with $bc spin boundary conditions")
     println("Number of momentum points: $(length(k_values))")
-    _print_momentum_row(k_values, momentum_dist[1, :]; label="Initial Fourier occupations:")
-    _print_momentum_row(k_values, momentum_dist[end, :]; label="Final Fourier occupations:")
+    _print_momentum_row(k_values, momentum_dist[1, :];
+        label="Initial raw Fourier occupations:", symbol="\\tilde n_k")
+    _print_momentum_row(k_values, momentum_dist[end, :];
+        label="Final raw Fourier occupations:", symbol="\\tilde n_k")
 
     if haskey(results, CoolingTNS.RESULT_MODE_NK)
         mode_nk = results[CoolingTNS.RESULT_MODE_NK]
         mode_k_indices = results[CoolingTNS.RESULT_MODE_K_INDICES]
         mode_momenta = [2π * Float64(k) / N for k in mode_k_indices]
-        _print_momentum_row(mode_momenta, mode_nk[end, :]; label="Final Bogoliubov occupations:")
+        _print_momentum_row(mode_momenta, mode_nk[end, :];
+            label="Final Bogoliubov occupations:", symbol="n_k^Bog")
     end
 
     return results
