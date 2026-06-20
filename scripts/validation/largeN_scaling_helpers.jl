@@ -3,6 +3,26 @@ const _COOLINGTNS_LARGEN_SCALING_HELPERS_INCLUDED = true
 
 using Statistics
 
+const LARGE_N_TRAJECTORY_SEED_RULE =
+    "trajectory_seed = base_seed + 1_000_000*N + 10_000*R + trajectory"
+
+"""
+    largeN_trajectory_seed(base_seed, N, R, trajectory)
+
+Return the deterministic seed used for one large-N trajectory.  The formula is
+part of the on-disk provenance contract because two campaign files with the
+same base seed and the same `(N,R,trajectory)` label should use the same
+stochastic trajectory, independent of how other frequency counts are grouped.
+"""
+function largeN_trajectory_seed(base_seed::Integer, N::Integer, R::Integer,
+                                trajectory::Integer)
+    R >= 1 || throw(ArgumentError("R must be positive, got $R"))
+    trajectory >= 1 ||
+        throw(ArgumentError("trajectory must be positive, got $trajectory"))
+    return Int(base_seed) + 1_000_000 * Int(N) + 10_000 * Int(R) +
+           Int(trajectory)
+end
+
 """
     largeN_detuning_protocol(gap; delta_min, delta_max, delta_max_factor)
 
