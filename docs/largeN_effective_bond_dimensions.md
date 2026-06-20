@@ -963,3 +963,67 @@ least `64` by the fourth cooling cycle for these fixed `te = 1.0` schedules.
 The next large-\(D\) calculation should therefore not be interpreted only as a
 larger-bond rerun.  It should be paired with a schedule or adaptivity change
 which can be tested against this post-expansion stop-on-cap baseline.
+
+## Post-Krylov Descending-Detuning Probe
+
+The post-expansion TDVP evidence above used the default round-robin order, so
+each fixed grid was traversed from the lowest detuning upward.  To test whether
+the early high-energy response is sensitive to this ordering, the driver now
+also supports a deterministic descending schedule.  It uses the same fixed
+detuning grid as round-robin, but visits the largest detuning first and then
+steps downward before repeating.  This is a deterministic schedule probe, not a
+random-schedule average.
+
+The diagnostic command was
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 1,2,5,10 --methods mcwf \
+  --evolution-method continuous --steps 8 --Dmax 32 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending \
+  --progress-csv .worktree/descending_schedule_20260620/tdvp_progress_N64_niising_open_mcwf_Dmax32_te1.0_descending.csv \
+  --outdir .worktree/descending_schedule_20260620 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The HDF5 summary is
+
+| R | Dcap | completed/requested cycles | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | system sat | evolved sat | tdvp sweep sat | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---:|
+| 1 | 32 | 4/8 | 1.37255398 | 1.37255398 | >=32 | >=32 | >=32 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 4 | 4 | 4 | 153.9 s |
+| 2 | 32 | 3/8 | 1.00906275 | 1.00906275 | 24 | >=32 | >=32 | not_converged_evolved_and_tdvp_sweep_cap | none | 3 | 3 | 63.5 s |
+| 5 | 32 | 3/8 | 1.21579225 | 1.21579225 | 24 | >=32 | >=32 | not_converged_evolved_and_tdvp_sweep_cap | none | 3 | 3 | 63.8 s |
+| 10 | 32 | 3/8 | 0.95514749 | 0.95514749 | 24 | >=32 | >=32 | not_converged_evolved_and_tdvp_sweep_cap | none | 3 | 3 | 62.8 s |
+
+The completed-cycle prefixes are
+
+| R | cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 1 | 0.50511675 | 1.47291896 | 4 | 6 | 20.3 s |
+| 1 | 2 | 0.50511675 | 1.42012553 | 11 | 15 | 49.2 s |
+| 1 | 3 | 0.50511675 | 1.41672905 | 23 | 31 | 89.5 s |
+| 1 | 4 | 0.50511675 | 1.37255398 | 32 | 32 | 153.9 s |
+| 2 | 1 | 3.03070050 | 1.05928265 | 4 | 6 | 19.6 s |
+| 2 | 2 | 0.50511675 | 1.01793111 | 11 | 15 | 40.4 s |
+| 2 | 3 | 3.03070050 | 1.00906275 | 24 | 32 | 63.5 s |
+| 5 | 1 | 3.03070050 | 1.38240655 | 4 | 6 | 19.3 s |
+| 5 | 2 | 2.39930456 | 1.27834942 | 11 | 15 | 40.6 s |
+| 5 | 3 | 1.76790862 | 1.21579225 | 24 | 32 | 63.8 s |
+| 10 | 1 | 3.03070050 | 1.30592953 | 4 | 6 | 8.9 s |
+| 10 | 2 | 2.75008008 | 1.13874047 | 11 | 15 | 25.5 s |
+| 10 | 3 | 2.46945966 | 0.95514749 | 24 | 32 | 62.8 s |
+
+The result confirms that detuning order is a real physical protocol variable.
+For `R = 10`, descending order reaches `E/N = 0.95514749` before the cap, much
+lower than the corresponding post-expansion ascending `Dcap = 32` prefix
+`E/N = 1.24038933`.  For `R = 2`, the first high-detuning cycle also lowers the
+energy faster than the ascending baseline.  However, every nontrivial
+descending run still reaches the evolved-state and TDVP-sweep cap by the third
+completed cycle, and the best prefix remains far above the ground-state
+reference `E0/N = -1.3246328892`.  Thus descending order is a useful schedule
+axis for later adaptive protocols, but it is not by itself evidence of
+scalable ground-state cooling.

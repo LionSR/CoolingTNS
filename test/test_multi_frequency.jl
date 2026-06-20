@@ -39,6 +39,22 @@ using Random
         @test fourth_choice == (delta_index=1, delta=0.5, te=1.25)
         @test_throws ArgumentError CoolingTNS.multi_frequency_cycle_choice(sequence_params, 0)
 
+        descending_params = CoolingTNS.MultiFrequencyCouplingParameters(
+            "XX",
+            0.1,
+            5,
+            1.25,
+            [0.5, 1.0, 1.5];
+            randomize_times=false,
+            schedule=:descending,
+        )
+        descending_sequence = CoolingTNS.multi_frequency_cycle_sequence(descending_params)
+        @test descending_sequence.delta_indices == [3, 2, 1, 3, 2]
+        @test isequal(descending_sequence.delta_list, [NaN, 1.5, 1.0, 0.5, 1.5, 1.0])
+        @test isequal(descending_sequence.te_list, sequence.te_list)
+        @test CoolingTNS.multi_frequency_cycle_choice(descending_params, 4) ==
+              (delta_index=3, delta=1.5, te=1.25)
+
         random_params = CoolingTNS.MultiFrequencyCouplingParameters(
             "XX",
             0.1,

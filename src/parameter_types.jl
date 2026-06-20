@@ -270,7 +270,7 @@ struct MultiFrequencyCouplingParameters <: CouplingParameters
     te::Float64                   # Mean evolution time per step
     delta_values::Vector{Float64} # Bath detunings to cycle through
     randomize_times::Bool         # Randomize evolution times per step?
-    schedule::Symbol              # :round_robin or :random
+    schedule::Symbol              # :round_robin, :descending, or :random
 end
 
 function MultiFrequencyCouplingParameters(
@@ -282,8 +282,10 @@ function MultiFrequencyCouplingParameters(
     randomize_times::Bool=false,
     schedule::Symbol=:round_robin,
 )
-    schedule in (:round_robin, :random) ||
-        throw(ArgumentError("schedule must be :round_robin or :random, got $schedule"))
+    schedule in (:round_robin, :descending, :random) ||
+        throw(ArgumentError(
+            "schedule must be :round_robin, :descending, or :random, got $schedule",
+        ))
     deltas = Float64.(collect(delta_values))
     isempty(deltas) && throw(ArgumentError("delta_values must be nonempty"))
     return MultiFrequencyCouplingParameters(

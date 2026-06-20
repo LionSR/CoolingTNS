@@ -203,6 +203,8 @@ function create_filename(
 
     schedule_str = if coupling_params.schedule == :round_robin
         "rr"
+    elseif coupling_params.schedule == :descending
+        "desc"
     elseif coupling_params.schedule == :random
         "rand"
     else
