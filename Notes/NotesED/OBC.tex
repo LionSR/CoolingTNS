@@ -142,11 +142,6 @@ The many-body spectrum is therefore obtained from the subset sums $\sum_k \epsil
 
 \subsection{Mode energy and occupation}
 
-
-
-
-
-
 To express the mode occupation operators $\gamma_k^\dag \gamma_k$ in terms of the original fermionic operators, we use the Bogoliubov coefficients derived from the eigenvectors:
 \begin{align}
     u_{nk} &= \frac{1}{2}\left[
@@ -154,20 +149,39 @@ To express the mode occupation operators $\gamma_k^\dag \gamma_k$ in terms of th
     v_{nk} &= \frac{1}{2}\left[
         C_{\phi,k}\sin((N+1-n)\omega_k)-C_{\psi,k}\sin(n\omega_k)\right].
 \end{align}
-The mode occupation is given by:
+The mode occupation operator is
 \begin{align}
-    \gamma_k^\dag \gamma_k &= \sum_{n,m=1}^N \Bigl[u_{nk}^* u_{mk} a_n^\dag a_m + u_{nk}^* v_{mk} a_n^\dag a_m^\dag\\
-                           &\quad+ v_{nk}^* u_{mk} a_n a_m + v_{nk}^* v_{mk} a_n a_m^\dag \Bigr]
+    \hat n_k^{\mathrm{OBC}}
+    \equiv \gamma_k^\dag \gamma_k
+    &= \sum_{n,m=1}^N \Bigl[
+        u_{nk}^* u_{mk} a_n^\dag a_m
+        + u_{nk}^* v_{mk} a_n^\dag a_m^\dag \nn\\
+    &\quad
+        + v_{nk}^* u_{mk} a_n a_m
+        + v_{nk}^* v_{mk} a_n a_m^\dag
+    \Bigr].
 \end{align}
-Using the anticommutation relation $a_n a_m^\dag = \delta_{nm} - a_m^\dag a_n$, and applying the JW transformation from \cref{eq:JW_a_n,eq:JW_a_n_dag}, we can express $\gamma_k^\dag \gamma_k$ in terms of spin operators:
+Using the anticommutation relation $a_n a_m^\dag = \delta_{nm} - a_m^\dag a_n$, and applying the JW transformation from \cref{eq:JW_a_n,eq:JW_a_n_dag}, we can express $\gamma_k^\dag \gamma_k$ in terms of spin operators.  We use the normalized Pauli ladder operators
+\begin{equation}
+    \sigma_n^\pm=\frac{\sigma_{n,x}\pm i\sigma_{n,y}}{2}
+\end{equation}
+and keep the Jordan--Wigner strings in the split order in which the fermionic bilinears generate them:
 \begin{widetext}
-    \color{red}
     \begin{align}
-        \gamma_k^\dag \gamma_k &= \sum_{n,m=1}^N \left[u_{nk}^* u_{mk} \left(S_n S_m \frac{\sigma_n^+ \sigma_m^-}{4}\right) + u_{nk}^* v_{mk} \left(S_n S_m \frac{\sigma_n^+ \sigma_m^+}{4}\right) \right. \nn\\
-                               &\quad \left. + v_{nk}^* u_{mk} \left(S_n S_m \frac{\sigma_n^- \sigma_m^-}{4}\right) - v_{nk}^* v_{mk} \left(S_n S_m \frac{\sigma_m^+ \sigma_n^-}{4}\right)\right] + \sum_{n=1}^N v_{nk}^* v_{nk}
+        \hat n_k^{\mathrm{OBC}}
+        &= \sum_{n,m=1}^N \left[
+            u_{nk}^* u_{mk}\, S_n\sigma_n^+ S_m\sigma_m^-
+            + u_{nk}^* v_{mk}\, S_n\sigma_n^+ S_m\sigma_m^+
+        \right. \nn\\
+        &\quad \left.
+            + v_{nk}^* u_{mk}\, S_n\sigma_n^- S_m\sigma_m^-
+            - v_{nk}^* v_{mk}\, S_m\sigma_m^+ S_n\sigma_n^-
+        \right]
+        + \sum_{n=1}^N |v_{nk}|^2 .
+        \label{eq:obc_mode_occupation_spin}
     \end{align}
 \end{widetext}
-where $\sigma_n^{\pm} = \sigma_{n,x} \pm i\sigma_{n,y}$ are the spin raising and lowering operators, and $S_n S_m$ represents string operators:
+Equivalently, the product of strings in each split-string bilinear reduces to
 \begin{align}
     S_n S_m =
     \begin{cases}
@@ -175,4 +189,17 @@ where $\sigma_n^{\pm} = \sigma_{n,x} \pm i\sigma_{n,y}$ are the spin raising and
         1                                              & \text{if } n = m
     \end{cases}
 \end{align}
-The mode energy $E_k = \epsilon_k (2\gamma_k^\dag \gamma_k - 1)$ can thus be measured through these correlation functions of Pauli operators.
+provided the operator ordering in \cref{eq:obc_mode_occupation_spin} is retained.
+
+The dimensionless open-chain mode observable is
+\begin{equation}
+    h_k^{\mathrm{OBC}} = 2\hat n_k^{\mathrm{OBC}}-1 .
+\end{equation}
+With the diagonal convention above, the Hamiltonian contribution of this mode is
+\begin{equation}
+    H_k
+    = \epsilon_k\left(\hat n_k^{\mathrm{OBC}}-\frac{1}{2}\right)
+    = \frac{\epsilon_k}{2} h_k^{\mathrm{OBC}} .
+    \label{eq:obc_mode_contribution}
+\end{equation}
+Thus \(H_k=\frac{\epsilon_k}{2}h_k^{\mathrm{OBC}}\), not \(\epsilon_k h_k^{\mathrm{OBC}}\).  This is the open-chain analogue of the factor \(1/2\) in the periodic full-grid reconstruction.
