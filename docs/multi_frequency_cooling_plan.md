@@ -70,10 +70,15 @@ rebuilding is < 1%. Pre-building R Hamiltonians is unnecessary complexity.
 **MPS + TDVP (MonteCarloWavefunction + ContinuousEvolution)**
 
 - Bond dimension D ≤ 40 for a pure state ≪ D² for a density matrix
-- No Trotter error (variational)
-- Stochasticity handled by time-averaging the steady state (single trajectory,
-  average last ~100 steps)
-- This is already the faster method in the codebase
+- No Trotter error from the continuous-time TDVP integrator, while retaining the
+  usual TDVP projection and truncation errors
+- A single MCWF trajectory and a late-time average are diagnostic quantities
+  only.  A numerical steady-state estimate requires independent trajectories,
+  stability under the averaging window, and convergence in the retained and
+  transient bond dimensions.
+- The current timing evidence favors process-level MCWF+TDVP diagnostic scans
+  with one Julia thread and one BLAS thread per independent job.  Production
+  settings must still be benchmarked at the target bond cap.
 
 ## Implementation Plan
 
@@ -167,9 +172,10 @@ The deterministic schedules are:
 `scripts/multi_freq_cooling.jl`: runs single-Δ vs multi-Δ for small N, produces
 comparison plots of E/N vs step.
 
-### Step 5: Production runs
+### Step 5: Production-run design
 
-Systematic runs for the paper:
+Initial pre-validation target table, retained here as historical planning
+values:
 
 | Run | N  | R  | Δ-values           | g    | te  | steps | D   |
 |-----|----|----|---------------------|------|-----|-------|-----|
@@ -180,6 +186,13 @@ Systematic runs for the paper:
 | E   | 50 | 1  | gap                 | 0.3  | 2.0 | 500   | 40  |
 | F   | 50 | 5  | uniform grid        | 0.3  | 2.0 | 500   | 40  |
 | G   | 50 | 10 | uniform grid        | 0.3  | 2.0 | 500   | 40  |
+
+These rows should not be read as current production recommendations.  In view
+of the `N=64` evidence below, `D = 20` and `D = 40` are pilot caps unless a
+separate bond-dimension ladder shows that they are converged for the observable
+being reported.  Paper-level data should record the stop-on-cap metadata, the
+TDVP sweep-level bond trace, and enough independent trajectories to distinguish
+tail fluctuations from ensemble fluctuations.
 
 ### Current large-N status
 
@@ -266,17 +279,21 @@ approximated by the maximum elapsed time among simultaneously launched
 single-job HDF5 files; the per-row throughput column remains useful for
 detecting slow jobs and comparing thread settings without hand recomputation.
 
-These data should be used to design the next production campaign.  The table
-above is therefore a target plan, not evidence that the listed bond dimensions
-are already physically converged at large system size.
+These data should be used to design the next production campaign.  The
+historical target table and the timing data above are therefore planning
+inputs, not evidence that the listed bond dimensions are already physically
+converged at large system size.
 
 ### Step 6: Analysis & figures for the paper
 
 Key figures to produce:
 
 1. **E/N vs step**: single-Δ vs multi-Δ (R = 1, 3, 5, 10) at fixed N
-2. **Steady-state energy vs R**: analogous to Paper 1's Fig 8
-3. **Steady-state energy vs N**: scaling study for single vs multi-Δ
+2. **Late-time or best-prefix energy vs R**: promote this to a steady-state
+   energy only after trajectory and bond-dimension convergence have been
+   demonstrated
+3. **Late-time or best-prefix energy vs N**: scaling study for single vs
+   multi-Δ, again promoted to steady-state scaling only after convergence
 4. **Effect of randomized times**: with vs without
 5. **Coupling type comparison**: XX vs YY vs XY under multi-Δ
 6. **Noise robustness**: multi-Δ cooling for pe = 0, 0.001, 0.01

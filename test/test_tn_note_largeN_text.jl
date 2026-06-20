@@ -14,6 +14,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     map_flat = normalize_ws(read(map_path, String))
     evidence_flat = normalize_ws(read(evidence_path, String))
     plan_flat = normalize_ws(read(plan_path, String))
+    plan_lower = lowercase(plan_flat)
 
     # These anchors intentionally couple the note to the source documents.
     # Update them together when the notation or bond-dimension evidence changes.
@@ -40,6 +41,14 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("`traj cycles/hour` is computed as", evidence_flat)
     @test occursin("It is therefore a throughput diagnostic, not a cooling-performance metric", evidence_flat)
     @test occursin("single-run throughput from the stored HDF5 provenance", plan_flat)
+    @test occursin("A single MCWF trajectory and a late-time average are diagnostic quantities only", plan_flat)
+    @test occursin("requires independent trajectories, stability under the averaging window, and convergence in the retained and transient bond dimensions", plan_flat)
+    @test occursin("current timing evidence favors process-level MCWF+TDVP diagnostic scans", plan_flat)
+    @test occursin("These rows should not be read as current production recommendations", plan_flat)
+    @test occursin("Paper-level data should record the stop-on-cap metadata, the TDVP sweep-level bond trace, and enough independent trajectories", plan_flat)
+    @test occursin("Late-time or best-prefix energy vs R", plan_flat)
+    @test occursin("promote this to a steady-state energy only after trajectory and bond-dimension convergence have been demonstrated", plan_flat)
+    @test occursin("Late-time or best-prefix energy vs N", plan_flat)
     @test occursin("traj cycles/hour | user time", plan_flat)
     @test occursin("serial, one driver process | 1 | 1 | `R=2` then `R=5` | 287.70 s | 50.05", plan_flat)
     @test occursin("serial, one driver process | 1 | 16 | `R=2` then `R=5` | 284.34 s | 50.64", plan_flat)
@@ -168,4 +177,14 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         "the energy of the steady state is estimated",
     ]
     @test all(!occursin(phrase, note_lower) for phrase in forbidden)
+
+    stale_plan_phrases = [
+        "time-averaging the steady state",
+        "average last ~100 steps",
+        "this is already the faster method in the codebase",
+        "systematic runs for the paper:",
+        "steady-state energy vs r",
+        "steady-state energy vs n",
+    ]
+    @test all(!occursin(phrase, plan_lower) for phrase in stale_plan_phrases)
 end
