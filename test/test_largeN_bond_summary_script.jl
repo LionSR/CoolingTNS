@@ -16,6 +16,30 @@ markdown_column_counts(text::AbstractString) = [
     @test completed_requested_periods_label([5], [12], 10, "random") == "n/a"
     @test completed_requested_periods_label([5], [12], 10, "unknown") == "n/a"
     @test completed_requested_periods_label([5], [12], 0, "descending") == "n/a"
+
+    delta_history = [
+        NaN NaN
+        1.0 2.0
+        2.0 2.0
+        1.0 3.0
+        3.0 3.0
+    ]
+    @test delta_history_matrix_from_values(2.0) == reshape([2.0], 1, 1)
+    @test distinct_completed_delta_counts(delta_history, [3, 4]) == [2, 2]
+    @test_throws ErrorException distinct_completed_delta_counts(delta_history, [3, 4, 2])
+
+    path = tempname() * ".h5"
+    try
+        h5open(path, "w") do f
+            write(f, "delta_list", [NaN, 1.0, 2.0, 1.0, 3.0])
+            history = delta_history_matrix(f)
+            @test size(history) == (5, 1)
+            @test distinct_completed_delta_counts(history, [3]) == [2]
+            @test visited_detunings_label(f, [3], 0) == "n/a"
+        end
+    finally
+        rm(path; force=true)
+    end
 end
 
 @testset "Large-N bond-dimension summary script" begin
@@ -48,6 +72,7 @@ end
             write(gr, "completed_steps", [2, 2])
             write(gr, "stop_reasons", ["", "bond_cap"])
             write(gr, "delta_values", [0.5, 3.0])
+            write(gr, "delta_lists", [NaN NaN; 3.0 3.0; 0.5 3.0])
 
             bd = create_group(gr, "final_bond_dims")
             write(bd, "trajectory_1", [4, 8, 12])
@@ -65,6 +90,7 @@ end
         @test row.schedule == "descending"
         @test row.completed_requested == "2/3"
         @test row.completed_requested_periods == "1.00/1.50"
+        @test row.visited_detunings == "1-2/2"
         @test row.elapsed_total_seconds == 25.5
         @test row.traj_cycles_per_hour ≈ 3600 * 4 / 25.5
         @test row.stop_reason == "bond_capx1/2"
@@ -109,21 +135,21 @@ end
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap |",
+            "| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap |",
             output,
         )
         @test length(unique(markdown_column_counts(output))) == 1
         @test occursin("| final E/N | relE | best E/N | best relE | tail E/N |", output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | " *
-            "descending | 2/3 | 1.00/1.50 | 25.5 | 564.71 | bond_capx1/2 | fixed_range | " *
+            "descending | 2/3 | 1.00/1.50 | 1-2/2 | 25.5 | 564.71 | bond_capx1/2 | fixed_range | " *
             "[0.50000000,3.00000000] | n/a | 12 | >=12 | >=14 | >=14 | " *
             "not_converged_system_and_evolved_and_tdvp_sweep_cap | " *
             "1.00000000 | 2.00000 | " *
             "-0.25000000 | 0.00000 | 0.41666667 | 1.00000 | 3 |",
             output,
         )
-        @test occursin("| 2 | 2 | descending | 2/3 | 1.00/1.50 | 25.5 | 564.71 | bond_capx1/2 | fixed_range |", output)
+        @test occursin("| 2 | 2 | descending | 2/3 | 1.00/1.50 | 1-2/2 | 25.5 | 564.71 | bond_capx1/2 | fixed_range |", output)
 
         compact_output = mktemp() do output_path, io
             close(io)
@@ -135,14 +161,14 @@ end
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | final E/N | best E/N | mode max abs dE/N | Dcap |",
+            "| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | final E/N | best E/N | mode max abs dE/N | Dcap |",
             compact_output,
         )
         @test length(unique(markdown_column_counts(compact_output))) == 1
         @test occursin("| elapsed_total | traj cycles/hour | stop_reason |", compact_output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | " *
-            "descending | 2/3 | 1.00/1.50 | 1.00000000 | -0.25000000 | n/a | 12 | >=12 | >=14 | >=14 | " *
+            "descending | 2/3 | 1.00/1.50 | 1-2/2 | 1.00000000 | -0.25000000 | n/a | 12 | >=12 | >=14 | >=14 | " *
             "not_converged_system_and_evolved_and_tdvp_sweep_cap | 25.5 | 564.71 | bond_capx1/2 |",
             compact_output,
         )
@@ -178,6 +204,7 @@ end
         @test row.schedule == "unknown"
         @test row.completed_requested == "1/1"
         @test row.completed_requested_periods == "n/a"
+        @test row.visited_detunings == "n/a"
         @test isnan(row.elapsed_total_seconds)
         @test isnan(row.traj_cycles_per_hour)
         @test row.stop_reason == "none"
@@ -200,11 +227,11 @@ end
         end
         @test occursin(
             "| $(basename(path)) | 2 | mcwf | unknown | 1 | 1 | " *
-            "unknown | 1/1 | n/a | NaN | NaN | none | unknown | " *
+            "unknown | 1/1 | n/a | n/a | NaN | NaN | none | unknown | " *
             "unknown | unknown | 4 | 2 | >=4 | n/a | not_converged_evolved_cap |",
             output,
         )
-        @test occursin("| 1 | 1 | unknown | 1/1 | n/a | NaN | NaN | none | unknown |", output)
+        @test occursin("| 1 | 1 | unknown | 1/1 | n/a | n/a | NaN | NaN | none | unknown |", output)
         @test occursin("| 4.00 | n/a | none | 1 | n/a |", output)
     finally
         rm(path; force=true)
