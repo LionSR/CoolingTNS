@@ -49,6 +49,7 @@ end
     @testset "Text Consistency" begin
         include("test_ed_kspace_demo_text.jl")
         include("test_bogoliubov_notation_text.jl")
+        include("test_slide_kspace_notation_text.jl")
         include("test_tn_note_largeN_text.jl")
     end
 

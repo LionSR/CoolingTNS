@@ -74,6 +74,33 @@
   \includegraphics[width=0.95\linewidth]{consistency_tn_vs_ed_dm_trotter.pdf}
 \end{frame}
 
+\begin{frame}{K-space notation used in diagnostics}
+\small
+For periodic or antiperiodic integrable Ising chains, the diagnostics follow
+\texttt{Notes/NotesED/MapToSpin.tex}.
+
+\begin{align*}
+  \tilde n_k
+  &= \langle \tilde a_k^\dagger \tilde a_k\rangle
+   = \frac{1}{N}\sum_{m,n} e^{i(m-n)\phi_k}
+     \langle a_m^\dagger a_n\rangle,\\
+  n_k^{\mathrm{Bog}}
+  &= \langle \hat n_k\rangle
+   = \frac{1+\langle h_k\rangle}{2},
+  \qquad h_k=2\hat a_k^\dagger\hat a_k-1.
+\end{align*}
+
+The energy diagnostic is reconstructed from the mode observables,
+\begin{equation*}
+  E_{\mathrm{modes}}
+  =\frac{\Lambda}{2}\sum_{k\in\mathrm{grid}(g_F)}
+    \operatorname{coeff}_k\,\langle h_k\rangle,
+\end{equation*}
+with signed special-mode coefficients.  Thus \(\tilde n_k\) is a raw
+Fourier occupation, while \(n_k^{\mathrm{Bog}}\) is a quasiparticle
+occupation; neither is an unspecified mode-energy contribution.
+\end{frame}
+
 \begin{frame}{Consistency check: mode-resolved reconstruction (Ising, PBC)}
   \centering
   \includegraphics[width=0.95\linewidth]{mode_energy_consistency_ed.pdf}
