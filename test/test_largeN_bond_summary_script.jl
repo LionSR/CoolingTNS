@@ -24,6 +24,7 @@ markdown_column_counts(text::AbstractString) = [
         1.0 3.0
         3.0 3.0
     ]
+    @test delta_history_matrix_from_values(2.0) == reshape([2.0], 1, 1)
     @test distinct_completed_delta_counts(delta_history, [3, 4]) == [2, 2]
     @test_throws ErrorException distinct_completed_delta_counts(delta_history, [3, 4, 2])
 
@@ -34,6 +35,7 @@ markdown_column_counts(text::AbstractString) = [
             history = delta_history_matrix(f)
             @test size(history) == (5, 1)
             @test distinct_completed_delta_counts(history, [3]) == [2]
+            @test visited_detunings_label(f, [3], 0) == "n/a"
         end
     finally
         rm(path; force=true)

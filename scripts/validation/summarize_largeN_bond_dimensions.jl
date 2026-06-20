@@ -266,14 +266,19 @@ end
 
 function delta_history_matrix(run_group)
     if haskey(run_group, "delta_lists")
-        values = Float64.(read(run_group["delta_lists"]))
-        values isa AbstractVector && return reshape(values, :, 1)
-        return Matrix(values)
+        return delta_history_matrix_from_values(read(run_group["delta_lists"]))
     elseif haskey(run_group, "delta_list")
-        values = Float64.(read(run_group["delta_list"]))
-        return reshape(values, :, 1)
+        return delta_history_matrix_from_values(read(run_group["delta_list"]))
     end
     return nothing
+end
+
+function delta_history_matrix_from_values(values)
+    values isa Number && return reshape([Float64(values)], 1, 1)
+    array = Float64.(values)
+    array isa AbstractVector && return reshape(array, :, 1)
+    array isa AbstractMatrix && return Matrix(array)
+    error("delta history must be stored as a scalar, vector, or matrix")
 end
 
 function distinct_completed_delta_counts(delta_history, completed_steps::AbstractVector{<:Integer})
