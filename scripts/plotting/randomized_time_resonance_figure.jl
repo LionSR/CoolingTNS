@@ -8,7 +8,8 @@ This is inspired by the randomized-time analysis in arXiv:2503.24330.
 
 The figure typically has two panels:
 
-1. A scan of the (steady-state) energy density versus the *mean* cycle time `t`.
+1. A scan of the finite-window late-time energy density versus the *mean* cycle
+   time `t`.
 2. A representative time point `t_bad` where fixed-time cooling performs worse,
    showing the energy density trajectory versus cooling step.
 
@@ -409,12 +410,12 @@ function plot_time_randomization_resonances(;
         L"$e=0$"
     end
 
-    ylab_ss = if metric == :energy_density
-        L"steady-state energy density $\bar E/N$"
+    ylab_scan = if metric == :energy_density
+        L"late-time mean energy density $\bar E/N$"
     elseif metric == :energy_density_error
-        L"steady-state energy density error $|\bar E/N - E_0/N|$"
+        L"late-time mean energy density error $|\bar E/N - E_0/N|$"
     else
-        L"steady-state relative energy $\bar{e}$"
+        L"late-time mean relative energy $\bar{e}$"
     end
 
     ylab = if metric == :energy_density
@@ -433,7 +434,7 @@ function plot_time_randomization_resonances(;
     ax.axhline(y_gs, color="black", linestyle="--", linewidth=1.2, label=gs_label)
     ax.axvline(t_bad, color="gray", linestyle=":", linewidth=1.0, alpha=0.8)
     ax.set_xlabel(L"mean cycle time $t$")
-    ax.set_ylabel(ylab_ss)
+    ax.set_ylabel(ylab_scan)
     ax.set_title("Accidental resonances vs cycle time")
     ax.grid(true, alpha=0.25)
     ax.legend(frameon=false, loc="best")

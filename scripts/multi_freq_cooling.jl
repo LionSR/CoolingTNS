@@ -14,7 +14,7 @@ using Printf
     run_multi_frequency_comparison(; kwargs...) -> (results_single, results_multi)
 
 Run single-Δ vs multi-Δ cooling for the interacting niIsing model and print a
-summary comparing energies and (optionally) steady-state averages.
+summary comparing energies and finite-window late-time averages.
 
 Notes:
 - Defaults run a fast `EDBackend()` demo (N=4, steps=50). For TN benchmarks, pass
@@ -108,8 +108,8 @@ function run_multi_frequency_comparison(;
 
     E0 = problem_single.e₀
 
-    E_single_ss = mean_last_window(E_single, window_size)
-    E_multi_ss = mean_last_window(E_multi, window_size)
+    E_single_tail = mean_last_window(E_single, window_size)
+    E_multi_tail = mean_last_window(E_multi, window_size)
 
     @printf("\n--- Multi-frequency comparison ---\n")
     @printf("backend        = %s\n", string(typeof(backend)))
@@ -123,7 +123,7 @@ function run_multi_frequency_comparison(;
 
     @printf("E0/N                         = %.8f\n", E0 / N)
     @printf("single-Δ final E/N           = %.8f\n", E_single[end] / N)
-    @printf("single-Δ steady(last %d)/N   = %.8f\n", window_size, E_single_ss / N)
+    @printf("single-Δ tail-mean(last %d)/N = %.8f\n", window_size, E_single_tail / N)
     @printf("\n")
 
     @printf("multi-Δ R                    = %d\n", R)
@@ -132,7 +132,7 @@ function run_multi_frequency_comparison(;
     @printf("multi-Δ randomize_times      = %s\n", string(randomize_times))
     @printf("multi-Δ Δ-range              = [%.6f, %.6f]\n", minimum(delta_values), maximum(delta_values))
     @printf("multi-Δ final E/N            = %.8f\n", E_multi[end] / N)
-    @printf("multi-Δ steady(last %d)/N    = %.8f\n", window_size, E_multi_ss / N)
+    @printf("multi-Δ tail-mean(last %d)/N = %.8f\n", window_size, E_multi_tail / N)
 
     return results_single, results_mf
 end

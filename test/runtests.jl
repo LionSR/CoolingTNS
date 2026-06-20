@@ -51,6 +51,7 @@ end
         include("test_bogoliubov_notation_text.jl")
         include("test_slide_kspace_notation_text.jl")
         include("test_tn_note_largeN_text.jl")
+        include("test_late_time_plot_label_text.jl")
     end
 
     if RUN_FULL_TESTS
