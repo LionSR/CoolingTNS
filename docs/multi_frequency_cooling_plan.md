@@ -89,7 +89,7 @@ struct MultiFrequencyCouplingParameters <: CouplingParameters
     te::Float64                          # mean evolution time
     delta_values::Vector{Float64}        # bath frequencies to cycle through
     randomize_times::Bool                # draw t_m ~ Uniform(0, 2·te)?
-    schedule::Symbol                     # :round_robin or :random
+    schedule::Symbol                     # :round_robin, :descending, or :random
 end
 ```
 
@@ -153,6 +153,14 @@ measurement before any cooling cycle.  This keeps the physical schedule and the
 recorded diagnostic arrays on a single convention.  For random schedules or
 randomized times, the helper samples from its supplied RNG; it matches a run
 when `run_cooling_multi_freq` receives an RNG in the same state.
+
+The deterministic schedules are:
+
+- `:round_robin`, which cycles through the detuning grid in increasing order,
+  then repeats.
+- `:descending`, which cycles through the same fixed grid in decreasing order,
+  then repeats.  This gives a high-detuning-first probe without introducing
+  random schedule noise.
 
 ### Step 4: Comparison script
 

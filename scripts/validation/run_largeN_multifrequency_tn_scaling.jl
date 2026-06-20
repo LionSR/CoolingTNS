@@ -95,6 +95,11 @@ trajectory-resolved `te_lists`, and the default filename receives a `_randtime`
 suffix so randomized-time diagnostics do not overwrite fixed-time runs with the
 same mean `te`.
 
+Use `--schedule descending` to cycle through the same fixed detuning grid from
+largest to smallest before repeating.  This is a deterministic high-detuning
+first probe; it is distinct from `--schedule random`, which samples one
+detuning index independently at each cooling cycle.
+
 To prepare independent commands for process-level parallel execution, use
 `--print-parallel-plan`.  The plan splits the campaign into one command for
 each `(N, method, R, Dmax)` tuple and assigns distinct HDF5 and progress CSV
@@ -296,8 +301,8 @@ function parse_args(args)
         error("--mode-measurement-stride requires --measure-modes")
     end
     cfg["schedule_symbol"] = Symbol(cfg["schedule"])
-    cfg["schedule_symbol"] in (:round_robin, :random) ||
-        error("--schedule must be round_robin or random")
+    cfg["schedule_symbol"] in (:round_robin, :descending, :random) ||
+        error("--schedule must be round_robin, descending, or random")
     if (cfg["delta_min"] === nothing) != (cfg["delta_max"] === nothing)
         error("--delta-min and --delta-max must be supplied together")
     end

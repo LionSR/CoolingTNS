@@ -86,9 +86,19 @@ end
         "--schedule", "round_robin",
         "--outdir", tempdir(),
     ])
+    descending_schedule_cfg = parse_args([
+        "--schedule", "descending",
+        "--outdir", tempdir(),
+    ])
     @test output_path(random_schedule_cfg) != output_path(round_robin_cfg)
+    @test output_path(descending_schedule_cfg) != output_path(round_robin_cfg)
+    @test output_path(descending_schedule_cfg) != output_path(random_schedule_cfg)
     @test occursin("_schedrandom_", output_path(random_schedule_cfg))
+    @test occursin("_scheddescending_", output_path(descending_schedule_cfg))
     @test !occursin("_schedround_robin_", output_path(round_robin_cfg))
+    descending_command = join(command_args_for_config(descending_schedule_cfg), " ")
+    @test occursin("--schedule descending", descending_command)
+    @test_throws ErrorException parse_args(["--schedule", "bad"])
 
     random_time_cfg = parse_args([
         "--randomize-times",
