@@ -1027,3 +1027,49 @@ completed cycle, and the best prefix remains far above the ground-state
 reference `E0/N = -1.3246328892`.  Thus descending order is a useful schedule
 axis for later adaptive protocols, but it is not by itself evidence of
 scalable ground-state cooling.
+
+### Dmax=64 Descending R=10 Follow-up
+
+The best low-cap descending prefix above was the `R = 10` run.  To test whether
+that improvement survives a larger transient bond cap, the same post-Krylov
+TDVP diagnostic was repeated at `Dmax = 64` for `R = 10`:
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 10 --methods mcwf \
+  --evolution-method continuous --steps 8 --Dmax 64 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending \
+  --progress-csv .worktree/descending_schedule_dmax64_20260620/tdvp_progress_N64_niising_open_mcwf_R10_Dmax64_te1.0_descending.csv \
+  --outdir .worktree/descending_schedule_dmax64_20260620 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The HDF5 summary is
+
+| R | Dcap | completed/requested cycles | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | system sat | evolved sat | tdvp sweep sat | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---:|
+| 10 | 64 | 4/8 | 0.87319302 | 0.87319302 | 56 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | none | 4 | 4 | 211.4 s |
+
+The completed-cycle prefix is
+
+| cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 3.03070050 | 1.30592953 | 4 | 6 | 22.2 s |
+| 2 | 2.75008008 | 1.13874047 | 11 | 15 | 47.9 s |
+| 3 | 2.46945966 | 0.95514768 | 24 | 33 | 84.3 s |
+| 4 | 2.18883925 | 0.87319302 | 56 | 64 | 211.4 s |
+
+Thus the descending schedule improvement is not only a `Dcap = 32` artifact:
+raising the cap to `64` lets the same single trajectory complete one more
+cooling cycle and lowers the best observed prefix from the corresponding
+`Dcap = 32` value `0.95514749` to `0.87319302`.  The calculation is still not
+converged.  The transient
+system-bath state and the TDVP sweep observer both reach the cap in cycle 4,
+so `Dsb_eff >= 64` and `Dtdvp_sweep_eff >= 64` are lower bounds.  The energy
+also remains far above the DMRG reference `E0/N = -1.3246328892`.  The result
+supports descending high-to-low detuning as a useful protocol axis for future
+adaptive scans, but it does not establish scalable ground-state cooling.
