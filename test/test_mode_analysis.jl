@@ -255,6 +255,7 @@ end
         file_lacks(path, needle) = !file_contains(path, needle)
 
         note_path = joinpath(@__DIR__, "..", "Notes", "NotesED", "MapToSpin.tex")
+        obc_path = joinpath(@__DIR__, "..", "Notes", "NotesED", "OBC.tex")
         cooling_tn_path = joinpath(@__DIR__, "..", "Notes", "NotesTN", "CoolingAlgTN.tex")
         gaussian_main_path = joinpath(@__DIR__, "..", "Notes", "GaussianPaper", "journal_main.tex")
         gaussian_supp_path = joinpath(@__DIR__, "..", "Notes", "GaussianPaper", "journal_supp.tex")
@@ -269,6 +270,9 @@ end
         @test file_contains(note_path, raw"\epsilon_k\tilde n_k")
         @test file_contains(note_path, raw"\label{eq:hk_individual_def}")
         @test file_lacks(note_path, raw"\cos(\varphi_k) \ta_k + \sin(\varphi_k) \ta_{-k}^\dag")
+        @test file_contains(obc_path, raw"\label{eq:obc_mode_contribution}")
+        @test file_contains(obc_path, raw"Thus \(H_k=\frac{\epsilon_k}{2}h_k^{\mathrm{OBC}}\), not \(\epsilon_k h_k^{\mathrm{OBC}}\)")
+        @test file_lacks(obc_path, raw"The mode energy $E_k = \epsilon_k (2\gamma_k^\dag \gamma_k - 1)$")
         @test file_contains(cooling_tn_path, raw"\label{eq:TNModeEnergyReconstruction}")
         @test file_contains(cooling_tn_path, raw"h_k=2\hat a_k^\dagger\hat a_k-1")
         @test file_contains(cooling_tn_path, raw"n_k^{\mathrm{Bog}}=\frac{1+\langle h_k\rangle}{2}")
