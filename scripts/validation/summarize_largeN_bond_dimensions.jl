@@ -8,12 +8,17 @@ Example:
         /tmp/coolingtns_largeN_mcwf_N64_R1_steps4_Dmax320.h5 \
         /tmp/coolingtns_largeN_mcwf_N64_R2-5-10_steps4_Dmax320.h5
 
+    julia --project=. scripts/validation/summarize_largeN_bond_dimensions.jl \
+        --compact /tmp/coolingtns_largeN_mcwf_N64_R1_steps4_Dmax320.h5
+
 The output is a Markdown table.  When present, the stored detuning protocol is
 shown next to the bond-dimension diagnostics, so fixed-detuning cutoff sweeps
 can be audited from the summary alone.  The `delta_range` column is the stored
 protocol interval; for `R=1`, the campaign samples only the lower endpoint.  For
 multi-trajectory data, final-link quantiles and threshold fractions are computed
-per trajectory and then averaged over trajectories.
+per trajectory and then averaged over trajectories.  Stop-on-cap provenance is
+read directly from the HDF5 fields `requested_steps`, `completed_steps`,
+`stop_reasons`, and `elapsed_seconds` when available.
 """
 
 using CoolingTNS
@@ -30,7 +35,7 @@ const ENERGY_TAIL_WINDOW = 10
 function usage()
     println(
         "usage: julia --project=. scripts/validation/summarize_largeN_bond_dimensions.jl " *
-        "FILE.h5 [FILE2.h5 ...]"
+        "[--compact] FILE.h5 [FILE2.h5 ...]"
     )
 end
 
@@ -46,6 +51,26 @@ end
 
 format_integer_or_na(value::Integer) = string(value)
 format_integer_or_na(::Missing) = "n/a"
+
+function scalar_or_vector(value)
+    value isa AbstractArray && return vec(value)
+    return [value]
+end
+
+function read_integer_vector(run_group, key::AbstractString, default::AbstractVector{<:Integer})
+    haskey(run_group, key) || return Int.(default)
+    return Int.(scalar_or_vector(read(run_group[key])))
+end
+
+function read_float_vector(run_group, key::AbstractString)
+    haskey(run_group, key) || return Float64[]
+    return Float64.(scalar_or_vector(read(run_group[key])))
+end
+
+function read_string_vector(run_group, key::AbstractString)
+    haskey(run_group, key) || return String[]
+    return String.(scalar_or_vector(read(run_group[key])))
+end
 
 function read_group_value(primary_group, fallback_group, key::AbstractString, default)
     haskey(primary_group, key) && return read(primary_group[key])
@@ -103,6 +128,20 @@ function detuning_protocol_summary(method_group, run_group)
 end
 
 energy_tail_start(nsteps::Integer) = max(1, nsteps - ENERGY_TAIL_WINDOW + 1)
+
+function range_label(values::AbstractVector{<:Integer})
+    isempty(values) && return "n/a"
+    lo, hi = extrema(values)
+    lo == hi && return string(lo)
+    return "$lo-$hi"
+end
+
+function stop_reason_label(reasons::AbstractVector{<:AbstractString})
+    nonempty = unique(filter(!isempty, String.(reasons)))
+    isempty(nonempty) && return "none"
+    length(nonempty) == 1 && return only(nonempty)
+    return join(sort(nonempty), "+")
+end
 
 function method_from_name(method_name::AbstractString)
     # HDF5 stores method names as strings; the cap itself is still determined
@@ -174,6 +213,23 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
 
     energy_mean = read(run_group["E_mean"])
     relative_energy_mean = read(run_group["relative_energy_mean"])
+    inferred_completed_steps = max(length(energy_mean) - 1, 0)
+    default_requested_steps = haskey(root, "steps") ?
+        Int(read(root["steps"])) :
+        inferred_completed_steps
+    requested_steps_values = read_integer_vector(
+        run_group,
+        "requested_steps",
+        fill(default_requested_steps, M),
+    )
+    completed_steps_values = read_integer_vector(
+        run_group,
+        "completed_steps",
+        fill(inferred_completed_steps, M),
+    )
+    elapsed_values = read_float_vector(run_group, "elapsed_seconds")
+    elapsed_seconds = isempty(elapsed_values) ? NaN : sum(elapsed_values)
+    stop_reasons = read_string_vector(run_group, "stop_reasons")
     system_max_bond = bond_history_matrix(read(run_group["system_max_bond"]))
     system_mean_bond = bond_history_matrix(read(run_group["system_mean_bond"]))
     evolved_max_bond = bond_history_matrix(read(run_group["evolved_max_bond"]))
@@ -249,6 +305,9 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         evolution=evolution,
         R=R,
         M=M,
+        completed_requested="$(range_label(completed_steps_values))/$(range_label(requested_steps_values))",
+        elapsed_seconds=elapsed_seconds,
+        stop_reason=stop_reason_label(stop_reasons),
         delta_protocol=detuning.delta_protocol,
         delta_range=detuning.delta_range,
         delta_factor=detuning.delta_factor,
@@ -309,11 +368,13 @@ function summarize_file(path::AbstractString)
 end
 
 function print_markdown(rows)
-    println("| file | N | method | evolution | R | M | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
-    println("|---|---:|---|---|---:|---:|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
+    println("| file | N | method | evolution | R | M | completed/requested | elapsed | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("|---|---:|---|---|---:|---:|---|---:|---|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for row in sort(rows; by=row -> (row.N, row.method, row.evolution, row.R, row.file))
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | $(row.R) | $(row.M) | " *
+            "$(row.completed_requested) | $(format_float(row.elapsed_seconds, 1)) | " *
+            "$(row.stop_reason) | " *
             "$(row.delta_protocol) | $(row.delta_range) | $(row.delta_factor) | " *
             "$(row.threshold) | " *
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
@@ -336,19 +397,51 @@ function print_markdown(rows)
     end
 end
 
+function print_compact_markdown(rows)
+    println("| file | N | method | evolution | R | M | completed/requested | final E/N | best E/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed | stop_reason |")
+    println("|---|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---|---:|---|")
+    for row in sort(rows; by=row -> (row.N, row.method, row.evolution, row.R, row.file))
+        println(
+            "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | " *
+            "$(row.R) | $(row.M) | $(row.completed_requested) | " *
+            "$(format_float(row.final_e_over_n, 8)) | " *
+            "$(format_float(row.best_e_over_n, 8)) | $(row.threshold) | " *
+            "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
+            "$(row.tdvp_sweep_effective_bond) | $(row.bond_status) | " *
+            "$(format_float(row.elapsed_seconds, 1)) | $(row.stop_reason) |"
+        )
+    end
+end
+
+function parse_args(args)
+    compact = false
+    paths = String[]
+    for arg in args
+        if arg == "--compact"
+            compact = true
+        elseif startswith(arg, "--")
+            throw(ArgumentError("unknown option: $arg"))
+        else
+            push!(paths, arg)
+        end
+    end
+    return (paths=paths, compact=compact)
+end
+
 function summarize_largeN_bond_dimensions_main(args=ARGS)
     if isempty(args) || any(arg -> arg in ("-h", "--help"), args)
         usage()
         return isempty(args) ? 1 : 0
     end
 
+    parsed = parse_args(args)
     rows = NamedTuple[]
-    for path in args
+    for path in parsed.paths
         isfile(path) || error("not a file: $path")
         append!(rows, summarize_file(path))
     end
     isempty(rows) && error("no large-N campaign runs found")
-    print_markdown(rows)
+    parsed.compact ? print_compact_markdown(rows) : print_markdown(rows)
     return 0
 end
 

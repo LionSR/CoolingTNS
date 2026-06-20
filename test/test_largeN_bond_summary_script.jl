@@ -28,6 +28,10 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
             write(gr, "evolved_mean_bond", [NaN NaN; 8.0 7.0; 9.0 11.0])
             write(gr, "tdvp_sweep_max_bond", [0 0; 6 13; 8 14])
             write(gr, "tdvp_sweep_saturation_cycle", [0, 1])
+            write(gr, "elapsed_seconds", [10.0, 15.5])
+            write(gr, "requested_steps", [3, 3])
+            write(gr, "completed_steps", [2, 2])
+            write(gr, "stop_reasons", ["", "bond_cap"])
             write(gr, "delta_values", [0.5, 3.0])
 
             bd = create_group(gr, "final_bond_dims")
@@ -43,6 +47,9 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
         @test row.evolution == "continuous"
         @test row.R == 2
         @test row.M == 2
+        @test row.completed_requested == "2/3"
+        @test row.elapsed_seconds == 25.5
+        @test row.stop_reason == "bond_cap"
         @test row.delta_protocol == "fixed_range"
         @test row.delta_range == "[0.50000000,3.00000000]"
         @test row.delta_factor == "n/a"
@@ -84,18 +91,43 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | R | M | delta_protocol | delta_range | delta_factor | Dcap |",
+            "| file | N | method | evolution | R | M | completed/requested | elapsed | stop_reason | delta_protocol | delta_range | delta_factor | Dcap |",
             output,
         )
         @test occursin("| final E/N | relE | best E/N | best relE | tail E/N |", output)
         @test occursin(
-            "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | fixed_range | " *
+            "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | " *
+            "2/3 | 25.5 | bond_cap | fixed_range | " *
             "[0.50000000,3.00000000] | n/a | 12 | >=12 | >=14 | >=14 | " *
             "not_converged_system_and_evolved_and_tdvp_sweep_cap | " *
             "1.00000000 | 2.00000 | " *
             "-0.25000000 | 0.00000 | 0.41666667 | 1.00000 | 3 |",
             output,
         )
+        @test occursin("| 2 | 2 | 2/3 | 25.5 | bond_cap | fixed_range |", output)
+
+        compact_output = mktemp() do output_path, io
+            close(io)
+            open(output_path, "w") do out
+                redirect_stdout(out) do
+                    print_compact_markdown(rows)
+                end
+            end
+            read(output_path, String)
+        end
+        @test occursin(
+            "| file | N | method | evolution | R | M | completed/requested | final E/N | best E/N | Dcap |",
+            compact_output,
+        )
+        @test occursin(
+            "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | " *
+            "2/3 | 1.00000000 | -0.25000000 | 12 | >=12 | >=14 | >=14 | " *
+            "not_converged_system_and_evolved_and_tdvp_sweep_cap | 25.5 | bond_cap |",
+            compact_output,
+        )
+        @test parse_args(["--compact", path]).compact
+        @test parse_args(["--compact", path]).paths == [path]
+        @test_throws ArgumentError parse_args(["--unknown", path])
     finally
         rm(path; force=true)
     end
@@ -122,6 +154,9 @@ end
 
         row = only(summarize_file(path))
         @test row.evolution == "unknown"
+        @test row.completed_requested == "1/1"
+        @test isnan(row.elapsed_seconds)
+        @test row.stop_reason == "none"
         @test row.delta_protocol == "unknown"
         @test row.delta_range == "unknown"
         @test row.delta_factor == "unknown"
@@ -140,10 +175,12 @@ end
             read(output_path, String)
         end
         @test occursin(
-            "| $(basename(path)) | 2 | mcwf | unknown | 1 | 1 | unknown | " *
+            "| $(basename(path)) | 2 | mcwf | unknown | 1 | 1 | " *
+            "1/1 | NaN | none | unknown | " *
             "unknown | unknown | 4 | 2 | >=4 | n/a | not_converged_evolved_cap |",
             output,
         )
+        @test occursin("| 1 | 1 | 1/1 | NaN | none | unknown |", output)
         @test occursin("| 4.00 | n/a | none | 1 | n/a |", output)
     finally
         rm(path; force=true)
