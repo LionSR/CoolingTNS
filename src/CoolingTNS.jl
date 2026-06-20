@@ -9,6 +9,7 @@ using HDF5
 
 # For convenience, here we should just include all the files that are still being used
 
+include("multi_frequency_schedules.jl") # Schedule names used by parameter types
 include("parameter_types.jl")      # Define parameter types first
 include("cooling_types.jl")        # CoolingProblem and QuantumState types
 include("result_keys.jl")          # Public result dictionary keys
@@ -112,6 +113,9 @@ export bath_detuning_energy, nearest_bath_resonance_indices
 
 # Multi-frequency cooling helpers
 export uniform_delta_grid, multi_frequency_cycle_choice, multi_frequency_cycle_sequence
+export MULTI_FREQUENCY_SCHEDULES
+export parse_multi_frequency_schedule, validate_multi_frequency_schedule
+export multi_frequency_schedule_token
 export compute_excitation_gaps, spectral_delta_values
 
 # Complex JW (notes convention)
