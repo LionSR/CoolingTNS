@@ -152,7 +152,9 @@ energy and bond diagnostics.  Long large-`N` runs may therefore use
 `mode_hk` and `mode_nk` retain the ordinary step-by-mode shape, but only cycles
 `0, s, 2s, ...` and the requested final cycle are evaluated; unmeasured rows
 are stored as `NaN`, and the measured cooling cycles are listed in
-`mode_measurement_cycles`.
+`mode_measurement_cycles`.  The plotting utilities use this cycle list to
+discard the deliberately unmeasured rows and to label curves by the physical
+cooling cycle rather than by the compressed position among measured rows.
 
 For mode-energy consistency checks, the simulated state should have a definite
 Ising parity so that the fermionic momentum grid is selected by the state

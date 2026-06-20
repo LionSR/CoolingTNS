@@ -8,6 +8,10 @@ pyimport("matplotlib").use("Agg"; force=true)
 include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_ek_evolution.jl"))
 include(joinpath(@__DIR__, "..", "scripts", "plotting", "plot_nk_evolution.jl"))
 
+_ek_axis_lines(ax) = pyconvert(Vector, ax.lines)
+_ek_line_label(line) = pyconvert(String, line.get_label())
+_ek_line_ydata(line) = pyconvert(Vector{Float64}, line.get_ydata())
+
 @testset "Mode energy plot convention" begin
     N = 4
     J = 1.0
@@ -160,5 +164,44 @@ end
         plt = get_pyplot()
         plt.close(fig_nk)
         plt.close(fig_ek)
+    end
+end
+
+@testset "Mode energy plot respects strided measurement cycles" begin
+    mktempdir() do dir
+        filename = joinpath(dir, "strided_mode_energy.h5")
+        N = 4
+        J = 1.0
+        h = 0.5
+        k_indices = allowed_k_indices(N, -1)
+        coeffs = _mode_energy_coefficients(k_indices, N, J, h)
+        mode_hk = [
+            -1.0 -0.5  0.0  0.5
+             NaN  NaN  NaN  NaN
+            -0.8 -0.4  0.1  0.6
+        ]
+
+        h5open(filename, "w") do file
+            write(file, RESULT_MODE_HK, mode_hk)
+            write(file, RESULT_MODE_K_INDICES, Float64.(k_indices))
+            write(file, RESULT_MODE_ENERGIES, abs.(2 .* coeffs))
+            write(file, RESULT_MODE_MEASUREMENT_CYCLES, [0, 2])
+            write(file, RESULT_ENERGY, [-1.0, -0.9, -0.8])
+            write(file, "N", N)
+            write(file, "J", J)
+            write(file, "h", h)
+            write(file, "bc", "periodic")
+        end
+
+        fig = plot_ek_evolution(filename; save_fig=false)
+        labels = _ek_line_label.(_ek_axis_lines(fig.axes[0]))
+        @test "Initial" in labels
+        @test "Cycle 2" in labels
+        @test !("Cycle 1" in labels)
+
+        plotted_ydata = _ek_line_ydata.(_ek_axis_lines(fig.axes[0])[1:2])
+        @test all(values -> all(isfinite, values), plotted_ydata)
+
+        get_pyplot().close(fig)
     end
 end
