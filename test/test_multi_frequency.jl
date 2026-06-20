@@ -145,6 +145,32 @@ using Random
     @test results_explicit_nothing[CoolingTNS.RESULT_GROUND_STATE_OVERLAP] ==
           results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP]
 
+    descending_run_params = CoolingTNS.MultiFrequencyCouplingParameters(
+        "XX",
+        0.1,
+        3,
+        0.5,
+        [0.5, 1.0, 1.5];
+        randomize_times=false,
+        schedule=:descending,
+    )
+    descending_problem = CoolingTNS.setup_problem(
+        backend, ham_params, descending_run_params, sim_params)
+    descending_initial = CoolingTNS.setup_initial_state(
+        descending_problem, sim_params, "product", 0.0)
+    descending_results = CoolingTNS.run_cooling(
+        descending_problem,
+        descending_initial,
+        descending_run_params,
+        sim_params,
+        ham_params,
+    )
+    @test descending_results[CoolingTNS.RESULT_COMPLETED_STEPS] ==
+          descending_run_params.steps
+    @test isequal(descending_results[CoolingTNS.RESULT_DELTA_LIST],
+                  [NaN, 1.5, 1.0, 0.5])
+    @test all(isfinite, descending_results[CoolingTNS.RESULT_ENERGY])
+
     rng_mf_params = CoolingTNS.MultiFrequencyCouplingParameters(
         "XX",
         0.1,
