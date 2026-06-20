@@ -256,7 +256,10 @@ system coupling used by the default mode-resolved Ising cooling diagnostics:
 the coupling can create or remove generic quasiparticles only in pairs, so the
 reference scale is ``2 min_{sin φ_k != 0} ε_k``.  It is not the
 single-quasiparticle mode energy, not the cross-parity many-body gap, and not a
-variational DMRG excited-state estimate.
+variational DMRG excited-state estimate.  On Fourier grids containing special
+modes this generic two-quasiparticle scale can exceed lower same-parity
+special-mode transitions, so direct callers should use it only when the generic
+pair scale is the intended reference.
 """
 function ising_mode_detuning_reference(
     ham_params::HamiltonianParameters{IsingModel};
@@ -435,7 +438,7 @@ formula.
 function bogoliubov_angle(k, θ, N)
     wk = w_k_coefficient(k, θ, N)
     rk = r_k_coefficient(k, θ, N)
-    if abs(rk) < 1e-15
+    if !is_generic_mode(k, N)
         return 0.0
     end
     return atan(rk, wk) / 2
@@ -453,9 +456,7 @@ For generic modes, ``coeff_k = ε_k``.  For the special modes ``k = 0`` and
 This is in **notes units**; multiply by ``Λ`` for code units.
 """
 function coeff_k(k, θ, N)
-    φk = 2π * k / N
-    # Special modes have sin(φ_k) = 0
-    if abs(sin(φk)) < 1e-12
+    if !is_generic_mode(k, N)
         return w_k_coefficient(k, θ, N)  # signed
     else
         return mode_energy(k, θ, N)  # always positive

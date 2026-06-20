@@ -313,11 +313,6 @@ function _build_hk_operator(k, θ, N, a_ops, a_dag_ops)
     dim = size(a_ops[1], 1)
     II = Matrix{ComplexF64}(I, dim, dim)
 
-    varphi_bogo = bogoliubov_angle(Float64(k), θ, N)
-    c2 = cos(varphi_bogo)^2
-    s2 = sin(varphi_bogo)^2
-    sc = sin(varphi_bogo) * cos(varphi_bogo)
-
     ãk, ãkd = _build_fourier_ops(a_ops, a_dag_ops, k, N)
 
     if !is_generic_mode(k, N)
@@ -327,6 +322,10 @@ function _build_hk_operator(k, θ, N, a_ops, a_dag_ops)
         return 2 * nk_op - II
     else
         # Generic mode: use full Bogoliubov transformation
+        varphi_bogo = bogoliubov_angle(Float64(k), θ, N)
+        c2 = cos(varphi_bogo)^2
+        s2 = sin(varphi_bogo)^2
+        sc = sin(varphi_bogo) * cos(varphi_bogo)
         ãmk, ãmkd = _build_fourier_ops(a_ops, a_dag_ops, -k, N)
 
         nk_op = ãkd * ãk       # ã†_k ã_k
