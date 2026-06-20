@@ -1,6 +1,6 @@
 \section{Comparison with the Variational Quantum Algorithm}
 
-To provide a comparative perspective on the performance of the cooling algorithm, we solve the same non-integrable Ising model using a variational quantum algorithm (VQA) with brickwork circuits of varying depths. The VQA is a hybrid quantum-classical approach that uses a parameterized quantum circuit to prepare trial states and a classical optimizer to minimize the energy expectation value. By comparing the results of the cooling algorithm with those of the VQA, we can assess the relative strengths and weaknesses of the two methods in tackling the ground state preparation problem.
+To provide a finite-size variational baseline for the cooling simulations, we solve the same non-integrable Ising model using a variational quantum algorithm (VQA) with brickwork circuits of varying depths. The VQA is a hybrid quantum-classical approach that uses a parameterized quantum circuit to prepare trial states and a classical optimizer to minimize the energy expectation value. The comparison should be read as an exploratory diagnostic at the stated system size, circuit depth, noise model, and tensor-network truncation, not as a general statement about the relative scalability or noise robustness of the two approaches.
 
 The VQA simulations are performed using the PastaQ.jl library, which provides a framework for designing and simulating quantum circuits. The gradients required for the classical optimization are obtained by autodifferentiating the noisy matrix product operators (MPO) that represent the quantum circuits.
 
@@ -12,11 +12,11 @@ To estimate the energy expectation value of the prepared trial states, the VQA m
 
 In Fig.~\ref{fig:VQEoptimization}, we present the results of the VQA optimization for a system size of $N=10$ qubits and a circuit depth of $d=1$, corresponding to $p=40$ variational parameters. We compare the performance of the VQA in the presence and absence of noise, with a noise strength of $p_e=0.01$ for the noisy case. The energy density and ground state overlap are plotted as a function of the number of optimization steps.
 
-The results show that the VQA can effectively minimize the energy and prepare states with high overlap with the ground state in the absence of noise. However, the performance of the algorithm is significantly impacted by the presence of noise, leading to slower convergence and a higher final energy density compared to the noiseless case. This highlights the sensitivity of the VQA to experimental imperfections and the challenges associated with mitigating their effects.
+In the plotted $N=10$, $d=1$ example, the noiseless VQA optimization lowers the energy and increases the reported ground-state overlap during the optimization window. The noisy run has a slower decrease of the plotted energy and a higher final energy density than the noiseless run for the same ansatz and optimizer. This finite-size example indicates sensitivity to the chosen noise model, but it does not by itself establish the large-system performance of VQA or the optimality of the chosen ansatz.
 
-In contrast, the cooling algorithm demonstrates a higher level of resilience to noise, as evidenced by its ability to prepare low-energy states with high fidelity even in the presence of relatively strong depolarizing noise. This robustness can be attributed to the inherent error-correcting properties of the cooling process, which allows the system to dissipate excess entropy and maintain a low-energy state despite the presence of noise.
+The cooling data in this note should be interpreted with the same care. In the historical fixed-bond simulations, the implemented cooling channel can lower the late-time energy in some parameter regimes and under some noisy trajectories. These observations do not constitute a controlled robustness theorem or a high-fidelity preparation result. A quantitative comparison with VQA requires the same ingredients used elsewhere in this note: exact-diagonalization checks at small $N$, bond-dimension convergence, trajectory or sampling convergence, and a clearly specified noise model.
 
-While the VQA offers a flexible and expressive framework for preparing variational states, the cooling algorithm leverages the natural dynamics of the system-bath interaction to drive the system towards the ground state. The comparison between the two approaches highlights the potential advantages of the cooling algorithm in terms of noise resilience and the ability to prepare low-energy states in the presence of experimental imperfections.
+Thus the comparison is best viewed as a diagnostic of two different mechanisms for reducing the energy in finite simulations: variational optimization within a chosen circuit family, and repeated system-bath evolution within a chosen truncation and reset protocol. Which mechanism is preferable is a numerical and physical question to be decided only after the corresponding convergence checks have been performed.
 
 \begin{figure}[ht]
 	\centering
@@ -28,7 +28,7 @@ While the VQA offers a flexible and expressive framework for preparing variation
 \begin{figure}
 	\centering
 	\includegraphics[width=0.5\textwidth]{Figures/VQA_vs_NoisyVQA.pdf}
-	\caption{Energy density as a function of the number of optimization steps in a variational quantum eigensolver. The energy decreases as we increase the number of iterations. The results of the noiseless case are depicted as the blue curve, and the results of the noisy case are depicted as the orange curve. The exact ground state energy (from DMRG) of the Hamiltonian is plotted as the black line. The simulation is performed with the help of matrix product operators.
+	\caption{Energy density as a function of the number of optimization steps in a variational quantum eigensolver. In this finite-size example, the plotted noiseless run lowers the energy density over the optimization window, while the noisy run is shown for comparison. The exact ground state energy (from DMRG) of the Hamiltonian is plotted as the black line. The simulation is performed with the help of matrix product operators.
 	}
 	\label{fig:VQEoptimization}
 \end{figure}
