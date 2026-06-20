@@ -1073,3 +1073,52 @@ so `Dsb_eff >= 64` and `Dtdvp_sweep_eff >= 64` are lower bounds.  The energy
 also remains far above the DMRG reference `E0/N = -1.3246328892`.  The result
 supports descending high-to-low detuning as a useful protocol axis for future
 adaptive scans, but it does not establish scalable ground-state cooling.
+
+### Dmax=64 Descending All-R Reproducibility Scan
+
+The `R = 10` follow-up above was then rerun as part of a single all-frequency
+descending campaign, so that `R = 1, 2, 5, 10` use the same cap, stopping rule,
+driver command, and fixed detuning interval:
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 1,2,5,10 --methods mcwf \
+  --evolution-method continuous --steps 8 --Dmax 64 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending \
+  --progress-csv .worktree/descending_schedule_dmax64_all_20260620/tdvp_progress_N64_niising_open_mcwf_R1-2-5-10_Dmax64_te1.0_descending.csv \
+  --outdir .worktree/descending_schedule_dmax64_all_20260620 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The HDF5 summary is
+
+| R | Dcap | completed/requested cycles | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | system sat | evolved sat | tdvp sweep sat | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---:|
+| 1 | 64 | 5/8 | 1.39308425 | 1.37238762 | >=64 | >=64 | >=64 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 5 | 5 | 5 | 459.0 s |
+| 2 | 64 | 4/8 | 1.03055274 | 1.00906275 | 56 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | none | 4 | 4 | 205.0 s |
+| 5 | 64 | 4/8 | 1.07479551 | 1.07479551 | 55 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | none | 4 | 4 | 199.1 s |
+| 10 | 64 | 4/8 | 0.87319302 | 0.87319302 | 56 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | none | 4 | 4 | 263.0 s |
+
+The completed-cycle energy-density prefixes are
+
+| R | completed-cycle E/N prefix |
+|---:|---|
+| 1 | `1.47291896, 1.42012553, 1.41672905, 1.37238762, 1.39308425` |
+| 2 | `1.05928265, 1.01793111, 1.00906275, 1.03055274` |
+| 5 | `1.38240655, 1.27834942, 1.21579249, 1.07479551` |
+| 10 | `1.30592953, 1.13874047, 0.95514768, 0.87319302` |
+
+The all-frequency scan confirms the qualitative conclusion from the standalone
+`R = 10` run.  At `Dcap = 64`, descending `R = 10` gives the best capped
+prefix among the tested frequency counts, but every run remains cap-limited.
+The `R = 1` case reaches the retained system, transient, and TDVP-sweep caps
+by the fifth completed cycle; the other three cases reach the transient and
+TDVP-sweep caps by the fourth completed cycle.  Thus the effective transient
+and TDVP-sweep bond dimensions are at least `64` across the whole descending
+scan.  The best observed energy density, `0.87319302`, is still far above the
+DMRG reference `E0/N = -1.3246328892`, so this remains a bond-growth and
+schedule-order diagnostic rather than a controlled cooling result.
