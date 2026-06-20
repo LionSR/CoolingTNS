@@ -91,9 +91,9 @@ E_single = res_single[CoolingTNS.RESULT_ENERGY]
 E_single_over_N = E_single ./ N
 rel_single = relative_energy.(E_single, Ref(E0))
 
-E_single_ss = mean_last_window(E_single, window)
-e_single_ss = relative_energy(E_single_ss, E0)
-@printf("  single-Δ steady e(last %d) = %.6f\n", window, e_single_ss)
+E_single_tail = mean_last_window(E_single, window)
+e_single_tail = relative_energy(E_single_tail, E0)
+@printf("  single-Δ tail-mean e(last %d) = %.6f\n", window, e_single_tail)
 
 
 # -----------------------------------------------------------------------------
@@ -130,10 +130,10 @@ E_multi = res_multi[CoolingTNS.RESULT_ENERGY]
 E_multi_over_N = E_multi ./ N
 rel_multi = relative_energy.(E_multi, Ref(E0))
 
-E_multi_ss = mean_last_window(E_multi, window)
-e_multi_ss = relative_energy(E_multi_ss, E0)
-@printf("  multi-Δ  steady e(last %d) = %.6f   (R=%d, Δ∈[%.3f, %.3f])\n",
-        window, e_multi_ss, R, minimum(Δ_values), maximum(Δ_values))
+E_multi_tail = mean_last_window(E_multi, window)
+e_multi_tail = relative_energy(E_multi_tail, E0)
+@printf("  multi-Δ  tail-mean e(last %d) = %.6f   (R=%d, Δ∈[%.3f, %.3f])\n",
+        window, e_multi_tail, R, minimum(Δ_values), maximum(Δ_values))
 
 
 # -----------------------------------------------------------------------------

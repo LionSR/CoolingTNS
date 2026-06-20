@@ -90,14 +90,14 @@ res_multi = run_cooling(prob_multi, st_multi, cp_multi, sim_params, ham_params)
 E_list = Float64.(res_multi[RESULT_ENERGY])
 rel_list = relative_energy.(E_list, Ref(E0))
 
-E_ss = mean_last_window(E_list, window)
-e_ss = relative_energy(E_ss, E0)
+E_tail = mean_last_window(E_list, window)
+e_tail = relative_energy(E_tail, E0)
 
 E_min = minimum(E_list)
 e_min = relative_energy(E_min, E0)
 
-@printf("  multi-Δ steady e(last %d) = %.6f   (R=%d, Δ∈[%.3f, %.3f])\n",
-        window, e_ss, R, minimum(Δ_values), maximum(Δ_values))
+@printf("  multi-Δ tail-mean e(last %d) = %.6f   (R=%d, Δ∈[%.3f, %.3f])\n",
+        window, e_tail, R, minimum(Δ_values), maximum(Δ_values))
 @printf("  multi-Δ E_end/N = %.8f  (e_end=%.6f)\n", E_list[end] / N, rel_list[end])
 @printf("  multi-Δ E_min/N = %.8f  (e_min=%.6f)\n", E_min / N, e_min)
 
