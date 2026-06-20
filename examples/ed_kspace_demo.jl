@@ -5,8 +5,8 @@ Demonstration of k-space measurements for ED simulations with periodic/antiperio
 
 This example shows:
 1. How to run ED simulations with different boundary conditions
-2. How k-space measurements are automatically performed
-3. How to interpret the momentum distribution plots
+2. How raw Fourier k-space measurements are automatically performed
+3. How to distinguish them from Bogoliubov mode occupations
 """
 
 using CoolingTNS
@@ -78,21 +78,27 @@ println("""
 The generated plots show:
 
 1. **momentum_dist_*.pdf**: 
-   - Shows n_k (occupation number) vs k (momentum) at different cooling steps
+   - Shows the raw Fourier occupation \\tilde n_k vs k at different cooling steps
+   - This is the Jordan-Wigner Fourier occupation <\\tilde a_k^dagger \\tilde a_k>
+   - It is not the Bogoliubov quasiparticle occupation n_k^Bog
+   - It is not a mode-energy contribution
    - Initial state (usually uniform or specific pattern based on product state)
-   - Evolution shows population transfer to lower energy modes
    - The bath detuning energy |δ| is marked to show resonant modes
 
 2. **momentum_dist_heatmap_*.pdf**:
-   - 2D heatmap showing n_k vs (k, cooling step)
+   - 2D heatmap showing raw Fourier \\tilde n_k vs (k, cooling step)
    - Visualizes the full evolution of all momentum modes
    - Darker regions indicate higher occupation
-   - Shows which modes are being cooled most effectively
+   - Shows how the raw Fourier distribution changes during cooling
 
 Key physics:
 - For the Ising model, the positive code-unit quasiparticle energies are
   ε_k = 2√(J² + h²)√(1 - sin(2θ)cos(2πk/N)), with θ = atan(h, J).
 - The bath resonantly cools modes where ε_k ≈ |δ| (bath detuning energy)
+- With `--measure_modes`, the Bogoliubov occupation is stored separately as
+  n_k^Bog = (1 + <h_k>)/2.
+- Mode-energy contributions are reconstructed from h_k and the signed
+  coefficient coeff_k; they are not ε_k \\tilde n_k.
 - The fermionic boundary condition g_F fixes the allowed k grid
 - g_F = +1: k ∈ {-N/2+1, ..., N/2}
 - g_F = -1: k ∈ {-(N-1)/2, ..., (N-1)/2}

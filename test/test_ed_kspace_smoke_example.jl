@@ -13,6 +13,9 @@ using CoolingTNS
     @test !occursin(old_plot_line, text)
     @test !occursin(old_heatmap_line, text)
     @test occursin("φ/π", text)
+    @test occursin("tilde n_k", text)
+    @test occursin("n_k^Bog", text)
+    @test !occursin("n_k = %.6f", text)
     @test occursin("measure_modes=true", text)
 
     include(example_path)
