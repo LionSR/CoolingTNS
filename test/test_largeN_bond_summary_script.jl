@@ -15,6 +15,7 @@ markdown_column_counts(text::AbstractString) = [
     @test completed_requested_periods_label([3, 5], [8, 8], 5, "round_robin") == "0.60-1.00/1.60"
     @test completed_requested_periods_label([5], [12], 10, "random") == "n/a"
     @test completed_requested_periods_label([5], [12], 10, "unknown") == "n/a"
+    @test completed_requested_periods_label([5], [12], 0, "descending") == "n/a"
 end
 
 @testset "Large-N bond-dimension summary script" begin

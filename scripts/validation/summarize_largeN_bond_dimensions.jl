@@ -83,9 +83,7 @@ function read_string_vector(run_group, key::AbstractString)
 end
 
 function read_group_value(primary_group, fallback_group, key::AbstractString, default)
-    haskey(primary_group, key) && return read(primary_group[key])
-    haskey(fallback_group, key) && return read(fallback_group[key])
-    return default
+    return read_first_group_value(key, default, primary_group, fallback_group)
 end
 
 function read_first_group_value(key::AbstractString, default, groups...)
