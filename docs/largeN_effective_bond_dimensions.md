@@ -1151,7 +1151,9 @@ julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
 
 The HDF5 file records the root seed `20260617`, the stored seed rule, and the
 trajectory seed `[84360618]`.  Thus this is the same stochastic trajectory as
-the earlier `R = 10` descending runs through the shared completed prefix.
+the earlier `R = 10` descending runs: the first three completed-cycle energies
+match exactly, while the fourth agrees to six decimal places and then differs
+because the larger cap reduces truncation in that cycle.
 
 The HDF5 summary is
 
