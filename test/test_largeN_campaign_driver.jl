@@ -600,6 +600,42 @@ end
 
         h5open(mode_path, "w") do f
             write_run_group(f, "R_modes", traj_rows, -2.0, 8, protocol, [0.5, 1.5])
+
+            sparse_hk_1 = [-1.0 0.0; NaN NaN; 0.0 1.0]
+            sparse_hk_2 = [-0.8 0.2; NaN NaN; 0.2 0.8]
+            sparse_nk_1 = CoolingTNS.mode_occupation_from_hk(sparse_hk_1)
+            sparse_nk_2 = CoolingTNS.mode_occupation_from_hk(sparse_hk_2)
+            sparse_base = merge(copy(base_row), Dict{String,Any}(
+                CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES => [0, 2],
+            ))
+            sparse_row_1 = merge(copy(sparse_base), Dict{String,Any}(
+                CoolingTNS.RESULT_MODE_HK => sparse_hk_1,
+                CoolingTNS.RESULT_MODE_NK => sparse_nk_1,
+            ))
+            sparse_row_2 = merge(copy(sparse_base), Dict{String,Any}(
+                "E" => [-2.0, -1.75, -1.25],
+                CoolingTNS.RESULT_MODE_HK => sparse_hk_2,
+                CoolingTNS.RESULT_MODE_NK => sparse_nk_2,
+                "elapsed" => 1.5,
+            ))
+            write_run_group(
+                f,
+                "R_sparse_single",
+                [sparse_row_1],
+                -2.0,
+                8,
+                protocol,
+                [0.5, 1.5],
+            )
+            write_run_group(
+                f,
+                "R_sparse_ensemble",
+                [sparse_row_1, sparse_row_2],
+                -2.0,
+                8,
+                protocol,
+                [0.5, 1.5],
+            )
         end
         h5open(mode_path, "r") do f
             g = f["R_modes"]
@@ -614,6 +650,32 @@ end
             @test read(g["mode_hk_trajectories"])[:, :, 1] ≈ mode_hk_1
             @test read(g["mode_hk_trajectories"])[:, :, 2] ≈ mode_hk_2
             @test size(read(g["mode_nk_stderr"])) == (3, 2)
+
+            g_single = f["R_sparse_single"]
+            single_hk = read(g_single[CoolingTNS.RESULT_MODE_HK])
+            single_nk = read(g_single[CoolingTNS.RESULT_MODE_NK])
+            single_hk_stderr = read(g_single["mode_hk_stderr"])
+            single_nk_stderr = read(g_single["mode_nk_stderr"])
+            @test read(g_single[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 2]
+            @test all(isnan, single_hk[2, :])
+            @test all(isnan, single_nk[2, :])
+            @test all(isnan, single_hk_stderr[2, :])
+            @test all(isnan, single_nk_stderr[2, :])
+            @test single_hk_stderr[[1, 3], :] == zeros(2, 2)
+            @test single_nk_stderr[[1, 3], :] == zeros(2, 2)
+
+            g_ensemble = f["R_sparse_ensemble"]
+            ensemble_hk = read(g_ensemble[CoolingTNS.RESULT_MODE_HK])
+            ensemble_nk = read(g_ensemble[CoolingTNS.RESULT_MODE_NK])
+            ensemble_hk_stderr = read(g_ensemble["mode_hk_stderr"])
+            ensemble_nk_stderr = read(g_ensemble["mode_nk_stderr"])
+            @test read(g_ensemble[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 2]
+            @test all(isnan, ensemble_hk[2, :])
+            @test all(isnan, ensemble_nk[2, :])
+            @test all(isnan, ensemble_hk_stderr[2, :])
+            @test all(isnan, ensemble_nk_stderr[2, :])
+            @test all(isfinite, ensemble_hk_stderr[[1, 3], :])
+            @test all(isfinite, ensemble_nk_stderr[[1, 3], :])
         end
     finally
         rm(mode_path; force=true)

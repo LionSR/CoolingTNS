@@ -548,6 +548,14 @@ function initialize_measurements(problem::CoolingProblem, state::QuantumState, s
     return measurements
 end
 
+"""
+    mode_measurement_cycles(steps, stride=nothing) -> Vector{Int}
+
+Return the zero-based cooling cycles where Ising mode observables are measured.
+The initial cycle `0` is always present, and a strided schedule always includes
+the requested final cycle `steps` even when `steps` is not a multiple of the
+stride.  These zero-based cycles map to one-based result rows by `cycle + 1`.
+"""
 function mode_measurement_cycles(steps::Integer,
                                  stride::Union{Nothing,Integer}=nothing)
     steps >= 0 || throw(ArgumentError("steps must be nonnegative"))
