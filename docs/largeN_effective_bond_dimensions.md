@@ -1065,8 +1065,9 @@ The completed-cycle prefix is
 
 Thus the descending schedule improvement is not only a `Dcap = 32` artifact:
 raising the cap to `64` lets the same single trajectory complete one more
-cooling cycle and lowers the best observed prefix from `0.95514749` to
-`0.87319302`.  The calculation is still not converged.  The transient
+cooling cycle and lowers the best observed prefix from the corresponding
+`Dcap = 32` value `0.95514749` to `0.87319302`.  The calculation is still not
+converged.  The transient
 system-bath state and the TDVP sweep observer both reach the cap in cycle 4,
 so `Dsb_eff >= 64` and `Dtdvp_sweep_eff >= 64` are lower bounds.  The energy
 also remains far above the DMRG reference `E0/N = -1.3246328892`.  The result
