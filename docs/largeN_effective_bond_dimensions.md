@@ -1094,6 +1094,12 @@ julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
   --tdvp-sweep-progress --stop-on-bond-cap --verbose
 ```
 
+Both the standalone `R = 10` command and this all-frequency command used the
+driver default seed `20260617`, so the identical `R = 10` energy prefix is an
+expected reproducibility check rather than a separate stochastic sample.  The
+elapsed times are wall-clock measurements and should not be interpreted as
+physics data; their difference reflects the execution context of the run.
+
 The HDF5 summary is
 
 | R | Dcap | completed/requested cycles | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | system sat | evolved sat | tdvp sweep sat | elapsed |
