@@ -44,10 +44,10 @@ stop-on-cap trajectory actually ran, not a value transcribed from the progress
 log by hand.  The `elapsed_total` column sums per-trajectory elapsed times,
 matching the sequential large-N campaign driver, and `traj cycles/hour` is
 computed as
-\[
+$$
   3600\,\frac{\sum_{\rm trajectories}\texttt{completed\_steps}}
               {\texttt{elapsed\_total}}.
-\]
+$$
 It is therefore a throughput diagnostic, not a cooling-performance metric.
 Partial stop reasons are reported with counts such as `bond_capx1/2`.  Use
 `scripts/validation/summarize_largeN_bond_dimensions.jl --compact` for the
