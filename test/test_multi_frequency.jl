@@ -29,6 +29,25 @@ using Random
         @test CoolingTNS.multi_frequency_schedule_token(:random) == "rand"
         @test_throws ArgumentError CoolingTNS.parse_multi_frequency_schedule("bad")
 
+        for (schedule, token) in ((:round_robin, "rr"), (:descending, "desc"), (:random, "rand"))
+            filename_params = CoolingTNS.MultiFrequencyCouplingParameters(
+                "XX",
+                0.1,
+                5,
+                1.25,
+                [0.5, 1.0, 1.5];
+                randomize_times=false,
+                schedule=schedule,
+            )
+            filename = CoolingTNS.create_filename(
+                ham_params,
+                filename_params,
+                sim_params,
+                backend,
+            )
+            @test occursin("sched$token", filename)
+        end
+
         sequence_params = CoolingTNS.MultiFrequencyCouplingParameters(
             "XX",
             0.1,
