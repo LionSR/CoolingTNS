@@ -250,9 +250,10 @@ throughput scans with one Julia thread and one BLAS thread per independent
 process, and to vary the number of independent processes externally.  BLAS
 threading should be re-tested at larger caps, but for this TDVP calibration it
 only increased CPU consumption.  The throughput column counts four completed
-trajectory-cycles across the two `R` jobs and divides by the externally measured
-wall time for the row.  It is a runtime throughput diagnostic only, not a
-cooling-performance metric.  The benchmark artifacts are stored under
+trajectory-cycles: two completed cycles for the `R=2` job and two completed
+cycles for the `R=5` job, divided by the externally measured wall time for the
+row.  It is a runtime throughput diagnostic only, not a cooling-performance
+metric.  The benchmark artifacts are stored under
 `/tmp/coolingtns_parallel_bench_serial_blas1_20260619`,
 `/tmp/coolingtns_parallel_bench_parallel_blas1_R2_20260619`,
 `/tmp/coolingtns_parallel_bench_parallel_blas1_R5_20260619`, and
