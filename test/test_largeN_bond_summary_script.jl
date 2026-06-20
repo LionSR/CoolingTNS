@@ -4,12 +4,26 @@ using HDF5
 include(joinpath(@__DIR__, "..", "scripts", "validation",
                  "summarize_largeN_bond_dimensions.jl"))
 
+markdown_column_counts(text::AbstractString) = [
+    count(==('|'), line) - 1
+    for line in split(text, '\n')
+    if startswith(line, "|")
+]
+
+@testset "Large-N schedule-period labels" begin
+    @test completed_requested_periods_label([5], [12], 10, "descending") == "0.50/1.20"
+    @test completed_requested_periods_label([3, 5], [8, 8], 5, "round_robin") == "0.60-1.00/1.60"
+    @test completed_requested_periods_label([5], [12], 10, "random") == "n/a"
+    @test completed_requested_periods_label([5], [12], 10, "unknown") == "n/a"
+end
+
 @testset "Large-N bond-dimension summary script" begin
     path = tempname() * ".h5"
     try
         h5open(path, "w") do f
             write(f, "Dmax", 12)
             write(f, "evolution_method", "continuous")
+            write(f, "schedule", "descending")
             gn = create_group(f, "N4")
             write(gn, "N", 4)
             gm = create_group(gn, "mcwf")
@@ -47,7 +61,9 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
         @test row.evolution == "continuous"
         @test row.R == 2
         @test row.M == 2
+        @test row.schedule == "descending"
         @test row.completed_requested == "2/3"
+        @test row.completed_requested_periods == "1.00/1.50"
         @test row.elapsed_total_seconds == 25.5
         @test row.traj_cycles_per_hour ≈ 3600 * 4 / 25.5
         @test row.stop_reason == "bond_capx1/2"
@@ -92,20 +108,21 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | R | M | completed/requested | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap |",
+            "| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap |",
             output,
         )
+        @test length(unique(markdown_column_counts(output))) == 1
         @test occursin("| final E/N | relE | best E/N | best relE | tail E/N |", output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | " *
-            "2/3 | 25.5 | 564.71 | bond_capx1/2 | fixed_range | " *
+            "descending | 2/3 | 1.00/1.50 | 25.5 | 564.71 | bond_capx1/2 | fixed_range | " *
             "[0.50000000,3.00000000] | n/a | 12 | >=12 | >=14 | >=14 | " *
             "not_converged_system_and_evolved_and_tdvp_sweep_cap | " *
             "1.00000000 | 2.00000 | " *
             "-0.25000000 | 0.00000 | 0.41666667 | 1.00000 | 3 |",
             output,
         )
-        @test occursin("| 2 | 2 | 2/3 | 25.5 | 564.71 | bond_capx1/2 | fixed_range |", output)
+        @test occursin("| 2 | 2 | descending | 2/3 | 1.00/1.50 | 25.5 | 564.71 | bond_capx1/2 | fixed_range |", output)
 
         compact_output = mktemp() do output_path, io
             close(io)
@@ -117,13 +134,14 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | R | M | completed/requested | final E/N | best E/N | mode max abs dE/N | Dcap |",
+            "| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | final E/N | best E/N | mode max abs dE/N | Dcap |",
             compact_output,
         )
+        @test length(unique(markdown_column_counts(compact_output))) == 1
         @test occursin("| elapsed_total | traj cycles/hour | stop_reason |", compact_output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | " *
-            "2/3 | 1.00000000 | -0.25000000 | n/a | 12 | >=12 | >=14 | >=14 | " *
+            "descending | 2/3 | 1.00/1.50 | 1.00000000 | -0.25000000 | n/a | 12 | >=12 | >=14 | >=14 | " *
             "not_converged_system_and_evolved_and_tdvp_sweep_cap | 25.5 | 564.71 | bond_capx1/2 |",
             compact_output,
         )
@@ -156,7 +174,9 @@ end
 
         row = only(summarize_file(path))
         @test row.evolution == "unknown"
+        @test row.schedule == "unknown"
         @test row.completed_requested == "1/1"
+        @test row.completed_requested_periods == "n/a"
         @test isnan(row.elapsed_total_seconds)
         @test isnan(row.traj_cycles_per_hour)
         @test row.stop_reason == "none"
@@ -179,11 +199,11 @@ end
         end
         @test occursin(
             "| $(basename(path)) | 2 | mcwf | unknown | 1 | 1 | " *
-            "1/1 | NaN | NaN | none | unknown | " *
+            "unknown | 1/1 | n/a | NaN | NaN | none | unknown | " *
             "unknown | unknown | 4 | 2 | >=4 | n/a | not_converged_evolved_cap |",
             output,
         )
-        @test occursin("| 1 | 1 | 1/1 | NaN | NaN | none | unknown |", output)
+        @test occursin("| 1 | 1 | unknown | 1/1 | n/a | NaN | NaN | none | unknown |", output)
         @test occursin("| 4.00 | n/a | none | 1 | n/a |", output)
     finally
         rm(path; force=true)

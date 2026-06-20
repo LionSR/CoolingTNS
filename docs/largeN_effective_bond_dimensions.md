@@ -41,9 +41,13 @@ The summary script also reports the stored `completed_steps`,
 `requested_steps`, `elapsed_seconds`, and `stop_reasons` fields.  The
 `completed/requested` column is therefore the HDF5 record of how far a
 stop-on-cap trajectory actually ran, not a value transcribed from the progress
-log by hand.  The `elapsed_total` column sums per-trajectory elapsed times,
-matching the sequential large-N campaign driver, and `traj cycles/hour` is
-computed as
+log by hand.  The `completed/requested periods` column divides those cycle
+counts by `R` for deterministic detuning schedules (`round_robin` and
+`descending`), so an `R = 10` row with five completed cycles is shown as only
+`0.50` completed schedule periods.  Random schedules and legacy files without
+stored schedule metadata are reported as `n/a` in this period column.  The
+`elapsed_total` column sums per-trajectory elapsed times, matching the
+sequential large-N campaign driver, and `traj cycles/hour` is computed as
 $$
   3600\,\frac{\sum_{\rm trajectories}\texttt{completed\_steps}}
               {\texttt{elapsed\_total}}.
