@@ -21,6 +21,14 @@ using Random
     @test gap > 0
 
     @testset "cycle sequence helper fixes the protocol convention" begin
+        @test CoolingTNS.MULTI_FREQUENCY_SCHEDULES == (:round_robin, :descending, :random)
+        @test CoolingTNS.parse_multi_frequency_schedule(:descending) == :descending
+        @test CoolingTNS.parse_multi_frequency_schedule("descending") == :descending
+        @test CoolingTNS.multi_frequency_schedule_token(:round_robin) == "rr"
+        @test CoolingTNS.multi_frequency_schedule_token("descending") == "desc"
+        @test CoolingTNS.multi_frequency_schedule_token(:random) == "rand"
+        @test_throws ArgumentError CoolingTNS.parse_multi_frequency_schedule("bad")
+
         sequence_params = CoolingTNS.MultiFrequencyCouplingParameters(
             "XX",
             0.1,

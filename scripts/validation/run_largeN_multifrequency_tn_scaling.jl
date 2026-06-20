@@ -300,9 +300,12 @@ function parse_args(args)
     if !cfg["measure_modes"] && cfg["mode_measurement_stride"] != 1
         error("--mode-measurement-stride requires --measure-modes")
     end
-    cfg["schedule_symbol"] = Symbol(cfg["schedule"])
-    cfg["schedule_symbol"] in (:round_robin, :descending, :random) ||
-        error("--schedule must be round_robin, descending, or random")
+    try
+        cfg["schedule_symbol"] = parse_multi_frequency_schedule(cfg["schedule"])
+    catch e
+        e isa ArgumentError || rethrow()
+        error("--schedule $(e.msg)")
+    end
     if (cfg["delta_min"] === nothing) != (cfg["delta_max"] === nothing)
         error("--delta-min and --delta-max must be supplied together")
     end

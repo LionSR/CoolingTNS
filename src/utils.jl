@@ -201,16 +201,7 @@ function create_filename(
     dmin_str = @sprintf("%.3f", δmin)
     dmax_str = @sprintf("%.3f", δmax)
 
-    schedule_str = if coupling_params.schedule == :round_robin
-        "rr"
-    elseif coupling_params.schedule == :descending
-        "desc"
-    elseif coupling_params.schedule == :random
-        "rand"
-    else
-        # Should not happen (validated in constructor), but keep filename stable.
-        replace(string(coupling_params.schedule), "_" => "")
-    end
+    schedule_str = multi_frequency_schedule_token(coupling_params.schedule)
 
     coupling_group =
         "Coupling$(coupling_params.coupling)g$(coupling_params.g)te$(coupling_params.te)steps$(coupling_params.steps)" *

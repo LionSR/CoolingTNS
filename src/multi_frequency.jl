@@ -32,13 +32,11 @@ function _multi_frequency_delta_index(
 )
     cycle >= 1 || throw(ArgumentError("cycle must be positive, got $cycle"))
     R >= 1 || throw(ArgumentError("R must be positive, got $R"))
+    schedule = validate_multi_frequency_schedule(schedule)
     schedule == :round_robin && return mod1(Int(cycle), Int(R))
     schedule == :descending && return Int(R) - mod(Int(cycle) - 1, Int(R))
     schedule == :random && return rand(rng, 1:Int(R))
-    throw(ArgumentError(
-        "Unknown multi-frequency schedule=$schedule " *
-        "(expected :round_robin, :descending, or :random)",
-    ))
+    error("unreachable multi-frequency schedule $schedule")
 end
 
 """

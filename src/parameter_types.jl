@@ -282,10 +282,7 @@ function MultiFrequencyCouplingParameters(
     randomize_times::Bool=false,
     schedule::Symbol=:round_robin,
 )
-    schedule in (:round_robin, :descending, :random) ||
-        throw(ArgumentError(
-            "schedule must be :round_robin, :descending, or :random, got $schedule",
-        ))
+    schedule = validate_multi_frequency_schedule(schedule)
     deltas = Float64.(collect(delta_values))
     isempty(deltas) && throw(ArgumentError("delta_values must be nonempty"))
     return MultiFrequencyCouplingParameters(
