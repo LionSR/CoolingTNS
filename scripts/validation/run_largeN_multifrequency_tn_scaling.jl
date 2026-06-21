@@ -758,6 +758,15 @@ function tdvp_sweep_progress_row(context, tdvp_context, sweep, current_time,
     )
 end
 
+"""
+    validate_mode_measurement_result(result, energy)
+
+Validate the Bogoliubov mode-observable payload produced by one large-`N`
+trajectory.  The wrapper first requires the complete set of mode datasets, then
+delegates the cycle rows, matrix shapes, measured-row finiteness, energy-length
+agreement, and `mode_nk = mode_occupation_from_hk(mode_hk)` relation to
+`validate_mode_measurement_rows`.
+"""
 function validate_mode_measurement_result(result, energy)
     all(k -> haskey(result, k) && result[k] !== nothing,
         RESULT_MODE_OBSERVABLE_PAYLOAD_KEYS) || error(
