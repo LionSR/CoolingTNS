@@ -7,6 +7,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     map_path = joinpath(@__DIR__, "..", "Notes", "NotesED", "MapToSpin.tex")
     evidence_path = joinpath(@__DIR__, "..", "docs", "largeN_effective_bond_dimensions.md")
     plan_path = joinpath(@__DIR__, "..", "docs", "multi_frequency_cooling_plan.md")
+    params_path = joinpath(@__DIR__, "..", "src", "parameter_types.jl")
 
     note_text = read(note_path, String)
     note_flat = normalize_ws(note_text)
@@ -15,6 +16,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     evidence_flat = normalize_ws(read(evidence_path, String))
     plan_flat = normalize_ws(read(plan_path, String))
     plan_lower = lowercase(plan_flat)
+    params_flat = normalize_ws(read(params_path, String))
 
     # These anchors intentionally couple the note to the source documents.
     # Update them together when the notation or bond-dimension evidence changes.
@@ -190,6 +192,9 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("n_k^{\\mathrm{Bog}} = \\langle \\hat n_k\\rangle = \\frac{1+\\langle h_k\\rangle}{2}", map_flat)
     @test occursin("This occupation should not be confused with the raw Fourier occupation", map_flat)
     @test occursin("\\operatorname{coeff}_k=w_k", map_flat)
+    @test occursin("where \$J\$ is the coupling strength between neighboring spins, \$h_x\$ is the transverse field, \$h_z\$ is the longitudinal field", note_flat)
+    @test occursin("limits \$h_z = 0\$ (transverse-field Ising model) and \$h_x = 0\$ (classical diagonal Ising model)", note_flat)
+    @test occursin("`H = J sum_i Z_i Z_{i+1} + hx sum_i X_i + hz sum_i Z_i`, where `hx` is the transverse field and `hz` is the longitudinal field", params_flat)
 
     forbidden = [
         "allows for the preparation of the ground state",
@@ -210,6 +215,8 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         "the bond dimension is truncated to a maximum value of \$d \\leq 100\$",
         "each trajectory starts from the same pure product state, and stochastic pauli errors are sampled after each cooling step. the bond dimension is \$d \\leq 40\$",
         "with a bond dimension of \$d \\leq 100\$",
+        "h_z\$ and \$h_x\$ are the transverse and longitudinal magnetic fields",
+        "\$h_z = 0\$ (classical) and \$h_x = 0\$ (transverse field ising model)",
     ]
     @test all(!occursin(phrase, note_lower) for phrase in forbidden)
 

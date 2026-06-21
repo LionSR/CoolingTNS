@@ -773,8 +773,8 @@ We test the performance of our algorithm on a one-dimensional quantum Ising mode
 	H_{\text{Ising}} = J\sum_{i=1}^{N-1}\sigma_{i}^z\sigma_{i+1}^z + h_z\sum_{i=1}^{N} \sigma_{i}^z + h_x\sum_{i=1}^{N} \sigma_{i}^x.
 	\label{eq:HIsing}
 \end{equation}
-where $J$ is the coupling strength between neighboring spins, $h_z$ and $h_x$ are the transverse and longitudinal magnetic fields, respectively, and $\sigma_i^{\alpha}$ ($\alpha = x,y,z$) are the Pauli operators acting on the $i$-th spin.
-This ZZXZ Hamiltonian is in general non-integrable, except in the limits $h_z = 0$ (classical) and $h_x = 0$ (transverse field Ising model). We focus on a non-integrable point $J = 1,h_z = 0.5,h_x = -1.05$, the same as used in Ref.~\citep{Lu2021Algorithms}.
+where $J$ is the coupling strength between neighboring spins, $h_x$ is the transverse field, $h_z$ is the longitudinal field, and $\sigma_i^{\alpha}$ ($\alpha = x,y,z$) are the Pauli operators acting on the $i$-th spin.
+This ZZXZ Hamiltonian is in general non-integrable, except in the limits $h_z = 0$ (transverse-field Ising model) and $h_x = 0$ (classical diagonal Ising model). We focus on a non-integrable point $J = 1,h_z = 0.5,h_x = -1.05$, the same as used in Ref.~\citep{Lu2021Algorithms}.
 
 \subsection{Initial states}
 As in Ref.~\citep{Lu2021Algorithms}, we consider real translationally invariant product states. It is useful to distinguish the physical product-state angle from the parameter used in the simulation scripts. We write the physical angle as $\alpha$ and define
