@@ -116,6 +116,11 @@ end
             write(gr, "evolved_mean_bond", [NaN NaN; 8.0 7.0; 9.0 11.0])
             write(gr, "tdvp_sweep_max_bond", [0 0; 6 13; 8 14])
             write(gr, "tdvp_sweep_saturation_cycle", [0, 1])
+            write(
+                gr,
+                CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS,
+                CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED,
+            )
             write(gr, "elapsed_seconds", [10.0, 15.5])
             write(gr, CoolingTNS.RESULT_REQUESTED_STEPS, [3, 3])
             write(gr, CoolingTNS.RESULT_COMPLETED_STEPS, [2, 2])
@@ -158,6 +163,8 @@ end
         @test row.system_effective_bond == ">=12"
         @test row.evolved_effective_bond == ">=14"
         @test row.tdvp_sweep_effective_bond == ">=14"
+        @test row.truncation_error_history_status ==
+              CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED
         @test row.bond_status ==
               "not_converged_system_and_evolved_and_tdvp_sweep_cap"
         @test row.final_system_max == 12
@@ -189,12 +196,14 @@ end
             output,
         )
         @test length(unique(markdown_column_counts(output))) == 1
+        @test occursin("| bond_status | truncation errors | final E/N |", output)
         @test occursin("| final E/N | relE | best E/N | best relE | tail E/N |", output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | " *
             "descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | 25.5 | 564.71 | bond_capx1/2 | fixed_range | " *
             "[0.50000000,3.00000000] | n/a | 12 | >=12 | >=14 | >=14 | " *
             "not_converged_system_and_evolved_and_tdvp_sweep_cap | " *
+            "not_recorded | " *
             "1.00000000 | 2.00000 | " *
             "-0.25000000 | 0.00000 | 0.41666667 | 1.00000 | 3 |",
             output,
@@ -215,11 +224,12 @@ end
             compact_output,
         )
         @test length(unique(markdown_column_counts(compact_output))) == 1
+        @test occursin("| bond_status | truncation errors | elapsed_total |", compact_output)
         @test occursin("| elapsed_total | traj cycles/hour | stop_reason |", compact_output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | " *
             "descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | 1.00000000 | -0.25000000 | n/a | 12 | >=12 | >=14 | >=14 | " *
-            "not_converged_system_and_evolved_and_tdvp_sweep_cap | 25.5 | 564.71 | bond_capx1/2 |",
+            "not_converged_system_and_evolved_and_tdvp_sweep_cap | not_recorded | 25.5 | 564.71 | bond_capx1/2 |",
             compact_output,
         )
         @test parse_args(["--compact", path]).compact
@@ -265,6 +275,8 @@ end
         @test row.tdvp_sweep_effective_bond == "n/a"
         @test ismissing(row.peak_tdvp_sweep_max)
         @test ismissing(row.tdvp_sweep_saturation_cycle)
+        @test row.truncation_error_history_status ==
+              CoolingTNS.TRUNCATION_ERROR_HISTORY_LEGACY_MISSING
         @test row.bond_status == "not_converged_evolved_cap"
 
         output = mktemp() do output_path, io
@@ -279,11 +291,50 @@ end
         @test occursin(
             "| $(basename(path)) | 2 | mcwf | unknown | 1 | 1 | " *
             "unknown | 1/1 | n/a | n/a | n/a | NaN | NaN | none | unknown | " *
-            "unknown | unknown | 4 | 2 | >=4 | n/a | not_converged_evolved_cap |",
+            "unknown | unknown | 4 | 2 | >=4 | n/a | not_converged_evolved_cap | legacy_missing |",
             output,
         )
         @test occursin("| 1 | 1 | unknown | 1/1 | n/a | n/a | n/a | NaN | NaN | none | unknown |", output)
         @test occursin("| 4.00 | n/a | none | 1 | n/a |", output)
+    finally
+        rm(path; force=true)
+    end
+end
+
+@testset "Large-N summary detects measured truncation-error histories" begin
+    path = tempname() * ".h5"
+    try
+        h5open(path, "w") do f
+            write(f, "Dmax", 8)
+            gn = create_group(f, "N2")
+            write(gn, "N", 2)
+            gm = create_group(gn, "mcwf")
+            gr = create_group(gm, "R1")
+
+            write(gr, "M", 1)
+            write(gr, CoolingTNS.RESULT_ENERGY, [-1.0, -0.5])
+            write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 0.5])
+            write(gr, "system_max_bond", [1, 2])
+            write(gr, "system_mean_bond", [1.0, 2.0])
+            write(gr, "evolved_max_bond", [0, 3])
+            write(gr, "evolved_mean_bond", [NaN, 3.0])
+            write(gr, CoolingTNS.RESULT_TRUNCATION_ERRORS, [0.0, 1e-8])
+        end
+
+        row = only(summarize_file(path))
+        @test row.truncation_error_history_status ==
+              CoolingTNS.TRUNCATION_ERROR_HISTORY_MEASURED
+
+        compact_output = mktemp() do output_path, io
+            close(io)
+            open(output_path, "w") do out
+                redirect_stdout(out) do
+                    print_compact_markdown([row])
+                end
+            end
+            read(output_path, String)
+        end
+        @test occursin("| no_cap_hit | measured |", compact_output)
     finally
         rm(path; force=true)
     end
