@@ -174,5 +174,6 @@ using CoolingTNS
         @test CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED == "not_recorded"
         @test CoolingTNS.TRUNCATION_ERROR_HISTORY_LEGACY_MISSING == "legacy_missing"
         @test CoolingTNS.TRUNCATION_ERROR_HISTORY_MEASURED == "measured"
+        @test CoolingTNS.TRUNCATION_ERROR_HISTORY_EMPTY == "empty"
     end
 end

@@ -33,8 +33,9 @@ than one period is marked explicitly rather than left for the reader to infer.
 Single-detuning runs report `single_detuning`, and random schedules report
 `n/a`.  The `truncation errors` column reports whether measured truncation-error
 histories are available: current campaign files write `not_recorded`, legacy
-files without the provenance field report `legacy_missing`, and files with a
-measured `truncation_errors` dataset report `measured`.
+files without the provenance field report `legacy_missing`, files with a
+nonempty `truncation_errors` dataset report `measured`, and files with an empty
+`truncation_errors` dataset report `empty`.
 """
 
 using CoolingTNS
@@ -440,8 +441,14 @@ function truncation_error_history_status(run_group)
     if haskey(run_group, RESULT_TRUNCATION_ERROR_HISTORY_STATUS)
         return String(read(run_group[RESULT_TRUNCATION_ERROR_HISTORY_STATUS]))
     end
-    haskey(run_group, RESULT_TRUNCATION_ERRORS) &&
+    if haskey(run_group, RESULT_TRUNCATION_ERRORS)
+        values = read(run_group[RESULT_TRUNCATION_ERRORS])
+        # The in-repository writer skips empty result arrays; this branch handles
+        # externally authored or hand-edited legacy files defensively.
+        values isa AbstractArray && isempty(values) &&
+            return TRUNCATION_ERROR_HISTORY_EMPTY
         return TRUNCATION_ERROR_HISTORY_MEASURED
+    end
     return TRUNCATION_ERROR_HISTORY_LEGACY_MISSING
 end
 

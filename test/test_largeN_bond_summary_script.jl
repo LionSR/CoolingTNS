@@ -340,6 +340,64 @@ end
     end
 end
 
+@testset "Large-N summary distinguishes empty truncation-error histories" begin
+    path = tempname() * ".h5"
+    try
+        h5open(path, "w") do f
+            write(f, "Dmax", 8)
+            gn = create_group(f, "N2")
+            write(gn, "N", 2)
+            gm = create_group(gn, "mcwf")
+
+            gr_empty = create_group(gm, "R1")
+            write(gr_empty, "M", 1)
+            write(gr_empty, CoolingTNS.RESULT_ENERGY, [-1.0, -0.5])
+            write(gr_empty, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 0.5])
+            write(gr_empty, "system_max_bond", [1, 2])
+            write(gr_empty, "system_mean_bond", [1.0, 2.0])
+            write(gr_empty, "evolved_max_bond", [0, 3])
+            write(gr_empty, "evolved_mean_bond", [NaN, 3.0])
+            write(gr_empty, CoolingTNS.RESULT_TRUNCATION_ERRORS, Float64[])
+
+            gr_explicit = create_group(gm, "R2")
+            write(gr_explicit, "M", 1)
+            write(gr_explicit, CoolingTNS.RESULT_ENERGY, [-1.0, -0.25])
+            write(gr_explicit, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 0.75])
+            write(gr_explicit, "system_max_bond", [1, 2])
+            write(gr_explicit, "system_mean_bond", [1.0, 2.0])
+            write(gr_explicit, "evolved_max_bond", [0, 3])
+            write(gr_explicit, "evolved_mean_bond", [NaN, 3.0])
+            write(gr_explicit, CoolingTNS.RESULT_TRUNCATION_ERRORS, Float64[])
+            write(
+                gr_explicit,
+                CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS,
+                CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED,
+            )
+        end
+
+        rows = sort(summarize_file(path); by=row -> row.R)
+        @test length(rows) == 2
+        @test rows[1].truncation_error_history_status ==
+              CoolingTNS.TRUNCATION_ERROR_HISTORY_EMPTY
+        @test rows[2].truncation_error_history_status ==
+              CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED
+
+        compact_output = mktemp() do output_path, io
+            close(io)
+            open(output_path, "w") do out
+                redirect_stdout(out) do
+                    print_compact_markdown(rows)
+                end
+            end
+            read(output_path, String)
+        end
+        @test occursin("| no_cap_hit | empty |", compact_output)
+        @test occursin("| no_cap_hit | not_recorded |", compact_output)
+    finally
+        rm(path; force=true)
+    end
+end
+
 @testset "Large-N summary reports mode energy reconstruction" begin
     path = tempname() * ".h5"
     try
