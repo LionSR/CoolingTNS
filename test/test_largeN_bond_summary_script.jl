@@ -144,10 +144,11 @@ end
             gn = create_group(f, "N4")
             write(gn, "N", 4)
             gm = create_group(gn, "mcwf")
-            write(gm, "detuning_protocol_source", LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE)
-            write(gm, "detuning_delta_min", 0.5)
-            write(gm, "detuning_delta_max", 3.0)
-            write(gm, "detuning_delta_max_factor", NaN)
+            write(gm, LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY,
+                  LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE)
+            write(gm, LARGE_N_DETUNING_DELTA_MIN_KEY, 0.5)
+            write(gm, LARGE_N_DETUNING_DELTA_MAX_KEY, 3.0)
+            write(gm, LARGE_N_DETUNING_DELTA_MAX_FACTOR_KEY, NaN)
             gr = create_group(gm, "R2")
 
             write(gr, "M", 2)
@@ -915,10 +916,11 @@ end
             gn = create_group(f, "N2")
             write(gn, "N", 2)
             gm = create_group(gn, "mcwf")
-            write(gm, "detuning_protocol_source", LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE)
-            write(gm, "detuning_delta_min", 0.75)
-            write(gm, "detuning_delta_max", 3.0)
-            write(gm, "detuning_delta_max_factor", 4.0)
+            write(gm, LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY,
+                  LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE)
+            write(gm, LARGE_N_DETUNING_DELTA_MIN_KEY, 0.75)
+            write(gm, LARGE_N_DETUNING_DELTA_MAX_KEY, 3.0)
+            write(gm, LARGE_N_DETUNING_DELTA_MAX_FACTOR_KEY, 4.0)
             gr = create_group(gm, "R1")
 
             write(gr, "M", 1)

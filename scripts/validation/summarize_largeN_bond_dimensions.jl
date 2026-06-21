@@ -129,18 +129,23 @@ function detuning_protocol_summary(method_group, run_group)
         read_group_value(
             run_group,
             method_group,
-            "detuning_protocol_source",
+            LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY,
             "unknown",
         ),
     )
     delta_min = Float64(
-        read_group_value(run_group, method_group, "detuning_delta_min", NaN),
+        read_group_value(run_group, method_group, LARGE_N_DETUNING_DELTA_MIN_KEY, NaN),
     )
     delta_max = Float64(
-        read_group_value(run_group, method_group, "detuning_delta_max", NaN),
+        read_group_value(run_group, method_group, LARGE_N_DETUNING_DELTA_MAX_KEY, NaN),
     )
     factor = Float64(
-        read_group_value(run_group, method_group, "detuning_delta_max_factor", NaN),
+        read_group_value(
+            run_group,
+            method_group,
+            LARGE_N_DETUNING_DELTA_MAX_FACTOR_KEY,
+            NaN,
+        ),
     )
 
     interval = source == "unknown" ?

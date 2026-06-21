@@ -703,12 +703,13 @@ end
             @test !haskey(g, "E_mean")
             @test !haskey(g, "GS_overlap_mean")
             @test !haskey(g, "GS_overlap_trajectories")
-            @test read(g["detuning_protocol_source"]) == LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE
-            @test read(g["detuning_reference_gap"]) == 0.75
-            @test read(g["detuning_delta_min"]) == 0.5
-            @test read(g["detuning_delta_max"]) == 3.0
-            @test isnan(read(g["detuning_delta_max_factor"]))
-            @test read(g["detuning_fixed_across_dmax"]) == true
+            @test read(g[LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY]) ==
+                  LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE
+            @test read(g[LARGE_N_DETUNING_REFERENCE_GAP_KEY]) == 0.75
+            @test read(g[LARGE_N_DETUNING_DELTA_MIN_KEY]) == 0.5
+            @test read(g[LARGE_N_DETUNING_DELTA_MAX_KEY]) == 3.0
+            @test isnan(read(g[LARGE_N_DETUNING_DELTA_MAX_FACTOR_KEY]))
+            @test read(g[LARGE_N_DETUNING_FIXED_ACROSS_DMAX_KEY]) == true
             @test read(g[CoolingTNS.RESULT_REQUESTED_STEPS]) == [2]
             @test read(g[CoolingTNS.RESULT_COMPLETED_STEPS]) == [2]
             @test read(g["stop_reasons"]) == [""]
@@ -733,13 +734,13 @@ end
 
             g_gap = f["R3_gap"]
             @test read(g_gap[CoolingTNS.RESULT_DELTA_VALUES]) == [0.75, 1.875, 3.0]
-            @test read(g_gap["detuning_protocol_source"]) ==
+            @test read(g_gap[LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY]) ==
                   LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE
-            @test read(g_gap["detuning_reference_gap"]) == 0.75
-            @test read(g_gap["detuning_delta_min"]) == 0.75
-            @test read(g_gap["detuning_delta_max"]) == 3.0
-            @test read(g_gap["detuning_delta_max_factor"]) == 4.0
-            @test read(g_gap["detuning_fixed_across_dmax"]) == false
+            @test read(g_gap[LARGE_N_DETUNING_REFERENCE_GAP_KEY]) == 0.75
+            @test read(g_gap[LARGE_N_DETUNING_DELTA_MIN_KEY]) == 0.75
+            @test read(g_gap[LARGE_N_DETUNING_DELTA_MAX_KEY]) == 3.0
+            @test read(g_gap[LARGE_N_DETUNING_DELTA_MAX_FACTOR_KEY]) == 4.0
+            @test read(g_gap[LARGE_N_DETUNING_FIXED_ACROSS_DMAX_KEY]) == false
         end
     finally
         rm(path; force=true)
@@ -1123,15 +1124,15 @@ end
                 CoolingTNS.IsingParameters(2, 1.0, 0.5, :periodic)
             )
             @test read(gm["gap"]) ≈ reference
-            @test read(gm["detuning_reference_gap_source"]) ==
+            @test read(gm[LARGE_N_DETUNING_REFERENCE_GAP_SOURCE_KEY]) ==
                   LARGE_N_DETUNING_REFERENCE_ISING_MODE_PAIR
-            @test read(gm["detuning_protocol_source"]) ==
+            @test read(gm[LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY]) ==
                   LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE
-            @test read(gm["detuning_reference_gap"]) ≈ reference
-            @test read(gm["detuning_delta_min"]) ≈ reference
-            @test read(gm["detuning_delta_max"]) ≈ 6.0 * reference
-            @test read(gm["detuning_delta_max_factor"]) == 6.0
-            @test read(gm["detuning_fixed_across_dmax"]) == false
+            @test read(gm[LARGE_N_DETUNING_REFERENCE_GAP_KEY]) ≈ reference
+            @test read(gm[LARGE_N_DETUNING_DELTA_MIN_KEY]) ≈ reference
+            @test read(gm[LARGE_N_DETUNING_DELTA_MAX_KEY]) ≈ 6.0 * reference
+            @test read(gm[LARGE_N_DETUNING_DELTA_MAX_FACTOR_KEY]) == 6.0
+            @test read(gm[LARGE_N_DETUNING_FIXED_ACROSS_DMAX_KEY]) == false
 
             g = f["N2/mcwf/R1"]
             mode_hk = read(g[CoolingTNS.RESULT_MODE_HK])

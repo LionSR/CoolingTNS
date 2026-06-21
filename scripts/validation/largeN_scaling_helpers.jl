@@ -9,7 +9,15 @@ const LARGE_N_TRAJECTORY_SEED_RULE =
     "trajectory_seed = base_seed + 1_000_000*N + 10_000*R + trajectory; " *
     "valid for 1 <= R < 100 and 1 <= trajectory < 10000"
 
-# Persisted HDF5 values for detuning_reference_gap_source and detuning_protocol_source.
+# Persisted HDF5 detuning metadata keys and values.
+const LARGE_N_DETUNING_REFERENCE_GAP_SOURCE_KEY = "detuning_reference_gap_source"
+const LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY = "detuning_protocol_source"
+const LARGE_N_DETUNING_REFERENCE_GAP_KEY = "detuning_reference_gap"
+const LARGE_N_DETUNING_DELTA_MIN_KEY = "detuning_delta_min"
+const LARGE_N_DETUNING_DELTA_MAX_KEY = "detuning_delta_max"
+const LARGE_N_DETUNING_DELTA_MAX_FACTOR_KEY = "detuning_delta_max_factor"
+const LARGE_N_DETUNING_FIXED_ACROSS_DMAX_KEY = "detuning_fixed_across_dmax"
+
 const LARGE_N_DETUNING_REFERENCE_SETUP_GAP = "setup_gap"
 const LARGE_N_DETUNING_REFERENCE_ISING_MODE_PAIR = "ising_mode_pair_reference"
 const LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE = "gap_scaled_range"
@@ -147,12 +155,12 @@ Write the on-disk HDF5 metadata contract for a large-N detuning protocol:
 `detuning_fixed_across_dmax`.
 """
 function write_largeN_detuning_protocol(parent, protocol)
-    write(parent, "detuning_protocol_source", protocol.source)
-    write(parent, "detuning_reference_gap", protocol.reference_gap)
-    write(parent, "detuning_delta_min", protocol.delta_min)
-    write(parent, "detuning_delta_max", protocol.delta_max)
-    write(parent, "detuning_delta_max_factor", protocol.delta_max_factor)
-    write(parent, "detuning_fixed_across_dmax", protocol.fixed_across_dmax)
+    write(parent, LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY, protocol.source)
+    write(parent, LARGE_N_DETUNING_REFERENCE_GAP_KEY, protocol.reference_gap)
+    write(parent, LARGE_N_DETUNING_DELTA_MIN_KEY, protocol.delta_min)
+    write(parent, LARGE_N_DETUNING_DELTA_MAX_KEY, protocol.delta_max)
+    write(parent, LARGE_N_DETUNING_DELTA_MAX_FACTOR_KEY, protocol.delta_max_factor)
+    write(parent, LARGE_N_DETUNING_FIXED_ACROSS_DMAX_KEY, protocol.fixed_across_dmax)
 end
 
 """
