@@ -40,7 +40,9 @@ The code source of truth for these quantities is
 Some historical filenames cited below predate the current default naming
 convention, which includes the evolution time `te`, mode-measurement suffixes,
 and suffixes for non-default detuning schedules and randomized evolution times.
-The HDF5 metadata is the authoritative protocol record.
+Generated per-job progress CSV filenames in a parallel plan reuse the same HDF5
+protocol stem, with the user-supplied CSV stem kept as a prefix.  The HDF5
+metadata is the authoritative protocol record.
 
 The summary script also reports the stored `completed_steps`,
 `requested_steps`, `elapsed_seconds`, and `stop_reasons` fields.  The

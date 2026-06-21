@@ -432,14 +432,8 @@ end
 
 function parallel_progress_csv_path(base_path::AbstractString, run_cfg)
     stem, ext = splitext(basename(base_path))
-    suffix = @sprintf(
-        "_N%d_%s_R%d_Dmax%d",
-        only(run_cfg["Ns"]),
-        only(run_cfg["methods"]),
-        only(run_cfg["R_values"]),
-        run_cfg["Dmax"],
-    )
-    return joinpath(dirname(base_path), stem * suffix * ext)
+    output_stem, _ = splitext(default_output_filename(run_cfg))
+    return joinpath(dirname(base_path), stem * "_" * output_stem * ext)
 end
 
 function parallel_plan_configs(cfg)
@@ -973,11 +967,12 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
     )
 end
 
-function output_path(cfg)
-    mkpath(cfg["outdir"])
-    if cfg["output"] !== nothing
-        return cfg["output"]
-    end
+"""
+    default_output_filename(cfg)
+
+Return the full default HDF5 filename; its stem is the protocol-naming source of truth.
+"""
+function default_output_filename(cfg)
     Ns = join(cfg["Ns"], "-")
     Rs = join(cfg["R_values"], "-")
     methods = join(cfg["methods"], "-")
@@ -1004,26 +999,31 @@ function output_path(cfg)
     end
     # `te` is a scanned physical protocol parameter, so keep more digits than
     # the legacy `tau` token to avoid collisions between nearby evolution times.
-    return joinpath(
-        cfg["outdir"],
-        @sprintf(
-            "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s%s%s%s_steps%d_Dmax%d_te%.12g_tau%.3g_seed%d.h5",
-            Ns,
-            Rs,
-            methods,
-            evolution_suffix,
-            model_suffix,
-            stop_suffix,
-            schedule_suffix * random_time_suffix,
-            mode_suffix,
-            init_suffix,
-            cfg["steps"],
-            cfg["Dmax"],
-            cfg["te"],
-            cfg["tau"],
-            cfg["seed"],
-        ),
+    return @sprintf(
+        "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s%s%s%s_steps%d_Dmax%d_te%.12g_tau%.3g_seed%d.h5",
+        Ns,
+        Rs,
+        methods,
+        evolution_suffix,
+        model_suffix,
+        stop_suffix,
+        schedule_suffix * random_time_suffix,
+        mode_suffix,
+        init_suffix,
+        cfg["steps"],
+        cfg["Dmax"],
+        cfg["te"],
+        cfg["tau"],
+        cfg["seed"],
     )
+end
+
+function output_path(cfg)
+    mkpath(cfg["outdir"])
+    if cfg["output"] !== nothing
+        return cfg["output"]
+    end
+    return joinpath(cfg["outdir"], default_output_filename(cfg))
 end
 
 mode_dataset_present(row) = get(row, RESULT_MODE_HK, nothing) !== nothing

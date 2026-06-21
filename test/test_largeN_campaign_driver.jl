@@ -196,6 +196,26 @@ end
     @test length(unique(job["progress_csv"] for job in parallel_jobs)) == length(parallel_jobs)
     @test all(job -> occursin("Dmax$(job["Dmax"])", output_path(job)), parallel_jobs)
     @test all(job -> occursin("_R$(only(job["R_values"]))_", job["progress_csv"]), parallel_jobs)
+    @test all(
+        job -> occursin(
+            splitext(default_output_filename(job))[1],
+            basename(job["progress_csv"]),
+        ),
+        parallel_jobs,
+    )
+
+    single_progress_path = joinpath(tempdir(), "single_tdvp_progress.csv")
+    single_job_plan_cfg = parse_args([
+        "--Ns", "64",
+        "--R-values", "2",
+        "--methods", "mcwf",
+        "--Dmax", "96",
+        "--outdir", tempdir(),
+        "--progress-csv", single_progress_path,
+        "--print-parallel-plan",
+    ])
+    single_job = only(parallel_plan_configs(single_job_plan_cfg))
+    @test single_job["progress_csv"] == single_progress_path
 
     parallel_commands = parallel_plan_commands(parallel_cfg)
     @test length(parallel_commands) == 4
@@ -434,6 +454,89 @@ end
     @test output_path(stride_mode_cfg) != output_path(mode_cfg)
     stride_mode_command = join(command_args_for_config(stride_mode_cfg), " ")
     @test occursin("--mode-measurement-stride 5", stride_mode_command)
+    mode_progress_base = joinpath(tempdir(), "tdvp_progress.csv")
+    mode_plan_cfg = parse_args([
+        "--model", "ising",
+        "--bc", "periodic",
+        "--Ns", "64",
+        "--R-values", "1,2",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--steps", "10",
+        "--Dmax", "32",
+        "--h", "-0.75",
+        "--measure-modes",
+        "--outdir", tempdir(),
+        "--progress-csv", mode_progress_base,
+        "--print-parallel-plan",
+    ])
+    stride_plan_cfg = parse_args([
+        "--model", "ising",
+        "--bc", "periodic",
+        "--Ns", "64",
+        "--R-values", "1,2",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--steps", "10",
+        "--Dmax", "32",
+        "--h", "-0.75",
+        "--measure-modes",
+        "--mode-measurement-stride", "5",
+        "--outdir", tempdir(),
+        "--progress-csv", mode_progress_base,
+        "--print-parallel-plan",
+    ])
+    mode_job = first(parallel_plan_configs(mode_plan_cfg))
+    stride_job = first(parallel_plan_configs(stride_plan_cfg))
+    @test mode_job["progress_csv"] != stride_job["progress_csv"]
+    @test occursin("_modes_steps", basename(mode_job["progress_csv"]))
+    @test occursin("_modestride5_steps", basename(stride_job["progress_csv"]))
+    @test occursin(
+        splitext(default_output_filename(mode_job))[1],
+        basename(mode_job["progress_csv"]),
+    )
+    @test occursin(
+        splitext(default_output_filename(stride_job))[1],
+        basename(stride_job["progress_csv"]),
+    )
+
+    protocol_progress_base = joinpath(tempdir(), "tdvp_progress.csv")
+    default_protocol_plan_cfg = parse_args([
+        "--Ns", "64",
+        "--R-values", "2,5",
+        "--methods", "mcwf",
+        "--steps", "5",
+        "--Dmax", "96",
+        "--delta-min", "0.5051167496264384",
+        "--delta-max", "3.0307004977586303",
+        "--outdir", tempdir(),
+        "--progress-csv", protocol_progress_base,
+        "--print-parallel-plan",
+    ])
+    theta_desc_plan_cfg = parse_args([
+        "--Ns", "64",
+        "--R-values", "2,5",
+        "--methods", "mcwf",
+        "--steps", "5",
+        "--Dmax", "96",
+        "--delta-min", "0.5051167496264384",
+        "--delta-max", "3.0307004977586303",
+        "--schedule", "descending",
+        "--init-state", "theta",
+        "--theta", "0.25",
+        "--outdir", tempdir(),
+        "--progress-csv", protocol_progress_base,
+        "--print-parallel-plan",
+    ])
+    default_protocol_job = first(parallel_plan_configs(default_protocol_plan_cfg))
+    theta_desc_job = first(parallel_plan_configs(theta_desc_plan_cfg))
+    @test default_protocol_job["progress_csv"] != theta_desc_job["progress_csv"]
+    @test occursin("_scheddesc_", basename(theta_desc_job["progress_csv"]))
+    @test occursin("_inittheta_theta0.25_", basename(theta_desc_job["progress_csv"]))
+    @test occursin(
+        splitext(default_output_filename(theta_desc_job))[1],
+        basename(theta_desc_job["progress_csv"]),
+    )
     @test_throws ErrorException parse_args(["--mode-measurement-stride", "2"])
     @test_throws ErrorException parse_args([
         "--model", "ising",
