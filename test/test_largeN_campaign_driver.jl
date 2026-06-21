@@ -339,7 +339,7 @@ end
     @test mode_ham.params.h == -0.75
     @test CoolingTNS.supports_ising_fourier_observables(mode_ham)
     mode_reference = campaign_base_detuning_reference(mode_ham, mode_cfg)
-    @test mode_reference.source == "ising_mode_pair_reference"
+    @test mode_reference.source == LARGE_N_DETUNING_REFERENCE_ISING_MODE_PAIR
     @test mode_reference.delta ≈ CoolingTNS.ising_mode_detuning_reference(mode_ham)
     @test mode_reference.delta > 0
     @test CoolingTNS.ising_mode_detuning_preserves_px("XX")
@@ -376,7 +376,7 @@ end
         antiperiodic_mode_ham,
         explicit_antiperiodic_mode_cfg,
     )
-    @test explicit_antiperiodic_ref.source == "setup_gap"
+    @test explicit_antiperiodic_ref.source == LARGE_N_DETUNING_REFERENCE_SETUP_GAP
     @test isnothing(explicit_antiperiodic_ref.delta)
     nonpreserving_mode_cfg = parse_args([
         "--model", "ising",
@@ -405,14 +405,14 @@ end
         mode_ham,
         explicit_nonpreserving_mode_cfg,
     )
-    @test explicit_nonpreserving_ref.source == "setup_gap"
+    @test explicit_nonpreserving_ref.source == LARGE_N_DETUNING_REFERENCE_SETUP_GAP
     @test isnothing(explicit_nonpreserving_ref.delta)
     generic_cfg = parse_args(["--outdir", tempdir()])
     generic_reference = campaign_base_detuning_reference(
         campaign_hamiltonian_parameters(64, generic_cfg),
         generic_cfg,
     )
-    @test generic_reference.source == "setup_gap"
+    @test generic_reference.source == LARGE_N_DETUNING_REFERENCE_SETUP_GAP
     @test isnothing(generic_reference.delta)
     @test occursin("ising_bcperiodic", output_path(mode_cfg))
     no_mode_counterpart_cfg = parse_args([
@@ -703,7 +703,7 @@ end
             @test !haskey(g, "E_mean")
             @test !haskey(g, "GS_overlap_mean")
             @test !haskey(g, "GS_overlap_trajectories")
-            @test read(g["detuning_protocol_source"]) == "fixed_range"
+            @test read(g["detuning_protocol_source"]) == LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE
             @test read(g["detuning_reference_gap"]) == 0.75
             @test read(g["detuning_delta_min"]) == 0.5
             @test read(g["detuning_delta_max"]) == 3.0
@@ -733,7 +733,8 @@ end
 
             g_gap = f["R3_gap"]
             @test read(g_gap[CoolingTNS.RESULT_DELTA_VALUES]) == [0.75, 1.875, 3.0]
-            @test read(g_gap["detuning_protocol_source"]) == "gap_scaled_range"
+            @test read(g_gap["detuning_protocol_source"]) ==
+                  LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE
             @test read(g_gap["detuning_reference_gap"]) == 0.75
             @test read(g_gap["detuning_delta_min"]) == 0.75
             @test read(g_gap["detuning_delta_max"]) == 3.0
@@ -1122,8 +1123,10 @@ end
                 CoolingTNS.IsingParameters(2, 1.0, 0.5, :periodic)
             )
             @test read(gm["gap"]) ≈ reference
-            @test read(gm["detuning_reference_gap_source"]) == "ising_mode_pair_reference"
-            @test read(gm["detuning_protocol_source"]) == "gap_scaled_range"
+            @test read(gm["detuning_reference_gap_source"]) ==
+                  LARGE_N_DETUNING_REFERENCE_ISING_MODE_PAIR
+            @test read(gm["detuning_protocol_source"]) ==
+                  LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE
             @test read(gm["detuning_reference_gap"]) ≈ reference
             @test read(gm["detuning_delta_min"]) ≈ reference
             @test read(gm["detuning_delta_max"]) ≈ 6.0 * reference

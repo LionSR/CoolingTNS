@@ -144,7 +144,7 @@ end
             gn = create_group(f, "N4")
             write(gn, "N", 4)
             gm = create_group(gn, "mcwf")
-            write(gm, "detuning_protocol_source", "fixed_range")
+            write(gm, "detuning_protocol_source", LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE)
             write(gm, "detuning_delta_min", 0.5)
             write(gm, "detuning_delta_max", 3.0)
             write(gm, "detuning_delta_max_factor", NaN)
@@ -192,7 +192,7 @@ end
         @test row.elapsed_total_seconds == 25.5
         @test row.traj_cycles_per_hour ≈ 3600 * 4 / 25.5
         @test row.stop_reason == "bond_capx1/2"
-        @test row.delta_protocol == "fixed_range"
+        @test row.delta_protocol == LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE
         @test row.delta_range == "[0.50000000,3.00000000]"
         @test row.delta_factor == "n/a"
         @test row.threshold == 12
@@ -915,7 +915,7 @@ end
             gn = create_group(f, "N2")
             write(gn, "N", 2)
             gm = create_group(gn, "mcwf")
-            write(gm, "detuning_protocol_source", "gap_scaled_range")
+            write(gm, "detuning_protocol_source", LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE)
             write(gm, "detuning_delta_min", 0.75)
             write(gm, "detuning_delta_max", 3.0)
             write(gm, "detuning_delta_max_factor", 4.0)
@@ -931,7 +931,7 @@ end
         end
 
         row = only(summarize_file(path))
-        @test row.delta_protocol == "gap_scaled_range"
+        @test row.delta_protocol == LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE
         @test row.delta_range == "[0.75000000,3.00000000]"
         @test row.delta_factor == "4.000"
     finally
