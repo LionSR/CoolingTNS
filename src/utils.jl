@@ -241,7 +241,7 @@ function create_filename(ham_params::HamiltonianParameters, coupling_params::Cou
     coupling_group = "Coupling$(coupling_params.coupling)g$(coupling_params.g)te$(coupling_params.te)steps$(coupling_params.steps)"
     
     # Add delta if specified
-    if coupling_params.delta !== nothing
+    if !isnothing(coupling_params.delta)
         delta_str = @sprintf("%.3f", coupling_params.delta)
         coupling_group *= "delta$(delta_str)"
     end
@@ -300,13 +300,13 @@ function create_filename(
         get(coupling_params, "delta", nothing),
     )
 
-    backend = haskey(sim_params, "method") && sim_params["method"] == "ED" ? EDBackend() : TNBackend()
+    backend = get(sim_params, "method", "") == "ED" ? EDBackend() : TNBackend()
 
     sim_method =
-        haskey(sim_params, "sim_method") && sim_params["sim_method"] == "density_matrix" ?
+        get(sim_params, "sim_method", "") == "density_matrix" ?
         DensityMatrix() : MonteCarloWavefunction()
     evolution_method =
-        haskey(sim_params, "evolution_method") && sim_params["evolution_method"] == "trotter" ?
+        get(sim_params, "evolution_method", "") == "trotter" ?
         TrotterEvolution() : ContinuousEvolution()
 
     sim = UnifiedSimulationParameters(

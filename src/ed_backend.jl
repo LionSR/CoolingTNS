@@ -179,10 +179,7 @@ function measure_ed!(ψ::EDStateVector, qubits::Vector{Int})
     outcome = sample_outcome(probs) - 1  # Convert to 0-based
     
     # Extract measurement results as bit array
-    results = Int[]
-    for i in 0:(n_measure-1)
-        push!(results, (outcome >> i) & 1)
-    end
+    results = [(outcome >> i) & 1 for i in 0:(n_measure-1)]
     
     # Collapse state and trace out measured qubits
     collapsed_data = zeros(ComplexF64, 2^n_remaining)
@@ -358,8 +355,7 @@ function _get_eigendecomp(H::AbstractMatrix)
     F = eigen(Hermitian(Matrix(H)))
     vals = Vector{Float64}(F.values)
     vecs = Matrix{ComplexF64}(F.vectors)
-    EVOLUTION_EIG_CACHE[H_hash] = (vals, vecs)
-    return EVOLUTION_EIG_CACHE[H_hash]
+    return EVOLUTION_EIG_CACHE[H_hash] = (vals, vecs)
 end
 
 """
