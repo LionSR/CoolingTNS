@@ -572,6 +572,9 @@ end
             g = f["R2"]
             @test read(g[CoolingTNS.RESULT_DELTA_VALUES]) == [0.5, 3.0]
             @test vec(read(g[CoolingTNS.RESULT_ENERGY_TRAJECTORIES])) == [-2.0, -1.5, -1.0]
+            @test vec(read(g[CoolingTNS.RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES])) ==
+                  [0.1, 0.2, 0.3]
+            @test !haskey(g, "GS_overlap_trajectories")
             @test read(g["detuning_protocol_source"]) == "fixed_range"
             @test read(g["detuning_reference_gap"]) == 0.75
             @test read(g["detuning_delta_min"]) == 0.5
