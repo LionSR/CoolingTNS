@@ -79,8 +79,10 @@ rebuilding is < 1%. Pre-building R Hamiltonians is unnecessary complexity.
   evidence shows that `D = 40` is only a pilot cap, and any production claim must
   choose `Dmax` from a convergence ladder with retained-state, transient
   system-bath, and TDVP sweep-level diagnostics.
-- No Trotter error from the continuous-time TDVP integrator, while retaining the
-  usual TDVP projection and truncation errors
+- No Trotter error from the continuous-time TDVP integrator.  The remaining
+  algorithmic errors are the usual TDVP projection and truncation errors; the
+  current large-`N` HDF5 campaign records bond-cap and saturation diagnostics,
+  not measured truncation-error histories.
 - A single MCWF trajectory and a late-time average are diagnostic quantities
   only.  A numerical steady-state estimate requires independent trajectories,
   stability under the averaging window, and convergence in the retained and
