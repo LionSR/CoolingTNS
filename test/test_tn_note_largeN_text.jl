@@ -27,6 +27,8 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("driver now treats MCWF/MPS as the default production-sized tensor-network path", note_flat)
     @test occursin("they do not establish scalable cooling to the ground state", note_flat)
     @test occursin("historical truncation diagnostics", note_flat)
+    @test occursin("finite-window noise-response diagnostics", note_flat)
+    @test occursin("a robustness claim requires the same bond-dimension, positivity, and trajectory-convergence checks", note_flat)
     @test occursin("D_{\\mathrm{sb}}^{\\mathrm{eff}}=394, 862, 518, 737", note_flat)
     @test occursin("R = 1: Dsys_eff = 309, Dsb_eff = 394", evidence_flat)
     @test occursin("R = 2: Dsys_eff = 637, Dsb_eff = 862", evidence_flat)
@@ -185,6 +187,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         "demonstrating the effectiveness of the cooling algorithm in preparing low-energy states",
         "demonstrating its robustness against depolarizing noise",
         "the algorithm still achieves significant cooling and ground state preparation fidelity",
+        "investigate the robustness of the cooling algorithm in realistic scenarios",
         "the error remains small even for the largest system size",
         "ground state fidelity decreases exponentially",
         "the steady-state energy density",
