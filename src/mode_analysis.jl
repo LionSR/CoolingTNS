@@ -305,6 +305,45 @@ function mode_energies_Jh(k_indices, J, h, N)
 end
 
 """
+    validate_mode_ek_values_match_grid(ek_values, k_indices, N, J, h;
+                                       atol=1e-10, rtol=1e-8)
+
+Validate that stored `mode_ek_values` are the positive quasiparticle gaps
+`mode_energies_Jh(k_indices, J, h, N)` for the same mode grid and Hamiltonian
+parameters.  Shape mismatches throw `DimensionMismatch`; value mismatches throw
+`ArgumentError`.  On success, return the computed positive gaps.
+"""
+function validate_mode_ek_values_match_grid(
+    ek_values,
+    k_indices,
+    N::Integer,
+    J::Real,
+    h::Real;
+    atol=1e-10,
+    rtol=1e-8,
+)
+    stored = Float64.(vec(ek_values))
+    k_grid = collect(k_indices)
+    length(stored) == length(k_grid) || throw(DimensionMismatch(
+        "$RESULT_MODE_ENERGIES length $(length(stored)) does not match " *
+        "$RESULT_MODE_K_INDICES length $(length(k_grid))"
+    ))
+
+    expected = Float64.(mode_energies_Jh(k_grid, J, h, N))
+    for idx in eachindex(stored, expected)
+        stored_value = stored[idx]
+        derived_value = expected[idx]
+        isapprox(stored_value, derived_value; atol=atol, rtol=rtol) && continue
+        throw(ArgumentError(
+            "$RESULT_MODE_ENERGIES is inconsistent with $RESULT_MODE_K_INDICES, " *
+            "N, J, and h: stored positive gap $(stored_value) differs from " *
+            "mode_energies_Jh-derived gap $(derived_value) at linear index $(idx)"
+        ))
+    end
+    return expected
+end
+
+"""
     is_generic_mode(k, N) -> Bool
 
 Return whether the Fourier index ``k`` is a generic Ising mode.  The special

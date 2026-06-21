@@ -11,7 +11,8 @@ markdown_column_counts(text::AbstractString) = [
     if startswith(line, "|")
 ]
 
-function write_minimal_mode_summary_file(path::AbstractString, mode_hk, mode_nk)
+function write_minimal_mode_summary_file(path::AbstractString, mode_hk, mode_nk;
+                                         mode_ek_values=nothing)
     N = 4
     J, h = 1.0, 0.5
     k_indices = CoolingTNS.allowed_k_indices(N, -1)
@@ -36,8 +37,10 @@ function write_minimal_mode_summary_file(path::AbstractString, mode_hk, mode_nk)
         write(gr, CoolingTNS.RESULT_MODE_HK, mode_hk)
         write(gr, CoolingTNS.RESULT_MODE_NK, mode_nk)
         write(gr, CoolingTNS.RESULT_MODE_K_INDICES, Float64.(k_indices))
-        write(gr, CoolingTNS.RESULT_MODE_ENERGIES,
-              CoolingTNS.mode_energies_Jh(k_indices, J, h, N))
+        gaps = mode_ek_values === nothing ?
+            CoolingTNS.mode_energies_Jh(k_indices, J, h, N) :
+            mode_ek_values
+        write(gr, CoolingTNS.RESULT_MODE_ENERGIES, gaps)
         write(gr, CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES, [0])
         write(gr, CoolingTNS.RESULT_MODE_GF, -1)
         write(gr, CoolingTNS.RESULT_MODE_GF_SOURCE, "state")
@@ -558,6 +561,69 @@ end
         @test occursin(CoolingTNS.RESULT_MODE_NK, message)
         @test occursin(CoolingTNS.RESULT_MODE_HK, message)
         @test occursin("shape", message)
+    finally
+        rm(path; force=true)
+    end
+end
+
+@testset "Large-N summary validates stored positive mode gaps" begin
+    path = tempname() * ".h5"
+    try
+        N = 4
+        J, h = 1.0, 0.5
+        k_indices = CoolingTNS.allowed_k_indices(N, -1)
+        mode_hk = reshape([-1.0, -0.5, 0.0, 1.0], 1, 4)
+        bad_gaps = CoolingTNS.mode_energies_Jh(k_indices, J, h, N)
+        bad_gaps[2] += 0.1
+        write_minimal_mode_summary_file(
+            path,
+            mode_hk,
+            CoolingTNS.mode_occupation_from_hk(mode_hk);
+            mode_ek_values=bad_gaps,
+        )
+
+        err = try
+            summarize_file(path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        message = sprint(showerror, err)
+        @test occursin(CoolingTNS.RESULT_MODE_ENERGIES, message)
+        @test occursin(CoolingTNS.RESULT_MODE_K_INDICES, message)
+        @test occursin("mode_energies_Jh", message)
+    finally
+        rm(path; force=true)
+    end
+end
+
+@testset "Large-N summary rejects positive mode gap shape mismatches" begin
+    path = tempname() * ".h5"
+    try
+        N = 4
+        J, h = 1.0, 0.5
+        k_indices = CoolingTNS.allowed_k_indices(N, -1)
+        mode_hk = reshape([-1.0, -0.5, 0.0, 1.0], 1, 4)
+        bad_shape_gaps = CoolingTNS.mode_energies_Jh(k_indices, J, h, N)[1:end-1]
+        write_minimal_mode_summary_file(
+            path,
+            mode_hk,
+            CoolingTNS.mode_occupation_from_hk(mode_hk);
+            mode_ek_values=bad_shape_gaps,
+        )
+
+        err = try
+            summarize_file(path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa DimensionMismatch
+        message = sprint(showerror, err)
+        @test occursin(CoolingTNS.RESULT_MODE_ENERGIES, message)
+        @test occursin(CoolingTNS.RESULT_MODE_K_INDICES, message)
+        @test occursin("length", message)
     finally
         rm(path; force=true)
     end

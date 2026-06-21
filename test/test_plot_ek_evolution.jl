@@ -72,6 +72,7 @@ end
     coeffs = _mode_energy_coefficients(k_indices, N, J, h)
     stored_εk = mode_energies_Jh(k_indices, J, h, N)
 
+    @test validate_mode_ek_values_match_grid(stored_εk, k_indices, N, J, h) ≈ stored_εk
     @test _checked_mode_energy_coefficients(stored_εk, k_indices, N, J, h) ≈ coeffs
     @test stored_εk ≈ 2 .* abs.(coeffs) atol=1e-12
     @test_logs (:warn, r"Stored positive quasiparticle gaps differ") begin

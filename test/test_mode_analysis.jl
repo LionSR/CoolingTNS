@@ -248,6 +248,22 @@ end
         @test energy_scale(3.0, 4.0) ≈ 10.0
     end
 
+    @testset "Stored positive mode gap validation" begin
+        N = 4
+        J, h = 1.0, 0.5
+        k_indices = allowed_k_indices(N, 1)
+        gaps = mode_energies_Jh(k_indices, J, h, N)
+
+        @test validate_mode_ek_values_match_grid(gaps, k_indices, N, J, h) ≈ gaps
+        @test_throws DimensionMismatch validate_mode_ek_values_match_grid(
+            gaps[1:end-1], k_indices, N, J, h)
+
+        bad_gaps = copy(gaps)
+        bad_gaps[2] += 0.1
+        @test_throws ArgumentError validate_mode_ek_values_match_grid(
+            bad_gaps, k_indices, N, J, h)
+    end
+
     @testset "Bogoliubov text matches MapToSpin phase convention" begin
         file_contains(path, needle) = open(path) do io
             any(line -> occursin(needle, line), eachline(io))
