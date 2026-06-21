@@ -83,11 +83,18 @@ end
 
     @test occursin("In this finite parameter sweep", main_flat)
     @test occursin("Across most panels in this finite sweep", main_flat)
+    @test occursin("Within the finite parameter sweeps studied here", main_flat)
+    @test occursin("the quantitative tolerance depends on the mode, coupling strength, cycle time, and noise model", main_flat)
     @test occursin("the benefit depends on the mode, coupling strength, and noise level", main_flat)
     @test occursin("not as a parameter-uniform robustness statement", main_flat)
+    @test occursin("this comparison is not a parameter-uniform robustness theorem", main_flat)
+    @test occursin("find parameter regimes in this solvable model where cooling gives lower relative energies", main_flat)
     @test occursin("leaving the quantitative noise tolerance to the conditions below", main_flat)
     @test !occursin("in general, using multiple frequencies", main_flat)
     @test !occursin(raw"consistently outperforms single-frequency cooling ($R=1$) across all parameter regimes", main_flat)
     @test !occursin("the results demonstrate a degree of robustness", main_flat)
     @test !occursin("This highlights the general utility of the multi-frequency approach", main_flat)
+    @test !occursin("optimized cooling protocols that can significantly enhance cooling performance in the presence of noise", main_flat)
+    @test !occursin("cooling generally achieves lower energies and is more resilient to noise", main_flat)
+    @test !occursin("the former generally achieves lower energies", main_flat)
 end
