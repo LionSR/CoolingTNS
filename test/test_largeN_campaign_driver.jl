@@ -704,16 +704,19 @@ end
             @test read(g[CoolingTNS.RESULT_MODE_GF]) == -1
             @test read(g[CoolingTNS.RESULT_MODE_GF_SOURCE]) == "state"
             @test read(g["trajectory_seeds"]) == [101, 102]
-            @test size(read(g["mode_hk_trajectories"])) == (3, 2, 2)
-            @test read(g["mode_hk_trajectories"])[:, :, 1] ≈ mode_hk_1
-            @test read(g["mode_hk_trajectories"])[:, :, 2] ≈ mode_hk_2
-            @test size(read(g["mode_nk_stderr"])) == (3, 2)
+            @test size(read(g[CoolingTNS.RESULT_MODE_HK_TRAJECTORIES])) == (3, 2, 2)
+            @test read(g[CoolingTNS.RESULT_MODE_HK_TRAJECTORIES])[:, :, 1] ≈ mode_hk_1
+            @test read(g[CoolingTNS.RESULT_MODE_HK_TRAJECTORIES])[:, :, 2] ≈ mode_hk_2
+            @test size(read(g[CoolingTNS.RESULT_MODE_NK_TRAJECTORIES])) == (3, 2, 2)
+            @test read(g[CoolingTNS.RESULT_MODE_NK_TRAJECTORIES])[:, :, 1] ≈ mode_nk_1
+            @test read(g[CoolingTNS.RESULT_MODE_NK_TRAJECTORIES])[:, :, 2] ≈ mode_nk_2
+            @test size(read(g[CoolingTNS.RESULT_MODE_NK_STDERR])) == (3, 2)
 
             g_single = f["R_sparse_single"]
             single_hk = read(g_single[CoolingTNS.RESULT_MODE_HK])
             single_nk = read(g_single[CoolingTNS.RESULT_MODE_NK])
-            single_hk_stderr = read(g_single["mode_hk_stderr"])
-            single_nk_stderr = read(g_single["mode_nk_stderr"])
+            single_hk_stderr = read(g_single[CoolingTNS.RESULT_MODE_HK_STDERR])
+            single_nk_stderr = read(g_single[CoolingTNS.RESULT_MODE_NK_STDERR])
             @test read(g_single[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 2]
             @test read(g_single["trajectory_seeds"]) == [101]
             @test all(isnan, single_hk[2, :])
@@ -726,8 +729,8 @@ end
             g_ensemble = f["R_sparse_ensemble"]
             ensemble_hk = read(g_ensemble[CoolingTNS.RESULT_MODE_HK])
             ensemble_nk = read(g_ensemble[CoolingTNS.RESULT_MODE_NK])
-            ensemble_hk_stderr = read(g_ensemble["mode_hk_stderr"])
-            ensemble_nk_stderr = read(g_ensemble["mode_nk_stderr"])
+            ensemble_hk_stderr = read(g_ensemble[CoolingTNS.RESULT_MODE_HK_STDERR])
+            ensemble_nk_stderr = read(g_ensemble[CoolingTNS.RESULT_MODE_NK_STDERR])
             @test read(g_ensemble[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 2]
             @test read(g_ensemble["trajectory_seeds"]) == [101, 102]
             @test all(isnan, ensemble_hk[2, :])
@@ -951,10 +954,10 @@ end
             @test length(read(g[CoolingTNS.RESULT_MODE_ENERGIES])) == 2
             @test all(isfinite, read(g[CoolingTNS.RESULT_MODE_ENERGIES]))
             @test read(g[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 1]
-            @test size(read(g["mode_hk_trajectories"])) == (2, 2, 1)
-            @test size(read(g["mode_nk_trajectories"])) == (2, 2, 1)
-            @test read(g["mode_hk_stderr"]) == zeros(2, 2)
-            @test read(g["mode_nk_stderr"]) == zeros(2, 2)
+            @test size(read(g[CoolingTNS.RESULT_MODE_HK_TRAJECTORIES])) == (2, 2, 1)
+            @test size(read(g[CoolingTNS.RESULT_MODE_NK_TRAJECTORIES])) == (2, 2, 1)
+            @test read(g[CoolingTNS.RESULT_MODE_HK_STDERR]) == zeros(2, 2)
+            @test read(g[CoolingTNS.RESULT_MODE_NK_STDERR]) == zeros(2, 2)
             @test !haskey(g, CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION)
         end
     end

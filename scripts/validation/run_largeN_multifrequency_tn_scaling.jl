@@ -1078,10 +1078,10 @@ function write_mode_measurement_group!(g, traj_rows)
     write(g, RESULT_MODE_MEASUREMENT_CYCLES, Int.(mode_cycles))
     write(g, RESULT_MODE_GF, Int(mode_gF))
     write(g, RESULT_MODE_GF_SOURCE, String(mode_gF_source))
-    write(g, "mode_hk_trajectories", mode_hk)
-    write(g, "mode_nk_trajectories", mode_nk)
-    write(g, "mode_hk_stderr", mode_hk_stderr)
-    write(g, "mode_nk_stderr", mode_nk_stderr)
+    write(g, RESULT_MODE_HK_TRAJECTORIES, mode_hk)
+    write(g, RESULT_MODE_NK_TRAJECTORIES, mode_nk)
+    write(g, RESULT_MODE_HK_STDERR, mode_hk_stderr)
+    write(g, RESULT_MODE_NK_STDERR, mode_nk_stderr)
     return nothing
 end
 

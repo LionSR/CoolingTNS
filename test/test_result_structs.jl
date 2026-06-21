@@ -152,6 +152,10 @@ using CoolingTNS
         for key in (
             CoolingTNS.RESULT_BATH_MAGNETIZATION,
             CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION,
+            CoolingTNS.RESULT_MODE_HK_TRAJECTORIES,
+            CoolingTNS.RESULT_MODE_NK_TRAJECTORIES,
+            CoolingTNS.RESULT_MODE_HK_STDERR,
+            CoolingTNS.RESULT_MODE_NK_STDERR,
             CoolingTNS.RESULT_ENERGY_TRAJECTORIES,
             CoolingTNS.RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES,
             CoolingTNS.RESULT_ENERGY_STD,

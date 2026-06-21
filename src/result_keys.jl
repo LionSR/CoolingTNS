@@ -30,6 +30,10 @@ const RESULT_MODE_K_INDICES = "mode_k_indices"
 # energy-reconstruction coefficients.
 const RESULT_MODE_ENERGIES = "mode_ek_values"
 const RESULT_MODE_MEASUREMENT_CYCLES = "mode_measurement_cycles"
+const RESULT_MODE_HK_TRAJECTORIES = "mode_hk_trajectories"
+const RESULT_MODE_NK_TRAJECTORIES = "mode_nk_trajectories"
+const RESULT_MODE_HK_STDERR = "mode_hk_stderr"
+const RESULT_MODE_NK_STDERR = "mode_nk_stderr"
 
 const RESULT_DELTA_LIST = "delta_list"
 const RESULT_TE_LIST = "te_list"
@@ -68,6 +72,10 @@ const RESULT_KEYS = (
     RESULT_MODE_K_INDICES,
     RESULT_MODE_ENERGIES,
     RESULT_MODE_MEASUREMENT_CYCLES,
+    RESULT_MODE_HK_TRAJECTORIES,
+    RESULT_MODE_NK_TRAJECTORIES,
+    RESULT_MODE_HK_STDERR,
+    RESULT_MODE_NK_STDERR,
     RESULT_DELTA_LIST,
     RESULT_TE_LIST,
     RESULT_DELTA_VALUES,
