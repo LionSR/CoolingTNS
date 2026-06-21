@@ -181,8 +181,11 @@ end
         @test row.final_energy == 0.25
         @test row.system_effective_bond == ">=6"
         @test row.evolved_effective_bond == ">=7"
-        @test row.bond_status == "not_converged_system_and_evolved_cap"
+        @test row.bond_status == "not_converged_system_and_tdvp_sweep_cap"
         @test row.system_cap_cycle == 2
+        @test row.evolved_cap_cycle == 0
+        @test row.tdvp_sweep_cap_cycle == 1
+        @test row.tdvp_sweep_cap_sweep == 2
         @test row.transient_cap_cycle == 1
         @test row.transient_cap_sweep == 2
         @test row.max_sweep_increment == 5.0
@@ -203,6 +206,9 @@ end
         @test mpo_row.evolved_effective_bond == ">=24"
         @test mpo_row.bond_status == "not_converged_system_and_evolved_cap"
         @test mpo_row.system_cap_cycle == 2
+        @test mpo_row.evolved_cap_cycle == 2
+        @test mpo_row.tdvp_sweep_cap_cycle == 0
+        @test mpo_row.tdvp_sweep_cap_sweep === nothing
         @test mpo_row.transient_cap_cycle == 2
         @test mpo_row.transient_cap_sweep === nothing
         @test mpo_row.max_sweep_cycle == 0
@@ -220,11 +226,151 @@ end
             read(output_path, String)
         end
         @test occursin("| file | N | method | evolution | R | traj |", output)
+        @test occursin("| sys cap | evolved cap | tdvp sweep cap | first transient cap |", output)
         @test occursin("| last step | last cycle | last stage |", output)
+        @test occursin("not_converged_system_and_tdvp_sweep_cap", output)
         @test occursin("not_converged_system_and_evolved_cap", output)
         @test occursin("| 2 | 1 | 2 | 0.50000000 | 0.25000000 | 6 | 7 | 16.0 |", output)
         @test occursin("| 4 | 3 | tdvp_sweep |", output)
     finally
         rm(path; force=true)
+    end
+
+    tdvp_only_path = tempname() * ".csv"
+    try
+        open(tdvp_only_path, "w") do io
+            println(io, join(TDVP_PROGRESS_COLUMNS, ","))
+            println(io, tdvp_progress_line(
+                stage="initial", step=1, cycle=0, delta="NaN", te="NaN",
+                energy_per_site="1.0", relative_energy="2.0", overlap="0.0",
+                system_max_bond="1", evolved_max_bond="NaN", elapsed_seconds=0.5,
+            ))
+            println(io, tdvp_progress_line(
+                stage="prepared", step=2, cycle=1,
+                system_max_bond="1", evolved_max_bond="1", elapsed_seconds=1.0,
+            ))
+            println(io, tdvp_progress_line(
+                stage="tdvp_sweep", step=2, cycle=1,
+                system_max_bond="1", evolved_max_bond="6",
+                tdvp_sweep="1", tdvp_time="0.2", elapsed_seconds=2.0,
+            ))
+            println(io, tdvp_progress_line(
+                stage="updated", step=2, cycle=1,
+                energy_per_site="0.5", relative_energy="1.5", overlap="0.1",
+                system_max_bond="5", evolved_max_bond="5", elapsed_seconds=3.0,
+            ))
+        end
+
+        tdvp_only_row = only(TDVPProgressCSVSummary.summarize_progress_file(tdvp_only_path))
+        @test tdvp_only_row.system_effective_bond == "5"
+        @test tdvp_only_row.evolved_effective_bond == ">=6"
+        @test tdvp_only_row.bond_status == "not_converged_tdvp_sweep_cap"
+        @test tdvp_only_row.system_cap_cycle == 0
+        @test tdvp_only_row.evolved_cap_cycle == 0
+        @test tdvp_only_row.tdvp_sweep_cap_cycle == 1
+        @test tdvp_only_row.tdvp_sweep_cap_sweep == 1
+        @test tdvp_only_row.transient_cap_cycle == 1
+        @test tdvp_only_row.transient_cap_sweep == 1
+    finally
+        rm(tdvp_only_path; force=true)
+    end
+
+    both_caps_path = tempname() * ".csv"
+    try
+        open(both_caps_path, "w") do io
+            println(io, join(TDVP_PROGRESS_COLUMNS, ","))
+            println(io, tdvp_progress_line(
+                R="4", stage="initial", step=1, cycle=0,
+                delta="NaN", te="NaN", energy_per_site="1.0",
+                relative_energy="2.0", overlap="0.0",
+                system_max_bond="1", evolved_max_bond="NaN",
+                elapsed_seconds=0.5,
+            ))
+            println(io, tdvp_progress_line(
+                R="4", stage="prepared", step=2, cycle=1,
+                system_max_bond="1", evolved_max_bond="1",
+                elapsed_seconds=1.0,
+            ))
+            println(io, tdvp_progress_line(
+                R="4", stage="tdvp_sweep", step=2, cycle=1,
+                system_max_bond="1", evolved_max_bond="6",
+                tdvp_sweep="1", tdvp_time="0.2", elapsed_seconds=2.0,
+            ))
+            println(io, tdvp_progress_line(
+                R="4", stage="evolved", step=2, cycle=1,
+                system_max_bond="1", evolved_max_bond="6",
+                elapsed_seconds=2.5,
+            ))
+            println(io, tdvp_progress_line(
+                R="4", stage="updated", step=2, cycle=1,
+                energy_per_site="0.5", relative_energy="1.5", overlap="0.1",
+                system_max_bond="5", evolved_max_bond="6",
+                elapsed_seconds=3.0,
+            ))
+
+            println(io, tdvp_progress_line(
+                R="5", stage="initial", step=1, cycle=0,
+                delta="NaN", te="NaN", energy_per_site="1.0",
+                relative_energy="2.0", overlap="0.0",
+                system_max_bond="1", evolved_max_bond="NaN",
+                elapsed_seconds=0.5,
+            ))
+            println(io, tdvp_progress_line(
+                R="5", stage="prepared", step=2, cycle=1,
+                system_max_bond="1", evolved_max_bond="1",
+                elapsed_seconds=1.0,
+            ))
+            println(io, tdvp_progress_line(
+                R="5", stage="evolved", step=2, cycle=1,
+                system_max_bond="1", evolved_max_bond="6",
+                elapsed_seconds=2.0,
+            ))
+            println(io, tdvp_progress_line(
+                R="5", stage="updated", step=2, cycle=1,
+                energy_per_site="0.5", relative_energy="1.5", overlap="0.1",
+                system_max_bond="5", evolved_max_bond="6",
+                elapsed_seconds=3.0,
+            ))
+            println(io, tdvp_progress_line(
+                R="5", stage="prepared", step=3, cycle=2,
+                system_max_bond="5", evolved_max_bond="5",
+                elapsed_seconds=4.0,
+            ))
+            println(io, tdvp_progress_line(
+                R="5", stage="tdvp_sweep", step=3, cycle=2,
+                system_max_bond="5", evolved_max_bond="7",
+                tdvp_sweep="2", tdvp_time="0.3", elapsed_seconds=5.0,
+            ))
+            println(io, tdvp_progress_line(
+                R="5", stage="updated", step=3, cycle=2,
+                energy_per_site="0.25", relative_energy="1.25",
+                overlap="0.2", system_max_bond="5",
+                evolved_max_bond="7", elapsed_seconds=6.0,
+            ))
+        end
+
+        both_caps_rows = TDVPProgressCSVSummary.summarize_progress_file(both_caps_path)
+        @test length(both_caps_rows) == 2
+
+        tie_row = only(filter(row -> row.R == 4, both_caps_rows))
+        @test tie_row.bond_status == "not_converged_evolved_and_tdvp_sweep_cap"
+        @test tie_row.system_cap_cycle == 0
+        @test tie_row.evolved_cap_cycle == 1
+        @test tie_row.tdvp_sweep_cap_cycle == 1
+        @test tie_row.tdvp_sweep_cap_sweep == 1
+        @test tie_row.transient_cap_cycle == 1
+        @test tie_row.transient_cap_sweep == 1
+
+        evolved_first_row = only(filter(row -> row.R == 5, both_caps_rows))
+        @test evolved_first_row.bond_status ==
+              "not_converged_evolved_and_tdvp_sweep_cap"
+        @test evolved_first_row.system_cap_cycle == 0
+        @test evolved_first_row.evolved_cap_cycle == 1
+        @test evolved_first_row.tdvp_sweep_cap_cycle == 2
+        @test evolved_first_row.tdvp_sweep_cap_sweep == 2
+        @test evolved_first_row.transient_cap_cycle == 1
+        @test evolved_first_row.transient_cap_sweep === nothing
+    finally
+        rm(both_caps_path; force=true)
     end
 end

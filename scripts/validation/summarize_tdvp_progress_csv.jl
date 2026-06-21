@@ -164,17 +164,23 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
         end
     end
 
-    transient_cap_cycle = 0
-    transient_cap_sweep = nothing
+    evolved_cap_cycle = 0
+    tdvp_sweep_cap_cycle = 0
+    tdvp_sweep_cap_sweep = nothing
     for row in rows
         stage = progress_cell(row, "stage")
-        stage in ("tdvp_sweep", "evolved", "updated", "prepared") || continue
+        # Only these rows are transient system-bath cap observations.
+        stage in ("tdvp_sweep", "evolved") || continue
         if progress_float(row, "evolved_max_bond") >= threshold
-            transient_cap_cycle = progress_int(row, "cycle")
             if stage == "tdvp_sweep"
-                transient_cap_sweep = progress_int(row, "tdvp_sweep")
+                if tdvp_sweep_cap_cycle == 0
+                    tdvp_sweep_cap_cycle = progress_int(row, "cycle")
+                    tdvp_sweep_cap_sweep = progress_int(row, "tdvp_sweep")
+                end
+            else
+                evolved_cap_cycle == 0 &&
+                    (evolved_cap_cycle = progress_int(row, "cycle"))
             end
-            break
         end
     end
 
@@ -208,7 +214,16 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
     last_stage = last_row === nothing ? "none" : progress_cell(last_row, "stage")
     last_step = last_row === nothing ? 0 : progress_int(last_row, "step")
     last_cycle = last_row === nothing ? 0 : progress_int(last_row, "cycle")
-    status = bond_cap_status(system_cap_cycle, transient_cap_cycle)
+    status = bond_cap_status(system_cap_cycle, evolved_cap_cycle, tdvp_sweep_cap_cycle)
+    transient_cap_cycle, transient_cap_sweep = if evolved_cap_cycle == 0
+        (tdvp_sweep_cap_cycle, tdvp_sweep_cap_sweep)
+    elseif tdvp_sweep_cap_cycle == 0
+        (evolved_cap_cycle, nothing)
+    elseif tdvp_sweep_cap_cycle <= evolved_cap_cycle
+        (tdvp_sweep_cap_cycle, tdvp_sweep_cap_sweep)
+    else
+        (evolved_cap_cycle, nothing)
+    end
 
     return (
         file=basename(file_name),
@@ -229,6 +244,9 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
         ),
         bond_status=status,
         system_cap_cycle=system_cap_cycle,
+        evolved_cap_cycle=evolved_cap_cycle,
+        tdvp_sweep_cap_cycle=tdvp_sweep_cap_cycle,
+        tdvp_sweep_cap_sweep=tdvp_sweep_cap_sweep,
         transient_cap_cycle=transient_cap_cycle,
         transient_cap_sweep=transient_cap_sweep,
         max_sweep_increment=max_sweep_increment,
@@ -271,8 +289,8 @@ function summarize_progress_files(paths::AbstractVector{<:AbstractString}; cap=n
 end
 
 function print_summary_table(rows)
-    println("| file | N | method | evolution | R | traj | seed | Dcap | completed cycles | final E/N | Dsys_eff | Dsb_eff | bond_status | sys cap | evolved cap | max sweep dt | max sweep at | last step | last cycle | last stage |")
-    println("|---|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---|---:|---:|---|")
+    println("| file | N | method | evolution | R | traj | seed | Dcap | completed cycles | final E/N | Dsys_eff | Dsb_eff | bond_status | sys cap | evolved cap | tdvp sweep cap | first transient cap | max sweep dt | max sweep at | last step | last cycle | last stage |")
+    println("|---|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---|---:|---|---:|---:|---|")
     for row in rows
         max_sweep_label = row.max_sweep_cycle == 0 ? "none" : "$(row.max_sweep_cycle):$(row.max_sweep)"
         println(
@@ -281,6 +299,8 @@ function print_summary_table(rows)
             "$(row.completed_cycles) | $(format_float(row.final_energy, 8)) | " *
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
             "$(row.bond_status) | $(saturation_cycle_label(row.system_cap_cycle)) | " *
+            "$(saturation_cycle_label(row.evolved_cap_cycle)) | " *
+            "$(cap_label(row.tdvp_sweep_cap_cycle, row.tdvp_sweep_cap_sweep)) | " *
             "$(cap_label(row.transient_cap_cycle, row.transient_cap_sweep)) | " *
             "$(format_float(row.max_sweep_increment, 1)) | $(max_sweep_label) | " *
             "$(row.last_step) | $(row.last_cycle) | $(row.last_stage) |"
