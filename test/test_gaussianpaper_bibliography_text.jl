@@ -60,3 +60,18 @@ end
     @test occursin("publication figure PDFs are not tracked", readme_text)
     @test occursin("renders labelled placeholder boxes", readme_text)
 end
+
+@testset "GaussianPaper finite-size claims remain qualified" begin
+    paper_dir = joinpath(@__DIR__, "..", "Notes", "GaussianPaper")
+    supp_text = read(joinpath(paper_dir, "journal_supp.tex"), String)
+    supp_flat = replace(supp_text, r"\s+" => " ")
+
+    @test occursin(raw"\section{Finite-size transferability of the optimal parameters}", supp_text)
+    @test occursin(raw"\cref{app:finite_size_transferability}", read(joinpath(paper_dir, "journal_main.tex"), String))
+    @test occursin(raw"\cref{fig:cooling_size_transfer_average}", supp_text)
+    @test occursin("phase-averaged free-fermion scan", supp_flat)
+    @test occursin("transfer within this free-fermion scan", supp_flat)
+    @test !occursin(r"\blwo\b", supp_text)
+    @test !occursin("demonstrating the scalability and robustness of the optimized protocol", supp_flat)
+    @test !occursin("This highlights the protocol's robustness across different system sizes and phases", supp_flat)
+end
