@@ -25,7 +25,10 @@ end
     @test !occursin("Bibliography database placeholder", bib_text)
     @test !occursin("Add full publication metadata", bib_text)
 
-    figures = braced_values(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]*)\}", tex_text)
+    figures = sort(unique(vcat(
+        braced_values(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]*)\}", tex_text),
+        braced_values(r"\\begin\{overpic\}(?:\[[^\]]*\])?\{([^}]*)\}", tex_text),
+    )))
     missing_figure_notes = [figure for figure in figures if !occursin(figure, readme_text)]
 
     @test !isempty(figures)

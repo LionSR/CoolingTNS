@@ -13,8 +13,23 @@ that regenerate them, or document the external artifact location.
 The currently referenced figure files are:
 
 - `Fig1.pdf`
+- `Fig2.pdf`
+- `Fig2inset.pdf`
+- `Fig3.pdf`
+- `Fig3inset2.pdf`
+- `Fig4smallg.pdf`
+- `Fig4compareg.pdf`
+- `Fig5.pdf`
+- `Fig5inset2.pdf`
+- `Fig6.pdf`
+- `Fig7.pdf`
 - `Fig8.pdf`
+- `NewFig`
+- `NewFig2`
+- `Fig9`
 - `NewFig3_combined.pdf`
+- `Fig2opt.pdf`
+- `Fig2opt_inset.pdf`
 - `Fig13_cooling_theta-specific.pdf`
 - `Fig14_dsp_theta-specific.pdf`
 - `Fig15_cooling_phase-averaged.pdf`
