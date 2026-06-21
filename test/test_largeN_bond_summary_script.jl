@@ -1,5 +1,6 @@
 using Test
 using HDF5
+using CoolingTNS
 
 include(joinpath(@__DIR__, "..", "scripts", "validation",
                  "summarize_largeN_bond_dimensions.jl"))
@@ -31,7 +32,7 @@ markdown_column_counts(text::AbstractString) = [
     path = tempname() * ".h5"
     try
         h5open(path, "w") do f
-            write(f, "delta_list", [NaN, 1.0, 2.0, 1.0, 3.0])
+            write(f, CoolingTNS.RESULT_DELTA_LIST, [NaN, 1.0, 2.0, 1.0, 3.0])
             history = delta_history_matrix(f)
             @test size(history) == (5, 1)
             @test distinct_completed_delta_counts(history, [3]) == [2]
@@ -48,7 +49,7 @@ end
         h5open(path, "w") do f
             write(f, "Dmax", 12)
             write(f, "evolution_method", "continuous")
-            write(f, "schedule", "descending")
+            write(f, CoolingTNS.RESULT_SCHEDULE, "descending")
             gn = create_group(f, "N4")
             write(gn, "N", 4)
             gm = create_group(gn, "mcwf")
@@ -68,10 +69,10 @@ end
             write(gr, "tdvp_sweep_max_bond", [0 0; 6 13; 8 14])
             write(gr, "tdvp_sweep_saturation_cycle", [0, 1])
             write(gr, "elapsed_seconds", [10.0, 15.5])
-            write(gr, "requested_steps", [3, 3])
-            write(gr, "completed_steps", [2, 2])
+            write(gr, CoolingTNS.RESULT_REQUESTED_STEPS, [3, 3])
+            write(gr, CoolingTNS.RESULT_COMPLETED_STEPS, [2, 2])
             write(gr, "stop_reasons", ["", "bond_cap"])
-            write(gr, "delta_values", [0.5, 3.0])
+            write(gr, CoolingTNS.RESULT_DELTA_VALUES, [0.5, 3.0])
             write(gr, "delta_lists", [NaN NaN; 3.0 3.0; 0.5 3.0])
 
             bd = create_group(gr, "final_bond_dims")
