@@ -9,6 +9,7 @@ const LARGE_N_TRAJECTORY_SEED_RULE =
     "trajectory_seed = base_seed + 1_000_000*N + 10_000*R + trajectory; " *
     "valid for 1 <= R < 100 and 1 <= trajectory < 10000"
 
+# Persisted HDF5 values for detuning_reference_gap_source and detuning_protocol_source.
 const LARGE_N_DETUNING_REFERENCE_SETUP_GAP = "setup_gap"
 const LARGE_N_DETUNING_REFERENCE_ISING_MODE_PAIR = "ising_mode_pair_reference"
 const LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE = "gap_scaled_range"
