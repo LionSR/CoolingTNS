@@ -51,16 +51,14 @@ function _mode_energy_coefficients(k_indices, N::Int, J::Real, h::Real)
 end
 
 function _checked_mode_energy_coefficients(εk_values, k_indices, N::Int, J::Real, h::Real)
-    length(εk_values) == length(k_indices) || throw(DimensionMismatch(
-        "$(CoolingTNS.RESULT_MODE_ENERGIES) length $(length(εk_values)) does not match " *
-        "$(CoolingTNS.RESULT_MODE_K_INDICES) length $(length(k_indices))",
-    ))
-
-    coeffs = _mode_energy_coefficients(k_indices, N, J, h)
-    computed_εk = abs.(2 .* coeffs)
-    if !isapprox(Float64.(εk_values), computed_εk; rtol=1e-8, atol=1e-10)
+    try
+        CoolingTNS.validate_mode_ek_values_match_grid(εk_values, k_indices, N, J, h)
+    catch err
+        err isa DimensionMismatch && rethrow()
+        err isa ArgumentError || rethrow()
         @warn "Stored positive quasiparticle gaps differ from coefficients reconstructed from N, J, h"
     end
+    coeffs = _mode_energy_coefficients(k_indices, N, J, h)
     return coeffs
 end
 

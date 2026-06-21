@@ -219,6 +219,9 @@ function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean)
     mode_nk = Float64.(read(run_group[RESULT_MODE_NK]))
     validate_mode_nk_matches_hk(mode_nk, mode_hk)
     k_indices = Float64.(vec(read(run_group[RESULT_MODE_K_INDICES])))
+    mode_ek_values = Float64.(vec(read(run_group[RESULT_MODE_ENERGIES])))
+    validate_mode_ek_values_match_grid(
+        mode_ek_values, k_indices, N, ham_params.params.J, ham_params.params.h)
     cycles = Int.(scalar_or_vector(read(run_group[RESULT_MODE_MEASUREMENT_CYCLES])))
     rows = cycles .+ 1
     valid_rows = [
