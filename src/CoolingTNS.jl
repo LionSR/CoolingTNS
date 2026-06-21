@@ -123,6 +123,7 @@ export supports_ising_fourier_observables
 export ising_mode_detuning_preserves_px, ising_mode_detuning_has_special_modes
 export ising_mode_detuning_reference
 export bath_detuning_energy, nearest_bath_resonance_indices
+export mode_measurement_cycles, mode_measurement_cycle_rows, validate_mode_measurement_rows
 
 # Multi-frequency cooling helpers
 export uniform_delta_grid, multi_frequency_cycle_choice, multi_frequency_cycle_sequence

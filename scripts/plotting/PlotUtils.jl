@@ -103,25 +103,7 @@ the physically measured cycles are stored in
 `CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES`.
 """
 function _mode_measurement_cycle_rows(n_rows::Integer, measurement_cycles=nothing)
-    n_rows >= 1 || throw(ArgumentError("mode-observable arrays must have at least one row"))
-
-    if measurement_cycles === nothing
-        cycles = collect(0:(n_rows - 1))
-    else
-        cycles = Int.(vec(measurement_cycles))
-        isempty(cycles) && throw(ArgumentError("mode measurement cycle list is empty"))
-        issorted(cycles) || throw(ArgumentError(
-            "mode measurement cycles must be sorted; got $cycles",
-        ))
-        length(unique(cycles)) == length(cycles) || throw(ArgumentError(
-            "mode measurement cycles must be unique; got $cycles",
-        ))
-        all(cycle -> 0 <= cycle < n_rows, cycles) || throw(ArgumentError(
-            "mode measurement cycles must lie in 0:$(n_rows - 1); got $cycles",
-        ))
-    end
-
-    return (cycles=cycles, rows=cycles .+ 1)
+    return CoolingTNS.mode_measurement_cycle_rows(n_rows, measurement_cycles)
 end
 
 function _mode_measurement_cycle_rows(data::AbstractDict, n_rows::Integer)

@@ -264,6 +264,34 @@ end
             bad_gaps, k_indices, N, J, h)
     end
 
+    @testset "Mode measurement cycle row validation" begin
+        mode_hk = [
+            -1.0 0.0
+            NaN  NaN
+             0.5 1.0
+        ]
+        mode_nk = mode_occupation_from_hk(mode_hk)
+
+        measured = mode_measurement_cycle_rows(3, [0, 2])
+        @test measured.cycles == [0, 2]
+        @test measured.rows == [1, 3]
+        @test mode_measurement_cycle_rows(3).cycles == [0, 1, 2]
+        @test_throws ArgumentError mode_measurement_cycle_rows(3, Int[])
+        @test_throws ArgumentError mode_measurement_cycle_rows(3, [2, 0])
+        @test_throws ArgumentError mode_measurement_cycle_rows(3, [0, 0])
+        @test_throws ArgumentError mode_measurement_cycle_rows(3, [0, 3])
+
+        @test validate_mode_measurement_rows(
+            mode_hk, mode_nk, [0, 2]; energy=[-1.0, 100.0, -0.5]
+        ).rows == [1, 3]
+        @test_throws ArgumentError validate_mode_measurement_rows(
+            mode_hk, mode_nk, [0, 1, 2])
+        @test_throws ArgumentError validate_mode_measurement_rows(
+            mode_hk, mode_nk, [0, 2]; energy=[-1.0, 100.0, NaN])
+        @test_throws DimensionMismatch validate_mode_measurement_rows(
+            mode_hk, mode_nk, [0, 2]; energy=[-1.0, -0.5])
+    end
+
     @testset "Bogoliubov text matches MapToSpin phase convention" begin
         file_contains(path, needle) = open(path) do io
             any(line -> occursin(needle, line), eachline(io))

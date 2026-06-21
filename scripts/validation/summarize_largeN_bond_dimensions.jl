@@ -222,15 +222,13 @@ function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean)
     mode_ek_values = Float64.(vec(read(run_group[RESULT_MODE_ENERGIES])))
     validate_mode_ek_values_match_grid(
         mode_ek_values, k_indices, N, ham_params.params.J, ham_params.params.h)
-    cycles = Int.(scalar_or_vector(read(run_group[RESULT_MODE_MEASUREMENT_CYCLES])))
-    rows = cycles .+ 1
-    valid_rows = [
-        row for row in rows
-        if 1 <= row <= size(mode_hk, 1) &&
-           row <= length(energy_mean) &&
-           isfinite(energy_mean[row]) &&
-           all(isfinite, view(mode_hk, row, :))
-    ]
+    measured = validate_mode_measurement_rows(
+        mode_hk,
+        mode_nk,
+        read(run_group[RESULT_MODE_MEASUREMENT_CYCLES]);
+        energy=energy_mean,
+    )
+    valid_rows = measured.rows
 
     measured_label = mode_measurement_row_label(length(valid_rows), length(energy_mean))
     isempty(valid_rows) && return (
