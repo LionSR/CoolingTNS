@@ -19,9 +19,11 @@ end
     cite_keys = braced_values(r"\\cite[a-zA-Z]*(?:\[[^\]]*\])*\{([^}]*)\}", tex_text)
     bib_keys = sort([match.captures[1] for match in eachmatch(r"@\w+\{([^,\s]+)", bib_text)])
     missing_bib_keys = setdiff(cite_keys, bib_keys)
+    extra_bib_keys = setdiff(bib_keys, cite_keys)
 
     @test !isempty(cite_keys)
     @test isempty(missing_bib_keys)
+    @test isempty(extra_bib_keys)
     @test !occursin("Bibliography database placeholder", bib_text)
     @test !occursin("Add full publication metadata", bib_text)
 
