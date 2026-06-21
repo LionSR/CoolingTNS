@@ -61,7 +61,7 @@ end
 
             write(gr, "M", 2)
             write(gr, CoolingTNS.RESULT_ENERGY, [-1.0, 2.0, 4.0])
-            write(gr, "relative_energy_mean", [0.0, 1.0, 2.0])
+            write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 1.0, 2.0])
             write(gr, "system_max_bond", [1 1; 6 9; 12 10])
             write(gr, "system_mean_bond", [1.0 1.0; 4.0 5.0; 8.0 5.0])
             write(gr, "evolved_max_bond", [0 0; 12 6; 8 14])
@@ -193,7 +193,7 @@ end
 
             write(gr, "M", 1)
             write(gr, "E_mean", [-1.0, 0.0])
-            write(gr, "relative_energy_mean", [0.0, 1.0])
+            write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 1.0])
             write(gr, "system_max_bond", [1, 2])
             write(gr, "system_mean_bond", [1.0, 2.0])
             write(gr, "evolved_max_bond", [0, 4])
@@ -269,7 +269,7 @@ end
 
             write(gr, "M", 1)
             write(gr, "E_mean", [mode_energy[1], 100.0, mode_energy[2] + final_energy_offset])
-            write(gr, "relative_energy_mean", [0.0, 1.0, 2.0])
+            write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 1.0, 2.0])
             write(gr, "system_max_bond", [1, 2, 3])
             write(gr, "system_mean_bond", [1.0, 2.0, 3.0])
             write(gr, "evolved_max_bond", [0, 3, 4])
@@ -336,7 +336,7 @@ end
 
             write(gr, "M", 1)
             write(gr, "E_mean", [0.0])
-            write(gr, "relative_energy_mean", [0.0])
+            write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0])
             write(gr, "system_max_bond", [1])
             write(gr, "system_mean_bond", [1.0])
             write(gr, "evolved_max_bond", [0])
@@ -377,7 +377,7 @@ end
 
             write(gr, "M", 1)
             write(gr, "E_mean", [-1.0, 0.0])
-            write(gr, "relative_energy_mean", [0.0, 1.0])
+            write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 1.0])
             write(gr, "system_max_bond", [1, 2])
             write(gr, "system_mean_bond", [1.0, 2.0])
             write(gr, "evolved_max_bond", [0, 4])
@@ -412,7 +412,7 @@ end
 
             write(gr, "M", 1)
             write(gr, "E_mean", [-1.0, 0.0])
-            write(gr, "relative_energy_mean", [0.0, 1.0])
+            write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 1.0])
             write(gr, "system_max_bond", [1, 2])
             write(gr, "system_mean_bond", [1.0, 2.0])
             write(gr, "evolved_max_bond", [0, 4])
