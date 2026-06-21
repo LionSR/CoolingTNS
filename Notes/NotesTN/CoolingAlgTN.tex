@@ -877,7 +877,7 @@ To further quantify the impact of noise on the cooling performance, we investiga
 
 % In this subsection, we present the results obtained using the MPS quantum trajectory simulations of the cooling algorithm.
 
-We simulate the cooling algorithm using MPS quantum trajectories for system sizes ranging from $N=10$ to $N=100$ and noise rates from $p_e=0.001$ to $p_e=0.01$. The bond dimension is truncated to a maximum value of $D \leq 40$, and the time step is set to $\delta t = 0.1$. The coupling strength between the system and the bath is set to $g=0.3$, and the total evolution time is $t_e=2.0$. The number of cooling steps is varied from 100 to 500. Since MPS trajectory simulations are probabilistic, a late-time average of trajectory energies is a practical diagnostic of a proposed protocol. It should be interpreted as a steady-state estimate only after independent trajectory sampling and bond-dimension convergence have been checked.
+We simulate the cooling algorithm using MPS quantum trajectories for system sizes ranging from $N=10$ to $N=100$ and noise rates from $p_e=0.001$ to $p_e=0.01$. Across the historical MPS trajectory campaign, archived pilot outputs use trajectory caps up to \(D\leq 40\); individual plotted panels below state their own fixed trajectory bond caps. The time step is set to $\delta t = 0.1$. The coupling strength between the system and the bath is set to $g=0.3$, and the total evolution time is $t_e=2.0$. The number of cooling steps is varied from 100 to 500. Since MPS trajectory simulations are probabilistic, a late-time average of trajectory energies is a practical diagnostic of a proposed protocol. It should be interpreted as a steady-state estimate only after independent trajectory sampling and bond-dimension convergence have been checked.
 
 \begin{figure}
 	\centering
@@ -896,7 +896,7 @@ Fig.~\ref{fig:MPSCooling:noisy} shows the error in the energy density as a funct
 	% \includegraphics[width=0.5\textwidth]{Figures/Cooling/MPS_NoisyCooling_IsingJ1.0h2.0Nmax100ratio1g0.3te1.0Steps500_versus_N_pe.pdf}
 	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns50Nb50_CouplingXXg0.3te2.0steps500_SimMPSDmax20pe0.01.pdf}
 	\includegraphics[width=0.5\textwidth]{Figures/Cooling/Cooling_HamniIsingJ1.0hx-1.05hz0.5Ns100Nb100_CouplingXXg0.3te2.0steps500_SimMPSDmax20pe0.01.pdf}
-	\caption{MPS quantum trajectory simulation results of the noisy cooling procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. Each trajectory starts from the same pure product state, and stochastic Pauli errors are sampled after each cooling step. The bond dimension is $D \leq 40$, and the time step is $\delta t = 0.1$.}
+	\caption{MPS quantum trajectory simulation results of the noisy cooling procedure. The coupling operator between the system and the bath is $V = \sigma_x \otimes \sigma_x$. Each trajectory starts from the same pure product state, and stochastic Pauli errors are sampled after each cooling step. The bond dimension is $D \leq 20$, and the time step is $\delta t = 0.1$.}
 	\label{fig:MPSCooling:noisy}
 \end{figure}
 

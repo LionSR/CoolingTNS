@@ -32,6 +32,9 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("archived pilot outputs use truncation caps up to \\(D\\leq 100\\)", note_flat)
     @test occursin("individual plotted panels below state their own fixed bond caps", note_flat)
     @test occursin("The displayed fixed-bond MPO panels use system sizes \\(N=50,100\\), bond dimension \\(D\\leq 20\\)", note_flat)
+    @test occursin("archived pilot outputs use trajectory caps up to \\(D\\leq 40\\)", note_flat)
+    @test occursin("individual plotted panels below state their own fixed trajectory bond caps", note_flat)
+    @test occursin("Each trajectory starts from the same pure product state, and stochastic Pauli errors are sampled after each cooling step. The bond dimension is \$D \\leq 20\$", note_flat)
     @test occursin("D_{\\mathrm{sb}}^{\\mathrm{eff}}=394, 862, 518, 737", note_flat)
     @test occursin("R = 1: Dsys_eff = 309, Dsb_eff = 394", evidence_flat)
     @test occursin("R = 2: Dsys_eff = 637, Dsb_eff = 862", evidence_flat)
@@ -196,6 +199,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         "the steady-state energy density",
         "the energy of the steady state is estimated",
         "the bond dimension is truncated to a maximum value of \$d \\leq 100\$",
+        "each trajectory starts from the same pure product state, and stochastic pauli errors are sampled after each cooling step. the bond dimension is \$d \\leq 40\$",
         "with a bond dimension of \$d \\leq 100\$",
     ]
     @test all(!occursin(phrase, note_lower) for phrase in forbidden)
