@@ -27,6 +27,11 @@ counts into full detuning-grid passes by dividing by `R`.  Random schedules and
 legacy files without schedule metadata are reported as `n/a`.  The
 `visited detunings` column counts distinct stored detuning values used during
 completed cycles, again excluding the initial `NaN` measurement row.
+The `detuning coverage` column then records whether a deterministic schedule
+has actually completed at least one full detuning-grid period; a prefix shorter
+than one period is marked explicitly rather than left for the reader to infer.
+Single-detuning runs report `single_detuning`, and random schedules report
+`n/a`.
 """
 
 using CoolingTNS
@@ -251,17 +256,37 @@ function schedule_label(root, method_group, run_group)
     )
 end
 
+is_deterministic_schedule(schedule::AbstractString) =
+    schedule in ("round_robin", "descending")
+
 function completed_requested_periods_label(
     completed_steps::AbstractVector{<:Integer},
     requested_steps::AbstractVector{<:Integer},
     R::Integer,
     schedule::AbstractString,
 )
-    schedule in ("round_robin", "descending") || return "n/a"
+    is_deterministic_schedule(schedule) || return "n/a"
     R > 0 || return "n/a"
     completed_periods = Float64.(completed_steps) ./ R
     requested_periods = Float64.(requested_steps) ./ R
     return "$(range_float_label(completed_periods))/$(range_float_label(requested_periods))"
+end
+
+function detuning_coverage_status(
+    completed_steps::AbstractVector{<:Integer},
+    requested_steps::AbstractVector{<:Integer},
+    R::Integer,
+    schedule::AbstractString,
+)
+    is_deterministic_schedule(schedule) || return "n/a"
+    R > 0 || return "n/a"
+    (isempty(completed_steps) || isempty(requested_steps)) && return "n/a"
+    R == 1 && return "single_detuning"
+    minimum(completed_steps) >= R && return "full_grid_observed"
+    # This is a run-level status: if any trajectory was requested for a full
+    # period, an under-one-period completed prefix is treated as stopped short.
+    maximum(requested_steps) < R && return "requested_partial_grid"
+    return "stopped_partial_grid"
 end
 
 function delta_history_matrix(run_group)
@@ -438,6 +463,9 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         completed_steps_values, requested_steps_values, R, schedule
     )
     visited_detunings = visited_detunings_label(run_group, completed_steps_values, R)
+    detuning_coverage = detuning_coverage_status(
+        completed_steps_values, requested_steps_values, R, schedule
+    )
     elapsed_values = read_float_vector(run_group, "elapsed_seconds")
     elapsed_seconds = isempty(elapsed_values) ? NaN : sum(elapsed_values)
     traj_cycles_per_hour = trajectory_cycles_per_hour(
@@ -524,6 +552,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         completed_requested="$(range_label(completed_steps_values))/$(range_label(requested_steps_values))",
         completed_requested_periods=completed_requested_periods,
         visited_detunings=visited_detunings,
+        detuning_coverage=detuning_coverage,
         elapsed_total_seconds=elapsed_seconds,
         traj_cycles_per_hour=traj_cycles_per_hour,
         stop_reason=stop_reason_label(stop_reasons),
@@ -597,13 +626,13 @@ function sorted_rows(rows)
 end
 
 function print_markdown(rows)
-    println("| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
-    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---:|---:|---|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
+    println("| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---|---:|---:|---|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | $(row.R) | $(row.M) | " *
             "$(row.schedule) | $(row.completed_requested) | $(row.completed_requested_periods) | " *
-            "$(row.visited_detunings) | " *
+            "$(row.visited_detunings) | $(row.detuning_coverage) | " *
             "$(format_float(row.elapsed_total_seconds, 1)) | " *
             "$(format_float(row.traj_cycles_per_hour, 2)) | $(row.stop_reason) | " *
             "$(row.delta_protocol) | $(row.delta_range) | $(row.delta_factor) | " *
@@ -634,13 +663,14 @@ function print_markdown(rows)
 end
 
 function print_compact_markdown(rows)
-    println("| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | final E/N | best E/N | mode max abs dE/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | traj cycles/hour | stop_reason |")
-    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---|")
+    println("| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | mode max abs dE/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | traj cycles/hour | stop_reason |")
+    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---|")
     for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | " *
             "$(row.R) | $(row.M) | $(row.schedule) | $(row.completed_requested) | " *
             "$(row.completed_requested_periods) | $(row.visited_detunings) | " *
+            "$(row.detuning_coverage) | " *
             "$(format_float(row.final_e_over_n, 8)) | " *
             "$(format_float(row.best_e_over_n, 8)) | " *
             "$(format_float_or_na(row.mode_max_abs_err_over_n, 3)) | $(row.threshold) | " *

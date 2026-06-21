@@ -54,7 +54,13 @@ stored schedule metadata are reported as `n/a` in this period column.  The
 `visited detunings` column counts distinct stored detuning values that actually
 appear in the completed cycle prefix, excluding the initial `NaN` measurement
 row; for stop-on-cap runs it is therefore the realized detuning coverage before
-the cap, not the intended full grid.  The `elapsed_total` column sums
+the cap, not the intended full grid.  The `detuning coverage` column makes the
+same distinction as a status label: deterministic `round_robin` and
+`descending` runs report `full_grid_observed` only after every trajectory has
+completed at least one full detuning-grid period.  Prefixes shorter than one
+period are marked as `requested_partial_grid` or `stopped_partial_grid`;
+single-detuning runs report `single_detuning`; random schedules report this
+label as `n/a`.  The `elapsed_total` column sums
 per-trajectory elapsed times, matching the sequential large-N campaign driver,
 and `traj cycles/hour` is computed as
 $$
