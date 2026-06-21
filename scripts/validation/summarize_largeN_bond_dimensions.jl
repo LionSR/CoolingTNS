@@ -118,9 +118,9 @@ function delta_values_interval_label(run_group)
 end
 
 function detuning_factor_label(source::AbstractString, factor::Real)
-    source == "gap_scaled_range" && isfinite(factor) &&
+    source == LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE && isfinite(factor) &&
         return format_float(factor, 3)
-    source == "fixed_range" && return "n/a"
+    source == LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE && return "n/a"
     return "unknown"
 end
 

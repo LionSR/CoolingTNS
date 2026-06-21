@@ -7,6 +7,10 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test LARGE_N_TRAJECTORY_SEED_RULE ==
           "trajectory_seed = base_seed + 1_000_000*N + 10_000*R + trajectory; " *
           "valid for 1 <= R < 100 and 1 <= trajectory < 10000"
+    @test LARGE_N_DETUNING_REFERENCE_SETUP_GAP == "setup_gap"
+    @test LARGE_N_DETUNING_REFERENCE_ISING_MODE_PAIR == "ising_mode_pair_reference"
+    @test LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE == "gap_scaled_range"
+    @test LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE == "fixed_range"
     @test largeN_trajectory_seed(20260617, 64, 10, 1) == 84360618
     @test largeN_trajectory_seed(7, 2, 1, 3) == 2010010
     @test_throws ArgumentError largeN_trajectory_seed(7, 2, 0, 1)
@@ -15,7 +19,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test_throws ArgumentError largeN_trajectory_seed(7, 2, 1, 10_000)
 
     gap_protocol = largeN_detuning_protocol(0.5; delta_max_factor=6.0)
-    @test gap_protocol.source == "gap_scaled_range"
+    @test gap_protocol.source == LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE
     @test gap_protocol.reference_gap == 0.5
     @test gap_protocol.delta_min == 0.5
     @test gap_protocol.delta_max == 3.0
@@ -26,7 +30,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     fixed_protocol = largeN_detuning_protocol(
         0.75; delta_min=0.25, delta_max=1.25, delta_max_factor=6.0
     )
-    @test fixed_protocol.source == "fixed_range"
+    @test fixed_protocol.source == LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE
     @test fixed_protocol.reference_gap == 0.75
     @test fixed_protocol.delta_min == 0.25
     @test fixed_protocol.delta_max == 1.25
@@ -41,7 +45,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     fixed_protocol_negative_reference = largeN_detuning_protocol(
         -0.035; delta_min=0.5, delta_max=0.5, delta_max_factor=6.0
     )
-    @test fixed_protocol_negative_reference.source == "fixed_range"
+    @test fixed_protocol_negative_reference.source == LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE
     @test fixed_protocol_negative_reference.reference_gap == -0.035
     @test fixed_protocol_negative_reference.delta_min == 0.5
     @test fixed_protocol_negative_reference.delta_max == 0.5

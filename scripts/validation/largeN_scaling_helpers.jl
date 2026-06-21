@@ -9,6 +9,12 @@ const LARGE_N_TRAJECTORY_SEED_RULE =
     "trajectory_seed = base_seed + 1_000_000*N + 10_000*R + trajectory; " *
     "valid for 1 <= R < 100 and 1 <= trajectory < 10000"
 
+# Persisted HDF5 values for detuning_reference_gap_source and detuning_protocol_source.
+const LARGE_N_DETUNING_REFERENCE_SETUP_GAP = "setup_gap"
+const LARGE_N_DETUNING_REFERENCE_ISING_MODE_PAIR = "ising_mode_pair_reference"
+const LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE = "gap_scaled_range"
+const LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE = "fixed_range"
+
 """
     largeN_trajectory_seed(base_seed, N, R, trajectory)
 
@@ -63,7 +69,7 @@ function largeN_detuning_protocol(
         isfinite(factor) && factor >= 1 ||
             throw(ArgumentError("delta_max_factor must be finite and at least 1, got $factor"))
         return (
-            source="gap_scaled_range",
+            source=LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE,
             reference_gap=reference_gap,
             delta_min=reference_gap,
             delta_max=factor * reference_gap,
@@ -80,7 +86,7 @@ function largeN_detuning_protocol(
         delta_max_value >= delta_min_value ||
         throw(ArgumentError("fixed detuning range must satisfy 0 < delta_min <= delta_max"))
     return (
-        source="fixed_range",
+        source=LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE,
         reference_gap=reference_gap,
         delta_min=delta_min_value,
         delta_max=delta_max_value,

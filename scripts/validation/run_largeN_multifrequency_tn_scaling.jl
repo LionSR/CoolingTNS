@@ -392,7 +392,7 @@ function campaign_base_detuning_reference(ham_params, cfg)
             )
             # This source labels the reference gap stored in HDF5; the actual
             # detuning range is still the explicit fixed interval from cfg.
-            return (delta=nothing, source="setup_gap")
+            return (delta=nothing, source=LARGE_N_DETUNING_REFERENCE_SETUP_GAP)
         end
         if ising_mode_detuning_has_special_modes(ham_params)
             cfg["delta_min"] === nothing && error(
@@ -400,14 +400,14 @@ function campaign_base_detuning_reference(ham_params, cfg)
                 "reference Fourier grid has no special modes. Use an explicit " *
                 "--delta-min/--delta-max for $(ham_params.bc) boundary conditions."
             )
-            return (delta=nothing, source="setup_gap")
+            return (delta=nothing, source=LARGE_N_DETUNING_REFERENCE_SETUP_GAP)
         end
         return (
             delta=ising_mode_detuning_reference(ham_params),
-            source="ising_mode_pair_reference",
+            source=LARGE_N_DETUNING_REFERENCE_ISING_MODE_PAIR,
         )
     end
-    return (delta=nothing, source="setup_gap")
+    return (delta=nothing, source=LARGE_N_DETUNING_REFERENCE_SETUP_GAP)
 end
 
 function campaign_dmax_values(cfg)
