@@ -390,6 +390,24 @@ function first_saturation_from_history(history, threshold::Integer)
     return first_recorded_saturation_cycle(cycles)
 end
 
+"""
+    read_largeN_energy_mean(run_group)
+
+Read the large-N aggregate energy time series.  New files use the canonical
+`RESULT_ENERGY` key, while archived files may still use the legacy `E_mean`
+dataset.  The summary script does not read the overlap-mean series, so the
+corresponding archived `GS_overlap_mean` fallback is intentionally unnecessary
+here.
+"""
+function read_largeN_energy_mean(run_group)
+    haskey(run_group, RESULT_ENERGY) && return read(run_group[RESULT_ENERGY])
+    haskey(run_group, "E_mean") && return read(run_group["E_mean"])
+    error(
+        "large-N run group is missing both $RESULT_ENERGY and legacy E_mean " *
+        "energy-mean datasets"
+    )
+end
+
 function summarize_run(file_name::AbstractString, root, n_group_name::AbstractString,
                        method_name::AbstractString, method_group, r_group_name::AbstractString,
                        run_group)
@@ -399,7 +417,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     evolution = String(read_group_value(method_group, root, "evolution_method", "unknown"))
     threshold = saturation_threshold_for(root, method_group, run_group, method_name)
 
-    energy_mean = read(run_group["E_mean"])
+    energy_mean = read_largeN_energy_mean(run_group)
     relative_energy_mean = read(run_group["relative_energy_mean"])
     inferred_completed_steps = max(length(energy_mean) - 1, 0)
     default_requested_steps = haskey(root, "steps") ?
