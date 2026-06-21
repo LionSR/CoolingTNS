@@ -289,6 +289,8 @@ end
             mode_hk, mode_nk, 2; energy=[-1.0, 100.0, -0.5]
         ).cycles == [2]
         @test_throws ArgumentError validate_mode_measurement_rows(
+            mode_hk, nothing, [0, 2])
+        @test_throws ArgumentError validate_mode_measurement_rows(
             mode_hk, mode_nk, [0, 1, 2])
         @test_throws ArgumentError validate_mode_measurement_rows(
             mode_hk, mode_nk, [0, 2]; energy=[-1.0, 100.0, NaN])

@@ -232,13 +232,16 @@ energy and bond diagnostics.  Long large-`N` runs may therefore use
 `mode_hk` and `mode_nk` retain the ordinary step-by-mode shape, but only cycles
 `0, s, 2s, ...` and the requested final cycle are evaluated; unmeasured rows
 are stored as `NaN`, and the measured cooling cycles are listed in
-`mode_measurement_cycles`.  The library validator
-`mode_measurement_cycle_rows` is the shared source of truth for this row
+`mode_measurement_cycles`.  The library routine
+`mode_measurement_cycle_rows` is the shared source of truth for the cycle-list
 contract: it requires the measured cycles to be nonempty, sorted, unique, and
 in range, and maps them to the one-based rows used by Julia arrays.  The
-large-N writer, summary script, and plotting utilities all use this convention
-so that deliberately unmeasured `NaN` rows are distinguished from malformed or
-non-finite measured rows.
+larger validator `validate_mode_measurement_rows` also checks the
+`mode_nk = mode_occupation_from_hk(mode_hk)` relation and rejects non-finite
+measured `mode_hk`, `mode_nk`, or energy rows.  The large-N writer, summary
+script, and plotting utilities all use these conventions so that deliberately
+unmeasured `NaN` rows are distinguished from malformed or non-finite measured
+rows.
 
 For mode-energy reconstruction checks, the simulated state should have a
 definite Ising parity so that the fermionic momentum grid is selected by the

@@ -624,6 +624,9 @@ function validate_mode_measurement_rows(
 )
     mode_hk isa AbstractMatrix ||
         throw(ArgumentError("$RESULT_MODE_HK must be a steps-by-modes matrix"))
+    mode_nk isa AbstractArray || throw(ArgumentError(
+        "$RESULT_MODE_NK must be a steps-by-modes matrix, got type $(typeof(mode_nk))"
+    ))
     mode_nk isa AbstractMatrix || throw(DimensionMismatch(
         "$RESULT_MODE_NK has shape $(size(mode_nk)), but $RESULT_MODE_HK has " *
         "shape $(size(mode_hk))"
