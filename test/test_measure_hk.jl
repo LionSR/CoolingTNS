@@ -1,11 +1,12 @@
 """
-Tests for mode energy measurement (measure_hk, measure_all_mode_energies, measure_state_parity).
+Tests for Bogoliubov mode-observable measurement
+(measure_hk, measure_all_mode_energies, measure_state_parity).
 
 These tests verify that:
 1. The ground state has ⟨h_k⟩ = -1 for all modes (Bogoliubov vacuum)
 2. Excited states have ⟨h_k⟩ > -1 for the excited mode
 3. Total energy from mode decomposition matches ⟨H⟩
-4. Mode energies sum correctly for the ground state
+4. Signed mode coefficients reconstruct the ground-state energy
 5. The all-spins-up initial state has ⟨h_k⟩ ≈ 0 for generic modes
 6. Density matrices give consistent results with pure states
 7. Parity measurement: ⟨P_x⟩ = ±1 for parity eigenstates
@@ -101,7 +102,7 @@ end
 # Tests
 # ============================================================================
 
-@testset "Mode Energy Measurements" begin
+@testset "Bogoliubov Mode Observables" begin
 
     @testset "ED momentum distribution has one JW implementation" begin
         ed_backend_text = read(joinpath(@__DIR__, "..", "src", "ed_backend.jl"), String)
@@ -641,7 +642,7 @@ end
         end
     end
 
-    @testset "Mode energy values are positive" begin
+    @testset "Positive quasiparticle gaps are reported separately" begin
         N = 4; J = 1.0; h = 0.5
         ham_params = IsingParameters(N, J, h, :periodic)
         H = _build_H(N, J, h, :periodic)

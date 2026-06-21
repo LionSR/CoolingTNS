@@ -283,7 +283,8 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
         measurements[RESULT_MOMENTUM_DISTRIBUTION][step, :] .= n_k
     end
 
-    # Mode energy measurements ⟨h_k⟩ (requires measure_modes=true in run_cooling)
+    # Bogoliubov mode-observable measurements ⟨h_k⟩
+    # (requires measure_modes=true in run_cooling)
     if haskey(measurements, RESULT_MODE_HK) && supports_ising_fourier_observables(ham_params)
         _record_ising_mode_measurements!(measurements, step, sys_state, ham_params)
     end

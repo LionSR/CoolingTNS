@@ -256,7 +256,7 @@ function measure_state_parity(state::EDDensityMatrix, N::Int)
 end
 
 # =============================================================================
-# Mode energy measurement: h_k
+# Bogoliubov mode observable measurement: h_k
 # =============================================================================
 
 """
@@ -356,13 +356,13 @@ _expect_complex(op::AbstractMatrix, ρ::Matrix{ComplexF64}) = tr(op * ρ)
 """
     measure_hk(state::Union{EDStateVector, EDDensityMatrix}, k, ham_params) -> Float64
 
-Compute the mode energy observable ⟨h_k⟩ for mode ``k``.
+Compute the Bogoliubov mode observable ``⟨h_k⟩`` for mode ``k``.
 
 ``h_k = 2â†_k â_k - 1`` where ``â_k`` is the Bogoliubov quasiparticle annihilation
 operator for mode ``k``.
 
 # Returns
-- `Float64`: The mode energy observable, in the range [-1, +1].
+- `Float64`: The dimensionless Bogoliubov mode observable, in the range [-1, +1].
   - ``⟨h_k⟩ = -1``: mode is in its ground state (Bogoliubov vacuum)
   - ``⟨h_k⟩ = +1``: mode is maximally excited
   - ``⟨h_k⟩ = 0``: mode is in an equal mixture (e.g., infinite temperature)
@@ -444,14 +444,19 @@ function measure_hk(state::EDDensityMatrix, k, ham_params)
 end
 
 # =============================================================================
-# All mode energies
+# All mode observables and quasiparticle gaps
 # =============================================================================
 
 """
     measure_all_mode_energies(state, ham_params; gF=nothing) 
         -> (k_indices, hk_values, εk_values)
 
-Measure ⟨h_k⟩ for all allowed modes and return mode energies.
+Measure ``⟨h_k⟩`` for all allowed modes and return the positive quasiparticle
+gaps used for resonance labels.
+
+The historical function name contains "mode energies", but the measured
+observable is the dimensionless ``h_k``.  Energies are reconstructed from
+``hk_values`` only through `ising_energy_from_mode_hk`.
 
 # Arguments
 - `state`: Quantum state in the code basis (EDStateVector or EDDensityMatrix)
