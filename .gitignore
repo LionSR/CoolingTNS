@@ -51,3 +51,4 @@ slides/build/
 # Local auxiliary worktrees
 .worktree/
 .worktrees/
+.claude/worktrees/
