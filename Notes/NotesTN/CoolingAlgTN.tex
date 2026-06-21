@@ -453,7 +453,7 @@ The matrix product operator simulations were performed using the ITensor.jl~\cit
 
 \section{Quantum Trajectory Simulation with Matrix Product States}
 
-As an alternative to solving the many-body dynamical equation (\ref{eq:rhokp1}) directly, the quantum trajectory method allows us to work with stochastic wavefunctions instead of density operators. This approach is advantageous because MPO simulations without purification may lead to unphysical states, even though the steady state is physical. During the evolution, the truncation might result in states with lower energies than the ground state, which is incorrect. By combining quantum trajectories with matrix product state techniques, we can simulate large systems when the trajectory entanglement remains controlled; when the transient system-bath state or the TDVP sweep reaches the imposed bond cap, the run should be interpreted as a truncation diagnostic rather than as converged cooling dynamics.
+As an alternative to solving the many-body dynamical equation (\ref{eq:rhokp1}) directly, the quantum trajectory method allows us to work with stochastic wavefunctions instead of density operators. This approach is advantageous because MPO simulations without purification may lead to unphysical states, even though the steady state is physical. During the evolution, the truncation might result in states with lower energies than the ground state, which is incorrect. By combining quantum trajectories with matrix product state techniques, we can simulate large systems when the trajectory entanglement remains controlled; when the evolved system-bath MPS, the retained system MPS, or the TDVP sweep observer reaches the imposed bond cap, the run should be interpreted as a truncation diagnostic rather than as converged cooling dynamics.
 
 
 Each stochastic trajectory begins from the same initial normalized pure state $\ket{\Psi_S^1}$ and evolves according to the following procedure.
@@ -602,7 +602,7 @@ respectively.  The corresponding final energy densities are
 	1.45494183,\quad 1.00710734,\quad 1.50779337,\quad 1.38290684.
 \]
 Thus TDVP is accessible in the campaign driver, but the two-cycle data should
-not be read as cooling evidence.  They only show that the first transient
+not be read as cooling evidence.  They only show that the early evolved
 system-bath MPS can be represented at \(D_{\max}=96\) for this protocol.  The
 energies are still positive and far above the ground-state energy.  A test of
 the expected low-entanglement fixed point requires longer traced runs,
@@ -642,13 +642,13 @@ After the TDVP Krylov-expansion correction, the fixed-detuning order was also
 tested as a protocol variable.  For \(N=64\), \(R=10\), descending detuning
 order, \(t_e=1.0\), \(\tau=0.2\), cutoff \(10^{-7}\), and
 \(D_{\max}=64\), the requested eight-cycle MCWF+TDVP diagnostic stopped after
-four completed cycles when the transient system-bath state and the TDVP sweep
+four completed cycles when the evolved system-bath MPS and the TDVP sweep
 observer reached the cap.  The completed-cycle energy densities were
 \[
 	1.30592953,\quad 1.13874047,\quad 0.95514768,\quad 0.87319302 .
 \]
-The retained system MPS reached bond dimension \(56\), while the transient and
-sweep diagnostics give only lower bounds
+The retained system MPS reached bond dimension \(56\), while the evolved
+system-bath and TDVP-sweep diagnostics give only lower bounds
 \[
 	D_{\mathrm{sb}}^{\mathrm{eff}}\geq 64,\qquad
 	D_{\mathrm{TDVP\ sweep}}^{\mathrm{eff}}\geq 64 .
@@ -675,9 +675,9 @@ R & \text{completed cycles} & \min(E/N) & D_{\mathrm{sys}}^{\mathrm{eff}}\\
 10 & 4/8 & 0.87319302 & 56
 \end{array}
 \]
-In all four cases the transient system-bath state and the TDVP sweep observer
-reach bond dimension \(64\), so their effective dimensions are lower bounded
-by \(64\).  Thus \(R=10\) is the best of this fixed descending set at the
+In all four cases the evolved system-bath MPS and the TDVP sweep observer reach
+bond dimension \(64\), so their effective dimensions are lower bounded by
+\(64\).  Thus \(R=10\) is the best of this fixed descending set at the
 tested cap, but the whole scan is still a cap-limited bond-growth diagnostic,
 not evidence of scalable cooling to the ground state.
 
@@ -702,9 +702,9 @@ The stop occurs after \(5/12\) requested cycles with
 \]
 Thus the \(D_{\max}=64\) cycle-four point was still truncation limited, but
 raising the cap to \(128\) only lowers the capped prefix to
-\(E/N=0.84528025\) before the transient and sweep observers again reach the
-cap.  The result is evidence for the bond scale required by this descending
-schedule, not evidence of scalable cooling to the ground state.
+\(E/N=0.84528025\) before the evolved system-bath MPS and TDVP sweep observer
+again reach the cap.  The result is evidence for the bond scale required by
+this descending schedule, not evidence of scalable cooling to the ground state.
 
 The remaining frequencies \(R=1,2,5\) were then repeated at the same
 \(D_{\max}=128\), while reusing the recorded \(R=10\) run for comparison.
@@ -732,8 +732,9 @@ For all four rows,
 Thus \(R=10\) remains the best of this fixed descending set at
 \(D_{\max}=128\), followed by \(R=2\).  The \(R=1\) trajectory already heats
 after its fourth cycle, and all four trajectories are still stopped by the
-transient or sweep cap.  This confirms that the obstruction is bond growth,
-not merely the low value \(D_{\max}=64\) used in the preceding diagnostic.
+evolved system-bath or TDVP-sweep cap.  This confirms that the obstruction is
+bond growth, not merely the low value \(D_{\max}=64\) used in the preceding
+diagnostic.
 
 Finally, the same \(R=10\), \(D_{\max}=128\) descending trajectory was repeated
 with the shorter evolution time \(t_e=0.5\) and \(20\) requested cycles.  The

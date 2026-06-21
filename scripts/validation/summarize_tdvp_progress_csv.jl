@@ -169,7 +169,8 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
     tdvp_sweep_cap_sweep = nothing
     for row in rows
         stage = progress_cell(row, "stage")
-        # Only these rows are transient system-bath cap observations.
+        # Evolved rows describe the post-evolution system-bath MPS; TDVP-sweep
+        # rows describe the integrator observer history.
         stage in ("tdvp_sweep", "evolved") || continue
         if progress_float(row, "evolved_max_bond") >= threshold
             if stage == "tdvp_sweep"

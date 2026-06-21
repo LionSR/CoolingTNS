@@ -92,12 +92,12 @@ let ITensorMPS print its own TDVP sweep summary, use `--tdvp-outputlevel 1`.
 
 For diagnostic runs where the objective is only to locate the first
 bond-dimension cap event, add `--stop-on-bond-cap`.  This stops a trajectory
-after the first completed cycle whose retained system state or transient
-system-bath state reaches the method-specific cap.  With
-`--tdvp-sweep-progress`, this includes transient TDVP sweep states recorded
-inside the cycle.  It is intended for single-trajectory diagnostics; use
-independent jobs for ensemble members whose partial trajectories may stop at
-different cycle counts.  Unless `--output` is given explicitly, the HDF5
+after the first completed cycle whose retained system state, evolved
+system-bath state, or, with `--tdvp-sweep-progress`, TDVP sweep-observer
+history reaches the method-specific cap.  It is intended for single-trajectory
+diagnostics; use independent jobs for ensemble members whose partial
+trajectories may stop at different cycle counts.  Unless `--output` is given
+explicitly, the HDF5
 filename receives a `_stopcap` suffix so these partial diagnostic files do not
 overwrite full benchmark files with the same physical parameters.  The HDF5
 group also records `tdvp_sweep_max_bond` and

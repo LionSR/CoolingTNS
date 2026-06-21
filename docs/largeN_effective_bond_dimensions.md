@@ -566,12 +566,14 @@ This run is a stress test, not a converged calculation.  Its purpose is to
 check whether a five-cycle TDVP trace can be recorded at `N = 64` and to locate
 the onset of the bond-dimension bottleneck.
 
-| R | final E/N | relE | Dsys_eff | Dsb_eff | bond_status | final sys max | peak evolved max | sys sat | evolved sat | elapsed |
-|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|
-| 1 | 1.44660215 | 2.09208 | >=32 | >=32 | not_converged_system_and_evolved_cap | 32 | 32 | 2 | 2 | 714.6 s |
-| 2 | 0.93477793 | 1.70569 | >=32 | >=32 | not_converged_system_and_evolved_cap | 32 | 32 | 2 | 2 | 759.2 s |
-| 5 | 0.71627699 | 1.54074 | >=32 | >=32 | not_converged_system_and_evolved_cap | 32 | 32 | 2 | 2 | 852.7 s |
-| 10 | 1.25928111 | 1.95066 | >=32 | >=32 | not_converged_system_and_evolved_cap | 32 | 32 | 2 | 2 | 889.9 s |
+Summarizing the retained progress CSV with the current convention gives
+
+| R | Dcap | completed cycles | final E/N | relE | Dsys_eff | Dsb_eff | bond_status | system cap | evolved cap | tdvp sweep cap | first transient cap | max sweep dt | max sweep at | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---|---:|---|---:|
+| 1 | 32 | 5 | 1.44660215 | 2.09208 | >=32 | >=32 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 2 | 2 | 2:7 | 2:7 | 48.7 s | 2:8 | 714.6 s |
+| 2 | 32 | 5 | 0.93477793 | 1.70569 | >=32 | >=32 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 2 | 2 | 2:7 | 2:7 | 110.4 s | 5:5 | 759.2 s |
+| 5 | 32 | 5 | 0.71627699 | 1.54074 | >=32 | >=32 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 2 | 2 | 2:7 | 2:7 | 190.0 s | 4:7 | 852.7 s |
+| 10 | 32 | 5 | 1.25928111 | 1.95066 | >=32 | >=32 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 2 | 2 | 2:7 | 2:7 | 173.9 s | 4:7 | 889.9 s |
 
 The per-cycle energy trace from the progress CSV was
 
@@ -582,15 +584,11 @@ The per-cycle energy trace from the progress CSV was
 | 5 | 1.50268855 | 1.50795671 | 1.39331737 | 1.05050253 | 0.71627699 |
 | 10 | 1.43490779 | 1.38308413 | 1.28262081 | 1.29877448 | 1.25928111 |
 
-The sweep-level trace shows that the transient system-bath state reaches the
-`Dmax = 32` cap early in every case:
-
-| R | first transient cap hit | largest sweep increment from CSV |
-|---:|---|---:|
-| 1 | cycle 2, sweep 7 | 48.7 s |
-| 2 | cycle 2, sweep 7 | 110.4 s |
-| 5 | cycle 2, sweep 7 | 190.0 s |
-| 10 | cycle 2, sweep 7 | 173.9 s |
+The three cap sources agree on the onset cycle but not on the same object:
+the retained system MPS and the evolved system-bath MPS first reach
+`Dmax = 32` in cycle 2, while the TDVP sweep observer first reaches the cap in
+cycle 2 sweep 7.  The `first transient cap` column reports the earliest
+system-bath cap source among the evolved and TDVP-sweep observations.
 
 The low-cap trajectory therefore does not support a physical cooling claim.
 It does show that the sweep-progress rows are sufficient to diagnose both
