@@ -160,6 +160,10 @@ using HDF5
         @test CoolingTNS.RESULT_MODE_HK == "mode_hk"
         @test CoolingTNS.RESULT_MODE_NK == "mode_nk"
         @test CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES == "mode_measurement_cycles"
+        @test CoolingTNS.RESULT_MODE_HK_TRAJECTORIES == "mode_hk_trajectories"
+        @test CoolingTNS.RESULT_MODE_NK_TRAJECTORIES == "mode_nk_trajectories"
+        @test CoolingTNS.RESULT_MODE_HK_STDERR == "mode_hk_stderr"
+        @test CoolingTNS.RESULT_MODE_NK_STDERR == "mode_nk_stderr"
         @test CoolingTNS.RESULT_DELTA_LIST == "delta_list"
         @test CoolingTNS.RESULT_TE_LIST == "te_list"
         @test CoolingTNS.RESULT_REQUESTED_STEPS == "requested_steps"
@@ -177,6 +181,10 @@ using HDF5
         @test CoolingTNS.RESULT_MODE_HK in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_MODE_NK in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_MODE_HK_TRAJECTORIES in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_MODE_NK_TRAJECTORIES in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_MODE_HK_STDERR in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_MODE_NK_STDERR in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_DELTA_LIST in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_REQUESTED_STEPS in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_COMPLETED_STEPS in CoolingTNS.RESULT_KEYS
