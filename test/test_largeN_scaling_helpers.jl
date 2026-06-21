@@ -7,6 +7,13 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test LARGE_N_TRAJECTORY_SEED_RULE ==
           "trajectory_seed = base_seed + 1_000_000*N + 10_000*R + trajectory; " *
           "valid for 1 <= R < 100 and 1 <= trajectory < 10000"
+    @test LARGE_N_DETUNING_REFERENCE_GAP_SOURCE_KEY == "detuning_reference_gap_source"
+    @test LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY == "detuning_protocol_source"
+    @test LARGE_N_DETUNING_REFERENCE_GAP_KEY == "detuning_reference_gap"
+    @test LARGE_N_DETUNING_DELTA_MIN_KEY == "detuning_delta_min"
+    @test LARGE_N_DETUNING_DELTA_MAX_KEY == "detuning_delta_max"
+    @test LARGE_N_DETUNING_DELTA_MAX_FACTOR_KEY == "detuning_delta_max_factor"
+    @test LARGE_N_DETUNING_FIXED_ACROSS_DMAX_KEY == "detuning_fixed_across_dmax"
     @test LARGE_N_DETUNING_REFERENCE_SETUP_GAP == "setup_gap"
     @test LARGE_N_DETUNING_REFERENCE_ISING_MODE_PAIR == "ising_mode_pair_reference"
     @test LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE == "gap_scaled_range"
