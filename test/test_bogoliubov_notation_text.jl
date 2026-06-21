@@ -19,11 +19,13 @@ using Test
     @test occursin("n_k^{Bog}", joined)
     @test occursin("Bogoliubov occupation number ``n_k^{Bog}``", joined)
     @test occursin("Bogoliubov occupations, ⟨h_k⟩", joined)
+    @test occursin("Σ_k ε_k (n_k^{OBC} - 1/2)", joined)
 
     forbidden = [
         "(ε_k, n_k, ⟨h_k⟩)",
         "h_k = 2 n_k - 1",
         "h_k = 2n_k - 1",
+        "Σ_k ε_k (n_k - 1/2)",
         "mode energies, occupations, ⟨h_k⟩",
     ]
     @test all(phrase -> !occursin(phrase, joined), forbidden)

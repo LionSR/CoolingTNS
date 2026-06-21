@@ -349,7 +349,7 @@ end
 
 Return the positive open-boundary BdG quasiparticle energies in notes units.
 The corresponding many-body spectrum is
-``Σ_k ε_k (n_k - 1/2)`` with ``n_k ∈ {0,1}``.
+``Σ_k ε_k (n_k^{OBC} - 1/2)`` with ``n_k^{OBC} ∈ {0,1}``.
 """
 function obc_mode_energies(θ::Real, N::Int)
     Hbdg = Symmetric(obc_bdg_matrix(θ, N))
