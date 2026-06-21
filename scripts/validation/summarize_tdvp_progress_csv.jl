@@ -127,16 +127,19 @@ function cap_label(cycle::Integer, sweep)
 end
 
 function default_progress_cap(method::AbstractString, dmax::Integer)
-    # This lightweight CLI intentionally avoids importing CoolingTNS.  The
-    # factors mirror the project-wide dispatch rule in src/parameter_types.jl:
-    # `tn_method_maxdim(::MonteCarloWavefunction, Dmax) = Dmax` and
-    # `tn_method_maxdim(::DensityMatrix, Dmax) = 4Dmax`.
-    method_name = lowercase(method)
-    method_name == "mcwf" && return dmax
-    method_name == "mpo" && return 4 * dmax
-    throw(ArgumentError(
-        "unknown method '$method' in progress CSV; pass --cap D explicitly"
-    ))
+    kind = try
+        largeN_method_kind_from_name(method)
+    catch err
+        err isa ArgumentError || rethrow()
+        throw(ArgumentError(
+            "unknown method '$method' in progress CSV; pass --cap D explicitly"
+        ))
+    end
+    # Keep this recovery CLI independent of the full CoolingTNS/ITensors stack.
+    # The factors are pinned against `tn_method_maxdim` in the test suite.
+    kind === :mcwf && return dmax
+    kind === :mpo && return 4 * dmax
+    error("unreachable large-N method kind '$kind'")
 end
 
 function peak_evolved_bond(rows)

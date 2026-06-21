@@ -370,9 +370,10 @@ end
 function method_from_name(method_name::AbstractString)
     # HDF5 stores method names as strings; the cap itself is still determined
     # by the library dispatch rule in `tn_method_maxdim`.
-    method_name == "mcwf" && return MonteCarloWavefunction()
-    method_name == "mpo" && return DensityMatrix()
-    error("unknown method '$method_name' in campaign file")
+    kind = largeN_method_kind_from_name(method_name)
+    kind === :mcwf && return MonteCarloWavefunction()
+    kind === :mpo && return DensityMatrix()
+    error("unreachable large-N method kind '$kind'")
 end
 
 function saturation_threshold_for(root, method_group, run_group, method_name::AbstractString)

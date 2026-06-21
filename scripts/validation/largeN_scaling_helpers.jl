@@ -117,6 +117,22 @@ function largeN_delta_values(protocol, R::Integer)
 end
 
 """
+    largeN_method_kind_from_name(method_name)
+
+Normalize the large-N diagnostic method name stored in HDF5 files and progress
+CSVs.  This helper intentionally does not import `CoolingTNS`, so the
+interrupted-run progress CSV summarizer can remain lightweight.
+"""
+function largeN_method_kind_from_name(method_name::AbstractString)
+    normalized = lowercase(method_name)
+    normalized == "mcwf" && return :mcwf
+    normalized == "mpo" && return :mpo
+    throw(ArgumentError(
+        "unknown large-N method '$method_name'; expected 'mcwf' or 'mpo'"
+    ))
+end
+
+"""
     write_largeN_detuning_protocol(parent, protocol)
 
 Write the on-disk HDF5 metadata contract for a large-N detuning protocol:

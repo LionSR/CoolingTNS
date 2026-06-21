@@ -1,4 +1,5 @@
 using Test
+using CoolingTNS
 
 include(joinpath(@__DIR__, "..", "scripts", "validation",
                  "summarize_tdvp_progress_csv.jl"))
@@ -75,9 +76,20 @@ end
         "\"contains,comma\",\"escaped \"\"quote\"\"\",plain"
     ) ==
         ["contains,comma", "escaped \"quote\"", "plain"]
-    @test TDVPProgressCSVSummary.default_progress_cap("mcwf", 7) == 7
-    @test TDVPProgressCSVSummary.default_progress_cap("mpo", 7) == 28
-    @test_throws ArgumentError TDVPProgressCSVSummary.default_progress_cap("ed", 7)
+    @test TDVPProgressCSVSummary.largeN_method_kind_from_name("mcwf") === :mcwf
+    @test TDVPProgressCSVSummary.largeN_method_kind_from_name("MPO") === :mpo
+    @test TDVPProgressCSVSummary.default_progress_cap("mcwf", 7) ==
+          tn_method_maxdim(MonteCarloWavefunction(), 7)
+    @test TDVPProgressCSVSummary.default_progress_cap("mpo", 7) ==
+          tn_method_maxdim(DensityMatrix(), 7)
+    err = try
+        TDVPProgressCSVSummary.default_progress_cap("ed", 7)
+        nothing
+    catch err
+        err
+    end
+    @test err isa ArgumentError
+    @test occursin("pass --cap D explicitly", sprint(showerror, err))
 
     path = tempname() * ".csv"
     try

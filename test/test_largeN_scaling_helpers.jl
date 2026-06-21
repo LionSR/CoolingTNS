@@ -34,6 +34,10 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test fixed_protocol.fixed_across_dmax == true
     @test largeN_delta_values(fixed_protocol, 2) == [0.25, 1.25]
 
+    @test largeN_method_kind_from_name("mcwf") === :mcwf
+    @test largeN_method_kind_from_name("MPO") === :mpo
+    @test_throws ArgumentError largeN_method_kind_from_name("ed")
+
     fixed_protocol_negative_reference = largeN_detuning_protocol(
         -0.035; delta_min=0.5, delta_max=0.5, delta_max_factor=6.0
     )
