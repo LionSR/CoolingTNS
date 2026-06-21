@@ -304,11 +304,14 @@ DMRG estimate as the automatic detuning reference.  For the default periodic
 `XX` integrable-Ising mode campaign, the system-side coupling is local `X`,
 which preserves the code parity \(P_x\).  The automatic reference is therefore
 the lowest generic two-quasiparticle energy,
-\(2\min_{\sin\phi_k\ne 0} \epsilon_k\), on the same parity-aware Fourier grid
-as `mode_hk`.  On reference grids containing special modes, such as the default
-antiperiodic reference sector, the driver requires an explicit detuning
-interval.  A short `N = 64` periodic check without `--delta-min` or
-`--delta-max` used
+\(2\min_{\sin\phi_k\ne 0} \epsilon_k\), on the deterministic `parity=+1`
+setup grid selected before any trajectory-specific state parity is measured.
+The measured `mode_gF` and `mode_gF_source` metadata remain the source of truth
+for the stored `mode_hk` rows; they are observable provenance, not a
+retroactive definition of the detuning reference.  On reference grids
+containing special modes, such as the default antiperiodic reference sector,
+the driver requires an explicit detuning interval.  A short `N = 64` periodic
+check without `--delta-min` or `--delta-max` used
 
 ```bash
 JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
