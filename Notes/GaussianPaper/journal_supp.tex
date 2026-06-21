@@ -226,10 +226,21 @@ for each $k\neq 0,N/2$.
 Putting together all modes, including the special cases at $k=0$ and $k=N/2$, the Hamiltonian becomes
 \begin{align}
     H_S
-     &= \sum_{k=0}^{N/2} \epsilon_k h_k,
+     &= \sum_{k=0}^{N/2} \eta_k h_k,
     \label{eq:bogoliubov_HS_diag}
 \end{align}
-where $\epsilon_k=\epsilon_{-k}$ and for the special cases $k=0$ or $k=N/2$ (those modes appear purely diagonally) we have $\hat{a}_k=\hat{a}_{-k}^\dagger$. The operators $h_k$ are given by  $h_k=\hat{a}^\dagger_k \hat{a}_k-\hat{a}_{-k}\hat{a}_{-k}^\dagger$ for $k=1,\ldots,N/2-1$ and $h_k=\hat{a}_k^\dagger \hat{a}_k-\hat{a}_k \hat{a}_k^\dagger$ for $k=0,N/2$.
+where $\epsilon_k=\epsilon_{-k}$ and for the special cases $k=0$ or $k=N/2$ (those modes appear purely diagonally) we have $\hat{a}_k=\hat{a}_{-k}^\dagger$. The operators $h_k$ are given by  $h_k=\hat{a}^\dagger_k \hat{a}_k-\hat{a}_{-k}\hat{a}_{-k}^\dagger$ for $k=1,\ldots,N/2-1$ and $h_k=\hat{a}_k^\dagger \hat{a}_k-\hat{a}_k \hat{a}_k^\dagger$ for $k=0,N/2$.  The grouped coefficient is
+\begin{equation}
+    \eta_k =
+    \begin{cases}
+        \epsilon_k, & k=1,\ldots,N/2-1,\\[2mm]
+        \epsilon_k/2, & k=0,N/2.
+    \end{cases}
+    \label{eq:app:grouped_mode_weight}
+\end{equation}
+This half-weight for the special modes is the direct consequence of the
+full-grid form of the diagonal Hamiltonian: the generic grouped block contains
+both $k$ and $-k$, while $0$ and $N/2$ are single unpaired modes.
 
 Consequently, the ground state of $H_S$ is the vacuum state annihilated by all $\hat{a}_k$, i.e.,
 \begin{align}
@@ -679,32 +690,32 @@ Therefore, if $\alpha > 0$ (which is generally the case away from the phase tran
 
 Next, we analyze the convergence of the relative energy by examining the convergence of the energy density. The error in the energy density after $n$ cycles can be bounded by
 \begin{align}
-    \left|\frac{1}{N}\sum_{k=0}^{N/2} \tr\left(\epsilon_k h_k \left[\mathcal{E}_k^n(\rho_k)- \sigma_k\right]\right)\right|\nonumber\\
-    \le \frac{1}{N}\sum_{k=0}^{N/2} \left|\tr\left(\epsilon_k h_k \left[\mathcal{E}_k^n(\rho_k)- \sigma_k\right]\right)\right|,
+    \left|\frac{1}{N}\sum_{k=0}^{N/2} \tr\left(\eta_k h_k \left[\mathcal{E}_k^n(\rho_k)- \sigma_k\right]\right)\right|\nonumber\\
+    \le \frac{1}{N}\sum_{k=0}^{N/2} \left|\tr\left(\eta_k h_k \left[\mathcal{E}_k^n(\rho_k)- \sigma_k\right]\right)\right|,
 \end{align}
 by using the triangle inequality $|\tr(A+B)| \le |\tr(A)| + |\tr(B)|$.
-Then, we use the inequality $|\tr(XY)| \le \|X\| \|Y\|_1$, where $\|X\|$ is the operator norm of $X$. We choose $X = \epsilon_k h_k$ and $Y = \mathcal{E}_k^n(\rho_k)- \sigma_k$ and will use the convergence of the state differences in the 1-norm as established in \cref{eq:mode_convergence_rate}.
+Then, we use the inequality $|\tr(XY)| \le \|X\| \|Y\|_1$, where $\|X\|$ is the operator norm of $X$. We choose $X = \eta_k h_k$ and $Y = \mathcal{E}_k^n(\rho_k)- \sigma_k$ and will use the convergence of the state differences in the 1-norm as established in \cref{eq:mode_convergence_rate}.
 
 
 The matrix $h_k = \hat{a}^\dagger_k \hat{a}_k-\hat{a}_{-k}\hat{a}_{-k}^\dagger$ has eigenvalues $\pm 1$ and thus operator norm $\|h_k\| = 1$.
-Then, we have $\|\epsilon_k h_k\| = \epsilon_k$. Therefore, we bound:
+Then, we have $\|\eta_k h_k\| = \eta_k$. Therefore, we bound:
 \begin{align}
-    \left|\tr\left(\epsilon_k h_k \left[\mathcal{E}_k^n(\rho_k)- \sigma_k\right]\right)\right|
-     &\le \|\epsilon_k h_k\| \|\mathcal{E}_k^n(\rho_k)- \sigma_k\|_1 \nonumber\\
-     &= \epsilon_k \|\mathcal{E}_k^n(\rho_k)- \sigma_k\|_1 \nonumber\\
-     &\le \epsilon_k e^{-\alpha_k n},
+    \left|\tr\left(\eta_k h_k \left[\mathcal{E}_k^n(\rho_k)- \sigma_k\right]\right)\right|
+     &\le \|\eta_k h_k\| \|\mathcal{E}_k^n(\rho_k)- \sigma_k\|_1 \nonumber\\
+     &= \eta_k \|\mathcal{E}_k^n(\rho_k)- \sigma_k\|_1 \nonumber\\
+     &\le \eta_k e^{-\alpha_k n},
 \end{align}
 by using the bound on mode convergence $\|\mathcal{E}_k^n(\rho_k)-\sigma_k\|_1 \le e^{-\alpha_k n}$ from \cref{eq:mode_convergence_rate}.
 
 Substituting this back into the sum for the energy density error, we get the following bound
 \begin{align}
-    \frac{1}{N}\sum_{k=0}^{N/2} \left|\tr\left(\epsilon_k h_k \left[\mathcal{E}_k^n(\rho_k)- \sigma_k\right]\right)\right|
-     &\le \frac{1}{N}\sum_{k=0}^{N/2} \epsilon_k e^{-\alpha_k n} \nonumber\\
-     &\le \frac{1}{N}(\max_k \epsilon_k) \sum_{k=0}^{N/2} e^{-\alpha_k n} \nonumber\\
+    \frac{1}{N}\sum_{k=0}^{N/2} \left|\tr\left(\eta_k h_k \left[\mathcal{E}_k^n(\rho_k)- \sigma_k\right]\right)\right|
+     &\le \frac{1}{N}\sum_{k=0}^{N/2} \eta_k e^{-\alpha_k n} \nonumber\\
+     &\le \frac{1}{N}(\max_k \eta_k) \sum_{k=0}^{N/2} e^{-\alpha_k n} \nonumber\\
      &\le (\max_k \epsilon_k) e^{-\alpha n} \frac{N/2 + 1}{N} \nonumber\\
      &\le C e^{-\alpha n},
 \end{align}
-where in the last three steps we have taken the maximum value of $\epsilon_k$, used the minimum cooling rate $\alpha$, and $C = \max_k \epsilon_k$ is a constant of order $\mathcal{O}(1)$ since $\epsilon_k$ are mode energies and are bounded.
+where in the last three steps we have taken the maximum value of $\eta_k$ and then used $\eta_k\le\epsilon_k$, used the minimum cooling rate $\alpha$, and $C = \max_k \epsilon_k$ is a constant of order $\mathcal{O}(1)$ since $\epsilon_k$ are mode energies and are bounded.
 To achieve an energy density error of $\epsilon$, we need $C e^{-\alpha n^c} \approx \epsilon$, which gives
 \begin{align}
     n^c &\approx \frac{1}{\alpha} \log\left(\frac{C}{\epsilon}\right)\nonumber\\
