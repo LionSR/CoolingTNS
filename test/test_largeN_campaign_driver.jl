@@ -231,6 +231,10 @@ end
     )
     @test occursin("This driver does not launch jobs concurrently", parallel_plan_text)
     @test occursin("external process scheduler", parallel_plan_text)
+    @test occursin("append the HDF5 protocol stem", parallel_plan_text)
+    @test occursin("requested CSV stem", parallel_plan_text)
+    single_plan_text = sprint(io -> print_parallel_plan(single_job_plan_cfg; io=io))
+    @test occursin("kept unchanged", single_plan_text)
     @test shell_word("~/tdvp data") == "'~/tdvp data'"
     @test shell_word("~/tdvp_data") == "~/tdvp_data"
 

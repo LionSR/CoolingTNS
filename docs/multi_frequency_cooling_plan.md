@@ -281,10 +281,13 @@ overwrite full benchmark files with the same physical parameters.
 When several `R` values or `Dmax` values are to be run on a many-core machine,
 the validation driver should first be invoked with `--print-parallel-plan`.
 This prints one independent command for each `(N, method, R, Dmax)` tuple and
-assigns distinct HDF5 and progress CSV paths, so process-level parallelism can
-be used without concurrent writes to the same output file.  The planning mode
-also accepts `--plan-julia-threads` and `--plan-blas-threads`, which prefix the
-printed commands with `JULIA_NUM_THREADS` and BLAS thread environment variables.
+assigns distinct HDF5 paths.  In multi-job plans where `--progress-csv` is
+supplied, generated per-job progress CSV filenames keep the requested CSV stem as
+a prefix and append the same HDF5 protocol stem; single-job plans keep the
+requested CSV path unchanged.  Thus process-level parallelism can be used without
+concurrent writes to the same output file.  The planning mode also accepts
+`--plan-julia-threads` and `--plan-blas-threads`, which prefix the printed
+commands with `JULIA_NUM_THREADS` and BLAS thread environment variables.
 No internal scheduler is recommended at this stage.  The current reproducible
 execution convention is to let an external shell, job array, or process manager
 launch the printed commands, because the driver can then keep output ownership,
