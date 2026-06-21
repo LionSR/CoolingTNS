@@ -96,6 +96,56 @@ function supports_ising_fourier_observables(ham_params::HamiltonianParameters{Is
 end
 
 """
+    ising_mode_detuning_preserves_px(coupling) -> Bool
+
+Return whether the system-side part of the system-bath coupling commutes with
+the code-basis Ising parity ``P_x=\\prod_j\\sigma^x_j``.
+
+The automatic mode-resolved Ising detuning reference is a generic
+two-quasiparticle scale.  This reference is appropriate for local couplings such
+as ``XX`` whose system-side operator is ``X`` in every expanded coupling term;
+mixed or longitudinal system-side terms can connect different sectors and should
+use an explicit detuning interval instead.
+"""
+function ising_mode_detuning_preserves_px(coupling::AbstractString)
+    return all(term -> first(term) == "X", coupling_operator_terms(String(coupling)))
+end
+
+"""
+    ising_mode_detuning_has_special_modes(ham_params; parity=1) -> Bool
+
+Return whether the deterministic Ising Fourier grid for `parity` contains the
+special integer-grid modes with ``\\sin \\phi_k=0``.
+
+The automatic generic two-quasiparticle detuning reference is used only on grids
+without these special modes.  When special modes are present, lower
+same-parity transitions can involve their signed coefficients, so callers should
+choose the physical detuning interval explicitly.
+"""
+function ising_mode_detuning_has_special_modes(
+    ham_params::HamiltonianParameters{IsingModel};
+    parity::Int=1,
+)
+    supports_ising_fourier_observables(ham_params) || throw(ArgumentError(
+        "Ising mode detuning special-mode checks require even-size periodic or antiperiodic Ising parameters"
+    ))
+    (parity == 1 || parity == -1) ||
+        throw(ArgumentError("parity must be +1 or -1, got $parity"))
+
+    gF = fermionic_bc(ham_params.bc, parity)
+    return any(k -> !is_generic_mode(k, ham_params.N), allowed_k_indices(ham_params.N, gF))
+end
+
+function ising_mode_detuning_has_special_modes(
+    ham_params::HamiltonianParameters;
+    parity::Int=1,
+)
+    throw(ArgumentError(
+        "Ising mode detuning special-mode checks are only defined for integrable Ising parameters"
+    ))
+end
+
+"""
     bath_detuning_energy(delta)
 
 Return the positive energy `|delta|` associated with a bath detuning. A value

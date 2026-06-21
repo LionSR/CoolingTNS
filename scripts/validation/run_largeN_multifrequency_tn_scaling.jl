@@ -374,26 +374,9 @@ function campaign_hamiltonian_parameters(N::Int, cfg)
     error("unknown model '$(cfg["model"])'")
 end
 
-"""
-    campaign_mode_detuning_preserves_px(coupling) -> Bool
-
-Return whether every system-side Pauli in the coupling commutes with the code
-parity `P_x`.  Automatic Ising mode detuning uses the corresponding
-parity-preserving two-quasiparticle reference only in this case.
-"""
-function campaign_mode_detuning_preserves_px(coupling::AbstractString)
-    return all(term -> first(term) == "X", coupling_operator_terms(String(coupling)))
-end
-
-function campaign_mode_detuning_has_special_modes(ham_params)
-    N = ham_params.N
-    gF = fermionic_bc(ham_params.bc, 1)
-    return any(k -> !is_generic_mode(k, N), allowed_k_indices(N, gF))
-end
-
 function campaign_base_detuning_reference(ham_params, cfg)
     if cfg["measure_modes"] && supports_ising_fourier_observables(ham_params)
-        if !campaign_mode_detuning_preserves_px(cfg["coupling"])
+        if !ising_mode_detuning_preserves_px(cfg["coupling"])
             cfg["delta_min"] === nothing && error(
                 "--measure-modes automatic detuning currently assumes a " *
                 "parity-preserving system coupling in the Ising code basis. " *
@@ -404,7 +387,7 @@ function campaign_base_detuning_reference(ham_params, cfg)
             # detuning range is still the explicit fixed interval from cfg.
             return (delta=nothing, source="setup_gap")
         end
-        if campaign_mode_detuning_has_special_modes(ham_params)
+        if ising_mode_detuning_has_special_modes(ham_params)
             cfg["delta_min"] === nothing && error(
                 "--measure-modes automatic detuning currently assumes the " *
                 "reference Fourier grid has no special modes. Use an explicit " *

@@ -318,10 +318,10 @@ end
     @test mode_reference.source == "ising_mode_pair_reference"
     @test mode_reference.delta ≈ CoolingTNS.ising_mode_detuning_reference(mode_ham)
     @test mode_reference.delta > 0
-    @test campaign_mode_detuning_preserves_px("XX")
-    @test !campaign_mode_detuning_preserves_px("XY")
-    @test !campaign_mode_detuning_preserves_px("ZZ")
-    @test !campaign_mode_detuning_has_special_modes(mode_ham)
+    @test CoolingTNS.ising_mode_detuning_preserves_px("XX")
+    @test !CoolingTNS.ising_mode_detuning_preserves_px("XY")
+    @test !CoolingTNS.ising_mode_detuning_preserves_px("ZZ")
+    @test !CoolingTNS.ising_mode_detuning_has_special_modes(mode_ham)
     antiperiodic_mode_cfg = parse_args([
         "--model", "ising",
         "--bc", "antiperiodic",
@@ -332,7 +332,7 @@ end
         "--outdir", tempdir(),
     ])
     antiperiodic_mode_ham = campaign_hamiltonian_parameters(64, antiperiodic_mode_cfg)
-    @test campaign_mode_detuning_has_special_modes(antiperiodic_mode_ham)
+    @test CoolingTNS.ising_mode_detuning_has_special_modes(antiperiodic_mode_ham)
     @test_throws ErrorException campaign_base_detuning_reference(
         antiperiodic_mode_ham,
         antiperiodic_mode_cfg,
