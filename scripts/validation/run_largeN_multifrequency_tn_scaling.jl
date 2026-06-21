@@ -988,8 +988,13 @@ function output_path(cfg)
     schedule_suffix = cfg["schedule_symbol"] == :round_robin ? "" :
         "_sched$(multi_frequency_schedule_token(cfg["schedule_symbol"]))"
     random_time_suffix = cfg["randomize_times"] ? "_randtime" : ""
-    mode_stride_suffix = cfg["mode_measurement_stride"] == 1 ? "" :
+    mode_suffix = if !cfg["measure_modes"]
+        ""
+    elseif cfg["mode_measurement_stride"] == 1
+        "_modes"
+    else
         "_modestride$(cfg["mode_measurement_stride"])"
+    end
     init_suffix = if cfg["init_state"] == "product"
         ""
     elseif cfg["init_state"] == "identity"
@@ -1010,7 +1015,7 @@ function output_path(cfg)
             model_suffix,
             stop_suffix,
             schedule_suffix * random_time_suffix,
-            mode_stride_suffix,
+            mode_suffix,
             init_suffix,
             cfg["steps"],
             cfg["Dmax"],

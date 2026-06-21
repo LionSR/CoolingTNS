@@ -391,6 +391,21 @@ end
     @test generic_reference.source == "setup_gap"
     @test isnothing(generic_reference.delta)
     @test occursin("ising_bcperiodic", output_path(mode_cfg))
+    no_mode_counterpart_cfg = parse_args([
+        "--model", "ising",
+        "--bc", "periodic",
+        "--Ns", "64",
+        "--R-values", "1,2",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--steps", "5",
+        "--Dmax", "32",
+        "--h", "-0.75",
+        "--outdir", tempdir(),
+    ])
+    @test output_path(mode_cfg) != output_path(no_mode_counterpart_cfg)
+    @test occursin("_modes_steps", output_path(mode_cfg))
+    @test !occursin("_modes", output_path(no_mode_counterpart_cfg))
     mode_command = join(command_args_for_config(mode_cfg), " ")
     @test occursin("--model ising", mode_command)
     @test occursin("--bc periodic", mode_command)
@@ -416,6 +431,7 @@ end
     ])
     @test stride_mode_cfg["mode_measurement_stride"] == 5
     @test occursin("_modestride5", output_path(stride_mode_cfg))
+    @test output_path(stride_mode_cfg) != output_path(mode_cfg)
     stride_mode_command = join(command_args_for_config(stride_mode_cfg), " ")
     @test occursin("--mode-measurement-stride 5", stride_mode_command)
     @test_throws ErrorException parse_args(["--mode-measurement-stride", "2"])
