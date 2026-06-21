@@ -510,7 +510,7 @@ struct TensorNetworkResults <: CoolingResults
     purity_list::Vector{Float64}           # Purity evolution (for MPO) or constant 1 (for MPS)
     # Tensor network specific data
     bond_dims::Vector{Vector{Int}}         # Bond dimensions evolution
-    truncation_errors::Vector{Float64}     # Truncation errors at each step
+    truncation_errors::Vector{Float64}     # Measured truncation errors; empty if unavailable
     renyi_entropy::Vector{Vector{Float64}}  # Entanglement entropy profile
     # Additional fields for consistency with other backends
     bath_magnetization_list::Vector{Float64}  # Bath magnetization evolution
@@ -595,6 +595,16 @@ function _add_optional_result!(result::Dict{String,Any}, key::String, value)
 end
 
 """
+    _add_nonempty_result!(result, key, value)
+
+Store optional collection diagnostics only when data were actually measured.
+"""
+function _add_nonempty_result!(result::Dict{String,Any}, key::String, value)
+    isempty(value) || (result[key] = value)
+    return result
+end
+
+"""
     to_dict(results::DensityMatrixResults)
 
 Serialize density-matrix result containers with the public cooling result keys.
@@ -651,10 +661,10 @@ function to_dict(results::TensorNetworkResults)
         RESULT_GROUND_STATE_OVERLAP => results.gs_overlap_list,
         RESULT_PURITY => results.purity_list,
         RESULT_BATH_MAGNETIZATION => results.bath_magnetization_list,
-        RESULT_BOND_DIMS => results.bond_dims,
-        RESULT_TRUNCATION_ERRORS => results.truncation_errors,
-        RESULT_RENYI_ENTROPY => results.renyi_entropy,
     )
+    _add_nonempty_result!(result, RESULT_BOND_DIMS, results.bond_dims)
+    _add_nonempty_result!(result, RESULT_TRUNCATION_ERRORS, results.truncation_errors)
+    _add_nonempty_result!(result, RESULT_RENYI_ENTROPY, results.renyi_entropy)
     results.final_state !== nothing && (result[RESULT_FINAL_STATE] = results.final_state)
     return result
 end
@@ -667,10 +677,12 @@ Simplified constructor for TensorNetworkResults with just the essential data.
 """
 function TensorNetworkResults(E_list::Vector{Float64}, GS_list::Vector{Float64}, 
                             bath_mag_list::Vector{Float64}, final_state)
-    # For simplified construction, use empty vectors for optional fields
+    # For simplified construction, use empty vectors for optional fields.
+    # In particular, a zero truncation-error series would be a measured
+    # statement, not a placeholder for unavailable data.
     purity_list = ones(Float64, length(E_list))  # MPS states are pure
     bond_dims = Vector{Vector{Int}}()
-    truncation_errors = zeros(Float64, length(E_list))
+    truncation_errors = Float64[]
     renyi_entropy = Vector{Vector{Float64}}()
     
     return TensorNetworkResults(E_list, GS_list, purity_list, bond_dims, 

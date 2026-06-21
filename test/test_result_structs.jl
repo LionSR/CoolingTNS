@@ -87,6 +87,9 @@ using CoolingTNS
         @test data[CoolingTNS.RESULT_GROUND_STATE_OVERLAP] === overlap
         @test data[CoolingTNS.RESULT_PURITY] == ones(length(E))
         @test data[CoolingTNS.RESULT_BATH_MAGNETIZATION] === bath_mag
+        @test !haskey(data, CoolingTNS.RESULT_BOND_DIMS)
+        @test !haskey(data, CoolingTNS.RESULT_TRUNCATION_ERRORS)
+        @test !haskey(data, CoolingTNS.RESULT_RENYI_ENTROPY)
         @test !haskey(data, "energy_list")
         @test !haskey(data, "gs_overlap_list")
         @test !haskey(data, "bath_magnetization_list")
