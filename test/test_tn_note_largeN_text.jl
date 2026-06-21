@@ -56,6 +56,9 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("test and study whether these strategies carry over", plan_flat)
     @test occursin("A single MCWF trajectory and a late-time average are diagnostic quantities only", plan_flat)
     @test occursin("requires independent trajectories, stability under the averaging window, and convergence in the retained and transient bond dimensions", plan_flat)
+    @test occursin("The pure-state MPS trajectory representation is still the preferred large-`N` tensor-network route", plan_flat)
+    @test occursin("current `N=64` evidence shows that `D = 40` is only a pilot cap", plan_flat)
+    @test occursin("choose `Dmax` from a convergence ladder with retained-state, transient system-bath, and TDVP sweep-level diagnostics", plan_flat)
     @test occursin("current timing evidence favors process-level MCWF+TDVP diagnostic scans", plan_flat)
     @test occursin("large-`N` validation driver therefore defaults to `--methods mcwf`", plan_flat)
     @test occursin("Density-matrix/MPO runs remain available through explicit `--methods mpo`", plan_flat)
@@ -229,6 +232,8 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         "noise robustness",
         "steady-state energy vs r",
         "steady-state energy vs n",
+        "bond dimension d ≤ 40 for a pure state",
+        "bond dimension d <= 40 for a pure state",
     ]
     @test all(!occursin(phrase, plan_lower) for phrase in stale_plan_phrases)
 end

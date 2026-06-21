@@ -73,7 +73,12 @@ rebuilding is < 1%. Pre-building R Hamiltonians is unnecessary complexity.
 
 **MPS + TDVP (MonteCarloWavefunction + ContinuousEvolution)**
 
-- Bond dimension D ≤ 40 for a pure state ≪ D² for a density matrix
+- The pure-state MPS trajectory representation is still the preferred large-`N`
+  tensor-network route, because it avoids representing the density matrix as an
+  MPO.  The numerical bond cap is not fixed by this preference: current `N=64`
+  evidence shows that `D = 40` is only a pilot cap, and any production claim must
+  choose `Dmax` from a convergence ladder with retained-state, transient
+  system-bath, and TDVP sweep-level diagnostics.
 - No Trotter error from the continuous-time TDVP integrator, while retaining the
   usual TDVP projection and truncation errors
 - A single MCWF trajectory and a late-time average are diagnostic quantities
