@@ -22,6 +22,8 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     # Update them together when the notation or bond-dimension evidence changes.
     @test occursin("We study a repeated bath-reset cooling map whose intended fixed point", note_flat)
     @test occursin("Whether a given implementation prepares the ground state is a dynamical and numerical question", note_flat)
+    @test occursin("A favorable resonant transfer can then excite the ancillary system", note_flat)
+    @test occursin("whether it actually produces a lower system energy depends on the coupling, detuning, cycle time, and numerical approximation", note_flat)
     @test occursin("compare the trajectory with the available ground-state reference", note_flat)
     @test occursin("stable when the trajectory sampling, averaging window, and bond-dimension cap are varied", note_flat)
     @test occursin("This low-entanglement assumption is part of the numerical validation problem", note_flat)
@@ -208,6 +210,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         "exploiting the low-entanglement structure of the states involved in the process",
         "algorithm effectively prepares the ground state",
         "confirming the ability of the cooling algorithm to prepare low-energy states",
+        "the energy exchange between the system \$s\$ and the bath \$b\$ leads to a decrease of",
         "demonstrating the effectiveness of the cooling algorithm in preparing low-energy states",
         "demonstrating its robustness against depolarizing noise",
         "the algorithm still achieves significant cooling and ground state preparation fidelity",
