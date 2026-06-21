@@ -49,12 +49,16 @@ end
         @test px_tn ≈ px_ed atol=1e-10
 
         gF = fermionic_bc(:periodic, 1)
-        ks_tn, hk_tn, εk_tn = measure_all_mode_energies(ψ_tn, ham_params; gF=gF)
-        ks_ed, hk_ed, εk_ed = measure_all_mode_energies(ψ_ed, ham_params; gF=gF)
+        ks_tn, hk_tn, εk_tn = measure_all_mode_observables(ψ_tn, ham_params; gF=gF)
+        ks_ed, hk_ed, εk_ed = measure_all_mode_observables(ψ_ed, ham_params; gF=gF)
+        ks_compat, hk_compat, εk_compat = measure_all_mode_energies(ψ_tn, ham_params; gF=gF)
 
         @test ks_tn == ks_ed
+        @test ks_compat == ks_tn
         @test εk_tn ≈ εk_ed atol=1e-12
+        @test εk_compat ≈ εk_tn atol=1e-12
         @test hk_tn ≈ hk_ed atol=1e-10
+        @test hk_compat ≈ hk_tn atol=1e-10
 
         for k in ks_tn
             @test measure_hk(ψ_tn, k, ham_params) ≈ measure_hk(ψ_ed, k, ham_params) atol=1e-10
@@ -78,12 +82,16 @@ end
         @test px_tn ≈ px_ed atol=1e-10
 
         gF = fermionic_bc(:periodic, 1)
-        ks_tn, hk_tn, εk_tn = measure_all_mode_energies(ρ_tn, ham_params; gF=gF)
-        ks_ed, hk_ed, εk_ed = measure_all_mode_energies(ρ_ed, ham_params; gF=gF)
+        ks_tn, hk_tn, εk_tn = measure_all_mode_observables(ρ_tn, ham_params; gF=gF)
+        ks_ed, hk_ed, εk_ed = measure_all_mode_observables(ρ_ed, ham_params; gF=gF)
+        ks_compat, hk_compat, εk_compat = measure_all_mode_energies(ρ_tn, ham_params; gF=gF)
 
         @test ks_tn == ks_ed
+        @test ks_compat == ks_tn
         @test εk_tn ≈ εk_ed atol=1e-12
+        @test εk_compat ≈ εk_tn atol=1e-12
         @test hk_tn ≈ hk_ed atol=1e-10
+        @test hk_compat ≈ hk_tn atol=1e-10
 
         for k in ks_tn
             @test measure_hk(ρ_tn, k, ham_params) ≈ measure_hk(ρ_ed, k, ham_params) atol=1e-10
@@ -102,8 +110,8 @@ end
         @test abs(measure_state_parity(ψ_ed, N)) < 1e-10
 
         for gF in [-1, 1]
-            ks_tn, hk_tn, εk_tn = measure_all_mode_energies(ψ_tn, ham_params; gF=gF)
-            ks_ed, hk_ed, εk_ed = measure_all_mode_energies(ψ_ed, ham_params; gF=gF)
+            ks_tn, hk_tn, εk_tn = measure_all_mode_observables(ψ_tn, ham_params; gF=gF)
+            ks_ed, hk_ed, εk_ed = measure_all_mode_observables(ψ_ed, ham_params; gF=gF)
 
             @test ks_tn == ks_ed
             @test εk_tn ≈ εk_ed atol=1e-12
@@ -126,10 +134,10 @@ end
         expected_ks = allowed_k_indices(N, expected_gF)
 
         ks_tn, hk_tn, εk_tn = @test_logs (:warn, r"no definite P_x parity") begin
-            measure_all_mode_energies(ψ_tn, ham_params)
+            measure_all_mode_observables(ψ_tn, ham_params)
         end
         ks_ed, hk_ed, εk_ed = @test_logs (:warn, r"no definite P_x parity") begin
-            measure_all_mode_energies(ψ_ed, ham_params)
+            measure_all_mode_observables(ψ_ed, ham_params)
         end
 
         @test ks_tn == expected_ks
@@ -154,8 +162,8 @@ end
         @test px_tn ≈ px_ed atol=1e-10
 
         gF = fermionic_bc(:periodic, CoolingTNS._reference_parity_sector(px_ed))
-        ks_tn, hk_tn, εk_tn = measure_all_mode_energies(ψ_tn, ham_params; gF=gF)
-        ks_ed, hk_ed, εk_ed = measure_all_mode_energies(ψ_ed, ham_params; gF=gF)
+        ks_tn, hk_tn, εk_tn = measure_all_mode_observables(ψ_tn, ham_params; gF=gF)
+        ks_ed, hk_ed, εk_ed = measure_all_mode_observables(ψ_ed, ham_params; gF=gF)
 
         @test ks_tn == ks_ed
         @test εk_tn ≈ εk_ed atol=1e-12
@@ -184,8 +192,8 @@ end
         @test abs(measure_state_parity(ψ_ed, N)) < 1e-10
 
         for gF in [-1, 1]
-            ks_tn, hk_tn, εk_tn = measure_all_mode_energies(ψ_tn, ham_params; gF=gF)
-            ks_ed, hk_ed, εk_ed = measure_all_mode_energies(ψ_ed, ham_params; gF=gF)
+            ks_tn, hk_tn, εk_tn = measure_all_mode_observables(ψ_tn, ham_params; gF=gF)
+            ks_ed, hk_ed, εk_ed = measure_all_mode_observables(ψ_ed, ham_params; gF=gF)
 
             @test ks_tn == ks_ed
             @test εk_tn ≈ εk_ed atol=1e-12
@@ -200,7 +208,7 @@ end
         ψ_tn = MPS(sites, "X+")
 
         @test_throws ArgumentError measure_hk(ψ_tn, 1//2, ham_params)
-        @test_throws ArgumentError measure_all_mode_energies(ψ_tn, ham_params; gF=1)
+        @test_throws ArgumentError measure_all_mode_observables(ψ_tn, ham_params; gF=1)
     end
 
     @testset "MPS mode observables identify odd system sizes" begin

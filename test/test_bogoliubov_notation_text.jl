@@ -26,6 +26,9 @@ using Test
     @test occursin("Σ_k ε_k (n_k^{OBC} - 1/2)", joined)
     @test occursin("Bogoliubov mode observable ``⟨h_k⟩``", joined)
     @test occursin("positive quasiparticle gaps used for resonance labels", joined_flat)
+    @test occursin("measure_all_mode_observables", joined)
+    @test occursin("Compatibility wrapper for [`measure_all_mode_observables`](@ref)", joined)
+    @test occursin("k_indices, hk_values, εk_values = measure_all_mode_observables", joined)
 
     forbidden = [
         "(ε_k, n_k, ⟨h_k⟩)",
