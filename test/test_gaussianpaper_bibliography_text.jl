@@ -15,7 +15,7 @@ end
     joined = main_text * "\n" * supp_text
 
     @test occursin(raw"H_{S} = \sum_{k=0}^{N/2} \eta_k h_k", main_text)
-    @test occursin(raw"H_S", supp_text)
+    @test occursin(raw"&= \sum_{k=0}^{N/2} \eta_k h_k,", supp_text)
     @test occursin(raw"\eta_k", supp_text)
     @test occursin(raw"\epsilon_k/2, & k=0,N/2.", main_text)
     @test occursin(raw"\epsilon_k/2, & k=0,N/2.", supp_text)

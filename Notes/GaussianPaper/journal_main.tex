@@ -443,10 +443,9 @@ In the case $\alpha>0$, which can be expected outside the phase transition ($\th
 
 Let us now consider how fast the relative energy reaches its steady state value. Since the relative energy is related to the energy density (an intensive quantity), we analyze the convergence of the energy density. Using, again, translational invariance, we have that after $n$ cycles the error in the energy density will be bounded by (see~\cref{subsec:energy_convergence})
 \begin{equation}
-    \frac{1}{N}\sum_{k=0}^{N/2} \left|\tr\left(\eta_k h_k \left[\mathcal{E}_k^n(\rho_k)- \sigma_k\right]\right)\right|\le 2 \frac{\sum_{k=0}^{N/2} \eta_k e^{-\alpha_k n}}{N} \le e^{- \alpha n},
+    \frac{1}{N}\sum_{k=0}^{N/2} \left|\tr\left(\eta_k h_k \left[\mathcal{E}_k^n(\rho_k)- \sigma_k\right]\right)\right|\le \frac{\sum_{k=0}^{N/2} \eta_k e^{-\alpha_k n}}{N} \le C e^{- \alpha n},
 \end{equation}
-where in the last inequality we have neglected terms of $O(1/N)$ and an overall constant.
-$C$ is a constant of order $\mathcal{O}(1)$. Thus, if $\alpha>0$ and we aim for an energy density error of $\epsilon$, we need $n^c=\alpha^{-1}\log(1/\epsilon)$ cycles, independent of $N$.
+where $C=O(1)$ is independent of $N$. Thus, if $\alpha>0$ and we aim for an energy density error of $\epsilon$, we need $n^c=\alpha^{-1}\log(C/\epsilon)$ cycles, independent of $N$.
 
 
 So far, we have not imposed that the steady state $\sigma$ is close to the ground state (in fidelity or relative energy), but only analyzed for a given map how long it takes to approach its steady state. As we will see in the next section, to approach the ground state in steady state may require adjusting the cooling map $\mathcal{E}$ as $N$ changes. In such cases, the cooling rate $\alpha$ might also depend on $N$. As long as $\alpha$ decreases at most polynomially with $N$, we will have an efficient cooling method.
