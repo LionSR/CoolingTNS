@@ -26,7 +26,7 @@ function _warn_missing_mode_energy_data(filename, data)
         @warn "File $filename contains raw Fourier occupations tilde_n_k, but not Bogoliubov mode data. " *
               "Not plotting epsilon_k*tilde_n_k as an energy; rerun with measure_modes=true."
     else
-        @warn "No Bogoliubov mode energy data found in file $filename"
+        @warn "No Bogoliubov mode observable data found in file $filename"
     end
 end
 
@@ -61,7 +61,7 @@ function _checked_mode_energy_coefficients(εk_values, k_indices, N::Int, J::Rea
     coeffs = _mode_energy_coefficients(k_indices, N, J, h)
     computed_εk = abs.(2 .* coeffs)
     if !isapprox(Float64.(εk_values), computed_εk; rtol=1e-8, atol=1e-10)
-        @warn "Stored mode energies differ from coefficients reconstructed from N, J, h"
+        @warn "Stored positive quasiparticle gaps differ from coefficients reconstructed from N, J, h"
     end
     return coeffs
 end
@@ -113,7 +113,7 @@ function plot_ek_evolution(filename; steps_to_plot=nothing, save_fig=true)
     h = Float64(_maybe_scalar(get(data, "h", 1.0)))
     bc = Symbol(get(data, "bc", "open"))
 
-    # `RESULT_MODE_ENERGIES` stores positive excitation energies. The plot uses
+    # `RESULT_MODE_ENERGIES` stores positive quasiparticle gaps. The plot uses
     # signed `coeff_k` instead, because special modes carry the sign through w_k.
     coeffs = _checked_mode_energy_coefficients(εk_values, k_indices, N, J, h)
     n_steps_expected = haskey(data, CoolingTNS.RESULT_ENERGY) ?

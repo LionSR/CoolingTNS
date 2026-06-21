@@ -638,19 +638,19 @@ function _stored_mode_grid_matches_k_values(data::AbstractDict, k_values)
     return false
 end
 
-function _stored_mode_energies_for_k_grid(data::AbstractDict, k_values, filename)
+function _stored_positive_gaps_for_k_grid(data::AbstractDict, k_values, filename)
     haskey(data, RESULT_MODE_ENERGIES) || return nothing
 
     εk_values = vec(Float64.(data[RESULT_MODE_ENERGIES]))
     if length(εk_values) != length(k_values)
         @warn "$(RESULT_MODE_ENERGIES) in $filename has length $(length(εk_values)), " *
-              "but $(RESULT_K_VALUES) has length $(length(k_values)); ignoring stored mode energies."
+              "but $(RESULT_K_VALUES) has length $(length(k_values)); ignoring stored positive gaps."
         return nothing
     end
 
     if !_stored_mode_grid_matches_k_values(data, k_values)
         @warn "$(RESULT_MODE_ENERGIES) in $filename is not on the plotted k-grid; " *
-              "ignoring stored mode energies."
+              "ignoring stored positive gaps."
         return nothing
     end
 
@@ -687,8 +687,8 @@ function _ising_Jh_from_metadata(filename::AbstractString)
     end
 end
 
-function _mode_energies_for_momentum_plot(data::AbstractDict, filename::AbstractString, k_values)
-    εk_values = _stored_mode_energies_for_k_grid(data, k_values, filename)
+function _positive_gaps_for_momentum_plot(data::AbstractDict, filename::AbstractString, k_values)
+    εk_values = _stored_positive_gaps_for_k_grid(data, k_values, filename)
     εk_values !== nothing && return εk_values
 
     ising_params = _ising_Jh_from_metadata(filename)
@@ -724,11 +724,10 @@ Plot the raw Fourier momentum distribution ``\\tilde n_k`` vs k at a subset of
 cooling steps.
 
 If the file contains a scalar `delta`, the plot marks the momentum values whose
-mode energies are closest to `|delta|`. The mode energies are read from
-`RESULT_MODE_ENERGIES` when they match `RESULT_K_VALUES`; otherwise, for Ising
-data with `J` and `h` metadata, they are reconstructed from the canonical
-dispersion helper. No marker is drawn when no mode-energy convention is
-available.
+positive quasiparticle gaps are closest to `|delta|`. The gap values are read
+from `RESULT_MODE_ENERGIES` when they match `RESULT_K_VALUES`; otherwise, for
+Ising data with `J` and `h` metadata, they are reconstructed from the canonical
+dispersion helper. No marker is drawn when no gap convention is available.
 """
 function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=true, show_fig=false)
     plt = get_pyplot()
@@ -757,7 +756,7 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
         end
     end
 
-    εk_values = _mode_energies_for_momentum_plot(data, filename, k_values)
+    εk_values = _positive_gaps_for_momentum_plot(data, filename, k_values)
     _add_momentum_resonance_markers!(ax, k_values, εk_values, get(data, "delta", nothing))
 
     ax.set_xlabel(L"Momentum $k$")

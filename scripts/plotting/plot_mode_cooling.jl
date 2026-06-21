@@ -2,7 +2,8 @@
     plot_mode_cooling.jl
 
 Plot mode-resolved cooling: Bogoliubov quasiparticle occupation
-``n_k^{Bog}`` vs cooling step for each mode k, colored by the mode energy ε_k.
+``n_k^{Bog}`` vs cooling step for each mode k, colored by the positive
+quasiparticle gap ε_k.
 
 Can be called standalone (loads data from HDF5) or from the diagnostic script
 via `plot_mode_occupation_from_data(...)`.
@@ -75,7 +76,7 @@ each mode.
 - `mode_nk`: Matrix of size (n_steps, n_modes) with occupation values
   ``n_k^{Bog}``
 - `k_indices`: Vector of mode indices (integer or half-integer)
-- `εk_values`: Vector of mode energies ε_k in code units
+- `εk_values`: Vector of positive quasiparticle gaps ε_k in code units
 - `delta`: Bath detuning Δ (optional, used to highlight resonant mode)
 - `savepath`: Path to save figure (optional)
 - `title`: Figure title (optional)

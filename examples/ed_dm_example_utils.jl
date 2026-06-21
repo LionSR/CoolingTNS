@@ -65,7 +65,8 @@ end
     ed_dm_driver_command(params) -> Cmd
 
 Build the `Cooling.jl` command corresponding to the typed parameters in
-`params`, including `--measure_modes` when the example will plot mode energies.
+`params`, including `--measure_modes` when the example will plot mode
+observables and positive gap labels.
 """
 function ed_dm_driver_command(params)
     cmd = `$(Base.julia_cmd()) --project=$(ED_DM_EXAMPLE_ROOT) $(ED_DM_COOLING_DRIVER) --N $(params.N) --problem $(_problem_cli(params.ham_params)) --backend $(_backend_cli(params.backend)) --bc $(String(params.bc)) --sim_method $(_sim_method_cli(params.sim_params.sim_method)) --evolution_method $(_evolution_method_cli(params.sim_params.evolution_method)) --coupling $(params.coupling) --g $(params.g) --te $(params.te) --steps $(params.steps) --J $(params.J) --h $(params.h)`
@@ -88,7 +89,8 @@ end
     plot_ed_dm_kspace_results(result_path; steps_to_plot=nothing)
 
 Use the shared plotting scripts to emit the Fourier occupation plot and, when
-the file contains `h_k` mode data, the Bogoliubov mode-energy plot.
+the file contains `h_k` mode data, the Bogoliubov mode-energy contribution
+plot.
 """
 function plot_ed_dm_kspace_results(result_path::AbstractString; steps_to_plot=nothing)
     load_ed_dm_kspace_plotters!()
