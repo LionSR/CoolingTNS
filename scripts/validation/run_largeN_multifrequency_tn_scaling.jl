@@ -928,13 +928,12 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         mode_nk = result[RESULT_MODE_NK]
         (mode_hk isa AbstractMatrix && mode_nk isa AbstractMatrix) ||
             error("--measure-modes produced mode data with an unexpected shape")
-        mode_cycles = Int.(result[RESULT_MODE_MEASUREMENT_CYCLES])
-        mode_rows = mode_cycles .+ 1
-        all(row -> 1 <= row <= size(mode_hk, 1), mode_rows) ||
-            error("--measure-modes produced mode measurement cycles outside the recorded time series")
-        all(isfinite, view(mode_hk, mode_rows, :)) &&
-            all(isfinite, view(mode_nk, mode_rows, :)) ||
-            error("--measure-modes produced non-finite data on measured mode rows")
+        validate_mode_measurement_rows(
+            mode_hk,
+            mode_nk,
+            result[RESULT_MODE_MEASUREMENT_CYCLES];
+            energy=E,
+        )
     end
 
     return Dict{String,Any}(
@@ -1049,11 +1048,12 @@ function write_mode_measurement_group!(g, traj_rows)
     M = size(mode_hk, 3)
     mode_hk_mean = dropdims(mean(mode_hk; dims=3); dims=3)
     mode_nk_mean = dropdims(mean(mode_nk; dims=3); dims=3)
+    measured = validate_mode_measurement_rows(mode_hk_mean, mode_nk_mean, mode_cycles)
     mode_hk_stderr = M == 1 ? zeros(size(mode_hk_mean)) :
         dropdims(std(mode_hk; dims=3); dims=3) ./ sqrt(M)
     mode_nk_stderr = M == 1 ? zeros(size(mode_nk_mean)) :
         dropdims(std(mode_nk; dims=3); dims=3) ./ sqrt(M)
-    measured_rows = Int.(mode_cycles) .+ 1
+    measured_rows = measured.rows
     unmeasured_rows = setdiff(1:size(mode_hk_mean, 1), measured_rows)
     if !isempty(unmeasured_rows)
         mode_hk_stderr[unmeasured_rows, :] .= NaN

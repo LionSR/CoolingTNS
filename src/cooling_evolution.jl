@@ -566,6 +566,113 @@ function mode_measurement_cycles(steps::Integer,
     return cycles
 end
 
+"""
+    mode_measurement_cycle_rows(n_rows, measurement_cycles=nothing)
+
+Validate a zero-based `mode_measurement_cycles` list and return the
+corresponding one-based matrix rows.
+
+Mode-observable result arrays keep the full cycle-by-mode shape.  When strided
+measurements are used, unmeasured rows remain as `NaN` and the measured
+zero-based cooling cycles are stored in `RESULT_MODE_MEASUREMENT_CYCLES`.
+"""
+function mode_measurement_cycle_rows(n_rows::Integer, measurement_cycles=nothing)
+    n_rows >= 1 ||
+        throw(ArgumentError("mode-observable arrays must have at least one row"))
+
+    if measurement_cycles === nothing
+        cycles = collect(0:(n_rows - 1))
+    else
+        cycles = Int.(
+            measurement_cycles isa AbstractArray ?
+            vec(measurement_cycles) :
+            [measurement_cycles]
+        )
+        isempty(cycles) && throw(ArgumentError(
+            "$RESULT_MODE_MEASUREMENT_CYCLES must not be empty",
+        ))
+        issorted(cycles) || throw(ArgumentError(
+            "$RESULT_MODE_MEASUREMENT_CYCLES must be sorted; got $cycles",
+        ))
+        length(unique(cycles)) == length(cycles) || throw(ArgumentError(
+            "$RESULT_MODE_MEASUREMENT_CYCLES must be unique; got $cycles",
+        ))
+        all(cycle -> 0 <= cycle < n_rows, cycles) || throw(ArgumentError(
+            "$RESULT_MODE_MEASUREMENT_CYCLES must lie in 0:$(n_rows - 1); got $cycles",
+        ))
+    end
+
+    return (cycles=cycles, rows=cycles .+ 1)
+end
+
+"""
+    validate_mode_measurement_rows(mode_hk, mode_nk, measurement_cycles;
+                                   energy=nothing, energy_name=RESULT_ENERGY)
+
+Validate the row contract for a complete Bogoliubov mode-observable payload.
+The stored occupations must satisfy `mode_nk = mode_occupation_from_hk(mode_hk)`;
+the measured cycles must be sorted, unique, nonempty, and in range; and every
+measured row must contain finite `mode_hk` and `mode_nk` values.  If `energy` is
+given, it must have the same time dimension and be finite on the measured rows;
+`energy_name` controls the name used in error messages.  On success, return the
+same `(cycles, rows)` named tuple as `mode_measurement_cycle_rows`.
+"""
+function validate_mode_measurement_rows(
+    mode_hk,
+    mode_nk,
+    measurement_cycles;
+    energy=nothing,
+    energy_name::AbstractString=RESULT_ENERGY,
+)
+    mode_hk isa AbstractMatrix ||
+        throw(ArgumentError("$RESULT_MODE_HK must be a steps-by-modes matrix"))
+    mode_nk isa AbstractArray || throw(ArgumentError(
+        "$RESULT_MODE_NK must be a steps-by-modes matrix, got type $(typeof(mode_nk))"
+    ))
+    mode_nk isa AbstractMatrix || throw(DimensionMismatch(
+        "$RESULT_MODE_NK has shape $(size(mode_nk)), but $RESULT_MODE_HK has " *
+        "shape $(size(mode_hk))"
+    ))
+    size(mode_hk) == size(mode_nk) || throw(DimensionMismatch(
+        "$RESULT_MODE_NK has shape $(size(mode_nk)), but $RESULT_MODE_HK has " *
+        "shape $(size(mode_hk))"
+    ))
+    measured = mode_measurement_cycle_rows(size(mode_hk, 1), measurement_cycles)
+
+    if energy !== nothing
+        energy isa AbstractArray || throw(ArgumentError(
+            "$energy_name must be a vector or array with the same row count as " *
+            "$RESULT_MODE_HK; got type $(typeof(energy))"
+        ))
+        energy_values = Float64.(vec(energy))
+        length(energy_values) == size(mode_hk, 1) || throw(DimensionMismatch(
+            "$energy_name length $(length(energy_values)) does not match " *
+            "$RESULT_MODE_HK row count $(size(mode_hk, 1))"
+        ))
+        for (cycle, row) in zip(measured.cycles, measured.rows)
+            isfinite(energy_values[row]) || throw(ArgumentError(
+                "$RESULT_MODE_MEASUREMENT_CYCLES includes cycle $cycle, but " *
+                "$energy_name is non-finite on row $row"
+            ))
+        end
+    end
+
+    for (cycle, row) in zip(measured.cycles, measured.rows)
+        all(isfinite, view(mode_hk, row, :)) || throw(ArgumentError(
+            "$RESULT_MODE_HK contains non-finite values on measured cycle $cycle " *
+            "(row $row)"
+        ))
+        all(isfinite, view(mode_nk, row, :)) || throw(ArgumentError(
+            "$RESULT_MODE_NK contains non-finite values on measured cycle $cycle " *
+            "(row $row)"
+        ))
+    end
+
+    validate_mode_nk_matches_hk(mode_nk, mode_hk)
+
+    return measured
+end
+
 # Default: no additional measurements
 add_backend_measurements!(_, _, _, _) = nothing
 

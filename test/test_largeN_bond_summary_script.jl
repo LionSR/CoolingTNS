@@ -12,10 +12,16 @@ markdown_column_counts(text::AbstractString) = [
 ]
 
 function write_minimal_mode_summary_file(path::AbstractString, mode_hk, mode_nk;
-                                         mode_ek_values=nothing)
+                                         mode_ek_values=nothing,
+                                         mode_measurement_cycles=[0],
+                                         energy_values=nothing,
+                                         energy_dataset_name="E_mean")
     N = 4
     J, h = 1.0, 0.5
     k_indices = CoolingTNS.allowed_k_indices(N, -1)
+    n_rows = mode_hk isa AbstractMatrix ? size(mode_hk, 1) : 1
+    energy = energy_values === nothing ? zeros(Float64, n_rows) : Float64.(energy_values)
+    length(energy) == n_rows || error("test helper energy_values length must match mode_hk rows")
     h5open(path, "w") do f
         write(f, "Dmax", 8)
         write(f, "model", "ising")
@@ -28,12 +34,12 @@ function write_minimal_mode_summary_file(path::AbstractString, mode_hk, mode_nk;
         gr = create_group(gm, "R1")
 
         write(gr, "M", 1)
-        write(gr, "E_mean", [0.0])
-        write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0])
-        write(gr, "system_max_bond", [1])
-        write(gr, "system_mean_bond", [1.0])
-        write(gr, "evolved_max_bond", [0])
-        write(gr, "evolved_mean_bond", [NaN])
+        write(gr, energy_dataset_name, energy)
+        write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, zeros(Float64, n_rows))
+        write(gr, "system_max_bond", ones(Int, n_rows))
+        write(gr, "system_mean_bond", ones(Float64, n_rows))
+        write(gr, "evolved_max_bond", n_rows == 1 ? [0] : vcat(0, ones(Int, n_rows - 1)))
+        write(gr, "evolved_mean_bond", n_rows == 1 ? [NaN] : vcat(NaN, ones(Float64, n_rows - 1)))
         write(gr, CoolingTNS.RESULT_MODE_HK, mode_hk)
         write(gr, CoolingTNS.RESULT_MODE_NK, mode_nk)
         write(gr, CoolingTNS.RESULT_MODE_K_INDICES, Float64.(k_indices))
@@ -41,7 +47,7 @@ function write_minimal_mode_summary_file(path::AbstractString, mode_hk, mode_nk;
             CoolingTNS.mode_energies_Jh(k_indices, J, h, N) :
             mode_ek_values
         write(gr, CoolingTNS.RESULT_MODE_ENERGIES, gaps)
-        write(gr, CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES, [0])
+        write(gr, CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES, mode_measurement_cycles)
         write(gr, CoolingTNS.RESULT_MODE_GF, -1)
         write(gr, CoolingTNS.RESULT_MODE_GF_SOURCE, "state")
     end
@@ -563,6 +569,134 @@ end
         @test occursin("shape", message)
     finally
         rm(path; force=true)
+    end
+end
+
+@testset "Large-N summary validates mode measurement cycles" begin
+    scalar_path = tempname() * ".h5"
+    try
+        mode_hk = reshape([-1.0, -0.5, 0.0, 1.0], 1, 4)
+        write_minimal_mode_summary_file(
+            scalar_path,
+            mode_hk,
+            CoolingTNS.mode_occupation_from_hk(mode_hk);
+            mode_measurement_cycles=0,
+        )
+        row = only(summarize_file(scalar_path))
+        @test row.mode_measured_rows == "1/1"
+    finally
+        rm(scalar_path; force=true)
+    end
+
+    for (cycles, expected) in [
+        ([1, 0], "sorted"),
+        ([0, 0], "unique"),
+        ([0, 2], "0:1"),
+    ]
+        path = tempname() * ".h5"
+        try
+            mode_hk = [
+                -1.0 -0.5 0.0 1.0
+                 0.0  0.5 0.5 0.0
+            ]
+            write_minimal_mode_summary_file(
+                path,
+                mode_hk,
+                CoolingTNS.mode_occupation_from_hk(mode_hk);
+                mode_measurement_cycles=cycles,
+            )
+
+            err = try
+                summarize_file(path)
+                nothing
+            catch err
+                err
+            end
+            @test err isa ArgumentError
+            message = sprint(showerror, err)
+            @test occursin(CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES, message)
+            @test occursin(expected, message)
+        finally
+            rm(path; force=true)
+        end
+    end
+
+    path = tempname() * ".h5"
+    try
+        mode_hk = [
+            -1.0 -0.5 0.0 1.0
+             NaN  NaN NaN NaN
+        ]
+        write_minimal_mode_summary_file(
+            path,
+            mode_hk,
+            CoolingTNS.mode_occupation_from_hk(mode_hk);
+            mode_measurement_cycles=[0, 1],
+        )
+
+        err = try
+            summarize_file(path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        message = sprint(showerror, err)
+        @test occursin(CoolingTNS.RESULT_MODE_HK, message)
+        @test occursin("non-finite", message)
+        @test occursin("measured cycle 1", message)
+    finally
+        rm(path; force=true)
+    end
+
+    energy_path = tempname() * ".h5"
+    try
+        mode_hk = reshape([-1.0, -0.5, 0.0, 1.0], 1, 4)
+        write_minimal_mode_summary_file(
+            energy_path,
+            mode_hk,
+            CoolingTNS.mode_occupation_from_hk(mode_hk);
+            energy_values=[NaN],
+        )
+
+        err = try
+            summarize_file(energy_path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        message = sprint(showerror, err)
+        @test occursin("E_mean", message)
+        @test occursin("non-finite", message)
+    finally
+        rm(energy_path; force=true)
+    end
+
+    canonical_energy_path = tempname() * ".h5"
+    try
+        mode_hk = reshape([-1.0, -0.5, 0.0, 1.0], 1, 4)
+        write_minimal_mode_summary_file(
+            canonical_energy_path,
+            mode_hk,
+            CoolingTNS.mode_occupation_from_hk(mode_hk);
+            energy_values=[NaN],
+            energy_dataset_name=CoolingTNS.RESULT_ENERGY,
+        )
+
+        err = try
+            summarize_file(canonical_energy_path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        message = sprint(showerror, err)
+        @test occursin(CoolingTNS.RESULT_ENERGY, message)
+        @test !occursin("E_mean", message)
+        @test occursin("non-finite", message)
+    finally
+        rm(canonical_energy_path; force=true)
     end
 end
 
