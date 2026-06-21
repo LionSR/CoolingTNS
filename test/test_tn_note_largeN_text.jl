@@ -29,6 +29,9 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("historical truncation diagnostics", note_flat)
     @test occursin("finite-window noise-response diagnostics", note_flat)
     @test occursin("a robustness claim requires the same bond-dimension, positivity, and trajectory-convergence checks", note_flat)
+    @test occursin("archived pilot outputs use truncation caps up to \\(D\\leq 100\\)", note_flat)
+    @test occursin("individual plotted panels below state their own fixed bond caps", note_flat)
+    @test occursin("The displayed fixed-bond MPO panels use system sizes \\(N=50,100\\), bond dimension \\(D\\leq 20\\)", note_flat)
     @test occursin("D_{\\mathrm{sb}}^{\\mathrm{eff}}=394, 862, 518, 737", note_flat)
     @test occursin("R = 1: Dsys_eff = 309, Dsb_eff = 394", evidence_flat)
     @test occursin("R = 2: Dsys_eff = 637, Dsb_eff = 862", evidence_flat)
@@ -192,6 +195,8 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         "ground state fidelity decreases exponentially",
         "the steady-state energy density",
         "the energy of the steady state is estimated",
+        "the bond dimension is truncated to a maximum value of \$d \\leq 100\$",
+        "with a bond dimension of \$d \\leq 100\$",
     ]
     @test all(!occursin(phrase, note_lower) for phrase in forbidden)
 
