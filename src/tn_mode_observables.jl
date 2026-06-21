@@ -310,6 +310,11 @@ end
     measure_all_mode_energies(ψ_or_ρ, ham_params; gF=nothing)
 
 Compatibility wrapper for [`measure_all_mode_observables`](@ref).
+
+The historical name is retained for existing callers.  New code should prefer
+`measure_all_mode_observables`, because the measured quantity is ``h_k`` and
+the returned ``ε_k`` values are positive quasiparticle gaps for resonance
+labels, not signed energy-reconstruction coefficients.
 """
 measure_all_mode_energies(ψ::MPS, ham_params::HamiltonianParameters{IsingModel};
                           gF=nothing) =

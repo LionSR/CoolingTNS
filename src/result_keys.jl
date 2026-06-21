@@ -25,6 +25,9 @@ const RESULT_MODE_GF_SOURCE = "mode_gF_source"
 const RESULT_MODE_HK = "mode_hk"
 const RESULT_MODE_NK = "mode_nk"
 const RESULT_MODE_K_INDICES = "mode_k_indices"
+# Historical constant name: the HDF5 dataset is `mode_ek_values` and stores
+# positive quasiparticle gaps ε_k for resonance labels, not signed
+# energy-reconstruction coefficients.
 const RESULT_MODE_ENERGIES = "mode_ek_values"
 const RESULT_MODE_MEASUREMENT_CYCLES = "mode_measurement_cycles"
 
