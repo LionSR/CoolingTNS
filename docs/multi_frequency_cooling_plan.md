@@ -256,18 +256,18 @@ cooling.  TDVP is therefore accessible, but the physical question remains the
 long-cycle fixed point, not the first two cycles.
 The next completed `R = 5`, five-cycle TDVP probe at `Dmax = 96` lowers the
 energy density to `E/N = 0.66394232` after the early transient, but it reaches
-the transient system-bath cap in cycle 3 and the retained system cap in cycle
-4.  Thus it is evidence of high-bond TDVP cooling dynamics, not a converged
-large-`N` benchmark.
+the evolved system-bath cap in cycle 3, the TDVP sweep-observer cap during
+cycle 3 sweep 4, and the retained system cap in cycle 4.  Thus it is evidence
+of high-bond TDVP cooling dynamics, not a converged large-`N` benchmark.
 Future long TDVP runs should enable `--tdvp-sweep-progress` so interrupted runs
 retain the inner TDVP sweep-level bond-dimension trace in the HDF5 output.
 Adding `--progress-csv` also preserves a textual per-observer-event trace for
 live monitoring and partial-run inspection.
 If the purpose of a run is only to locate the first cap event, the validation
 driver can also be run with `--stop-on-bond-cap`.  This stops after the first
-completed cycle whose retained system state or transient system-bath state
-reaches the method-specific cap; when `--tdvp-sweep-progress` is enabled, the
-transient test includes the inner TDVP sweep states recorded during that cycle.
+completed cycle whose retained system state, evolved system-bath state, or,
+when `--tdvp-sweep-progress` is enabled, TDVP sweep-observer history reaches
+the method-specific cap.
 The driver writes the completed prefix of each time series and records
 `requested_steps`, `completed_steps`, and `stop_reasons` in the HDF5 group.  It
 also stores the per-cycle `tdvp_sweep_max_bond` trace and
