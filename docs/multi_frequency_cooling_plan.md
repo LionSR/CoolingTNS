@@ -43,15 +43,35 @@ V_SB = g Σ (σ^x_{S,i} σ^y_{B,i} + σ^y_{S,i} σ^x_{B,i}).
 
 ## Architecture
 
-### Current code path (single-Δ)
+### Current setup-gap path (single-Δ)
 
 ```
 setup_problem(backend, ham_params, coupling_params, sim_params)
-  → computes Δ = system gap (E₁ − E₀) if delta=nothing
+  → computes the generic setup reference Δ = E₁ − E₀ if delta=nothing
   → builds H_SB(Δ) as MPO
   → stores in CoolingProblem.H_sys_bath
   → every cooling step reuses the same H_SB
 ```
+
+This generic setup-gap convention remains the default for ordinary ED/TN
+single-detuning runs. It is not, however, the automatic convention for the
+mode-resolved integrable-Ising large-`N` diagnostics. In that case the
+validation driver first chooses a detuning reference through
+`campaign_base_detuning_reference`: for a parity-preserving code-basis coupling,
+with `--measure-modes` and no explicit detuning interval, the reference is the
+many-body generic pair scale
+`2 min_{sin(phi_k) != 0} epsilon_k` on the deterministic parity-`+1` Fourier
+grid selected before any trajectory-specific state parity is measured. This
+agrees with `MapToSpin.tex` and `CoolingAlgTN.tex`. If later mode metadata
+records a different `mode_gF`, that metadata remains the source of truth for
+the stored observables; the detuning reference is setup-grid provenance, not a
+reconstruction from `mode_ek_values`. The stored `mode_ek_values` remain
+positive single-quasiparticle gaps used to label modes and resonance plots;
+they are not by themselves the automatic bath-detuning reference for the
+parity-preserving Ising cooling channel. If the reference grid contains special
+modes, or if the coupling is not covered by this parity-preserving rule, the
+driver requires an explicit `--delta-min/--delta-max` interval for
+mode-resolved runs.
 
 ### Multi-frequency code path (new)
 
@@ -136,6 +156,12 @@ function spectral_delta_values(ham_params, backend; R=5)
     ...
 end
 ```
+
+For interacting models the grid endpoints are physical hypotheses about the
+many-body spectrum. For integrable-Ising mode diagnostics they must also be
+consistent with the mode-observable sector: the automatic endpoint source is
+`ising_mode_detuning_reference`, while an explicit interval is recorded as such
+and is not retroactively interpreted as the minimum of `mode_ek_values`.
 
 ### Step 3: Modified cooling loop
 
