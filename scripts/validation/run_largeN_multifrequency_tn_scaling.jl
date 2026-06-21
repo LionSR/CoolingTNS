@@ -758,6 +758,30 @@ function tdvp_sweep_progress_row(context, tdvp_context, sweep, current_time,
     )
 end
 
+"""
+    validate_mode_measurement_result(result, energy)
+
+Validate the Bogoliubov mode-observable payload produced by one large-`N`
+trajectory.  The wrapper first requires the complete set of mode datasets, then
+delegates the cycle rows, matrix shapes, measured-row finiteness, energy-length
+agreement, and `mode_nk = mode_occupation_from_hk(mode_hk)` relation to
+`validate_mode_measurement_rows`.  On success, it returns the same
+`(cycles, rows)` named tuple.
+"""
+function validate_mode_measurement_result(result, energy)
+    all(k -> haskey(result, k) && result[k] !== nothing,
+        RESULT_MODE_OBSERVABLE_PAYLOAD_KEYS) || error(
+        "--measure-modes was requested, but the run did not produce a complete " *
+        "Ising Fourier-mode measurement set"
+    )
+    return validate_mode_measurement_rows(
+        result[RESULT_MODE_HK],
+        result[RESULT_MODE_NK],
+        result[RESULT_MODE_MEASUREMENT_CYCLES];
+        energy=energy,
+    )
+end
+
 function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed;
                             method, R, trajectory, E0)
     steps = cp_multi.steps
@@ -919,21 +943,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
     evolved_meanbond_completed = evolved_meanbond[1:completed_index]
     tdvp_sweep_maxbond_completed = tdvp_sweep_maxbond[1:completed_index]
     if cfg["measure_modes"]
-        all(k -> haskey(result, k) && result[k] !== nothing,
-            RESULT_MODE_OBSERVABLE_PAYLOAD_KEYS) || error(
-            "--measure-modes was requested, but the run did not produce a complete " *
-            "Ising Fourier-mode measurement set"
-        )
-        mode_hk = result[RESULT_MODE_HK]
-        mode_nk = result[RESULT_MODE_NK]
-        (mode_hk isa AbstractMatrix && mode_nk isa AbstractMatrix) ||
-            error("--measure-modes produced mode data with an unexpected shape")
-        validate_mode_measurement_rows(
-            mode_hk,
-            mode_nk,
-            result[RESULT_MODE_MEASUREMENT_CYCLES];
-            energy=E,
-        )
+        validate_mode_measurement_result(result, E)
     end
 
     return Dict{String,Any}(

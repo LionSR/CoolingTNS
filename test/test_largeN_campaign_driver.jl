@@ -756,6 +756,64 @@ end
     end
 end
 
+@testset "Large-N campaign mode result validation" begin
+    function captured_error(f)
+        try
+            f()
+            return nothing
+        catch err
+            return err
+        end
+    end
+
+    mode_hk = [-1.0 0.0; 0.0 1.0]
+    mode_nk = CoolingTNS.mode_occupation_from_hk(mode_hk)
+    energy = [-2.0, -1.5]
+    result = Dict{String,Any}(
+        CoolingTNS.RESULT_MODE_HK => mode_hk,
+        CoolingTNS.RESULT_MODE_NK => mode_nk,
+        CoolingTNS.RESULT_MODE_K_INDICES => [1//2, 3//2],
+        CoolingTNS.RESULT_MODE_ENERGIES => [0.4, 0.8],
+        CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES => [0, 1],
+        CoolingTNS.RESULT_MODE_GF => -1,
+        CoolingTNS.RESULT_MODE_GF_SOURCE => "state",
+    )
+
+    @test validate_mode_measurement_result(result, energy).rows == [1, 2]
+
+    missing_result = copy(result)
+    delete!(missing_result, CoolingTNS.RESULT_MODE_NK)
+    err = captured_error(() -> validate_mode_measurement_result(missing_result, energy))
+    @test err isa ErrorException
+    @test occursin("complete Ising Fourier-mode measurement set", sprint(showerror, err))
+
+    nothing_result = copy(result)
+    nothing_result[CoolingTNS.RESULT_MODE_HK] = nothing
+    err = captured_error(() -> validate_mode_measurement_result(nothing_result, energy))
+    @test err isa ErrorException
+    @test occursin("complete Ising Fourier-mode measurement set", sprint(showerror, err))
+
+    bad_hk_result = copy(result)
+    bad_hk_result[CoolingTNS.RESULT_MODE_HK] = vec(mode_hk)
+    err = captured_error(() -> validate_mode_measurement_result(bad_hk_result, energy))
+    @test err isa ArgumentError
+    @test occursin(CoolingTNS.RESULT_MODE_HK, sprint(showerror, err))
+    @test occursin("steps-by-modes matrix", sprint(showerror, err))
+
+    bad_nk_result = copy(result)
+    bad_nk_result[CoolingTNS.RESULT_MODE_NK] = vec(mode_nk)
+    err = captured_error(() -> validate_mode_measurement_result(bad_nk_result, energy))
+    @test err isa DimensionMismatch
+    @test occursin(CoolingTNS.RESULT_MODE_NK, sprint(showerror, err))
+    @test occursin(CoolingTNS.RESULT_MODE_HK, sprint(showerror, err))
+    @test occursin("shape", sprint(showerror, err))
+
+    err = captured_error(() -> validate_mode_measurement_result(result, [-2.0]))
+    @test err isa DimensionMismatch
+    @test occursin(CoolingTNS.RESULT_ENERGY, sprint(showerror, err))
+    @test occursin(CoolingTNS.RESULT_MODE_HK, sprint(showerror, err))
+end
+
 @testset "Large-N campaign progress CSV" begin
     context = (
         method="mcwf",
