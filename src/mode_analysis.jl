@@ -589,11 +589,12 @@ boundary condition and parity sector.
 
 The code's conserved parity is ``P_x = ∏ σ_{x,i}`` (not ``P_z``!).
 This is because H_code is related to H_notes by a global π/2 Y-rotation
-that maps ``σ_z → -σ_x``, hence ``P_z = ∏ σ_z → (-1)^N ∏ σ_x = P_x``
-(for even N).
+that maps ``σ_z → σ_x``, hence ``P_z = ∏ σ_z → ∏ σ_x = P_x``.
 
 - Spin PBC (``g_I = +1``) with ``P_x = +1``: ``g_F = -1`` (fermionic APBC, half-integer k)
 - Spin PBC (``g_I = +1``) with ``P_x = -1``: ``g_F = +1`` (fermionic PBC, integer k)
+- Spin APBC (``g_I = -1``) with ``P_x = +1``: ``g_F = +1`` (fermionic PBC, integer k)
+- Spin APBC (``g_I = -1``) with ``P_x = -1``: ``g_F = -1`` (fermionic APBC, half-integer k)
 
 # Arguments
 - `spin_bc`: `:periodic` (``g_I=+1``) or `:antiperiodic` (``g_I=-1``)
