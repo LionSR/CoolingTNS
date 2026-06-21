@@ -618,9 +618,9 @@ julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
 
 Summarizing the progress CSV gives
 
-| R | Dcap | completed cycles | final E/N | Dsys_eff | Dsb_eff | bond_status | system cap | evolved cap | max sweep dt | max sweep at |
-|---:|---:|---:|---:|---:|---:|---|---|---|---:|---|
-| 5 | 96 | 5 | 0.66394232 | >=96 | >=96 | not_converged_system_and_evolved_cap | 4 | 3:4 | 334.2 s | 5:4 |
+| R | Dcap | completed cycles | final E/N | Dsys_eff | Dsb_eff | bond_status | system cap | evolved cap | tdvp sweep cap | first transient cap | max sweep dt | max sweep at |
+|---:|---:|---:|---:|---:|---:|---|---|---|---|---|---:|---|
+| 5 | 96 | 5 | 0.66394232 | >=96 | >=96 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 4 | 3 | 3:4 | 3:4 | 334.2 s | 5:4 |
 
 The per-cycle energy and bond trace is
 
@@ -634,9 +634,10 @@ The per-cycle energy and bond trace is
 
 This run is more informative than the two-cycle calibration: after the early
 transient, the energy decreases for cycles 3 through 5.  It is nevertheless not
-a converged TDVP benchmark.  The transient system-bath MPS first reaches the
-`Dmax = 96` cap during cycle 3, and the retained system MPS reaches the cap in
-cycle 4.  Therefore the reported effective bond dimensions are lower bounds,
+a converged TDVP benchmark.  The evolved system-bath MPS first reaches the
+`Dmax = 96` cap during cycle 3, the TDVP sweep trace reaches it during cycle 3
+sweep 4, and the retained system MPS reaches the cap in cycle 4.  Therefore the
+reported effective bond dimensions are lower bounds,
 `D_{\rm sys}^{\rm eff} >= 96` and `D_{\rm sb}^{\rm eff} >= 96`, rather than
 resolved requirements.  The result should be read as evidence that the
 physically relevant TDVP run has entered the high-bond regime, not as evidence
@@ -665,9 +666,13 @@ jobs stopped after three completed cycles because the evolved system-bath state
 reached the cap during cycle 3.  The `R = 2`, `Dmax = 128` follow-up stopped at
 the same cycle.
 
-Summarizing the progress CSVs gives
+The raw progress CSVs for this legacy campaign are not retained in the
+repository.  The historical progress summary below predates #339, so the final
+cap column is the first transient cap hit reported by the old summarizer, not
+an evolved-stage-only cap column.  Current progress summaries report separate
+`evolved cap`, `tdvp sweep cap`, and `first transient cap` columns.
 
-| R | Dcap | completed/requested cycles | final E/N | Dsys_eff | Dsb_eff | bond_status | evolved cap | max sweep dt | elapsed |
+| R | Dcap | completed/requested cycles | final E/N | Dsys_eff | Dsb_eff | legacy bond_status | legacy first transient cap | max sweep dt | elapsed |
 |---:|---:|---:|---:|---:|---:|---|---|---:|---:|
 | 1 | 96 | 3/40 | 1.46044484 | 91 | >=96 | not_converged_evolved_cap | 3:7 | 131.5 s | 878.5 s |
 | 2 | 96 | 3/40 | 0.98249764 | 95 | >=96 | not_converged_evolved_cap | 3:6 | 148.7 s | 1075.2 s |
@@ -695,9 +700,10 @@ yet produce a physically controlled long-time cooling trajectory.
 The HDF5 files for this particular stop-cap campaign predate the HDF5
 persistence of TDVP sweep histories added later.  Consequently
 `summarize_largeN_bond_dimensions.jl` reports `Dtdvp_sweep_eff = n/a` for these
-legacy files, while the accompanying progress CSVs record the cycle-3 evolved
-cap events shown above.  New stop-cap runs with `--tdvp-sweep-progress` store
-both `tdvp_sweep_max_bond` and `tdvp_sweep_saturation_cycle` in HDF5.
+legacy files.  The legacy progress rows above show cycle-3 transient cap events,
+with sweep indices when the first hit was observed by a TDVP sweep row.  New
+stop-cap runs with `--tdvp-sweep-progress` store both `tdvp_sweep_max_bond` and
+`tdvp_sweep_saturation_cycle` in HDF5.
 
 ## MCWF+TDVP Stop-on-Cap Scan at te=1.0
 

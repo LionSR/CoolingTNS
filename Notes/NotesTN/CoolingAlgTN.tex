@@ -619,9 +619,10 @@ A first longer traced run was carried out at the same system size with
 \end{align*}
 Thus this calculation does show cooling after the early transient.  It is,
 however, still a bond-dimension diagnostic rather than a converged cooling
-benchmark.  The transient system-bath MPS reaches the cap during the third
-cycle, and the retained system MPS reaches the cap in the fourth cycle.  The
-corresponding effective dimensions are therefore only lower bounds,
+benchmark.  The evolved system-bath MPS reaches the cap during the third
+cycle, the TDVP sweep observer reaches the cap during cycle 3 sweep 4, and the
+retained system MPS reaches the cap in the fourth cycle.  The corresponding
+effective dimensions are therefore only lower bounds,
 \[
 	D_{\mathrm{sys}}^{\mathrm{eff}}\geq 96,\qquad
 	D_{\mathrm{sb}}^{\mathrm{eff}}\geq 96,
@@ -629,8 +630,8 @@ corresponding effective dimensions are therefore only lower bounds,
 with the machine-readable bond status
 \[
 \begin{gathered}
-	\texttt{not\_converged\_system\_and}\\
-	\texttt{\_evolved\_cap}.
+	\texttt{not\_converged\_system\_and\_evolved\_and}\\
+	\texttt{\_tdvp\_sweep\_cap}.
 \end{gathered}
 \]
 This is the presently relevant \(D_{\max}=96\) TDVP evidence: five cycles are
