@@ -683,13 +683,55 @@ interval until the special-mode transition scale is selected separately.
 
 
 
-\subsection{Keeping the parity}
-The parity operator $P$ commutes with the system Hamiltonian $H_S$. If we choose the bath and interaction as
+\subsection{Parity-preserving couplings in the code convention}
+In the notes basis the Ising parity is
 \begin{align}
-    H_B    &= -\frac{\Delta}{2}\sum_{n=1}^{N}\sigma^B_{n,x},\\
-    V_{SB} &= g\sum_{n=1}^{N} \sigma_{n,z} \sigma^B_{n,z},
+    P=\prod_{n=1}^N \sigma_{n,z},
 \end{align}
-then the total Hamiltonian $H_{SB}=H_S+H_B+V_{SB}$ commutes with the parity operator $P = \prod_{n=1}^{N} \sigma_{n,z}$. This requires an initial state with fixed parity (for example, even), such as the all-spins-up state.
+and it commutes with the spin Hamiltonian \(H_{\mathrm{spin}}\).  In the Julia code the
+Ising Hamiltonian is written in the globally rotated basis
+\(H_{\mathrm{code}}=J\sum_j\sigma^z_j\sigma^z_{j+1}
++h\sum_j\sigma^x_j\), so this same parity is represented by
+\begin{align}
+    P_x=\prod_{n=1}^N \sigma_{n,x}.
+\end{align}
+Thus a local code-basis system Pauli preserves the Ising parity precisely when
+it is \(\sigma_x\).
+
+The implemented system-bath coupling is not encoded by a separate fixed bath
+example.  It is specified by the shared two-letter coupling label
+\(c\in\{X,Y,Z\}^2\), whose source of truth is
+\texttt{src/coupling\_utils.jl}.  The local terms are
+\begin{align}
+    \mathcal T(AA)&=\{(A,A)\},\qquad
+    \mathcal T(AB)=\{(A,B),(B,A)\}\quad(A\ne B),\\
+    V_{SB}(c)&=
+    g\sum_{i=1}^N\sum_{(\mu,\nu)\in\mathcal T(c)}
+    \sigma^{\mu}_{s_i,\mathrm{code}}\sigma^{\nu}_{b_i}.
+\end{align}
+The bath Hamiltonian and reset state use the same convention as the ED, MPS,
+and MPO implementations:
+\begin{align}
+    H_B(c,\Delta)=\frac{\Delta}{2}\sum_{i=1}^N
+    \sigma^{\beta(c)}_{b_i},\qquad
+    \ket{\Omega_B(c)}=\bigotimes_{i=1}^N
+    \ket{\beta(c),-}_{b_i},
+\end{align}
+where \(\beta(c)\) is the Pauli label returned by
+\texttt{get\_bath\_operator} and \(\ket{\beta(c),-}\) is its eigenvalue
+\(-1\) state.  This is the convention used by
+\texttt{construct\_system\_bath\_hamiltonian} and by the tensor-network note.
+
+Consequently the code-basis coupling \(c\) preserves the Ising parity if and
+only if every system-side label \(\mu\) appearing in \(\mathcal T(c)\) is
+\(X\).  The large-\(N\) mode-detuning driver checks this condition through
+\texttt{campaign\_mode\_detuning\_preserves\_px}.  For example, \(XX\)
+preserves \(P_x\), while a mixed symmetric label such as \(XY\) or \(XZ\) does
+not, because the Hermitian convention also includes a term with a non-\(X\)
+system Pauli.  The automatic parity-preserving detuning reference
+\(\Delta_{\mathrm{intra}}=2\epsilon_{\min}\) should therefore be used only
+when this condition holds; otherwise the physical detuning interval should be
+specified explicitly.
 
 
 \section{Numerical Simulation of Cooling Dynamics}
