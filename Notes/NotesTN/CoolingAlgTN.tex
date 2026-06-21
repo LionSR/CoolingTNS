@@ -40,12 +40,12 @@ where $\tr_B\{\cdot\}$ denotes the partial trace over the bath degrees of freedo
 An evolution under the Hamiltonian $H$ conserves the energy corresponding to the same Hamiltonian $\langle H_S + H_B + gV\rangle$.
 In the weak-interaction regime
 \(\min\{\|H_B\|,\|H_S\|\}\gg g>0\), the expectation value
-\(\langle H_S+H_B\rangle\) is approximately conserved over one cycle.  A
-favorable resonant transfer can then excite the ancillary system \(B\) from
-its ground state while lowering \(\langle H_S\rangle\).  This energy exchange
-is the intended cooling mechanism, but whether it actually produces a lower
-system energy depends on the coupling, detuning, cycle time, and numerical
-approximation.
+\(\langle H_S+H_B\rangle\) is approximately conserved during the joint
+evolution.  A favorable resonant transfer can then excite the ancillary system
+\(B\) from its ground state while lowering \(\langle H_S\rangle\).  This energy
+exchange is the intended cooling mechanism, but whether it actually produces a
+lower system energy depends on the coupling, detuning, cycle time, and
+numerical approximation.
 
 To study the performance of the cooling algorithm and optimize its parameters, we employ numerical simulation methods based on tensor networks. Specifically, we use matrix product operator (MPO) and matrix product state (MPS) techniques to simulate the cooling dynamics when the relevant states or operators remain sufficiently low-entangled. This low-entanglement assumption is part of the numerical validation problem, not an a priori consequence of the cooling map; the large-\(N\) diagnostics below therefore track effective system, system-bath, and TDVP-sweep bond dimensions explicitly.
 
