@@ -75,3 +75,19 @@ end
     @test !occursin("demonstrating the scalability and robustness of the optimized protocol", supp_flat)
     @test !occursin("This highlights the protocol's robustness across different system sizes and phases", supp_flat)
 end
+
+@testset "GaussianPaper multi-frequency noise claims remain local" begin
+    paper_dir = joinpath(@__DIR__, "..", "Notes", "GaussianPaper")
+    main_text = read(joinpath(paper_dir, "journal_main.tex"), String)
+    main_flat = replace(main_text, r"\s+" => " ")
+
+    @test occursin("In this finite parameter sweep", main_flat)
+    @test occursin("Across most panels in this finite sweep", main_flat)
+    @test occursin("the benefit depends on the mode, coupling strength, and noise level", main_flat)
+    @test occursin("not as a parameter-uniform robustness statement", main_flat)
+    @test occursin("leaving the quantitative noise tolerance to the conditions below", main_flat)
+    @test !occursin("in general, using multiple frequencies", main_flat)
+    @test !occursin(raw"consistently outperforms single-frequency cooling ($R=1$) across all parameter regimes", main_flat)
+    @test !occursin("the results demonstrate a degree of robustness", main_flat)
+    @test !occursin("This highlights the general utility of the multi-frequency approach", main_flat)
+end
