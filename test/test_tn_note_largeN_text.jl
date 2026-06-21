@@ -198,7 +198,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         "this is already the faster method in the codebase",
         "systematic runs for the paper:",
         "demonstrate and study these strategies",
-        "noise robustness: multi-δ cooling",
+        "noise robustness",
         "steady-state energy vs r",
         "steady-state energy vs n",
     ]
