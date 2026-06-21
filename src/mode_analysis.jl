@@ -67,8 +67,9 @@ For **spin APBC** (``g_I = -1``): the assignment is swapped.
 """
     mode_occupation_from_hk(hk)
 
-Convert the Bogoliubov mode observable ``h_k = 2 n_k - 1`` to the occupation
-number ``n_k``. This accepts either a scalar or an array.
+Convert the Bogoliubov mode observable ``h_k = 2 n_k^{Bog} - 1`` to the
+Bogoliubov occupation number ``n_k^{Bog}``. This accepts either a scalar or an
+array.
 """
 mode_occupation_from_hk(hk) = (hk .+ 1) ./ 2
 
@@ -348,7 +349,7 @@ end
 
 Return the positive open-boundary BdG quasiparticle energies in notes units.
 The corresponding many-body spectrum is
-``Σ_k ε_k (n_k - 1/2)`` with ``n_k ∈ {0,1}``.
+``Σ_k ε_k (n_k^{OBC} - 1/2)`` with ``n_k^{OBC} ∈ {0,1}``.
 """
 function obc_mode_energies(θ::Real, N::Int)
     Hbdg = Symmetric(obc_bdg_matrix(θ, N))
@@ -401,7 +402,7 @@ H_k = [[ w_k,  i r_k ],
     ``ã_k = (1/√N) Σ exp(+inφ_k) a_n``, effectively swapping ``k ↔ -k``.
     To keep the BdG block and Bogoliubov angles consistent with this choice,
     we use ``r_k = +cos θ sin(φ_k)`` here. The two conventions give identical
-    physical predictions (mode energies, occupations, ⟨h_k⟩).
+    physical predictions (mode energies, Bogoliubov occupations, ⟨h_k⟩).
 """
 function r_k_coefficient(k, θ, N)
     φk = 2π * k / N
