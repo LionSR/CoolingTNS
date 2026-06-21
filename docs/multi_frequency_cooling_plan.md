@@ -97,16 +97,16 @@ rebuilding is < 1%. Pre-building R Hamiltonians is unnecessary complexity.
   tensor-network route, because it avoids representing the density matrix as an
   MPO.  The numerical bond cap is not fixed by this preference: current `N=64`
   evidence shows that `D = 40` is only a pilot cap, and any production claim must
-  choose `Dmax` from a convergence ladder with retained-state, transient
-  system-bath, and TDVP sweep-level diagnostics.
+  choose `Dmax` from a convergence ladder with retained-system, evolved
+  system-bath, and TDVP sweep-observer diagnostics.
 - No Trotter error from the continuous-time TDVP integrator.  The remaining
   algorithmic errors are the usual TDVP projection and truncation errors; the
   current large-`N` HDF5 campaign records bond-cap and saturation diagnostics,
   not measured truncation-error histories.
 - A single MCWF trajectory and a late-time average are diagnostic quantities
   only.  A numerical steady-state estimate requires independent trajectories,
-  stability under the averaging window, and convergence in the retained and
-  transient bond dimensions.
+  stability under the averaging window, and convergence in the retained-system,
+  evolved system-bath, and TDVP sweep-observer bond dimensions.
 - The current timing evidence favors process-level MCWF+TDVP diagnostic scans
   with one Julia thread and one BLAS thread per independent job.  Production
   settings must still be benchmarked at the target bond cap.
@@ -237,13 +237,13 @@ tail fluctuations from ensemble fluctuations.
 
 ### Current large-N status
 
-The current `N=64` MCWF/MPS Trotter diagnostics show substantial transient
+The current `N=64` MCWF/MPS Trotter diagnostics show substantial evolved
 system-bath bond growth while the short trajectories remain far above the
 ground-state energy.  The repository-level summary is
 [`largeN_effective_bond_dimensions.md`](largeN_effective_bond_dimensions.md).
 In particular, four-cycle fixed-detuning runs with `R = 1,2,5,10` already show
 that `Dmax = 320` is not a converged cap, and some `Dmax = 640` schedules still
-saturate the transient system-bath bond dimension.
+saturate the evolved system-bath bond dimension.
 
 The large-`N` validation driver can now select the evolution branch explicitly.
 The Trotter results above should not be conflated with MCWF+TDVP runs launched
