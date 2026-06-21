@@ -851,7 +851,7 @@ Fig.~\ref{fig:MPOCooling:noiseless} shows the energy and ground state overlap as
 
 \subsubsection{Noisy Cooling}
 
-In practice, quantum systems are inevitably coupled to environments, leading to the presence of noise and dissipation, which could affect the performance of the algorithm. We investigate if the cooling algorithm is resilient to experimental noise. The effects of noise are incorporated into the MPO simulations by applying the Kraus operators corresponding to the depolarizing noise after each cooling step. The depolarizing noise is described by the channel in Eq.~(\ref{eq:depolarizing}), with the noise strength $p_e$ representing the probability of a noise event occurring.
+In practice, quantum systems are inevitably coupled to environments, leading to the presence of noise and dissipation, which could affect the performance of the algorithm. We use the historical noisy MPO panels as finite-window diagnostics of the truncated channel response to the applied noise model. The effects of noise are incorporated into the MPO simulations by applying the Kraus operators corresponding to the depolarizing noise after each cooling step. The depolarizing noise is described by the channel in Eq.~(\ref{eq:depolarizing}), with the noise strength $p_e$ representing the probability of a noise event occurring.
 
 \begin{figure}
 	\centering
