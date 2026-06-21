@@ -190,7 +190,8 @@ function validate_mode_observable_payload(run_group)
     )
 end
 
-function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean)
+function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean;
+                                     energy_name::AbstractString=RESULT_ENERGY)
     validate_mode_observable_payload(run_group) ||
         return missing_mode_reconstruction_summary()
 
@@ -226,7 +227,7 @@ function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean)
         mode_nk,
         read(run_group[RESULT_MODE_MEASUREMENT_CYCLES]);
         energy=energy_mean,
-        energy_name="E_mean",
+        energy_name=energy_name,
     )
     valid_rows = measured.rows
 
@@ -428,22 +429,27 @@ function first_saturation_from_history(history, threshold::Integer)
 end
 
 """
-    read_largeN_energy_mean(run_group)
+    read_largeN_energy_mean_with_name(run_group)
 
 Read the large-N aggregate energy time series.  New files use the canonical
 `RESULT_ENERGY` key, while archived files may still use the legacy `E_mean`
 dataset.  The summary script does not read the overlap-mean series, so the
 corresponding archived `GS_overlap_mean` fallback is intentionally unnecessary
-here.
+here.  Return both the values and the HDF5 dataset name used, so downstream
+validation errors identify the actual source dataset.
 """
-function read_largeN_energy_mean(run_group)
-    haskey(run_group, RESULT_ENERGY) && return read(run_group[RESULT_ENERGY])
-    haskey(run_group, "E_mean") && return read(run_group["E_mean"])
+function read_largeN_energy_mean_with_name(run_group)
+    haskey(run_group, RESULT_ENERGY) &&
+        return (values=read(run_group[RESULT_ENERGY]), name=RESULT_ENERGY)
+    haskey(run_group, "E_mean") &&
+        return (values=read(run_group["E_mean"]), name="E_mean")
     error(
         "large-N run group is missing both $RESULT_ENERGY and legacy E_mean " *
         "energy-mean datasets"
     )
 end
+
+read_largeN_energy_mean(run_group) = read_largeN_energy_mean_with_name(run_group).values
 
 function truncation_error_history_status(run_group)
     if haskey(run_group, RESULT_TRUNCATION_ERROR_HISTORY_STATUS)
@@ -469,7 +475,8 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     evolution = String(read_group_value(method_group, root, "evolution_method", "unknown"))
     threshold = saturation_threshold_for(root, method_group, run_group, method_name)
 
-    energy_mean = read_largeN_energy_mean(run_group)
+    energy_dataset = read_largeN_energy_mean_with_name(run_group)
+    energy_mean = energy_dataset.values
     relative_energy_mean = read(run_group[RESULT_RELATIVE_ENERGY])
     inferred_completed_steps = max(length(energy_mean) - 1, 0)
     default_requested_steps = haskey(root, "steps") ?
@@ -567,7 +574,9 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     quantiles = mean_link_quantiles(link_dims)
     fractions = mean_link_threshold_fractions(link_dims, threshold)
     detuning = detuning_protocol_summary(method_group, run_group)
-    mode_summary = mode_reconstruction_summary(root, run_group, N, energy_mean)
+    mode_summary = mode_reconstruction_summary(
+        root, run_group, N, energy_mean; energy_name=energy_dataset.name
+    )
 
     return (
         file=basename(file_name),

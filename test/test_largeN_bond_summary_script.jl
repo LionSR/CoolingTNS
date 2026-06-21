@@ -14,7 +14,8 @@ markdown_column_counts(text::AbstractString) = [
 function write_minimal_mode_summary_file(path::AbstractString, mode_hk, mode_nk;
                                          mode_ek_values=nothing,
                                          mode_measurement_cycles=[0],
-                                         energy_values=nothing)
+                                         energy_values=nothing,
+                                         energy_dataset_name="E_mean")
     N = 4
     J, h = 1.0, 0.5
     k_indices = CoolingTNS.allowed_k_indices(N, -1)
@@ -33,7 +34,7 @@ function write_minimal_mode_summary_file(path::AbstractString, mode_hk, mode_nk;
         gr = create_group(gm, "R1")
 
         write(gr, "M", 1)
-        write(gr, "E_mean", energy)
+        write(gr, energy_dataset_name, energy)
         write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, zeros(Float64, n_rows))
         write(gr, "system_max_bond", ones(Int, n_rows))
         write(gr, "system_mean_bond", ones(Float64, n_rows))
@@ -670,6 +671,32 @@ end
         @test occursin("non-finite", message)
     finally
         rm(energy_path; force=true)
+    end
+
+    canonical_energy_path = tempname() * ".h5"
+    try
+        mode_hk = reshape([-1.0, -0.5, 0.0, 1.0], 1, 4)
+        write_minimal_mode_summary_file(
+            canonical_energy_path,
+            mode_hk,
+            CoolingTNS.mode_occupation_from_hk(mode_hk);
+            energy_values=[NaN],
+            energy_dataset_name=CoolingTNS.RESULT_ENERGY,
+        )
+
+        err = try
+            summarize_file(canonical_energy_path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        message = sprint(showerror, err)
+        @test occursin(CoolingTNS.RESULT_ENERGY, message)
+        @test !occursin("E_mean", message)
+        @test occursin("non-finite", message)
+    finally
+        rm(canonical_energy_path; force=true)
     end
 end
 
