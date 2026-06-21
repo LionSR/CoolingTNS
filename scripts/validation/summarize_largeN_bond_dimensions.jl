@@ -169,15 +169,29 @@ function mode_measurement_row_label(n_measured::Integer, n_rows::Integer)
     return "$(n_measured)/$(n_rows)"
 end
 
-function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean)
-    mode_keys = (
-        RESULT_MODE_HK,
-        RESULT_MODE_K_INDICES,
-        RESULT_MODE_MEASUREMENT_CYCLES,
-        RESULT_MODE_GF,
-        RESULT_MODE_GF_SOURCE,
+"""Return false for absent mode data, true for a complete payload, and reject partial payloads."""
+function validate_mode_observable_payload(run_group)
+    present_keys = String[
+        key for key in RESULT_MODE_OBSERVABLE_PAYLOAD_KEYS if haskey(run_group, key)
+    ]
+    isempty(present_keys) && return false
+
+    missing_keys = String[
+        key for key in RESULT_MODE_OBSERVABLE_PAYLOAD_KEYS if !haskey(run_group, key)
+    ]
+    isempty(missing_keys) && return true
+
+    error(
+        "incomplete mode-observable metadata: found " *
+        join(present_keys, ", ") *
+        " but missing " *
+        join(missing_keys, ", ") *
+        ". Remove the partial mode datasets or write the complete mode-observable payload."
     )
-    all(key -> haskey(run_group, key), mode_keys) ||
+end
+
+function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean)
+    validate_mode_observable_payload(run_group) ||
         return missing_mode_reconstruction_summary()
 
     mode_gF = Int(read(run_group[RESULT_MODE_GF]))

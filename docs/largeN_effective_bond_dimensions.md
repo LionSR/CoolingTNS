@@ -213,6 +213,12 @@ discrepancy is the expected target for a parity-definite trajectory; a
 reference-grid entry with
 `mode_gF_source = "reference"` is a diagnostic of a chosen sector and should
 not be read as an exact energy decomposition for a mixed-parity state.
+If any mode-observable dataset is present, the summary requires the complete
+mode-observable payload (`mode_hk`, `mode_nk`, `mode_k_indices`,
+`mode_ek_values`, `mode_measurement_cycles`, `mode_gF`, and
+`mode_gF_source`).  A partial payload is rejected rather than summarized as
+`n/a`, because it is neither a valid absence of mode data nor a complete
+occupation-number diagnostic.
 
 The full TN mode measurement currently evaluates the split-string correlator
 formula for all Fourier modes, and is much more expensive than the scalar

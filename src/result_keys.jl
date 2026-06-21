@@ -35,6 +35,15 @@ const RESULT_MODE_HK_TRAJECTORIES = "mode_hk_trajectories"
 const RESULT_MODE_NK_TRAJECTORIES = "mode_nk_trajectories"
 const RESULT_MODE_HK_STDERR = "mode_hk_stderr"
 const RESULT_MODE_NK_STDERR = "mode_nk_stderr"
+const RESULT_MODE_OBSERVABLE_PAYLOAD_KEYS = (
+    RESULT_MODE_HK,
+    RESULT_MODE_NK,
+    RESULT_MODE_K_INDICES,
+    RESULT_MODE_ENERGIES,
+    RESULT_MODE_MEASUREMENT_CYCLES,
+    RESULT_MODE_GF,
+    RESULT_MODE_GF_SOURCE,
+)
 
 const RESULT_DELTA_LIST = "delta_list"
 const RESULT_TE_LIST = "te_list"

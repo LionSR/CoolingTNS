@@ -434,7 +434,10 @@ end
             write(gr, "evolved_max_bond", [0, 3, 4])
             write(gr, "evolved_mean_bond", [NaN, 3.0, 4.0])
             write(gr, CoolingTNS.RESULT_MODE_HK, mode_hk)
+            write(gr, CoolingTNS.RESULT_MODE_NK, CoolingTNS.mode_occupation_from_hk(mode_hk))
             write(gr, CoolingTNS.RESULT_MODE_K_INDICES, Float64.(k_indices))
+            write(gr, CoolingTNS.RESULT_MODE_ENERGIES,
+                  CoolingTNS.mode_energies_Jh(k_indices, J, h, N))
             write(gr, CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES, [0, 2])
             write(gr, CoolingTNS.RESULT_MODE_GF, -1)
             write(gr, CoolingTNS.RESULT_MODE_GF_SOURCE, "state")
@@ -479,6 +482,47 @@ end
     end
 end
 
+@testset "Large-N summary rejects partial mode metadata" begin
+    path = tempname() * ".h5"
+    try
+        h5open(path, "w") do f
+            write(f, "Dmax", 8)
+            write(f, "model", "ising")
+            write(f, "bc", "periodic")
+            write(f, "J", 1.0)
+            write(f, "h", 0.5)
+            gn = create_group(f, "N4")
+            write(gn, "N", 4)
+            gm = create_group(gn, "mcwf")
+            gr = create_group(gm, "R1")
+
+            write(gr, "M", 1)
+            write(gr, "E_mean", [0.0])
+            write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0])
+            write(gr, "system_max_bond", [1])
+            write(gr, "system_mean_bond", [1.0])
+            write(gr, "evolved_max_bond", [0])
+            write(gr, "evolved_mean_bond", [NaN])
+            write(gr, CoolingTNS.RESULT_MODE_HK, reshape(fill(-1.0, 4), 1, 4))
+        end
+
+        err = try
+            summarize_file(path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ErrorException
+        message = sprint(showerror, err)
+        @test occursin("incomplete mode-observable metadata", message)
+        @test occursin(CoolingTNS.RESULT_MODE_HK, message)
+        @test occursin(CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES, message)
+        @test occursin(CoolingTNS.RESULT_MODE_GF_SOURCE, message)
+    finally
+        rm(path; force=true)
+    end
+end
+
 @testset "Large-N summary rejects nonintegrable mode metadata" begin
     path = tempname() * ".h5"
     try
@@ -500,8 +544,12 @@ end
             write(gr, "system_mean_bond", [1.0])
             write(gr, "evolved_max_bond", [0])
             write(gr, "evolved_mean_bond", [NaN])
-            write(gr, CoolingTNS.RESULT_MODE_HK, reshape(fill(-1.0, 4), 1, 4))
-            write(gr, CoolingTNS.RESULT_MODE_K_INDICES, Float64.([-1.5, -0.5, 0.5, 1.5]))
+            mode_hk = reshape(fill(-1.0, 4), 1, 4)
+            k_indices = Float64.([-1.5, -0.5, 0.5, 1.5])
+            write(gr, CoolingTNS.RESULT_MODE_HK, mode_hk)
+            write(gr, CoolingTNS.RESULT_MODE_NK, CoolingTNS.mode_occupation_from_hk(mode_hk))
+            write(gr, CoolingTNS.RESULT_MODE_K_INDICES, k_indices)
+            write(gr, CoolingTNS.RESULT_MODE_ENERGIES, ones(length(k_indices)))
             write(gr, CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES, [0])
             write(gr, CoolingTNS.RESULT_MODE_GF, -1)
             write(gr, CoolingTNS.RESULT_MODE_GF_SOURCE, "state")
