@@ -11,6 +11,40 @@ markdown_column_counts(text::AbstractString) = [
     if startswith(line, "|")
 ]
 
+function write_minimal_mode_summary_file(path::AbstractString, mode_hk, mode_nk)
+    N = 4
+    J, h = 1.0, 0.5
+    k_indices = CoolingTNS.allowed_k_indices(N, -1)
+    h5open(path, "w") do f
+        write(f, "Dmax", 8)
+        write(f, "model", "ising")
+        write(f, "bc", "periodic")
+        write(f, "J", J)
+        write(f, "h", h)
+        gn = create_group(f, "N4")
+        write(gn, "N", N)
+        gm = create_group(gn, "mcwf")
+        gr = create_group(gm, "R1")
+
+        write(gr, "M", 1)
+        write(gr, "E_mean", [0.0])
+        write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0])
+        write(gr, "system_max_bond", [1])
+        write(gr, "system_mean_bond", [1.0])
+        write(gr, "evolved_max_bond", [0])
+        write(gr, "evolved_mean_bond", [NaN])
+        write(gr, CoolingTNS.RESULT_MODE_HK, mode_hk)
+        write(gr, CoolingTNS.RESULT_MODE_NK, mode_nk)
+        write(gr, CoolingTNS.RESULT_MODE_K_INDICES, Float64.(k_indices))
+        write(gr, CoolingTNS.RESULT_MODE_ENERGIES,
+              CoolingTNS.mode_energies_Jh(k_indices, J, h, N))
+        write(gr, CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES, [0])
+        write(gr, CoolingTNS.RESULT_MODE_GF, -1)
+        write(gr, CoolingTNS.RESULT_MODE_GF_SOURCE, "state")
+    end
+    return nothing
+end
+
 @testset "Large-N schedule-period labels" begin
     @test is_deterministic_schedule("round_robin")
     @test is_deterministic_schedule("descending")
@@ -477,6 +511,53 @@ end
         end
         @test occursin("| mode max abs dE/N |", compact_output)
         @test occursin("| $(format_float(final_energy_offset / N, 3)) | 8 |", compact_output)
+    finally
+        rm(path; force=true)
+    end
+end
+
+@testset "Large-N summary validates stored mode occupations" begin
+    path = tempname() * ".h5"
+    try
+        mode_hk = reshape([-1.0, -0.5, 0.0, 1.0], 1, 4)
+        bad_mode_nk = CoolingTNS.mode_occupation_from_hk(mode_hk)
+        bad_mode_nk[1, 2] += 0.1
+        write_minimal_mode_summary_file(path, mode_hk, bad_mode_nk)
+
+        err = try
+            summarize_file(path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        message = sprint(showerror, err)
+        @test occursin(CoolingTNS.RESULT_MODE_NK, message)
+        @test occursin(CoolingTNS.RESULT_MODE_HK, message)
+        @test occursin("derived occupation", message)
+    finally
+        rm(path; force=true)
+    end
+end
+
+@testset "Large-N summary rejects mode occupation shape mismatches" begin
+    path = tempname() * ".h5"
+    try
+        mode_hk = reshape([-1.0, -0.5, 0.0, 1.0], 1, 4)
+        bad_shape_nk = vec(CoolingTNS.mode_occupation_from_hk(mode_hk))
+        write_minimal_mode_summary_file(path, mode_hk, bad_shape_nk)
+
+        err = try
+            summarize_file(path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa DimensionMismatch
+        message = sprint(showerror, err)
+        @test occursin(CoolingTNS.RESULT_MODE_NK, message)
+        @test occursin(CoolingTNS.RESULT_MODE_HK, message)
+        @test occursin("shape", message)
     finally
         rm(path; force=true)
     end

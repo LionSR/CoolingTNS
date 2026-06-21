@@ -216,6 +216,8 @@ function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean)
     mode_hk = Float64.(read(run_group[RESULT_MODE_HK]))
     mode_hk isa AbstractMatrix ||
         error("$RESULT_MODE_HK must be a steps-by-modes matrix")
+    mode_nk = Float64.(read(run_group[RESULT_MODE_NK]))
+    validate_mode_nk_matches_hk(mode_nk, mode_hk)
     k_indices = Float64.(vec(read(run_group[RESULT_MODE_K_INDICES])))
     cycles = Int.(scalar_or_vector(read(run_group[RESULT_MODE_MEASUREMENT_CYCLES])))
     rows = cycles .+ 1

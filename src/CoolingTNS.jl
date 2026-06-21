@@ -114,7 +114,8 @@ export obc_bdg_matrices, obc_bdg_matrix, obc_mode_energies, obc_mode_energies_Jh
 export bogoliubov_angle, coeff_k, vacuum_energy, vacuum_energy_Jh
 export allowed_k_indices, fermionic_bc, parity_operator_code
 export is_generic_mode, generic_k_indices
-export mode_occupation_from_hk, ising_mode_energy_contribution_coefficients
+export mode_occupation_from_hk, validate_mode_nk_matches_hk
+export ising_mode_energy_contribution_coefficients
 export ising_energy_from_mode_hk
 export supports_ising_fourier_observables
 export ising_mode_detuning_preserves_px, ising_mode_detuning_has_special_modes
