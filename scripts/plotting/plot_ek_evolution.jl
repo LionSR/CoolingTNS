@@ -47,9 +47,7 @@ function _mode_matrix_steps_by_modes(values::AbstractMatrix, n_modes::Int, name:
 end
 
 function _mode_energy_coefficients(k_indices, N::Int, J::Real, h::Real)
-    θ = CoolingTNS.theta_from_Jh(J, h)
-    Λ = CoolingTNS.energy_scale(J, h)
-    return [(Λ / 2) * CoolingTNS.coeff_k(Float64(k), θ, N) for k in k_indices]
+    return CoolingTNS.ising_mode_energy_contribution_coefficients(k_indices, N, J, h)
 end
 
 function _checked_mode_energy_coefficients(εk_values, k_indices, N::Int, J::Real, h::Real)
