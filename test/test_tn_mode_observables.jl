@@ -21,6 +21,22 @@ function _ed_state_vector_to_mps(ψ_ed::CoolingTNS.EDStateVector, sites)
 end
 
 @testset "TN Mode Observables" begin
+    @testset "Notes-to-code Pauli map follows Ry(pi/2) convention" begin
+        coeff, op = CoolingTNS._notes_pauli_to_code(:Z)
+        @test coeff ≈ 1.0 + 0.0im atol=0
+        @test op == :X
+
+        coeff, op = CoolingTNS._notes_pauli_to_code(:X)
+        @test coeff ≈ -1.0 + 0.0im atol=0
+        @test op == :Z
+
+        coeff, op = CoolingTNS._notes_pauli_to_code(:Y)
+        @test coeff ≈ 1.0 + 0.0im atol=0
+        @test op == :Y
+
+        @test_throws ArgumentError CoolingTNS._notes_pauli_to_code(:I)
+    end
+
     @testset "ED-to-MPS helper preserves site order" begin
         N = 4
         sites = siteinds("S=1/2", N)

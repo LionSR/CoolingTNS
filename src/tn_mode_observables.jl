@@ -3,9 +3,12 @@
 
 Tensor-network measurements of Ising mode observables.
 
-The formulas follow `Notes/NotesED/MapToSpin.tex`: the code Hamiltonian is
-rotated to the notes basis by `R_y(-π/2)`, and the Jordan-Wigner strings are
-then evaluated as Pauli strings on the original tensor-network state.
+The formulas follow `Notes/NotesED/MapToSpin.tex`.  The Hamiltonian convention is
+`H_code = Λ U H_notes U†` with `U = R_y(π/2)^⊗N`; equivalently, a code-basis
+state is rotated to notes coordinates by `U† = R_y(-π/2)^⊗N`.  For tensor-network
+measurements we leave the state in the code basis and pull notes-basis Pauli
+operators back to code Pauli strings:
+`Z_notes → X_code`, `X_notes → -Z_code`, and `Y_notes → Y_code`.
 
 For MPS states the O(N^2) split-string correlators are evaluated by direct
 network contraction. For density matrices the same Pauli strings are converted
