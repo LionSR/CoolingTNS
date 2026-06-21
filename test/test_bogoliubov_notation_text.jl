@@ -5,6 +5,7 @@ using Test
         joinpath(@__DIR__, "..", "src", "ed_backend_complex_jw.jl"),
         joinpath(@__DIR__, "..", "src", "mode_analysis.jl"),
         joinpath(@__DIR__, "..", "src", "dispersion.jl"),
+        joinpath(@__DIR__, "..", "src", "result_keys.jl"),
         joinpath(@__DIR__, "..", "src", "cooling_evolution.jl"),
         joinpath(@__DIR__, "..", "src", "cooling_evolution_ed_shared.jl"),
         joinpath(@__DIR__, "..", "src", "tn_mode_observables.jl"),
@@ -29,6 +30,10 @@ using Test
     @test occursin("measure_all_mode_observables", joined)
     @test occursin("Compatibility wrapper for [`measure_all_mode_observables`](@ref)", joined)
     @test occursin("k_indices, hk_values, εk_values = measure_all_mode_observables", joined)
+    @test occursin("Historical constant name: the HDF5 dataset is `mode_ek_values` and stores", joined_flat)
+    @test occursin("positive quasiparticle gaps ε_k for resonance labels", joined_flat)
+    @test occursin("The historical name is retained for existing callers. New code should prefer `measure_all_mode_observables`", joined_flat)
+    @test occursin("not signed energy-reconstruction coefficients", joined_flat)
 
     forbidden = [
         "(ε_k, n_k, ⟨h_k⟩)",
