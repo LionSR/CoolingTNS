@@ -117,8 +117,9 @@ IsingParameters(N::Int, J, h; bc::Symbol=:open) =
 """
     NiIsingParameters(N, J, hx, hz; bc=:open)
 
-Construct non-integrable Ising Hamiltonian parameters with transverse and
-longitudinal fields.
+Construct non-integrable Ising Hamiltonian parameters for
+`H = J sum_i Z_i Z_{i+1} + hx sum_i X_i + hz sum_i Z_i`, where `hx`
+is the transverse field and `hz` is the longitudinal field.
 
 The boundary condition `bc` must be one of `:open`, `:periodic`, or
 `:antiperiodic`. Exact diagonalization and tensor-network continuous MPO
