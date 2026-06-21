@@ -215,8 +215,6 @@ function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean;
     # routine.
     ham_params = IsingParameters(N, Float64(read(root["J"])), Float64(read(root["h"])), Symbol(bc))
     mode_hk = Float64.(read(run_group[RESULT_MODE_HK]))
-    mode_hk isa AbstractMatrix ||
-        error("$RESULT_MODE_HK must be a steps-by-modes matrix")
     mode_nk = Float64.(read(run_group[RESULT_MODE_NK]))
     k_indices = Float64.(vec(read(run_group[RESULT_MODE_K_INDICES])))
     mode_ek_values = Float64.(vec(read(run_group[RESULT_MODE_ENERGIES])))
@@ -448,8 +446,6 @@ function read_largeN_energy_mean_with_name(run_group)
         "energy-mean datasets"
     )
 end
-
-read_largeN_energy_mean(run_group) = read_largeN_energy_mean_with_name(run_group).values
 
 function truncation_error_history_status(run_group)
     if haskey(run_group, RESULT_TRUNCATION_ERROR_HISTORY_STATUS)

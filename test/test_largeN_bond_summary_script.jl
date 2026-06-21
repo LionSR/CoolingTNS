@@ -570,6 +570,29 @@ end
     finally
         rm(path; force=true)
     end
+
+    hk_path = tempname() * ".h5"
+    try
+        mode_hk = [-1.0, -0.5, 0.0, 1.0]
+        write_minimal_mode_summary_file(
+            hk_path,
+            mode_hk,
+            CoolingTNS.mode_occupation_from_hk(mode_hk),
+        )
+
+        err = try
+            summarize_file(hk_path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        message = sprint(showerror, err)
+        @test occursin(CoolingTNS.RESULT_MODE_HK, message)
+        @test occursin("steps-by-modes matrix", message)
+    finally
+        rm(hk_path; force=true)
+    end
 end
 
 @testset "Large-N summary validates mode measurement cycles" begin
