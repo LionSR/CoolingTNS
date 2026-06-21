@@ -28,6 +28,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("they do not establish scalable cooling to the ground state", note_flat)
     @test occursin("historical truncation diagnostics", note_flat)
     @test occursin("finite-window noise-response diagnostics", note_flat)
+    @test occursin("historical noisy MPO panels as finite-window diagnostics of the truncated channel response to the applied noise model", note_flat)
     @test occursin("a robustness claim requires the same bond-dimension, positivity, and trajectory-convergence checks", note_flat)
     @test occursin("archived pilot outputs use truncation caps up to \\(D\\leq 100\\)", note_flat)
     @test occursin("individual plotted panels below state their own fixed bond caps", note_flat)
@@ -193,6 +194,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         "demonstrating the effectiveness of the cooling algorithm in preparing low-energy states",
         "demonstrating its robustness against depolarizing noise",
         "the algorithm still achieves significant cooling and ground state preparation fidelity",
+        "resilient to experimental noise",
         "investigate the robustness of the cooling algorithm in realistic scenarios",
         "the error remains small even for the largest system size",
         "ground state fidelity decreases exponentially",
