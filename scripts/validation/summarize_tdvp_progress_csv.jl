@@ -126,8 +126,16 @@ function cap_label(cycle::Integer, sweep)
     return "$(cycle):$(sweep)"
 end
 
-default_progress_cap(method::AbstractString, dmax::Integer) =
-    largeN_method_maxdim(method, dmax)
+function default_progress_cap(method::AbstractString, dmax::Integer)
+    try
+        return largeN_method_maxdim(method, dmax)
+    catch err
+        err isa ArgumentError || rethrow()
+        throw(ArgumentError(
+            "unknown method '$method' in progress CSV; pass --cap D explicitly"
+        ))
+    end
+end
 
 function peak_evolved_bond(rows)
     peak = 0

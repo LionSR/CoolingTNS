@@ -79,7 +79,14 @@ end
           TDVPProgressCSVSummary.largeN_method_maxdim("mcwf", 7)
     @test TDVPProgressCSVSummary.default_progress_cap("mpo", 7) ==
           TDVPProgressCSVSummary.largeN_method_maxdim("mpo", 7)
-    @test_throws ArgumentError TDVPProgressCSVSummary.default_progress_cap("ed", 7)
+    err = try
+        TDVPProgressCSVSummary.default_progress_cap("ed", 7)
+        nothing
+    catch err
+        err
+    end
+    @test err isa ArgumentError
+    @test occursin("pass --cap D explicitly", sprint(showerror, err))
 
     path = tempname() * ".csv"
     try
