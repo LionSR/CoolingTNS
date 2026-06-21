@@ -123,6 +123,6 @@ export compute_excitation_gaps, spectral_delta_values
 export jordan_wigner_transform_complex, pauli_y_complex
 export measure_momentum_distribution_ed_clean
 # Bogoliubov mode observables and positive quasiparticle gaps
-export measure_hk, measure_all_mode_energies, measure_state_parity
+export measure_hk, measure_all_mode_observables, measure_all_mode_energies, measure_state_parity
 
 end

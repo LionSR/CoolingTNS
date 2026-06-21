@@ -661,7 +661,7 @@ function _record_ising_mode_measurements!(measurements, step::Int, state, ham_pa
     end
 
     gF_kwarg = haskey(measurements, RESULT_MODE_GF) ? measurements[RESULT_MODE_GF] : nothing
-    k_indices, hk_values, εk_values = measure_all_mode_energies(state, ham_params; gF=gF_kwarg)
+    k_indices, hk_values, εk_values = measure_all_mode_observables(state, ham_params; gF=gF_kwarg)
     n_modes = length(k_indices)
 
     if measurements[RESULT_MODE_HK] === nothing

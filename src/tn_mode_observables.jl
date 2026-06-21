@@ -256,20 +256,20 @@ function measure_hk(ρ::MPO, k, ham_params::HamiltonianParameters{IsingModel})
 end
 
 """
-    measure_all_mode_energies(ψ::MPS, ham_params; gF=nothing)
+    measure_all_mode_observables(ψ::MPS, ham_params; gF=nothing)
 
 MPS analogue of the ED mode measurement. Returns allowed k-indices, ``⟨h_k⟩``,
 and the corresponding positive code-unit quasiparticle gaps used for resonance
 diagnostics. Energy reconstruction should use `ising_energy_from_mode_hk`, which
 keeps the signed special-mode coefficients.
 """
-function measure_all_mode_energies(ψ::MPS, ham_params::HamiltonianParameters{IsingModel};
-                                   gF=nothing)
-    return _measure_all_mode_energies_tn(ψ, ham_params; gF=gF)
+function measure_all_mode_observables(ψ::MPS, ham_params::HamiltonianParameters{IsingModel};
+                                      gF=nothing)
+    return _measure_all_mode_observables_tn(ψ, ham_params; gF=gF)
 end
 
-function _measure_all_mode_energies_tn(state::Union{MPS,MPO}, ham_params::HamiltonianParameters{IsingModel};
-                                       gF=nothing)
+function _measure_all_mode_observables_tn(state::Union{MPS,MPO}, ham_params::HamiltonianParameters{IsingModel};
+                                          gF=nothing)
     _validate_tn_mode_state(state, ham_params)
     N = ham_params.N
 
@@ -280,7 +280,7 @@ function _measure_all_mode_energies_tn(state::Union{MPS,MPO}, ham_params::Hamilt
         sector = _reference_parity_sector_with_source(px)
         parity = sector.parity
         if sector.source === :reference
-            @warn "measure_all_mode_energies: state has no definite P_x parity " *
+            @warn "measure_all_mode_observables: state has no definite P_x parity " *
                   "(⟨P_x⟩ = $px); using the P_x = $parity reference grid"
         end
         gF = fermionic_bc(ham_params.bc, parity)
@@ -294,14 +294,27 @@ function _measure_all_mode_energies_tn(state::Union{MPS,MPO}, ham_params::Hamilt
 end
 
 """
-    measure_all_mode_energies(ρ::MPO, ham_params; gF=nothing)
+    measure_all_mode_observables(ρ::MPO, ham_params; gF=nothing)
 
 MPO analogue of the ED mode measurement. Returns allowed k-indices,
 ``⟨h_k⟩``, and the corresponding positive code-unit quasiparticle gaps used for
 resonance diagnostics. Energy reconstruction should use
 `ising_energy_from_mode_hk`, which keeps the signed special-mode coefficients.
 """
-function measure_all_mode_energies(ρ::MPO, ham_params::HamiltonianParameters{IsingModel};
-                                   gF=nothing)
-    return _measure_all_mode_energies_tn(ρ, ham_params; gF=gF)
+function measure_all_mode_observables(ρ::MPO, ham_params::HamiltonianParameters{IsingModel};
+                                      gF=nothing)
+    return _measure_all_mode_observables_tn(ρ, ham_params; gF=gF)
 end
+
+"""
+    measure_all_mode_energies(ψ_or_ρ, ham_params; gF=nothing)
+
+Compatibility wrapper for [`measure_all_mode_observables`](@ref).
+"""
+measure_all_mode_energies(ψ::MPS, ham_params::HamiltonianParameters{IsingModel};
+                          gF=nothing) =
+    measure_all_mode_observables(ψ, ham_params; gF=gF)
+
+measure_all_mode_energies(ρ::MPO, ham_params::HamiltonianParameters{IsingModel};
+                          gF=nothing) =
+    measure_all_mode_observables(ρ, ham_params; gF=gF)

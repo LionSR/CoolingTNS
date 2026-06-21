@@ -1,6 +1,6 @@
 """
 Tests for Bogoliubov mode-observable measurement
-(measure_hk, measure_all_mode_energies, measure_state_parity).
+(measure_hk, measure_all_mode_observables, measure_state_parity).
 
 These tests verify that:
 1. The ground state has ⟨h_k⟩ = -1 for all modes (Bogoliubov vacuum)
@@ -246,7 +246,7 @@ end
             gs_state = EDStateVector(ψ_gs, N)
             gF = fermionic_bc(:periodic, target_p)
 
-            ks_all, hk_vals, εk_vals = measure_all_mode_energies(gs_state, ham_params; gF=gF)
+            ks_all, hk_vals, εk_vals = measure_all_mode_observables(gs_state, ham_params; gF=gF)
 
             E_modes = ising_energy_from_mode_hk(ks_all, hk_vals, ham_params)
 
@@ -264,7 +264,7 @@ end
         ex_state = EDStateVector(ψ_ex, N)
         gF = fermionic_bc(:periodic, 1)
 
-        ks_all, hk_vals, _ = measure_all_mode_energies(ex_state, ham_params; gF=gF)
+        ks_all, hk_vals, _ = measure_all_mode_observables(ex_state, ham_params; gF=gF)
         E_modes = ising_energy_from_mode_hk(ks_all, hk_vals, ham_params)
 
         @test E_modes ≈ E_ex atol=1e-8
@@ -318,9 +318,9 @@ end
             @test hk_vec ≈ hk_dm atol=1e-8
         end
 
-        # Also check measure_all_mode_energies with DM
-        ks_v, hk_v, ε_v = measure_all_mode_energies(state_vec, ham_params; gF=gF)
-        ks_d, hk_d, ε_d = measure_all_mode_energies(state_dm, ham_params; gF=gF)
+        # Also check measure_all_mode_observables with DM
+        ks_v, hk_v, ε_v = measure_all_mode_observables(state_vec, ham_params; gF=gF)
+        ks_d, hk_d, ε_d = measure_all_mode_observables(state_dm, ham_params; gF=gF)
 
         @test ks_v == ks_d
         @test hk_v ≈ hk_d atol=1e-8
@@ -359,7 +359,7 @@ end
         # Total energy should match Tr(H ρ)
         E_direct = real(tr(Matrix(H) * ρ))
 
-        ks_all, hk_vals, _ = measure_all_mode_energies(state, ham_params; gF=gF)
+        ks_all, hk_vals, _ = measure_all_mode_observables(state, ham_params; gF=gF)
         E_modes = ising_energy_from_mode_hk(ks_all, hk_vals, ham_params)
 
         @test E_modes ≈ E_direct atol=1e-8
@@ -375,17 +375,17 @@ end
         ham_params = IsingParameters(N, J, h, :periodic)
         H = _build_H(N, J, h, :periodic)
 
-        # Test that measure_all_mode_energies auto-detects parity correctly
+        # Test that measure_all_mode_observables auto-detects parity correctly
         for target_p in [1, -1]
             E_gs, ψ_gs = _find_gs_in_sector(H, N, target_p)
             gs_state = EDStateVector(ψ_gs, N)
 
             # Without explicit gF — should auto-detect
-            ks_auto, hk_auto, εk_auto = measure_all_mode_energies(gs_state, ham_params)
+            ks_auto, hk_auto, εk_auto = measure_all_mode_observables(gs_state, ham_params)
 
             # With explicit gF
             gF = fermionic_bc(:periodic, target_p)
-            ks_exp, hk_exp, εk_exp = measure_all_mode_energies(gs_state, ham_params; gF=gF)
+            ks_exp, hk_exp, εk_exp = measure_all_mode_observables(gs_state, ham_params; gF=gF)
 
             @test ks_auto == ks_exp
             @test hk_auto ≈ hk_exp atol=1e-10
@@ -546,9 +546,9 @@ end
         @test nk_auto ≈ nk_ref atol=1e-12
 
         ks_auto, hk_auto, ε_auto = @test_logs (:warn, r"no definite P_x parity") begin
-            measure_all_mode_energies(ρ_mix, ham_params)
+            measure_all_mode_observables(ρ_mix, ham_params)
         end
-        ks_ref, hk_ref, ε_ref = measure_all_mode_energies(ρ_mix, ham_params; gF=expected_gF)
+        ks_ref, hk_ref, ε_ref = measure_all_mode_observables(ρ_mix, ham_params; gF=expected_gF)
         @test ks_auto == expected_ks
         @test ks_auto == ks_ref
         @test hk_auto ≈ hk_ref atol=1e-12
@@ -611,7 +611,7 @@ end
             gF = fermionic_bc(:antiperiodic, target_p)
 
             # Total energy check
-            ks_all, hk_vals, _ = measure_all_mode_energies(gs_state, ham_params; gF=gF)
+            ks_all, hk_vals, _ = measure_all_mode_observables(gs_state, ham_params; gF=gF)
             E_modes = ising_energy_from_mode_hk(ks_all, hk_vals, ham_params)
             @test E_modes ≈ E_gs atol=1e-8
         end
@@ -636,7 +636,7 @@ end
             end
 
             # Total energy check
-            ks_all, hk_vals, _ = measure_all_mode_energies(gs_state, ham_params; gF=gF)
+            ks_all, hk_vals, _ = measure_all_mode_observables(gs_state, ham_params; gF=gF)
             E_modes = ising_energy_from_mode_hk(ks_all, hk_vals, ham_params)
             @test E_modes ≈ E_gs atol=1e-8
         end
@@ -650,7 +650,12 @@ end
         E_gs, ψ_gs = _find_gs_in_sector(H, N, 1)
         gs_state = EDStateVector(ψ_gs, N)
 
-        ks_all, hk_vals, εk_vals = measure_all_mode_energies(gs_state, ham_params)
+        ks_all, hk_vals, εk_vals = measure_all_mode_observables(gs_state, ham_params)
+        ks_compat, hk_compat, εk_compat = measure_all_mode_energies(gs_state, ham_params)
+
+        @test ks_compat == ks_all
+        @test hk_compat ≈ hk_vals atol=1e-12
+        @test εk_compat ≈ εk_vals atol=1e-12
 
         for ε in εk_vals
             @test ε > 0

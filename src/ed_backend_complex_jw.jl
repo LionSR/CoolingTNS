@@ -448,15 +448,11 @@ end
 # =============================================================================
 
 """
-    measure_all_mode_energies(state, ham_params; gF=nothing) 
+    measure_all_mode_observables(state, ham_params; gF=nothing)
         -> (k_indices, hk_values, εk_values)
 
 Measure ``⟨h_k⟩`` for all allowed modes and return the positive quasiparticle
 gaps used for resonance labels.
-
-The historical function name contains "mode energies", but the measured
-observable is the dimensionless ``h_k``.  Energies are reconstructed from
-``hk_values`` only through `ising_energy_from_mode_hk`.
 
 # Arguments
 - `state`: Quantum state in the code basis (EDStateVector or EDDensityMatrix)
@@ -475,8 +471,8 @@ total energy satisfies ``⟨H⟩ = (Λ/2) Σ_k coeff_k · ⟨h_k⟩``, where
 ``Λ = 2√(J²+h²)`` and `coeff_k` keeps the signed special-mode coefficients.
 Use `ising_energy_from_mode_hk` for energy reconstruction from `hk_values`.
 """
-function measure_all_mode_energies(state::Union{EDStateVector, EDDensityMatrix},
-                                    ham_params; gF=nothing)
+function measure_all_mode_observables(state::Union{EDStateVector, EDDensityMatrix},
+                                      ham_params; gF=nothing)
     N = ham_params.N
     J = ham_params.params.J
     h = ham_params.params.h
@@ -488,7 +484,7 @@ function measure_all_mode_energies(state::Union{EDStateVector, EDDensityMatrix},
         sector = _reference_parity_sector_with_source(px)
         parity = sector.parity
         if sector.source === :reference
-            @warn "measure_all_mode_energies: state has no definite P_x parity " *
+            @warn "measure_all_mode_observables: state has no definite P_x parity " *
                   "(⟨P_x⟩ = $px); using the P_x = $parity reference grid"
         end
         gF = fermionic_bc(ham_params.bc, parity)
@@ -523,7 +519,7 @@ function measure_all_mode_energies(state::Union{EDStateVector, EDDensityMatrix},
         hk_val = _expect_complex(hk_op, notes_state)
 
         if abs(imag(hk_val)) > 1e-8
-            @warn "measure_all_mode_energies: significant imaginary part " *
+            @warn "measure_all_mode_observables: significant imaginary part " *
                   "$(imag(hk_val)) for k=$k"
         end
 
@@ -532,3 +528,17 @@ function measure_all_mode_energies(state::Union{EDStateVector, EDDensityMatrix},
 
     return ks, hk_values, εk_values
 end
+
+"""
+    measure_all_mode_energies(state, ham_params; gF=nothing)
+
+Compatibility wrapper for [`measure_all_mode_observables`](@ref).
+
+The historical name is retained for existing callers.  New code should prefer
+`measure_all_mode_observables`, because the measured quantity is ``h_k`` and
+the returned ``ε_k`` values are positive quasiparticle gaps for resonance
+labels, not signed energy-reconstruction coefficients.
+"""
+measure_all_mode_energies(state::Union{EDStateVector, EDDensityMatrix},
+                          ham_params; gF=nothing) =
+    measure_all_mode_observables(state, ham_params; gF=gF)
