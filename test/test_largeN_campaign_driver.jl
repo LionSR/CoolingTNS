@@ -209,6 +209,8 @@ end
         line -> startswith(line, "#") || startswith(line, "julia "),
         split(chomp(parallel_plan_text), '\n'),
     )
+    @test occursin("This driver does not launch jobs concurrently", parallel_plan_text)
+    @test occursin("external process scheduler", parallel_plan_text)
     @test shell_word("~/tdvp data") == "'~/tdvp data'"
     @test shell_word("~/tdvp_data") == "~/tdvp_data"
 
