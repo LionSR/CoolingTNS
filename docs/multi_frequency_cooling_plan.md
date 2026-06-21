@@ -252,6 +252,11 @@ assigns distinct HDF5 and progress CSV paths, so process-level parallelism can
 be used without concurrent writes to the same output file.  The planning mode
 also accepts `--plan-julia-threads` and `--plan-blas-threads`, which prefix the
 printed commands with `JULIA_NUM_THREADS` and BLAS thread environment variables.
+No internal scheduler is recommended at this stage.  The current reproducible
+execution convention is to let an external shell, job array, or process manager
+launch the printed commands, because the driver can then keep output ownership,
+progress ordering, and deterministic seed assignment local to each independent
+Julia process.
 
 A first runtime-only calibration of this mechanism was run on 2026-06-19.  This
 calibration used `N=64`, MCWF+TDVP, `R=2,5`, two cooling cycles, `Dmax=32`,
@@ -268,10 +273,11 @@ only timing and orchestration diagnostics.
 
 The practical recommendation from this small calibration is to start large-`N`
 throughput scans with one Julia thread and one BLAS thread per independent
-process, and to vary the number of independent processes externally.  BLAS
-threading should be re-tested at larger caps, but for this TDVP calibration it
-only increased CPU consumption.  The throughput column counts four completed
-trajectory-cycles: two completed cycles for the `R=2` job and two completed
+process, and to vary the number of independent processes externally rather than
+adding an internal driver scheduler.  BLAS threading should be re-tested at
+larger caps, but for this TDVP calibration it only increased CPU consumption.
+The throughput column counts four completed trajectory-cycles: two completed
+cycles for the `R=2` job and two completed
 cycles for the `R=5` job, divided by the externally measured wall time for the
 row.  It is a runtime throughput diagnostic only, not a cooling-performance
 metric.  The benchmark artifacts are stored under
