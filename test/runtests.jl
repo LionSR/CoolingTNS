@@ -53,6 +53,7 @@ end
         include("test_tn_note_largeN_text.jl")
         include("test_late_time_plot_label_text.jl")
         include("test_vqa_comparison_note_text.jl")
+        include("test_bath_convention_text.jl")
     end
 
     if RUN_FULL_TESTS

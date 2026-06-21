@@ -78,7 +78,8 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     Δ = coupling_params.delta !== nothing ? coupling_params.delta : compute_gap_ed(H_sys)
     
     # Bath qubits are at positions: 2, 4, 6, ..., 2N.
-    # The bath field is chosen from the bath-side coupling operators.
+    # get_bath_operator is the source of truth for the one-Pauli and mixed
+    # symmetric bath-field conventions.
     coupling_type = coupling_params.coupling
     bath_op_func = ED_HAMILTONIAN_PAULI_MAP[get_bath_operator(coupling_type)]
 

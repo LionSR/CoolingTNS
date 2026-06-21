@@ -93,3 +93,14 @@ function bath_ground_state_amplitudes(coupling::String)
 
     return "Dn", ComplexF64[0, 1]
 end
+
+"""
+    get_bath_ground_state(coupling::String) -> (String, Vector{ComplexF64})
+
+Return the one-site bath ground state name and amplitudes selected by the
+shared bath Hamiltonian convention.
+
+This is a stable public alias for TN call sites; the implementation is
+`bath_ground_state_amplitudes`.
+"""
+get_bath_ground_state(coupling::String) = bath_ground_state_amplitudes(coupling)

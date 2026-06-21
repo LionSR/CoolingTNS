@@ -26,11 +26,15 @@ Non-integrable Ising chain (open boundary conditions):
 with J = 1, h_x = −1.05, h_z = 0.5. This is the same model used throughout
 the CoolingAlgTN paper.
 
-Bath: N independent spin-1/2 sites with H_B = (Δ/2) Σ bath_op_i. For a
-system-bath coupling label `AB`, the bath field is chosen from the bath-side
-operator `B`, so that it does not commute with the local bath coupling. The
-present convention uses a Z bath field for bath-side X or Y couplings and an X
-bath field for bath-side Z couplings.
+Bath: N independent spin-1/2 sites with H_B = (Δ/2) Σ bath_op_i. The bath
+field is the Pauli operator returned by `get_bath_operator(coupling)`. For a
+one-Pauli bath-side set, the historical convention uses a Z field for bath-side
+X or Y and an X field for bath-side Z. For mixed symmetric labels, the
+bath-side set contains two Pauli operators, and the field is the unique absent
+Pauli: `XY`/`YX` use `Z`, `YZ`/`ZY` use `X`, and `XZ`/`ZX` use `Y`. This
+guarantees noncommutation with every bath-side term in the system-bath
+coupling. The bath state prepared by ED, MPS, and MPO routines is the
+corresponding eigenvalue -1 state selected by `bath_ground_state_amplitudes`.
 
 System-bath coupling labels use one local product for identical operators and
 the symmetric Hermitian convention for mixed operators. Thus `XX` denotes
