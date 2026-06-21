@@ -301,6 +301,45 @@ end
     end
 end
 
+@testset "Large-N summary detects measured truncation-error histories" begin
+    path = tempname() * ".h5"
+    try
+        h5open(path, "w") do f
+            write(f, "Dmax", 8)
+            gn = create_group(f, "N2")
+            write(gn, "N", 2)
+            gm = create_group(gn, "mcwf")
+            gr = create_group(gm, "R1")
+
+            write(gr, "M", 1)
+            write(gr, CoolingTNS.RESULT_ENERGY, [-1.0, -0.5])
+            write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 0.5])
+            write(gr, "system_max_bond", [1, 2])
+            write(gr, "system_mean_bond", [1.0, 2.0])
+            write(gr, "evolved_max_bond", [0, 3])
+            write(gr, "evolved_mean_bond", [NaN, 3.0])
+            write(gr, CoolingTNS.RESULT_TRUNCATION_ERRORS, [0.0, 1e-8])
+        end
+
+        row = only(summarize_file(path))
+        @test row.truncation_error_history_status ==
+              CoolingTNS.TRUNCATION_ERROR_HISTORY_MEASURED
+
+        compact_output = mktemp() do output_path, io
+            close(io)
+            open(output_path, "w") do out
+                redirect_stdout(out) do
+                    print_compact_markdown([row])
+                end
+            end
+            read(output_path, String)
+        end
+        @test occursin("| no_cap_hit | measured |", compact_output)
+    finally
+        rm(path; force=true)
+    end
+end
+
 @testset "Large-N summary reports mode energy reconstruction" begin
     path = tempname() * ".h5"
     try
