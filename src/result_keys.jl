@@ -10,6 +10,7 @@ the result schema can be made deliberately rather than by scattered literals.
 """
 
 const RESULT_ENERGY = "E_list"
+const RESULT_RELATIVE_ENERGY = "relative_energy_mean"
 const RESULT_GROUND_STATE_OVERLAP = "GS_overlap_list"
 const RESULT_PURITY = "purity_list"
 const RESULT_BATH_MAGNETIZATION = "bath_mag_list"
@@ -57,6 +58,7 @@ const RESULT_FINAL_STATE = "final_state"
 
 const RESULT_KEYS = (
     RESULT_ENERGY,
+    RESULT_RELATIVE_ENERGY,
     RESULT_GROUND_STATE_OVERLAP,
     RESULT_PURITY,
     RESULT_BATH_MAGNETIZATION,

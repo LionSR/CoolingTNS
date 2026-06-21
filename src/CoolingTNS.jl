@@ -83,7 +83,7 @@ export interleaved_system_bit, interleaved_bath_bit
 export interleaved_system_bits, interleaved_bath_bits
 export interleaved_basis_state, interleaved_system_basis_state
 # Result dictionary keys
-export RESULT_ENERGY, RESULT_GROUND_STATE_OVERLAP, RESULT_PURITY
+export RESULT_ENERGY, RESULT_RELATIVE_ENERGY, RESULT_GROUND_STATE_OVERLAP, RESULT_PURITY
 export RESULT_BATH_MAGNETIZATION, RESULT_BATH_SAMPLE_MAGNETIZATION
 export RESULT_MOMENTUM_DISTRIBUTION, RESULT_K_VALUES, RESULT_MOMENTUM_GF, RESULT_MOMENTUM_GF_SOURCE
 export RESULT_MODE_GF, RESULT_MODE_GF_SOURCE

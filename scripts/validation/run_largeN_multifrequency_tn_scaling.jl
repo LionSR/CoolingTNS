@@ -1124,7 +1124,7 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     write(g, RESULT_ENERGY_TRAJECTORIES, E)
     write(g, RESULT_ENERGY, E_mean)
     write(g, "E_stderr", E_stderr)
-    write(g, "relative_energy_mean", rel_mean)
+    write(g, RESULT_RELATIVE_ENERGY, rel_mean)
     write(g, RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES, overlap)
     write(g, RESULT_GROUND_STATE_OVERLAP, vec(mean(overlap; dims=2)))
     write(g, "purity_trajectories", purity)

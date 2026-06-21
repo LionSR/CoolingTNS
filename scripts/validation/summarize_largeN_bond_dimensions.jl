@@ -418,7 +418,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     threshold = saturation_threshold_for(root, method_group, run_group, method_name)
 
     energy_mean = read_largeN_energy_mean(run_group)
-    relative_energy_mean = read(run_group["relative_energy_mean"])
+    relative_energy_mean = read(run_group[RESULT_RELATIVE_ENERGY])
     inferred_completed_steps = max(length(energy_mean) - 1, 0)
     default_requested_steps = haskey(root, "steps") ?
         Int(read(root["steps"])) :

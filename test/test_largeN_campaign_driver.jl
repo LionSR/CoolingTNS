@@ -572,6 +572,7 @@ end
             g = f["R2"]
             @test read(g[CoolingTNS.RESULT_DELTA_VALUES]) == [0.5, 3.0]
             @test read(g[CoolingTNS.RESULT_ENERGY]) == [-2.0, -1.5, -1.0]
+            @test read(g[CoolingTNS.RESULT_RELATIVE_ENERGY]) == [0.0, 0.25, 0.5]
             @test vec(read(g[CoolingTNS.RESULT_ENERGY_TRAJECTORIES])) == [-2.0, -1.5, -1.0]
             @test read(g[CoolingTNS.RESULT_GROUND_STATE_OVERLAP]) == [0.1, 0.2, 0.3]
             @test vec(read(g[CoolingTNS.RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES])) ==

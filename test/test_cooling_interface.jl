@@ -149,6 +149,7 @@ using HDF5
 
     @testset "Result Key Constants" begin
         @test CoolingTNS.RESULT_ENERGY == "E_list"
+        @test CoolingTNS.RESULT_RELATIVE_ENERGY == "relative_energy_mean"
         @test CoolingTNS.RESULT_GROUND_STATE_OVERLAP == "GS_overlap_list"
         @test CoolingTNS.RESULT_PURITY == "purity_list"
         @test CoolingTNS.RESULT_MOMENTUM_DISTRIBUTION == "momentum_dist"
@@ -174,6 +175,7 @@ using HDF5
         @test all(key -> key isa String, CoolingTNS.RESULT_KEYS)
         @test length(unique(CoolingTNS.RESULT_KEYS)) == length(CoolingTNS.RESULT_KEYS)
         @test CoolingTNS.RESULT_ENERGY in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_RELATIVE_ENERGY in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_MOMENTUM_GF in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_MOMENTUM_GF_SOURCE in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_MODE_GF in CoolingTNS.RESULT_KEYS
