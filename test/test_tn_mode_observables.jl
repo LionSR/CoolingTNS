@@ -234,6 +234,56 @@ end
         @test ising_energy_from_mode_hk(ks_mpo, hk_mpo, ham_params) ≈ E0_ed atol=1e-10
     end
 
+    @testset "APBC special-mode sector ground state agrees across ED and TN" begin
+        N = 4
+        J, h = 1.0, -1.05
+        ham_params = IsingParameters(N, J, h, :antiperiodic)
+        sites = siteinds("S=1/2", N)
+
+        H_ed = CoolingTNS.construct_system_hamiltonian(ham_params, EDBackend(), N)
+        E0_ed, ψ_ed, _ = CoolingTNS.ground_state_ed(H_ed)
+        ρ_ed = CoolingTNS.state_to_density_ed(ψ_ed)
+        ψ_tn = _ed_state_vector_to_mps(ψ_ed, sites)
+        ρ_tn = outer(ψ_tn', ψ_tn)
+
+        px_ed = measure_state_parity(ψ_ed, N)
+        px_mps = measure_state_parity(ψ_tn, N)
+        px_mpo = measure_state_parity(ρ_tn, N)
+        @test abs(abs(px_ed) - 1) < 1e-10
+        @test px_mps ≈ px_ed atol=1e-10
+        @test px_mpo ≈ px_ed atol=1e-10
+
+        parity = CoolingTNS._reference_parity_sector(px_ed)
+        @test parity == 1
+        gF = fermionic_bc(:antiperiodic, parity)
+        expected_ks = [-1, 0, 1, 2]
+        @test gF == 1
+        @test allowed_k_indices(N, gF) == expected_ks
+
+        ks_mps, hk_mps, εk_mps = measure_all_mode_observables(ψ_tn, ham_params; gF=gF)
+        ks_mpo, hk_mpo, εk_mpo = measure_all_mode_observables(ρ_tn, ham_params; gF=gF)
+        ks_ed, hk_ed, εk_ed = measure_all_mode_observables(ψ_ed, ham_params; gF=gF)
+        ks_ed_dm, hk_ed_dm, εk_ed_dm = measure_all_mode_observables(ρ_ed, ham_params; gF=gF)
+
+        expected_hk = [-1.0, 1.0, -1.0, 1.0]
+        expected_nk = [0.0, 1.0, 0.0, 1.0]
+
+        @test ks_mps == expected_ks
+        @test ks_mps == ks_ed == ks_mpo == ks_ed_dm
+        @test εk_mps ≈ εk_ed atol=1e-12
+        @test εk_mpo ≈ εk_ed atol=1e-12
+        @test εk_ed_dm ≈ εk_ed atol=1e-12
+        @test hk_mps ≈ hk_ed atol=1e-10
+        @test hk_mpo ≈ hk_ed atol=1e-10
+        @test hk_ed_dm ≈ hk_ed atol=1e-10
+        @test hk_mps ≈ expected_hk atol=1e-10
+        @test hk_mpo ≈ expected_hk atol=1e-10
+        @test mode_occupation_from_hk(hk_mps) ≈ expected_nk atol=1e-10
+        @test mode_occupation_from_hk(hk_mpo) ≈ expected_nk atol=1e-10
+        @test ising_energy_from_mode_hk(ks_mps, hk_mps, ham_params) ≈ E0_ed atol=1e-10
+        @test ising_energy_from_mode_hk(ks_mpo, hk_mpo, ham_params) ≈ E0_ed atol=1e-10
+    end
+
     @testset "MPS h_k agrees with ED for an entangled state" begin
         N = 4
         ham_params = IsingParameters(N, 1.0, 0.5, :periodic)

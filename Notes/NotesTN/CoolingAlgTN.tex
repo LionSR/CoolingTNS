@@ -333,6 +333,14 @@ reconstruction used to compare ED and tensor-network results is
 The signed special-mode coefficient $w_k$ is essential.  Replacing it by
 $|w_k|$, or writing a mode contribution as $\epsilon_k n_k$ without specifying
 which occupation is meant, gives a different quantity.
+On an integer fermionic grid, this signed convention also means that the
+ground state within a fixed spin-parity sector need not have
+$\langle h_k\rangle=-1$ for every mode.  If a special-mode coefficient $w_q$
+and the sector parity constraint make a special mode occupied in the sector
+ground state, then $\langle h_q\rangle=+1$ and
+$n_q^{\mathrm{Bog}}=1$.  This is a physical sector statement, not a change of
+the observable definition; the ED and tensor-network tests compare such APBC
+integer-grid cases through \cref{eq:TNModeEnergyReconstruction}.
 
 The same distinction enters the bath-detuning convention.  The HDF5 dataset
 \texttt{mode\_ek\_values} stores the positive single-quasiparticle energies
