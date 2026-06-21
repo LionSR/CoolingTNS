@@ -606,21 +606,23 @@ function mode_measurement_cycle_rows(n_rows::Integer, measurement_cycles=nothing
 end
 
 """
-    validate_mode_measurement_rows(mode_hk, mode_nk, measurement_cycles; energy=nothing)
+    validate_mode_measurement_rows(mode_hk, mode_nk, measurement_cycles;
+                                   energy=nothing, energy_name=RESULT_ENERGY)
 
 Validate the row contract for a complete Bogoliubov mode-observable payload.
 The stored occupations must satisfy `mode_nk = mode_occupation_from_hk(mode_hk)`;
 the measured cycles must be sorted, unique, nonempty, and in range; and every
 measured row must contain finite `mode_hk` and `mode_nk` values.  If `energy` is
-given, it must have the same time dimension and be finite on the measured rows.
-On success, return the same `(cycles, rows)` named tuple as
-`mode_measurement_cycle_rows`.
+given, it must have the same time dimension and be finite on the measured rows;
+`energy_name` controls the name used in error messages.  On success, return the
+same `(cycles, rows)` named tuple as `mode_measurement_cycle_rows`.
 """
 function validate_mode_measurement_rows(
     mode_hk,
     mode_nk,
     measurement_cycles;
     energy=nothing,
+    energy_name::AbstractString=RESULT_ENERGY,
 )
     mode_hk isa AbstractMatrix ||
         throw(ArgumentError("$RESULT_MODE_HK must be a steps-by-modes matrix"))
@@ -635,20 +637,22 @@ function validate_mode_measurement_rows(
         "$RESULT_MODE_NK has shape $(size(mode_nk)), but $RESULT_MODE_HK has " *
         "shape $(size(mode_hk))"
     ))
-    validate_mode_nk_matches_hk(mode_nk, mode_hk)
-
     measured = mode_measurement_cycle_rows(size(mode_hk, 1), measurement_cycles)
 
     if energy !== nothing
+        energy isa AbstractArray || throw(ArgumentError(
+            "$energy_name must be a vector or array with the same row count as " *
+            "$RESULT_MODE_HK; got type $(typeof(energy))"
+        ))
         energy_values = Float64.(vec(energy))
         length(energy_values) == size(mode_hk, 1) || throw(DimensionMismatch(
-            "$RESULT_ENERGY length $(length(energy_values)) does not match " *
+            "$energy_name length $(length(energy_values)) does not match " *
             "$RESULT_MODE_HK row count $(size(mode_hk, 1))"
         ))
         for (cycle, row) in zip(measured.cycles, measured.rows)
             isfinite(energy_values[row]) || throw(ArgumentError(
                 "$RESULT_MODE_MEASUREMENT_CYCLES includes cycle $cycle, but " *
-                "$RESULT_ENERGY is non-finite on row $row"
+                "$energy_name is non-finite on row $row"
             ))
         end
     end
@@ -663,6 +667,8 @@ function validate_mode_measurement_rows(
             "(row $row)"
         ))
     end
+
+    validate_mode_nk_matches_hk(mode_nk, mode_hk)
 
     return measured
 end

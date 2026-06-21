@@ -647,6 +647,30 @@ end
     finally
         rm(path; force=true)
     end
+
+    energy_path = tempname() * ".h5"
+    try
+        mode_hk = reshape([-1.0, -0.5, 0.0, 1.0], 1, 4)
+        write_minimal_mode_summary_file(
+            energy_path,
+            mode_hk,
+            CoolingTNS.mode_occupation_from_hk(mode_hk);
+            energy_values=[NaN],
+        )
+
+        err = try
+            summarize_file(energy_path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        message = sprint(showerror, err)
+        @test occursin("E_mean", message)
+        @test occursin("non-finite", message)
+    finally
+        rm(energy_path; force=true)
+    end
 end
 
 @testset "Large-N summary validates stored positive mode gaps" begin

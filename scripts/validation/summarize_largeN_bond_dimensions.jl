@@ -226,6 +226,7 @@ function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean)
         mode_nk,
         read(run_group[RESULT_MODE_MEASUREMENT_CYCLES]);
         energy=energy_mean,
+        energy_name="E_mean",
     )
     valid_rows = measured.rows
 

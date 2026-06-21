@@ -290,8 +290,14 @@ end
         ).cycles == [2]
         @test_throws ArgumentError validate_mode_measurement_rows(
             mode_hk, nothing, [0, 2])
+        bad_finite_hk_nk = copy(mode_nk)
+        bad_finite_hk_nk[3, 1] = NaN
+        @test_throws ArgumentError validate_mode_measurement_rows(
+            mode_hk, bad_finite_hk_nk, [0, 2])
         @test_throws ArgumentError validate_mode_measurement_rows(
             mode_hk, mode_nk, [0, 1, 2])
+        @test_throws ArgumentError validate_mode_measurement_rows(
+            mode_hk, mode_nk, [0, 2]; energy=-0.5)
         @test_throws ArgumentError validate_mode_measurement_rows(
             mode_hk, mode_nk, [0, 2]; energy=[-1.0, 100.0, NaN])
         @test_throws DimensionMismatch validate_mode_measurement_rows(
