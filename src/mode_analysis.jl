@@ -515,6 +515,35 @@ function coeff_k(k, θ, N)
 end
 
 """
+    ising_mode_energy_contribution_coefficients(k_indices, ham_params) -> Vector{Float64}
+    ising_mode_energy_contribution_coefficients(k_indices, N, J, h) -> Vector{Float64}
+
+Return the code-unit signed coefficients ``c_k`` for reconstructing the
+transverse-field Ising energy from Bogoliubov mode observables:
+``E = Σ_k c_k h_k``.
+
+The convention is
+``c_k = (Λ/2) coeff_k``, where ``Λ = 2√(J²+h²)`` and `coeff_k` is the
+notes-unit coefficient with signed special modes.  The positive HDF5 gaps
+stored as `mode_ek_values` satisfy ``ε_k = 2|c_k|``; they are not the signed
+coefficients used in the energy sum.
+"""
+function ising_mode_energy_contribution_coefficients(
+    k_indices,
+    ham_params::HamiltonianParameters{IsingModel},
+)
+    return ising_mode_energy_contribution_coefficients(
+        k_indices, ham_params.N, ham_params.params.J, ham_params.params.h)
+end
+
+function ising_mode_energy_contribution_coefficients(k_indices, N::Integer, J::Real, h::Real)
+    θ = theta_from_Jh(J, h)
+    Λ = energy_scale(J, h)
+
+    return [(Λ / 2) * coeff_k(Float64(k), θ, Int(N)) for k in k_indices]
+end
+
+"""
     ising_energy_from_mode_hk(k_indices, hk_values, ham_params) -> energy
 
 Reconstruct the Ising energy from the Bogoliubov mode observables ``h_k``.
@@ -534,15 +563,8 @@ function ising_energy_from_mode_hk(k_indices, hk_values::AbstractVector,
         "k_indices length $(length(k_indices)) does not match hk_values length $(length(hk_values))"
     ))
 
-    N = ham_params.N
-    J, h = ham_params.params.J, ham_params.params.h
-    θ = theta_from_Jh(J, h)
-    Λ = energy_scale(J, h)
-
-    return (Λ / 2) * sum(
-        coeff_k(Float64(k), θ, N) * hk_values[i]
-        for (i, k) in enumerate(k_indices)
-    )
+    coefficients = ising_mode_energy_contribution_coefficients(k_indices, ham_params)
+    return sum(coefficients[i] * hk_values[i] for i in eachindex(coefficients))
 end
 
 function ising_energy_from_mode_hk(k_indices, hk_values::AbstractMatrix,

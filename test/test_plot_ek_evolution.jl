@@ -70,9 +70,10 @@ end
     h = 0.5
     k_indices = allowed_k_indices(N, 1)
     coeffs = _mode_energy_coefficients(k_indices, N, J, h)
-    stored_εk = abs.(2 .* coeffs)
+    stored_εk = mode_energies_Jh(k_indices, J, h, N)
 
     @test _checked_mode_energy_coefficients(stored_εk, k_indices, N, J, h) ≈ coeffs
+    @test stored_εk ≈ 2 .* abs.(coeffs) atol=1e-12
     @test_logs (:warn, r"Stored positive quasiparticle gaps differ") begin
         _checked_mode_energy_coefficients(fill(0.0, length(k_indices)), k_indices, N, J, h)
     end
@@ -132,7 +133,6 @@ end
         h = 0.5
         k_values = collect(range(0.0, 2π; length=N))
         k_indices = allowed_k_indices(N, -1)
-        coeffs = _mode_energy_coefficients(k_indices, N, J, h)
         mode_hk = [
             -1.0 -0.5  0.0  0.5
             -0.8 -0.4  0.1  0.6
@@ -148,7 +148,7 @@ end
             write(file, RESULT_K_VALUES, k_values)
             write(file, RESULT_MODE_HK, mode_hk)
             write(file, RESULT_MODE_K_INDICES, Float64.(k_indices))
-            write(file, RESULT_MODE_ENERGIES, abs.(2 .* coeffs))
+            write(file, RESULT_MODE_ENERGIES, mode_energies_Jh(k_indices, J, h, N))
             write(file, RESULT_ENERGY, [-1.0, -0.8])
             write(file, "N", N)
             write(file, "J", J)
@@ -176,7 +176,6 @@ end
         J = 1.0
         h = 0.5
         k_indices = allowed_k_indices(N, -1)
-        coeffs = _mode_energy_coefficients(k_indices, N, J, h)
         mode_hk = [
             -1.0 -0.5  0.0  0.5
              NaN  NaN  NaN  NaN
@@ -186,7 +185,7 @@ end
         h5open(filename, "w") do file
             write(file, RESULT_MODE_HK, mode_hk)
             write(file, RESULT_MODE_K_INDICES, Float64.(k_indices))
-            write(file, RESULT_MODE_ENERGIES, abs.(2 .* coeffs))
+            write(file, RESULT_MODE_ENERGIES, mode_energies_Jh(k_indices, J, h, N))
             write(file, RESULT_MODE_MEASUREMENT_CYCLES, [0, 2])
             write(file, RESULT_ENERGY, [-1.0, -0.9, -0.8])
             write(file, "N", N)

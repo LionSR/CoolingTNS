@@ -916,9 +916,22 @@ end
         gF = fermionic_bc(:periodic, 1)
         ks = allowed_k_indices(N, gF)
 
+        coefficients = ising_mode_energy_contribution_coefficients(ks, ham_params)
+        @test coefficients ≈
+            ising_mode_energy_contribution_coefficients(ks, N, J, h) atol=1e-12
+        positive_gaps = mode_energies_Jh(ks, J, h, N)
+        @test positive_gaps ≈ 2 .* abs.(coefficients) atol=1e-12
+
+        special_ks = allowed_k_indices(N, 1)
+        special_coefficients = ising_mode_energy_contribution_coefficients(special_ks, ham_params)
+        special_positive_gaps = mode_energies_Jh(special_ks, J, h, N)
+        @test special_positive_gaps ≈ 2 .* abs.(special_coefficients) atol=1e-12
+        @test any(<(0), special_coefficients)
+
         hk_vac = fill(-1.0, length(ks))
         E_vac = ising_energy_from_mode_hk(ks, hk_vac, ham_params)
         @test E_vac ≈ vacuum_energy_Jh(N, J, h, gF) atol=1e-12
+        @test E_vac ≈ sum(coefficients .* hk_vac) atol=1e-12
 
         hk_matrix = [hk_vac'; (hk_vac .+ 0.1)']
         E_steps = ising_energy_from_mode_hk(ks, hk_matrix, ham_params)
