@@ -301,10 +301,15 @@ end
         @test file_contains(cooling_tn_path, raw"This is the presently relevant \(D_{\max}=96\) TDVP evidence")
         @test file_contains(cooling_tn_path, raw"more meaningful than the two-cycle calibration")
         @test file_contains(cooling_tn_path, raw"D_{\mathrm{sys}}^{\mathrm{eff}}\geq 96")
-        @test file_contains(cooling_tn_path, raw"\texttt{not\_converged\_system\_and}")
-        @test file_contains(cooling_tn_path, raw"\texttt{\_evolved\_cap}")
+        @test file_contains(cooling_tn_path, raw"cycle 3 sweep 4")
+        @test file_contains(cooling_tn_path, raw"\texttt{not\_converged\_system\_and\_evolved\_and}")
+        @test file_contains(cooling_tn_path, raw"\texttt{\_tdvp\_sweep\_cap}")
         @test file_contains(largeN_bond_doc_path, "Five-Cycle MCWF+TDVP R=5, Dmax=96 Probe")
-        @test file_contains(largeN_bond_doc_path, "0.66394232 | >=96 | >=96 | not_converged_system_and_evolved_cap")
+        @test file_contains(
+            largeN_bond_doc_path,
+            "0.66394232 | >=96 | >=96 | " *
+            "not_converged_system_and_evolved_and_tdvp_sweep_cap",
+        )
         @test file_contains(mode_path, "â_k = cos(varphi_k) ã_k + i sin(varphi_k) ã†_{-k}")
         @test file_lacks(mode_path, "â_k = cos(varphi_k) ã_k + sin(varphi_k) ã†_{-k}")
         @test file_contains(ed_path, "ã_k = (1/√N) Σ_j exp(-i n φ_k) a_j.")
