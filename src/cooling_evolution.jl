@@ -532,8 +532,8 @@ function initialize_measurements(problem::CoolingProblem, state::QuantumState, s
     # Add backend-specific measurements
     add_backend_measurements!(measurements, problem, state, steps)
     
-    # Add mode energy measurements if requested for states whose backend has a
-    # convention-matched Ising Fourier observable implementation.
+    # Add Bogoliubov mode-observable measurements if requested for states whose
+    # backend has a convention-matched Ising Fourier observable implementation.
     if measure_modes
         add_mode_measurements!(
             measurements,
@@ -691,7 +691,7 @@ function _copy_previous_ising_mode_measurements!(measurements, step::Int)
     return true
 end
 
-# Helper for mode energy measurements ⟨h_k⟩ (Ising PBC/APBC)
+# Helper for Bogoliubov mode-observable measurements ⟨h_k⟩ (Ising PBC/APBC)
 function add_mode_measurements!(measurements, problem::CoolingProblem{EDBackend},
                                 state::QuantumState{EDBackend}, steps, ham_params,
                                 mode_measurement_stride=nothing)

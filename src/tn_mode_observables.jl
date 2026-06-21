@@ -233,8 +233,9 @@ ED routine `measure_hk`.
 
 The returned quantity matches the ED convention used in this package: for each
 allowed momentum index it is the individual-mode observable
-``2\\hat a_k^†\\hat a_k - 1``. The energy decomposition then sums over the full
-fermionic grid with the prefactor already used by `measure_all_mode_energies`.
+``2\\hat a_k^†\\hat a_k - 1``. The energy reconstruction then uses
+`ising_energy_from_mode_hk`, which sums over the full fermionic grid with the
+signed special-mode coefficients.
 """
 function measure_hk(ψ::MPS, k, ham_params::HamiltonianParameters{IsingModel})
     _validate_tn_mode_state(ψ, ham_params)
