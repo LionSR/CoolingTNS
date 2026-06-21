@@ -217,7 +217,6 @@ function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean)
     mode_hk isa AbstractMatrix ||
         error("$RESULT_MODE_HK must be a steps-by-modes matrix")
     mode_nk = Float64.(read(run_group[RESULT_MODE_NK]))
-    validate_mode_nk_matches_hk(mode_nk, mode_hk)
     k_indices = Float64.(vec(read(run_group[RESULT_MODE_K_INDICES])))
     mode_ek_values = Float64.(vec(read(run_group[RESULT_MODE_ENERGIES])))
     validate_mode_ek_values_match_grid(
@@ -231,15 +230,6 @@ function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean)
     valid_rows = measured.rows
 
     measured_label = mode_measurement_row_label(length(valid_rows), length(energy_mean))
-    isempty(valid_rows) && return (
-        mode_gF=mode_gF,
-        mode_gF_source=mode_gF_source,
-        mode_measured_rows=measured_label,
-        mode_last_measured_e_over_n=missing,
-        mode_last_measured_abs_err_over_n=missing,
-        mode_max_abs_err_over_n=missing,
-    )
-
     mode_energy = ising_energy_from_mode_hk(k_indices, mode_hk[valid_rows, :], ham_params)
     direct_energy = Float64.(energy_mean[valid_rows])
     abs_error_over_n = abs.(mode_energy .- direct_energy) ./ N

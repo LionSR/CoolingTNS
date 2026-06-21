@@ -276,6 +276,7 @@ end
         @test measured.cycles == [0, 2]
         @test measured.rows == [1, 3]
         @test mode_measurement_cycle_rows(3).cycles == [0, 1, 2]
+        @test mode_measurement_cycle_rows(3, 2).rows == [3]
         @test_throws ArgumentError mode_measurement_cycle_rows(3, Int[])
         @test_throws ArgumentError mode_measurement_cycle_rows(3, [2, 0])
         @test_throws ArgumentError mode_measurement_cycle_rows(3, [0, 0])
@@ -284,6 +285,9 @@ end
         @test validate_mode_measurement_rows(
             mode_hk, mode_nk, [0, 2]; energy=[-1.0, 100.0, -0.5]
         ).rows == [1, 3]
+        @test validate_mode_measurement_rows(
+            mode_hk, mode_nk, 2; energy=[-1.0, 100.0, -0.5]
+        ).cycles == [2]
         @test_throws ArgumentError validate_mode_measurement_rows(
             mode_hk, mode_nk, [0, 1, 2])
         @test_throws ArgumentError validate_mode_measurement_rows(

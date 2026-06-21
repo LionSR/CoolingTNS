@@ -572,6 +572,21 @@ end
 end
 
 @testset "Large-N summary validates mode measurement cycles" begin
+    scalar_path = tempname() * ".h5"
+    try
+        mode_hk = reshape([-1.0, -0.5, 0.0, 1.0], 1, 4)
+        write_minimal_mode_summary_file(
+            scalar_path,
+            mode_hk,
+            CoolingTNS.mode_occupation_from_hk(mode_hk);
+            mode_measurement_cycles=0,
+        )
+        row = only(summarize_file(scalar_path))
+        @test row.mode_measured_rows == "1/1"
+    finally
+        rm(scalar_path; force=true)
+    end
+
     for (cycles, expected) in [
         ([1, 0], "sorted"),
         ([0, 0], "unique"),

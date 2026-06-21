@@ -583,7 +583,11 @@ function mode_measurement_cycle_rows(n_rows::Integer, measurement_cycles=nothing
     if measurement_cycles === nothing
         cycles = collect(0:(n_rows - 1))
     else
-        cycles = Int.(vec(measurement_cycles))
+        cycles = Int.(
+            measurement_cycles isa AbstractArray ?
+            vec(measurement_cycles) :
+            [measurement_cycles]
+        )
         isempty(cycles) && throw(ArgumentError(
             "$RESULT_MODE_MEASUREMENT_CYCLES must not be empty",
         ))
@@ -620,8 +624,10 @@ function validate_mode_measurement_rows(
 )
     mode_hk isa AbstractMatrix ||
         throw(ArgumentError("$RESULT_MODE_HK must be a steps-by-modes matrix"))
-    mode_nk isa AbstractMatrix ||
-        throw(ArgumentError("$RESULT_MODE_NK must be a steps-by-modes matrix"))
+    mode_nk isa AbstractMatrix || throw(DimensionMismatch(
+        "$RESULT_MODE_NK has shape $(size(mode_nk)), but $RESULT_MODE_HK has " *
+        "shape $(size(mode_hk))"
+    ))
     size(mode_hk) == size(mode_nk) || throw(DimensionMismatch(
         "$RESULT_MODE_NK has shape $(size(mode_nk)), but $RESULT_MODE_HK has " *
         "shape $(size(mode_hk))"
