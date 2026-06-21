@@ -13,9 +13,9 @@ strategies fix this:
    accidental resonances.
 
 These results were derived analytically for the free-fermion (Gaussian) case.
-The purpose of our follow-up paper is to demonstrate and study these strategies
-for **interacting (non-integrable) spin models** using tensor network
-simulations, where the Gaussian tricks do not apply.
+The purpose of the interacting-model follow-up is to test and study whether
+these strategies carry over to **interacting (non-integrable) spin models**
+using tensor-network simulations, where the Gaussian tricks do not apply.
 
 ## Model
 
@@ -312,7 +312,9 @@ Key figures to produce:
    have been demonstrated
 4. **Effect of randomized times**: with vs without
 5. **Coupling type comparison**: XX vs YY vs XY under multi-Δ
-6. **Noise robustness**: multi-Δ cooling for pe = 0, 0.001, 0.01
+6. **Noise-response diagnostics**: compare finite-window multi-Δ cooling
+   curves for pe = 0, 0.001, 0.01; promote this to a robustness claim only
+   after the same trajectory and bond-dimension convergence checks
 
 ## Timeline
 

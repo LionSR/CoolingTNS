@@ -42,6 +42,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("`traj cycles/hour` is computed as", evidence_flat)
     @test occursin("It is therefore a throughput diagnostic, not a cooling-performance metric", evidence_flat)
     @test occursin("single-run throughput from the stored HDF5 provenance", plan_flat)
+    @test occursin("test and study whether these strategies carry over", plan_flat)
     @test occursin("A single MCWF trajectory and a late-time average are diagnostic quantities only", plan_flat)
     @test occursin("requires independent trajectories, stability under the averaging window, and convergence in the retained and transient bond dimensions", plan_flat)
     @test occursin("current timing evidence favors process-level MCWF+TDVP diagnostic scans", plan_flat)
@@ -58,6 +59,8 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("Late-time or best-prefix energy vs N", plan_flat)
     @test occursin("report the single-Δ versus multi-Δ comparison first as finite-window scaling", plan_flat)
     @test occursin("promote it to steady-state scaling only after trajectory and bond-dimension convergence have been demonstrated", plan_flat)
+    @test occursin("Noise-response diagnostics", plan_flat)
+    @test occursin("promote this to a robustness claim only after the same trajectory and bond-dimension convergence checks", plan_flat)
     @test occursin("traj cycles/hour | user time", plan_flat)
     @test occursin("serial, one driver process | 1 | 1 | `R=2` then `R=5` | 287.70 s | 50.05", plan_flat)
     @test occursin("serial, one driver process | 1 | 16 | `R=2` then `R=5` | 284.34 s | 50.64", plan_flat)
@@ -194,6 +197,8 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         "average last ~100 steps",
         "this is already the faster method in the codebase",
         "systematic runs for the paper:",
+        "demonstrate and study these strategies",
+        "noise robustness: multi-δ cooling",
         "steady-state energy vs r",
         "steady-state energy vs n",
     ]
