@@ -118,9 +118,12 @@ detuning index independently at each cooling cycle.
 To prepare independent commands for process-level parallel execution, use
 `--print-parallel-plan`.  The plan splits the campaign into one command for
 each `(N, method, R, Dmax)` tuple and assigns distinct HDF5 and progress CSV
-paths.  The driver does not launch these jobs itself; process scheduling remains
-external so each Julia process owns its HDF5 output, progress CSV, and
-deterministic trajectory seed stream.
+paths.  In multi-job plans where `--progress-csv` is supplied, generated per-job
+progress CSV filenames keep the requested CSV stem as a prefix and append the
+HDF5 protocol stem.  Single-job plans keep the requested CSV path unchanged.  The
+driver does not launch these jobs itself; process scheduling remains external so
+each Julia process owns its HDF5 output, progress CSV, and deterministic
+trajectory seed stream.
 
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
         --Ns 64 --R-values 1,2,5,10 --methods mcwf --evolution-method continuous \
@@ -554,7 +557,12 @@ function print_parallel_plan(cfg; io=stdout)
     println(io, "# jobs: $(length(commands))")
     println(io, "# This driver does not launch jobs concurrently.")
     println(io, "# Run these commands with an external process scheduler.")
-    println(io, "# Each command has a distinct HDF5 output path; progress CSV paths are distinct when a base --progress-csv is supplied.")
+    println(io, "# Each command has a distinct HDF5 output path.")
+    if length(commands) > 1
+        println(io, "# With a base --progress-csv, generated CSV paths keep the requested CSV stem and append the HDF5 protocol stem.")
+    else
+        println(io, "# With one job, a base --progress-csv path is kept unchanged.")
+    end
     for command in commands
         println(io, command)
     end
