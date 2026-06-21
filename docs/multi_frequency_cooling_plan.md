@@ -83,6 +83,10 @@ rebuilding is < 1%. Pre-building R Hamiltonians is unnecessary complexity.
 - The current timing evidence favors process-level MCWF+TDVP diagnostic scans
   with one Julia thread and one BLAS thread per independent job.  Production
   settings must still be benchmarked at the target bond cap.
+- The large-`N` validation driver therefore defaults to `--methods mcwf`.
+  Density-matrix/MPO runs remain available through explicit `--methods mpo` or
+  `--methods mpo,mcwf` invocations, primarily for small-system channel
+  validation against the MPS trajectory implementation.
 
 ## Implementation Plan
 

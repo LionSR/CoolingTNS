@@ -552,6 +552,12 @@ The purity of the density matrix $\rho_S^k$ is not the average of the trajectory
 
 The matrix product state simulations were performed using the ITensor.jl~\cite{Fishman2022ITensor} library. Since an MPS quantum trajectory is a pure state simulation, its initial condition is a specified pure product state rather than the maximally mixed density matrix used in the MPO simulations. In the current simulation scripts, \texttt{init\_type="product"} denotes a uniform computational-basis product state, while \texttt{init\_type="theta"} denotes the product-state family in \eqref{eq:code-theta-map}. The identity state is therefore reserved for density-matrix simulations unless an explicit pure-state ensemble or purification is introduced.
 
+Consistent with the bond-dimension evidence below, the large-\(N\) validation
+driver now treats MCWF/MPS as the default production-sized tensor-network path.
+The MPO density-matrix route remains available through an explicit method
+selection, and is used primarily for small-system channel validation against
+the corresponding MPS trajectory implementation.
+
 The present large-\(N\) fixed-detuning checks should be read as bond-dimension
 diagnostics, not as a final demonstration of ground-state preparation.  For
 \(N=64\), \(R=1,2,5,10\), and the MPS \texttt{TrotterEvolution} route, the

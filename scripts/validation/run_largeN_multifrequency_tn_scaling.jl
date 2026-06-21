@@ -2,11 +2,16 @@
 """
 Run a large-N multi-frequency tensor-network cooling scaling campaign.
 
-This driver compares two tensor-network representations of the same open-chain
+This driver supports two tensor-network representations of the same open-chain
 cooling channel:
 
   - `mpo`: TN density-matrix evolution, represented as an MPO.
   - `mcwf`: TN Monte-Carlo wavefunction trajectories, represented as MPS states.
+
+The default large-N campaign method is `mcwf`, because the present N=64
+diagnostics show that the MPO density-matrix route is a small-system validation
+path rather than the practical production path.  Select `--methods mpo` or
+`--methods mpo,mcwf` explicitly for density-matrix channel checks.
 
 For each system size and each number of bath detunings R, the script records
 energy density, relative energy above the DMRG ground state, ground-state
@@ -16,7 +21,13 @@ and the first cooling cycle where the method-specific bond threshold is reached.
 Example N=64 campaign:
 
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
-        --Ns 64 --R-values 1,2,5,10 --steps 40 --Dmax 40 --M-mcwf 2
+        --Ns 64 --R-values 1,2,5,10 --methods mcwf --steps 40 --Dmax 40 \
+        --M-mcwf 2
+
+Small-N MPO/MCWF channel check:
+
+    julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+        --quick
 
 Fixed-detuning Dmax comparison:
 
@@ -121,9 +132,14 @@ Julia and BLAS thread counts:
         --delta-min 0.5051167496264384 --delta-max 3.0307004977586303 \
         --print-parallel-plan --plan-julia-threads 1 --plan-blas-threads 1
 
-Fast path check:
+Fast path check, using the explicit small-N MPO/MCWF validation path:
 
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl --quick
+
+The `--quick` flag is an argument-stream preset: it sets `N=8`, `R=1,2`,
+`steps=2`, `Dmax=12`, and `methods=mpo,mcwf` when it is encountered.  Explicit
+flags written after `--quick` may override those preset values; flags written
+before `--quick` are overwritten by the preset.
 """
 
 using CoolingTNS
@@ -154,7 +170,7 @@ function parse_args(args)
     cfg = Dict{String,Any}(
         "Ns" => [64],
         "R_values" => [1, 2, 5, 10],
-        "methods" => ["mpo", "mcwf"],
+        "methods" => ["mcwf"],
         "evolution_method" => "trotter",
         "model" => "niising",
         "bc" => "open",
@@ -198,8 +214,12 @@ function parse_args(args)
     while i <= length(args)
         a = args[i]
         if a == "--quick"
+            # `--quick` is an argument-stream preset. It intentionally selects
+            # the small-N MPO/MCWF channel comparison unless later flags
+            # override the individual fields.
             cfg["Ns"] = [8]
             cfg["R_values"] = [1, 2]
+            cfg["methods"] = ["mpo", "mcwf"]
             cfg["steps"] = 2
             cfg["Dmax"] = 12
             cfg["M_mcwf"] = 1
