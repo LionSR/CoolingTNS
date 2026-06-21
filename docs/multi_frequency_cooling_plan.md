@@ -303,11 +303,13 @@ converged at large system size.
 Key figures to produce:
 
 1. **E/N vs step**: single-Δ vs multi-Δ (R = 1, 3, 5, 10) at fixed N
-2. **Late-time or best-prefix energy vs R**: promote this to a steady-state
-   energy only after trajectory and bond-dimension convergence have been
-   demonstrated
-3. **Late-time or best-prefix energy vs N**: scaling study for single vs
-   multi-Δ, again promoted to steady-state scaling only after convergence
+2. **Late-time or best-prefix energy vs R**: report this first as a
+   finite-window diagnostic; promote it to a steady-state energy only after
+   trajectory and bond-dimension convergence have been demonstrated
+3. **Late-time or best-prefix energy vs N**: report the single-Δ versus
+   multi-Δ comparison first as finite-window scaling; promote it to
+   steady-state scaling only after trajectory and bond-dimension convergence
+   have been demonstrated
 4. **Effect of randomized times**: with vs without
 5. **Coupling type comparison**: XX vs YY vs XY under multi-Δ
 6. **Noise robustness**: multi-Δ cooling for pe = 0, 0.001, 0.01
