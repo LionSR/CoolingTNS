@@ -26,14 +26,14 @@ where $H_S$ and $H_B$ are the Hamiltonians of the system and the bath, respectiv
 Without loss of generality, we assume $V = \sum_k V_S^k \otimes V_B^k$ with $V_S^k$ acting on the system and $V_B^k$ acting on the bath.
 For notational convenience, we will also use $H_S + H_B$ to denote $H_S \otimes \Id_B + \Id_S \otimes H_B$, and similarly for $H_S + H_B + gV$, etc.
 
-Let us denote the initial state of the system $S$ at the beginning of the $k$-th cycle by $\rho_k$. At the beginning of each cycle, we always bring in a fresh ancilla $B$, initialized at the ground state of its Hamiltonian $H_B$, denoted by $\ket{0}$. The initial density matrix $\rho(0) = \rho_k \otimes \ket{0}\bra{0}$ of the total system evolves according to the Schr\"{o}dinger equation
+Let us denote the initial state of the system $S$ at the beginning of the $k$-th cycle by $\rho_k$. At the beginning of each cycle, we always bring in a fresh ancilla $B$, initialized at the ground state of its Hamiltonian $H_B$, denoted by $\ket{\Omega_B}$. The initial density matrix $\rho(0) = \rho_k \otimes \ket{\Omega_B}\bra{\Omega_B}$ of the total system evolves according to the Schr\"{o}dinger equation
 \begin{equation}
-	\rho(t) = e^{-i(H_S + H_{B} + gV) t} \left(\rho_k \otimes \ket{0}\bra{0}\right)  e^{i(H_S + H_{B} + gV) t}.
+	\rho(t) = e^{-i(H_S + H_{B} + gV) t} \left(\rho_k \otimes \ket{\Omega_B}\bra{\Omega_B}\right)  e^{i(H_S + H_{B} + gV) t}.
 	\label{eq:rhot}
 \end{equation}
 After a joint evolution of time $t$, the bath $B$ is discarded and the state of the system $S$ becomes
 \begin{equation}
-	\rho_{k+1} = \tr_B\left\{ e^{-i(H_S + H_{B} + gV) t} \left(\rho_k \otimes \ket{0}\bra{0}\right)  e^{i(H_S + H_{B} + gV)t} \right\}.
+	\rho_{k+1} = \tr_B\left\{ e^{-i(H_S + H_{B} + gV) t} \left(\rho_k \otimes \ket{\Omega_B}\bra{\Omega_B}\right)  e^{i(H_S + H_{B} + gV)t} \right\}.
 	\label{eq:rhokp1}
 \end{equation}
 where $\tr_B\{\cdot\}$ denotes the partial trace over the bath degrees of freedom.
@@ -45,7 +45,7 @@ To study the performance of the cooling algorithm and optimize its parameters, w
 \begin{figure}
 	\centering
 	\begin{quantikz}
-		                  & \gategroup[2,steps=3,style={dashed,rounded corners,fill=green!20, inner xsep=5pt,inner ysep=10pt},background,label style={label position=above,anchor=north,yshift=0.3cm}]{{\sc Repeat (Cooling)}}\rightarrow\ket{0} & \gate[2]{U(t) = e^{-iH_{SB}t}} & \measuretab{\text{out}} &                            \\  %\trash{\text{trash}}
+		                  & \gategroup[2,steps=3,style={dashed,rounded corners,fill=green!20, inner xsep=5pt,inner ysep=10pt},background,label style={label position=above,anchor=north,yshift=0.3cm}]{{\sc Repeat (Cooling)}}\rightarrow\ket{\Omega_B(c)} & \gate[2]{U(t) = e^{-iH_{SB}t}} & \measuretab{\text{out}} &                            \\  %\trash{\text{trash}}
 		\lstick{$\rho_k$} & \qwbundle{}\qw                                                                                                                                                                                                       &                                & \qw                     & \qw  \rstick{$\rho_{k+1}$}
 	\end{quantikz}
 
@@ -64,7 +64,7 @@ To study the performance of the cooling algorithm and optimize its parameters, w
 		\node (C) at (-1,-1) {\small{Sys:}};
 		%\draw[dashed, thick]  (-0.4, -1) to[bend right=30] (3.9, -1);
 	\end{tikzpicture}
-	\caption{Top: a schematic of our cooling algorithm. Bottom: coupling scheme between the system and the bath. The system particles (blue circles) are coupled to the bath particles (red circles) via $\sigma_X \otimes \sigma_X$ interactions, with one bath particle per system particle.}
+	\caption{Top: a schematic of our cooling algorithm, with the bath reset to the coupling-dependent state $\ket{\Omega_B(c)}$. Bottom: local coupling scheme between the system and the bath, with one bath particle per system particle. The Pauli channel is specified by the coupling label $c$ rather than fixed to a single $XX$ interaction.}
 	\label{fig:SysBath}
 \end{figure}
 
@@ -189,7 +189,40 @@ where $N$ is the length of the chain, the sum runs over $i_j,j_k = 1,\ldots,d$ w
 
 
 \paragraph{Couplings}
-In our numerical simulations, we consider cooling with an extensive number of ancillas, i.e., $N_B = N_S$. The couplings between the system and the bath are taken to be $\sigma_X \otimes \sigma_X$ interactions, locally connected from ancillas to the system particles, as shown in Fig.~\ref{fig:SysBath}.
+In our numerical simulations, we consider cooling with an extensive number of
+ancillas, i.e., \(N_B=N_S\).  Each system site is locally coupled to one bath
+site, as shown in Fig.~\ref{fig:SysBath}.  The code labels the local
+system-bath channel by a two-letter Pauli string
+\(c=AB\in\{X,Y,Z\}^2\).  The source of truth is the shared convention
+implemented in \texttt{src/coupling\_utils.jl}.  If \(A=B\), then the local
+coupling set is
+\begin{equation}
+	\mathcal{T}(AA)=\{(A,A)\},
+\end{equation}
+whereas a mixed label denotes the symmetric Hermitian coupling
+\begin{equation}
+	\mathcal{T}(AB)=\{(A,B),(B,A)\},
+	\qquad A\neq B .
+\end{equation}
+Thus the local interaction is
+\begin{equation}
+	V_i(c)=\sum_{(\mu,\nu)\in\mathcal{T}(c)}
+	\sigma^\mu_{s_i}\sigma^\nu_{b_i}.
+	\label{eq:tn_local_coupling_convention}
+\end{equation}
+The bath Hamiltonian is
+\begin{equation}
+	H_B(c,\Delta)=\frac{\Delta}{2}\sum_{i=1}^N
+	\sigma^{\beta(c)}_{b_i},
+\end{equation}
+where \(\beta(c)\) is the Pauli returned by the same source-of-truth routine
+\texttt{get\_bath\_operator}.  For a one-Pauli bath-side set, the historical
+choice is \(X,Y\mapsto Z\) and \(Z\mapsto X\).  For a mixed symmetric
+coupling, \(\beta(c)\) is the unique absent Pauli; for example,
+\(XY/YX\mapsto Z\), \(YZ/ZY\mapsto X\), and \(XZ/ZX\mapsto Y\).  For the
+positive detunings used in cooling, the bath reset state
+\(\ket{\Omega_B(c)}\) is the tensor product of the eigenvalue \(-1\) states
+of \(\sigma^{\beta(c)}\).
 
 \subsection{Mode Diagnostics for the Integrable Ising Benchmarks}
 \label{sec:TNModeDiagnostics}
@@ -340,7 +373,8 @@ second-order sweep.  In the notation of Eq.~\eqref{eq:HIsing}, let
 	\end{aligned}
 \end{equation}
 Here $\sigma^\beta_{b_i}$ is the bath Pauli operator selected by the coupling
-channel, and the sum over $a$ is the corresponding local system-bath coupling.
+channel, and the sum over $a$ is the corresponding local system-bath coupling
+from \cref{eq:tn_local_coupling_convention}.
 For the transverse-field Ising model used in the integrable tests, the
 $h_z\sigma^z_{s_i}$ term is absent and $h_x$ is replaced by the transverse
 field parameter $h$.
@@ -417,9 +451,10 @@ As an alternative to solving the many-body dynamical equation (\ref{eq:rhokp1}) 
 
 Each stochastic trajectory begins from the same initial normalized pure state $\ket{\Psi_S^1}$ and evolves according to the following procedure.
 \begin{enumerate}
-	\item At each step $k$, calculate the coherent time evolution according to the Schr\"{o}dinger equation with the joint Hamiltonian $H = H_S + H_B + gV$, up to $t_e$
+	\item At each step $k$, calculate the coherent time evolution according to the Schr\"{o}dinger equation with the joint Hamiltonian \(H=H_S+H_B(c,\Delta)+g\sum_i V_i(c)\), up to $t_e$
 	      \begin{equation}
-		      \ket{\Psi_{SB}^{k+1}} = e^{-iHt_e} (\ket{\Psi_{S}^{k}} \otimes \ket{0}_B).
+		      \ket{\Psi_{SB}^{k+1}} =
+		      e^{-iHt_e} \bigl(\ket{\Psi_{S}^{k}} \otimes \ket{\Omega_B(c)}\bigr).
 		      \label{eq:dynamics}
 	      \end{equation}
 	\item After the joint pure state evolution, the bath needs to be traced out. The partial trace can be expressed with an orthonormal basis of the bath $\{\ket{\alpha}\}$,
@@ -442,13 +477,13 @@ Each stochastic trajectory begins from the same initial normalized pure state $\
 The implementation contains two time-evolution routes for MPS trajectories.
 For \texttt{ContinuousEvolution}, the code uses the time-dependent variational
 principle (TDVP) algorithm~\cite{Haegeman2011TimeDependent,Haegeman2016Unifying}.
-For a fixed bath detuning \(\Delta\), it constructs the full interleaved
-system-bath MPO \(H_{SB}(\Delta)\) and approximates
+For a fixed bath detuning \(\Delta\) and coupling label \(c\), it constructs
+the full interleaved system-bath MPO \(H_{SB}(c,\Delta)\) and approximates
 \begin{equation}
 	\ket{\Psi_{SB}^{k+1}}
 	=
-	e^{-iH_{SB}(\Delta)t_e}
-	\bigl(\ket{\Psi_S^k}\otimes\ket{\Omega_B(\Delta)}\bigr)
+	e^{-iH_{SB}(c,\Delta)t_e}
+	\bigl(\ket{\Psi_S^k}\otimes\ket{\Omega_B(c)}\bigr)
 \end{equation}
 by two-site TDVP on the MPS manifold.  In the present ITensor convention the
 time parameter supplied to TDVP is \(-i t_e\), and the interval is partitioned
@@ -459,7 +494,7 @@ into
 substeps.  The parameter \(\tau\) is therefore a target substep size, not a
 Trotter gate time.  Before the two-site TDVP sweep, the implementation expands
 the MPS basis by a global Krylov vector.  In formulae, if
-\(\ket{\Psi_0}=\ket{\Psi_S^k}\otimes\ket{\Omega_B(\Delta)}\), then the
+\(\ket{\Psi_0}=\ket{\Psi_S^k}\otimes\ket{\Omega_B(c)}\), then the
 initial variational basis is enlarged so that it contains the Krylov space
 \begin{equation}
 	\mathcal{K}_m(H_{SB},\ket{\Psi_0})
