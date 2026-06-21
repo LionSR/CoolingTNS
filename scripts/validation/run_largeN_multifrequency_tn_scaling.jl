@@ -680,7 +680,7 @@ Build one progress CSV row from a `run_cooling_multi_freq` observer event.
 Energy and overlap are defined only for `:initial` and `:updated`, where the
 system has been measured. For `:prepared` and `:evolved`, these columns are
 `NaN`; the `system_*_bond` columns describe the pre-update system state, while
-`evolved_*_bond` describes the current transient system-bath state.
+`evolved_*_bond` describes the current evolved system-bath state.
 """
 function progress_base_row(context, ham_params; stage, step, cycle, delta, te,
                            energy_per_site, relative_energy_value, overlap,

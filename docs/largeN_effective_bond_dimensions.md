@@ -88,12 +88,12 @@ different states in the same cooling cycle and should not be interchanged.
 - `Dsys_eff` is the effective bond dimension of the retained system state after
   bath measurement.  It is computed from the largest final link dimension of
   the `N`-site system MPS or MPO over trajectories.
-- `Dsb_eff` is the effective bond dimension of the transient enlarged
+- `Dsb_eff` is the effective bond dimension of the evolved enlarged
   system-bath state before bath measurement.  It is computed from the largest
   link dimension of the `2N`-site evolved MPS or MPO over all recorded cooling
   cycles and trajectories.
 - `Dtdvp_sweep_eff` is the effective bond dimension inferred from the largest
-  transient state seen by the inner TDVP sweep observer during MCWF+TDVP
+  system-bath state seen by the inner TDVP sweep observer during MCWF+TDVP
   evolution.  The HDF5 source fields are `tdvp_sweep_max_bond` and
   `tdvp_sweep_saturation_cycle`.  Legacy files and runs without this diagnostic
   are summarized as `n/a`, not as a measured zero-dimensional state.  This is an
@@ -113,11 +113,11 @@ untruncated trajectory.  In that case the summary script writes a label such as
 The summary script also reports a machine-readable `bond_status` column.  The
 status is only a bond-dimension diagnostic:
 
-- `no_cap_hit`: neither the retained system state nor the transient
+- `no_cap_hit`: neither the retained system state nor the evolved
   system-bath state nor the recorded TDVP sweep history reached the cap during
   the recorded run.
 - `not_converged_system_cap`: the retained system state reached the cap.
-- `not_converged_evolved_cap`: the transient system-bath state reached the
+- `not_converged_evolved_cap`: the evolved system-bath state reached the
   cap.
 - `not_converged_tdvp_sweep_cap`: the inner TDVP sweep history reached the cap.
 
@@ -141,7 +141,7 @@ without assuming that a finite trajectory has reached a fixed point.
 
 The current HDF5 summary table therefore contains the sweep-specific columns
 `Dtdvp_sweep_eff`, `peak tdvp sweep max`, and `tdvp sweep sat` in addition to
-the retained-system and transient system-bath columns.
+the retained-system and evolved system-bath columns.
 
 The current large-`N` campaign files do not store measured per-bond
 truncation-error time series.  The evidence below should therefore be read as
@@ -449,13 +449,13 @@ and similarly for `R = 2` in
 `/tmp/coolingtns_tdvp_N64_R2_D96_steps2_20260618`.  The progress CSV records
 the `initial`, `prepared`, `evolved`, and `updated` observer stages, so an
 interrupted long TDVP run still leaves the pre-evolution system-bath bond
-dimension, the post-evolution transient bond dimension, and the measured
+dimension, the post-evolution system-bath bond dimension, and the measured
 per-cycle energy trace.
 
 For long TDVP runs, add `--tdvp-sweep-progress` to the same command to append
 `tdvp_sweep` rows to the progress CSV after each ITensorMPS TDVP sweep/substep.
 These rows record the sweep index, the physical TDVP time reached inside the
-current cooling step, and the current transient bond dimensions.  Use
+current cooling step, and the current TDVP sweep bond dimensions.  Use
 `--tdvp-outputlevel 1` when the ITensorMPS textual sweep summary is also useful.
 
 ## Current N=64 evidence
@@ -476,15 +476,15 @@ The strongest current four-cycle estimate is
 | 10 | 960 | 489 | 737 | no_cap_hit | 1.29572864 | 1.97818 | 489 | 737 | none |
 
 Thus `Dmax = 320` is not a converged cap by the fourth cooling cycle for any
-of `R = 1,2,5,10`: the transient system-bath state reaches the cap in all four
+of `R = 1,2,5,10`: the evolved system-bath state reaches the cap in all four
 cases.  At `Dmax = 640`, the `R = 1` and `R = 5` trajectories are below cap
-with observed transient dimensions 394 and 518, respectively, while `R = 2`
-and `R = 10` still reach the cap by the fourth cycle.  The focused
+with observed evolved system-bath dimensions 394 and 518, respectively, while
+`R = 2` and `R = 10` still reach the cap by the fourth cycle.  The focused
 `Dmax = 960` follow-up resolves those two lower bounds for this four-cycle
 diagnostic: `Dsb_eff = 862` for `R = 2` and `Dsb_eff = 737` for `R = 10`.
 
 The strongest currently bounded effective bond dimensions (post-measurement
-system `Dsys_eff` and transient system-bath `Dsb_eff`) are:
+system `Dsys_eff` and evolved system-bath `Dsb_eff`) are:
 
 ```text
 R =  1: Dsys_eff = 309, Dsb_eff = 394
@@ -519,16 +519,16 @@ they do not yet establish scalable ground-state cooling.
 A credible long-time `N = 64` to `N = 100` production calculation should use a
 controlled Dmax ladder, keep the existing cap/saturation diagnostics, add
 measured truncation-error histories when available, and either increase the
-effective transient bond cap or change the cooling protocol to control the
-system-bath entanglement growth.
+effective evolved system-bath bond cap or change the cooling protocol to
+control the system-bath entanglement growth.
 
 ## Two-Cycle MCWF+TDVP Runtime Calibration
 
 The first completed fixed-detuning TDVP calibration checks only two cooling
 cycles.  This is not physically meaningful evidence for cooling or for a
 fixed point.  It is useful only for verifying that the continuous-evolution
-route is accessible and for estimating the first transient bond dimensions
-before attempting long traced runs.
+route is accessible and for estimating the first evolved system-bath bond
+dimensions before attempting long traced runs.
 
 | R | Dcap | Dsys_eff | Dsb_eff | bond_status | final E/N | relE | peak evolved mean | elapsed |
 |---:|---:|---:|---:|---|---:|---:|---:|---:|
@@ -538,7 +538,7 @@ before attempting long traced runs.
 | 10 | 96 | 35 | 51 | no_cap_hit | 1.38290684 | 2.04399 | 39.76 | 376.4 s |
 
 Thus, for the first two TDVP cycles only, `Dmax = 96` is sufficient for all
-four frequency counts tested here: the transient system-bath dimensions are
+four frequency counts tested here: the evolved system-bath dimensions are
 about `50--54`, and the retained system-state dimensions are about `35--39`.
 The energies, however, remain positive and far above the DMRG reference
 `E0/N = -1.3246328892`.  The next meaningful TDVP test is therefore a longer
@@ -698,10 +698,10 @@ yet produce a physically controlled long-time cooling trajectory.
 The HDF5 files for this particular stop-cap campaign predate the HDF5
 persistence of TDVP sweep histories added later.  Consequently
 `summarize_largeN_bond_dimensions.jl` reports `Dtdvp_sweep_eff = n/a` for these
-legacy files.  The legacy progress rows above show cycle-3 transient cap events,
-with sweep indices when the first hit was observed by a TDVP sweep row.  New
-stop-cap runs with `--tdvp-sweep-progress` store both `tdvp_sweep_max_bond` and
-`tdvp_sweep_saturation_cycle` in HDF5.
+legacy files.  The legacy progress rows above show cycle-3 `first transient
+cap` events, with sweep indices when the first hit was observed by a TDVP sweep
+row.  New stop-cap runs with `--tdvp-sweep-progress` store both
+`tdvp_sweep_max_bond` and `tdvp_sweep_saturation_cycle` in HDF5.
 
 ## MCWF+TDVP Stop-on-Cap Scan at te=1.0
 
@@ -1041,11 +1041,11 @@ stop-on-cap data nevertheless remains far from ground-state cooling.  The best
 observed capped prefix is the `R = 2` value `E/N = 1.08753626`, still far above
 `E0/N = -1.3246328892`.  Raising the cap from `32` to `64` confirms that the
 `Dmax = 32` data was cap-limited rather than converged.  For `R = 2` and
-`R = 10`, the transient evolved state and the TDVP sweep observer both reach
+`R = 10`, the evolved system-bath MPS and the TDVP sweep observer both reach
 bond dimension `64` by cycle 4, while the retained system state has already
 grown to bond dimension `53` and `50`, respectively.
 
-Thus the effective transient bond dimension after the TDVP correction is at
+Thus the effective evolved system-bath bond dimension after the TDVP correction is at
 least `64` by the fourth cooling cycle for these fixed `te = 1.0` schedules.
 The next large-\(D\) calculation should therefore not be interpreted only as a
 larger-bond rerun.  It should be paired with a schedule or adaptivity change
@@ -1118,7 +1118,7 @@ scalable ground-state cooling.
 ### Dmax=64 Descending R=10 Follow-up
 
 The best low-cap descending prefix above was the `R = 10` run.  To test whether
-that improvement survives a larger transient bond cap, the same post-Krylov
+that improvement survives a larger evolved system-bath bond cap, the same post-Krylov
 TDVP diagnostic was repeated at `Dmax = 64` for `R = 10`:
 
 ```bash
@@ -1154,9 +1154,9 @@ Thus the descending schedule improvement is not only a `Dcap = 32` artifact:
 raising the cap to `64` lets the same single trajectory complete one more
 cooling cycle and lowers the best observed prefix from the corresponding
 `Dcap = 32` value `0.95514749` to `0.87319302`.  The calculation is still not
-converged.  The transient
-system-bath state and the TDVP sweep observer both reach the cap in cycle 4,
-so `Dsb_eff >= 64` and `Dtdvp_sweep_eff >= 64` are lower bounds.  The energy
+converged.  The evolved system-bath state and the TDVP sweep observer both
+reach the cap in cycle 4, so `Dsb_eff >= 64` and `Dtdvp_sweep_eff >= 64` are
+lower bounds.  The energy
 also remains far above the DMRG reference `E0/N = -1.3246328892`.  The result
 supports descending high-to-low detuning as a useful protocol axis for future
 adaptive scans, but it does not establish scalable ground-state cooling.
@@ -1208,13 +1208,15 @@ The completed-cycle energy-density prefixes are
 The all-frequency scan confirms the qualitative conclusion from the standalone
 `R = 10` run.  At `Dcap = 64`, descending `R = 10` gives the best capped
 prefix among the tested frequency counts, but every run remains cap-limited.
-The `R = 1` case reaches the retained system, transient, and TDVP-sweep caps
-by the fifth completed cycle; the other three cases reach the transient and
-TDVP-sweep caps by the fourth completed cycle.  Thus the effective transient
+The `R = 1` case reaches the cap in the retained system, the evolved
+system-bath state, and the TDVP sweep history by the fifth completed cycle; the
+other three cases reach the cap in the evolved system-bath state and TDVP sweep
+history by the fourth completed cycle.  Thus the effective evolved system-bath
 and TDVP-sweep bond dimensions are at least `64` across the whole descending
-scan.  The best observed energy density, `0.87319302`, is still far above the
-DMRG reference `E0/N = -1.3246328892`, so this remains a bond-growth and
-schedule-order diagnostic rather than a controlled cooling result.
+scan.  The best observed energy density,
+`0.87319302`, is still far above the DMRG reference `E0/N = -1.3246328892`, so
+this remains a bond-growth and schedule-order diagnostic rather than a
+controlled cooling result.
 
 ### Dmax=128 Descending R=10 Follow-up
 
@@ -1261,13 +1263,14 @@ The completed-cycle prefix is
 This confirms that the `Dcap = 64` cycle-four result was still truncation
 limited: the same trajectory continues to cycle 5 when the cap is raised to
 `128`.  The improvement, however, is modest compared with the additional bond
-dimension and wall time.  The transient system-bath state and TDVP sweep
+dimension and wall time.  The evolved system-bath state and TDVP sweep
 observer both reach bond dimension `128` in cycle 5, while the retained system
-state reaches bond dimension `116`.  Therefore the effective transient and
-sweep dimensions are still only lower bounded by `128`, and the best observed
-energy density `0.84528025` remains far above the DMRG reference
-`E0/N = -1.3246328892`.  This is useful evidence for the required bond scale of
-the descending schedule, not evidence of scalable cooling to the ground state.
+state reaches bond dimension `116`.  Therefore the effective evolved
+system-bath and TDVP-sweep dimensions are still only lower bounded by `128`,
+and the best observed energy density `0.84528025` remains far above the DMRG
+reference `E0/N = -1.3246328892`.  This is useful evidence for the required
+bond scale of the descending schedule, not evidence of scalable cooling to the
+ground state.
 
 ### Dmax=128 Descending Remaining Frequencies
 
@@ -1329,11 +1332,12 @@ The completed-cycle prefixes for the new runs are
 
 At `Dcap = 128`, descending `R = 10` remains the best capped prefix among the
 tested frequency counts.  The ordering of final energies is
-`R = 10 < R = 2 < R = 5 < R = 1`, while all four runs reach the transient and
-TDVP-sweep cap before approaching the ground-state energy density.  The
-low-frequency `R = 1` trajectory is especially unfavorable: it reaches its best
-energy density at cycle 4 and then heats while the bond dimension continues to
-grow.  Thus the larger cap strengthens the bond-growth conclusion; it does not
+`R = 10 < R = 2 < R = 5 < R = 1`, while all four runs reach the evolved
+system-bath and TDVP-sweep caps before approaching the ground-state energy
+density.  The low-frequency `R = 1` trajectory is especially unfavorable: it
+reaches its best energy density at cycle 4 and then heats while the bond
+dimension continues to grow.  Thus the larger cap strengthens the bond-growth
+conclusion; it does not
 turn the fixed descending schedule into a scalable ground-state cooling
 protocol.
 

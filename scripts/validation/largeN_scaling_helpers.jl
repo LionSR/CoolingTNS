@@ -264,7 +264,7 @@ end
 """
     peak_evolved_max_bond(evolved_maxbond)
 
-Return the largest transient system-bath bond dimension over evolved cooling
+Return the largest evolved system-bath bond dimension over evolved cooling
 steps, excluding the initial row that has no evolved state.
 """
 function peak_evolved_max_bond(evolved_maxbond)
@@ -277,7 +277,7 @@ end
     peak_evolved_mean_bond(evolved_meanbond)
 
 Return the peak, over evolved cooling steps, of the trajectory-averaged
-transient system-bath mean bond dimension.  The initial row is excluded because
+evolved system-bath mean bond dimension.  The initial row is excluded because
 it has no evolved state.
 """
 function peak_evolved_mean_bond(evolved_meanbond)
