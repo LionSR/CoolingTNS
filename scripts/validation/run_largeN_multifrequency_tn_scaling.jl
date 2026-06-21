@@ -765,7 +765,8 @@ Validate the Bogoliubov mode-observable payload produced by one large-`N`
 trajectory.  The wrapper first requires the complete set of mode datasets, then
 delegates the cycle rows, matrix shapes, measured-row finiteness, energy-length
 agreement, and `mode_nk = mode_occupation_from_hk(mode_hk)` relation to
-`validate_mode_measurement_rows`.
+`validate_mode_measurement_rows`.  On success, it returns the same
+`(cycles, rows)` named tuple.
 """
 function validate_mode_measurement_result(result, energy)
     all(k -> haskey(result, k) && result[k] !== nothing,

@@ -787,6 +787,12 @@ end
     @test err isa ErrorException
     @test occursin("complete Ising Fourier-mode measurement set", sprint(showerror, err))
 
+    nothing_result = copy(result)
+    nothing_result[CoolingTNS.RESULT_MODE_HK] = nothing
+    err = captured_error(() -> validate_mode_measurement_result(nothing_result, energy))
+    @test err isa ErrorException
+    @test occursin("complete Ising Fourier-mode measurement set", sprint(showerror, err))
+
     bad_hk_result = copy(result)
     bad_hk_result[CoolingTNS.RESULT_MODE_HK] = vec(mode_hk)
     err = captured_error(() -> validate_mode_measurement_result(bad_hk_result, energy))
