@@ -72,7 +72,7 @@ for i in eachindex(ΔE_abs)
     ΔE_rel[i] = abs(E_direct[i]) > 0 ? ΔE_abs[i] / abs(E_direct[i]) : ΔE_abs[i]
 end
 
-@printf("Mode energy consistency (ED, Ising PBC): N=%d, steps=%d\n", N, steps)
+@printf("Mode-energy reconstruction consistency (ED, Ising PBC): N=%d, steps=%d\n", N, steps)
 @printf("  max |E_direct - E_modes| = %.3e\n", maximum(ΔE_abs))
 @printf("  max rel. error           = %.3e\n", maximum(ΔE_rel))
 

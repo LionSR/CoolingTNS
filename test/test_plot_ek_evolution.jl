@@ -64,7 +64,7 @@ end
     @test vec(sum(contributions; dims=2)) ≈ reconstructed atol=1e-12
 end
 
-@testset "Mode energy plot validates stored positive energies" begin
+@testset "Mode energy plot validates stored positive gaps" begin
     N = 4
     J = 1.0
     h = 0.5
@@ -73,7 +73,7 @@ end
     stored_εk = abs.(2 .* coeffs)
 
     @test _checked_mode_energy_coefficients(stored_εk, k_indices, N, J, h) ≈ coeffs
-    @test_logs (:warn, r"Stored mode energies differ") begin
+    @test_logs (:warn, r"Stored positive quasiparticle gaps differ") begin
         _checked_mode_energy_coefficients(fill(0.0, length(k_indices)), k_indices, N, J, h)
     end
     @test_throws DimensionMismatch _checked_mode_energy_coefficients(

@@ -170,9 +170,9 @@ MCWF/TDVP tensor-network path.  The HDF5 output then stores the ensemble means
 `mode_hk` and the derived Bogoliubov occupation `mode_nk`, the
 trajectory-resolved arrays
 `mode_hk_trajectories` and `mode_nk_trajectories`, the common `mode_k_indices`,
-the mode energies `mode_ek_values`, and the parity-selected fermionic boundary
-condition metadata.  This keeps the occupation-number diagnostics tied to the
-same convention as the ED and TN observable tests.
+the positive quasiparticle gaps `mode_ek_values`, and the parity-selected
+fermionic boundary condition metadata.  This keeps the occupation-number
+diagnostics tied to the same convention as the ED and TN observable tests.
 
 The large-N HDF5 summary also audits this convention directly.  When a run
 contains `mode_hk`, `scripts/validation/summarize_largeN_bond_dimensions.jl`
@@ -207,9 +207,9 @@ are stored as `NaN`, and the measured cooling cycles are listed in
 discard the deliberately unmeasured rows and to label curves by the physical
 cooling cycle rather than by the compressed position among measured rows.
 
-For mode-energy consistency checks, the simulated state should have a definite
-Ising parity so that the fermionic momentum grid is selected by the state
-itself.  The tested large-N command above therefore uses
+For mode-energy reconstruction checks, the simulated state should have a
+definite Ising parity so that the fermionic momentum grid is selected by the
+state itself.  The tested large-N command above therefore uses
 `--init-state theta --theta 0.0`.  The default `--init-state product` is a
 mixed-parity state for the periodic Ising chain in the code basis; in that case
 the HDF5 metadata records `mode_gF_source = "reference"`, and the mode arrays
