@@ -11,6 +11,41 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
     @test bond_cap_stop_reason(2, 10, [1, 5], [0, 6], [0, 10]) == "bond_cap"
 end
 
+@testset "Large-N campaign driver method defaults" begin
+    default_cfg = parse_args(["--outdir", tempdir()])
+    @test default_cfg["Ns"] == [64]
+    @test default_cfg["methods"] == ["mcwf"]
+    @test occursin("_mcwf_steps", output_path(default_cfg))
+    default_command = join(command_args_for_config(default_cfg), " ")
+    @test occursin("--methods mcwf", default_command)
+    @test !occursin("--methods mpo,mcwf", default_command)
+
+    quick_cfg = parse_args(["--quick", "--outdir", tempdir()])
+    @test quick_cfg["Ns"] == [8]
+    @test quick_cfg["methods"] == ["mpo", "mcwf"]
+    @test occursin("_mpo-mcwf_steps", output_path(quick_cfg))
+    quick_command = join(command_args_for_config(quick_cfg), " ")
+    @test occursin("--methods mpo,mcwf", quick_command)
+
+    quick_then_mpo_cfg = parse_args([
+        "--quick",
+        "--methods", "mpo",
+        "--outdir", tempdir(),
+    ])
+    @test quick_then_mpo_cfg["methods"] == ["mpo"]
+
+    mpo_then_quick_cfg = parse_args([
+        "--methods", "mpo",
+        "--quick",
+        "--outdir", tempdir(),
+    ])
+    @test mpo_then_quick_cfg["methods"] == ["mpo", "mcwf"]
+
+    explicit_mpo_cfg = parse_args(["--methods", "mpo", "--outdir", tempdir()])
+    @test explicit_mpo_cfg["methods"] == ["mpo"]
+    @test occursin("_mpo_steps", output_path(explicit_mpo_cfg))
+end
+
 @testset "Large-N campaign driver Dmax ladder" begin
     cfg = parse_args([
         "--Ns", "64",

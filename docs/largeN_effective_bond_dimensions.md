@@ -20,6 +20,11 @@ interval is the DMRG gap estimate
 `Delta_min = 0.5051167496264384` together with
 `Delta_max = 6 Delta_min`, matching the driver's default `delta_max_factor`
 heuristic but holding the numerical interval fixed across the Dmax ladder.
+Accordingly, the validation driver defaults to the MCWF/MPS method for
+large-system campaigns.  The MPO density-matrix method remains an explicit
+small-system validation option through `--methods mpo` or
+`--methods mpo,mcwf`; it is not the present production route for the
+`N = 64--100` bond-dimension studies.
 
 The validation driver records the evolution branch in each HDF5 file.  The
 four-cycle table below is a Trotter diagnostic (`--evolution-method trotter`,
