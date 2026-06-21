@@ -466,6 +466,30 @@ end
         @test_throws ArgumentError ising_mode_detuning_reference(ham; parity=0)
     end
 
+    @testset "Mode detuning admissibility predicates are centralized" begin
+        periodic_ham = IsingParameters(64, 1.0, -1.05, :periodic)
+        antiperiodic_ham = IsingParameters(64, 1.0, -1.05, :antiperiodic)
+
+        @test ising_mode_detuning_preserves_px("XX")
+        @test !ising_mode_detuning_preserves_px("XY")
+        @test !ising_mode_detuning_preserves_px("ZZ")
+        @test_throws ArgumentError ising_mode_detuning_preserves_px("bad")
+
+        @test !ising_mode_detuning_has_special_modes(periodic_ham)
+        @test ising_mode_detuning_has_special_modes(periodic_ham; parity=-1)
+        @test ising_mode_detuning_has_special_modes(antiperiodic_ham)
+        @test !ising_mode_detuning_has_special_modes(antiperiodic_ham; parity=-1)
+        @test_throws ArgumentError ising_mode_detuning_has_special_modes(
+            IsingParameters(64, 1.0, -1.05, :open)
+        )
+        @test_throws ArgumentError ising_mode_detuning_has_special_modes(
+            NiIsingParameters(64, 1.0, -1.05, 0.5, :periodic)
+        )
+        @test_throws ArgumentError ising_mode_detuning_has_special_modes(periodic_ham; parity=0)
+
+        @test ising_mode_detuning_reference(periodic_ham) > 0
+    end
+
     @testset "Parity-preserving detuning reference matches local X selection rule" begin
         J, h = 1.0, -1.05
         X = ComplexF64[0 1; 1 0]

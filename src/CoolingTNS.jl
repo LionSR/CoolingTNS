@@ -109,6 +109,7 @@ export allowed_k_indices, fermionic_bc, parity_operator_code
 export is_generic_mode, generic_k_indices
 export mode_occupation_from_hk, ising_energy_from_mode_hk
 export supports_ising_fourier_observables
+export ising_mode_detuning_preserves_px, ising_mode_detuning_has_special_modes
 export ising_mode_detuning_reference
 export bath_detuning_energy, nearest_bath_resonance_indices
 
