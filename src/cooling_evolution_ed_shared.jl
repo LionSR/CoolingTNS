@@ -266,11 +266,7 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
             N_bath = N_sys
             ρ_bath = trace_out_system_ed(ρ_total, N_sys)
             # Compute magnetization
-            mag = 0.0
-            for i in 1:N_bath
-                Z_i = pauli_z(i, N_bath)
-                mag += expect_ed(Z_i, ρ_bath)
-            end
+            mag = sum(i -> expect_ed(pauli_z(i, N_bath), ρ_bath), 1:N_bath; init=0.0)
             measurements[RESULT_BATH_MAGNETIZATION][step] = mag / N_bath
         end
     end

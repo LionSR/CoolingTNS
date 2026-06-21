@@ -59,16 +59,14 @@ end
 # For density matrix, compute expectation value from bath reduced density matrix
 function compute_bath_magnetization(::EDBackend, ::QuantumState{EDBackend,DensityMatrix,E},
                                   ρ_bath::Matrix, N_bath::Int) where E
-    mag = 0.0
     dim = 2^N_bath
-    
-    for i in 1:dim
-        # Count number of 1s in binary representation
-        n_ones = count_ones(i-1)
-        mag += real(ρ_bath[i,i]) * (1 - 2*n_ones/N_bath)
+
+    # Each diagonal entry contributes its bath magnetization weighted by its
+    # population; n_ones counts the down-spins in the basis-state bitstring.
+    return sum(1:dim; init=0.0) do i
+        n_ones = count_ones(i - 1)
+        real(ρ_bath[i, i]) * (1 - 2 * n_ones / N_bath)
     end
-    
-    return mag
 end
 
 # --- TN + Density Matrix (MPO) ---
@@ -77,15 +75,12 @@ function compute_bath_magnetization(::TNBackend, ::QuantumState{TNBackend,Densit
                                   ρ_bath::MPO, sites_bath::Vector{<:Index}) where E
     # Compute average magnetization of bath sites
     N_bath = length(sites_bath)
-    total_mag = 0.0
-    
-    for i in 1:N_bath
+
+    total_mag = sum(eachindex(sites_bath); init=0.0) do i
         z_op = _single_site_mpo(sites_bath, "Z", i)
-        # Compute expectation value
-        mag_i = real(inner(ρ_bath, z_op))
-        total_mag += mag_i
+        real(inner(ρ_bath, z_op))
     end
-    
+
     return total_mag / N_bath
 end
 

@@ -720,9 +720,5 @@ This is the conserved quantity (commutes with H_code), analogous to
 ``P_z = ∏ σ_{z,i}`` in the notes' Hamiltonian.
 """
 function parity_operator_code(N::Int)
-    result = pauli_x(1, N)
-    for i in 2:N
-        result = result * pauli_x(i, N)
-    end
-    return result
+    return mapreduce(i -> pauli_x(i, N), *, 1:N)
 end

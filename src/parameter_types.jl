@@ -284,7 +284,7 @@ function MultiFrequencyCouplingParameters(
     schedule::Symbol=:round_robin,
 )
     schedule = validate_multi_frequency_schedule(schedule)
-    deltas = Float64.(collect(delta_values))
+    deltas = Float64.(delta_values)
     isempty(deltas) && throw(ArgumentError("delta_values must be nonempty"))
     return MultiFrequencyCouplingParameters(
         coupling,

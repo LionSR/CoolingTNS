@@ -88,10 +88,9 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
         H_sb += (Δ/2) * bath_op_func(bath_idx, N_total)
     end
     
-    # Add coupling terms
+    # Add coupling terms (coupling_type was bound above and is unchanged)
     g = coupling_params.g
-    coupling_type = coupling_params.coupling
-    
+
     for i in 1:N
         sys_idx = interleaved_system_site(i)
         bath_idx = interleaved_bath_site(i)
