@@ -48,15 +48,19 @@ V_SB = g Σ (σ^x_{S,i} σ^y_{B,i} + σ^y_{S,i} σ^x_{B,i}).
 ```
 setup_problem(backend, ham_params, coupling_params, sim_params)
   → computes the generic setup reference Δ = E₁ − E₀ if delta=nothing
-  → builds H_SB(Δ) as MPO
-  → stores in CoolingProblem.H_sys_bath
-  → every cooling step reuses the same H_SB
+  → builds the backend-appropriate system-bath representation for Δ
+  → stores it, or the corresponding Trotter gates, in CoolingProblem
+  → every cooling step reuses that fixed single-Δ representation
 ```
 
 This generic setup-gap convention remains the default for ordinary ED/TN
-single-detuning runs. It is not, however, the automatic convention for the
-mode-resolved integrable-Ising large-`N` diagnostics. In that case the
-validation driver first chooses a detuning reference through
+single-detuning runs.  The representation is not always an MPO: ED setup stores
+a sparse full system-bath matrix, TN continuous setup stores an MPO
+Hamiltonian, and TN Trotter setup stores interleaved gates, with an MPO
+Hamiltonian present only on the support paths that need one.  It is not,
+however, the automatic convention for the mode-resolved integrable-Ising
+large-`N` diagnostics. In that case the validation driver first chooses a
+detuning reference through
 `campaign_base_detuning_reference`: for a parity-preserving code-basis coupling,
 with `--measure-modes` and no explicit detuning interval, the reference is the
 many-body generic pair scale
