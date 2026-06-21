@@ -18,9 +18,24 @@ _mode_line_ydata(line) = pyconvert(Vector{Float64}, line.get_ydata())
 
     @test _mode_occupation_from_plot_data(Dict{String, Any}(RESULT_MODE_HK => mode_hk)) ≈ mode_nk
 
-    stored_nk = [0.1 0.2; 0.3 0.4]
+    stored_nk = copy(mode_nk)
     data = Dict{String, Any}(RESULT_MODE_HK => mode_hk, RESULT_MODE_NK => stored_nk)
     @test _mode_occupation_from_plot_data(data) == stored_nk
+
+    nan_hk = [-1.0 NaN; 0.0 1.0]
+    nan_nk = mode_occupation_from_hk(nan_hk)
+    @test isequal(_mode_occupation_from_plot_data(
+        Dict{String, Any}(RESULT_MODE_HK => nan_hk, RESULT_MODE_NK => nan_nk)
+    ), nan_nk)
+
+    bad_shape = Dict{String, Any}(RESULT_MODE_HK => mode_hk, RESULT_MODE_NK => [0.0, 0.5])
+    @test_throws DimensionMismatch _mode_occupation_from_plot_data(bad_shape)
+
+    bad_nk = copy(mode_nk)
+    bad_nk[1, 1] = 0.25
+    @test_throws ArgumentError _mode_occupation_from_plot_data(
+        Dict{String, Any}(RESULT_MODE_HK => mode_hk, RESULT_MODE_NK => bad_nk)
+    )
 
     @test _occupation_ylim(mode_nk) == (-0.05, 1.05)
     @test _occupation_ylim([NaN]) == (-0.05, 1.05)
