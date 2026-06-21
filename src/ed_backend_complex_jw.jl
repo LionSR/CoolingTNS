@@ -273,8 +273,8 @@ Build the Fourier-transformed momentum-space operators:
     **opposite** sign from the notes (MapToSpin.tex Eq. fourier_def_ann uses
     ``exp(-inφ_k)``). The two conventions are related by ``ã_k^{here} = ã_{-k}^{notes}``.
     This sign difference is compensated by the sign of ``r_k`` in `mode_analysis.jl`,
-    so that the BdG blocks, Bogoliubov transformation, and all physical observables
-    (ε_k, n_k, ⟨h_k⟩) are correct.
+    so that the BdG blocks, Bogoliubov transformation, and all physical
+    observables (ε_k, n_k^{Bog}, ⟨h_k⟩) are correct.
 """
 function _build_fourier_ops(a_ops, a_dag_ops, k, N)
     dim = size(a_ops[1], 1)
