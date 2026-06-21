@@ -226,6 +226,10 @@ end
         @test hk_mps ≈ hk_ed atol=1e-10
         @test hk_mpo ≈ hk_ed atol=1e-10
         @test hk_ed_dm ≈ hk_ed atol=1e-10
+        @test hk_mps ≈ fill(-1.0, N) atol=1e-10
+        @test hk_mpo ≈ fill(-1.0, N) atol=1e-10
+        @test mode_occupation_from_hk(hk_mps) ≈ zeros(N) atol=1e-10
+        @test mode_occupation_from_hk(hk_mpo) ≈ zeros(N) atol=1e-10
         @test ising_energy_from_mode_hk(ks_mps, hk_mps, ham_params) ≈ E0_ed atol=1e-10
         @test ising_energy_from_mode_hk(ks_mpo, hk_mpo, ham_params) ≈ E0_ed atol=1e-10
     end
