@@ -34,6 +34,15 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test fixed_protocol.fixed_across_dmax == true
     @test largeN_delta_values(fixed_protocol, 2) == [0.25, 1.25]
 
+    @test largeN_sim_method_from_name("mcwf") isa MonteCarloWavefunction
+    @test largeN_sim_method_from_name("MPO") isa DensityMatrix
+    @test largeN_method_maxdim("mcwf", 12) ==
+          tn_method_maxdim(MonteCarloWavefunction(), 12)
+    @test largeN_method_maxdim("mpo", 12) ==
+          tn_method_maxdim(DensityMatrix(), 12)
+    @test_throws ArgumentError largeN_sim_method_from_name("ed")
+    @test_throws ArgumentError largeN_method_maxdim("ed", 12)
+
     fixed_protocol_negative_reference = largeN_detuning_protocol(
         -0.035; delta_min=0.5, delta_max=0.5, delta_max_factor=6.0
     )

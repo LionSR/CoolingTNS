@@ -75,8 +75,10 @@ end
         "\"contains,comma\",\"escaped \"\"quote\"\"\",plain"
     ) ==
         ["contains,comma", "escaped \"quote\"", "plain"]
-    @test TDVPProgressCSVSummary.default_progress_cap("mcwf", 7) == 7
-    @test TDVPProgressCSVSummary.default_progress_cap("mpo", 7) == 28
+    @test TDVPProgressCSVSummary.default_progress_cap("mcwf", 7) ==
+          TDVPProgressCSVSummary.largeN_method_maxdim("mcwf", 7)
+    @test TDVPProgressCSVSummary.default_progress_cap("mpo", 7) ==
+          TDVPProgressCSVSummary.largeN_method_maxdim("mpo", 7)
     @test_throws ArgumentError TDVPProgressCSVSummary.default_progress_cap("ed", 7)
 
     path = tempname() * ".csv"

@@ -1,6 +1,7 @@
 if !isdefined(@__MODULE__, :_COOLINGTNS_LARGEN_SCALING_HELPERS_INCLUDED)
 const _COOLINGTNS_LARGEN_SCALING_HELPERS_INCLUDED = true
 
+using CoolingTNS: DensityMatrix, MonteCarloWavefunction, tn_method_maxdim
 using Statistics
 
 const LARGE_N_TRAJECTORY_SEED_N_STRIDE = 1_000_000
@@ -115,6 +116,30 @@ function largeN_delta_values(protocol, R::Integer)
     R == 1 && return [protocol.delta_min]
     return collect(range(protocol.delta_min, protocol.delta_max; length=Int(R)))
 end
+
+"""
+    largeN_sim_method_from_name(method_name)
+
+Convert the large-N diagnostic method name stored in HDF5 files and progress
+CSVs to the simulation-method type used by the tensor-network cap rule.
+"""
+function largeN_sim_method_from_name(method_name::AbstractString)
+    normalized = lowercase(method_name)
+    normalized == "mcwf" && return MonteCarloWavefunction()
+    normalized == "mpo" && return DensityMatrix()
+    throw(ArgumentError(
+        "unknown large-N method '$method_name'; expected 'mcwf' or 'mpo'"
+    ))
+end
+
+"""
+    largeN_method_maxdim(method_name, Dmax)
+
+Return the method-dependent large-N bond cap using the same dispatch rule as
+the tensor-network evolution code.
+"""
+largeN_method_maxdim(method_name::AbstractString, Dmax::Integer) =
+    tn_method_maxdim(largeN_sim_method_from_name(method_name), Dmax)
 
 """
     write_largeN_detuning_protocol(parent, protocol)
