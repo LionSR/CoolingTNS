@@ -571,9 +571,13 @@ end
         h5open(path, "r") do f
             g = f["R2"]
             @test read(g[CoolingTNS.RESULT_DELTA_VALUES]) == [0.5, 3.0]
+            @test read(g[CoolingTNS.RESULT_ENERGY]) == [-2.0, -1.5, -1.0]
             @test vec(read(g[CoolingTNS.RESULT_ENERGY_TRAJECTORIES])) == [-2.0, -1.5, -1.0]
+            @test read(g[CoolingTNS.RESULT_GROUND_STATE_OVERLAP]) == [0.1, 0.2, 0.3]
             @test vec(read(g[CoolingTNS.RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES])) ==
                   [0.1, 0.2, 0.3]
+            @test !haskey(g, "E_mean")
+            @test !haskey(g, "GS_overlap_mean")
             @test !haskey(g, "GS_overlap_trajectories")
             @test read(g["detuning_protocol_source"]) == "fixed_range"
             @test read(g["detuning_reference_gap"]) == 0.75
