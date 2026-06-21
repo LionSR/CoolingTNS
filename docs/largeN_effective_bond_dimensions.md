@@ -177,7 +177,16 @@ same convention as the ED and TN observable tests.
 The large-N HDF5 summary also audits this convention directly.  When a run
 contains `mode_hk`, `scripts/validation/summarize_largeN_bond_dimensions.jl`
 uses the library routine `ising_energy_from_mode_hk` to reconstruct the
-integrable-Ising energy on the measured mode rows.  The full summary reports
+integrable-Ising energy on the measured mode rows.  This routine is the source
+of truth for the energy coefficient: it evaluates
+```math
+E_{\mathrm{modes}}(t)=\frac{\Lambda}{2}
+\sum_{k\in\mathrm{grid}(g_F)}\operatorname{coeff}_k\,h_k(t),
+```
+with the signed special-mode convention from `Notes/NotesED/MapToSpin.tex`.
+The stored `mode_ek_values` are positive quasiparticle gaps for resonance
+labels and plots; they are not, by themselves, the signed reconstruction
+coefficients on grids that contain special modes.  The full summary reports
 the selected `mode gF`, the `mode source`, the measured-row fraction, the final
 mode-reconstructed energy per spin on the last measured mode row, and the last
 measured and maximum absolute discrepancy per spin from the stored direct
@@ -232,13 +241,17 @@ correct: every HDF5 group recorded `mode_gF_source = "state"`, and the direct
 Ising energy agreed with the mode reconstruction
 
 ```math
-E_{\mathrm{modes}}(t)=\frac{1}{2}\sum_k \varepsilon_k h_k(t)
+E_{\mathrm{modes}}(t)=\frac{\Lambda}{2}
+\sum_{k\in\mathrm{grid}(g_F)}\operatorname{coeff}_k h_k(t)
 ```
 
-to numerical precision.  Here \(\varepsilon_k\) denotes the code-unit value
-stored in HDF5 as `mode_ek_values`; relative to the dimensionless convention in
-`Notes/NotesED/MapToSpin.tex`, it includes the overall factor
-\(\Lambda = 2\sqrt{J^2+h^2}\).
+to numerical precision.  For this parity-definite product-state scan the
+selected grid was half-integer (`mode_gF = -1`), so it contained no special
+modes and the formula reduces to
+\(\frac12\sum_k \varepsilon_k h_k(t)\), where \(\varepsilon_k\) denotes the
+code-unit positive gap stored in HDF5 as `mode_ek_values`.  On integer grids
+with special modes, however, the signed coefficient in the library routine must
+be used rather than replacing it by the positive gap.
 
 | R | completed cycles | final E/N | best E/N | relE | Dsys | Devolved | Dtdvp sweep | mode gF source | max \(|E-E_{\mathrm{modes}}|\) |
 |---:|---:|---:|---:|---:|---:|---:|---:|:---:|---:|
