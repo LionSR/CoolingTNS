@@ -61,10 +61,13 @@ Mode-resolved integrable-Ising campaign:
 If `--measure-modes` is used without an explicit detuning interval, the
 gap-scaled interval for the default periodic, parity-preserving `XX` coupling
 is referenced to the lowest generic analytic two-quasiparticle energy
-`2 min_{sin φ_k != 0} ε_k` on the same Fourier grid as the mode observables,
-not to the generic TN excited-state DMRG estimate.  Automatic analytic detuning
-is disabled on reference grids containing special modes, such as the default
-antiperiodic reference sector; use an explicit `--delta-min/--delta-max` there.
+`2 min_{sin φ_k != 0} ε_k` on the deterministic `parity=+1` setup grid
+selected before any trajectory-specific state parity is measured, not to the
+generic TN excited-state DMRG estimate and not to a reconstruction from
+`mode_ek_values`.  Later `mode_gF` metadata remains the source of truth for
+the measured mode-observable grid.  Automatic analytic detuning is disabled on
+reference grids containing special modes, such as the default antiperiodic
+reference sector; use an explicit `--delta-min/--delta-max` there.
 For mode-resolved Ising runs with this periodic parity-preserving coupling, the
 stored `gap` and `detuning_reference_gap` fields record this analytic reference
 even when an explicit fixed detuning interval is supplied.
