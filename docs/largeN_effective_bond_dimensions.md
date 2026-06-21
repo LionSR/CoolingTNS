@@ -151,8 +151,9 @@ Measured truncation-error histories would be an additional diagnostic beyond
 the cap/saturation metadata described here.  New campaign files record this
 explicitly as `truncation_error_history_status = not_recorded`; the summary
 script reports older files without that field as `legacy_missing`.  A future
-file that stores `truncation_errors` without the explicit status is reported as
-`measured`.
+file that stores a nonempty `truncation_errors` dataset without the explicit
+status is reported as `measured`; an empty dataset is reported as `empty`
+because it is not a measured discarded-weight history.
 
 ## Mode-Resolved Integrable-Ising Campaigns
 
