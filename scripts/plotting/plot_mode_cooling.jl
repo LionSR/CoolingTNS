@@ -31,6 +31,7 @@ using CoolingTNS:
     RESULT_MODE_ENERGIES,
     RESULT_MODE_MEASUREMENT_CYCLES,
     mode_occupation_from_hk,
+    validate_mode_nk_matches_hk,
     bath_detuning_energy,
     nearest_bath_resonance_indices
 
@@ -49,43 +50,13 @@ function _mode_occupation_from_plot_data(data::AbstractDict)
     if haskey(data, RESULT_MODE_NK)
         mode_nk = Float64.(data[RESULT_MODE_NK])
         if haskey(data, RESULT_MODE_HK)
-            _validate_mode_nk_matches_hk(mode_nk, data[RESULT_MODE_HK])
+            validate_mode_nk_matches_hk(mode_nk, data[RESULT_MODE_HK])
         end
         return mode_nk
     elseif haskey(data, RESULT_MODE_HK)
         return Float64.(mode_occupation_from_hk(data[RESULT_MODE_HK]))
     end
     error("Expected HDF5 dataset \"$RESULT_MODE_NK\" or legacy dataset \"$RESULT_MODE_HK\"")
-end
-
-"""
-    _validate_mode_nk_matches_hk(mode_nk, mode_hk)
-
-Validate that a stored Bogoliubov occupation array is the derived occupation
-`mode_occupation_from_hk(mode_hk)`.  Shape mismatches throw `DimensionMismatch`;
-value mismatches throw `ArgumentError`; paired `NaN` entries are accepted for
-unmeasured strided rows.
-"""
-function _validate_mode_nk_matches_hk(mode_nk, mode_hk; atol=1e-12, rtol=1e-12)
-    expected = Float64.(mode_occupation_from_hk(mode_hk))
-    size(mode_nk) == size(expected) || throw(DimensionMismatch(
-        "$RESULT_MODE_NK has shape $(size(mode_nk)), but $RESULT_MODE_HK implies " *
-        "shape $(size(expected))"
-    ))
-
-    for idx in eachindex(mode_nk, expected)
-        stored = mode_nk[idx]
-        derived = expected[idx]
-        both_nan = isnan(stored) && isnan(derived)
-        both_nan && continue
-        isapprox(stored, derived; atol=atol, rtol=rtol) && continue
-        throw(ArgumentError(
-            "$RESULT_MODE_NK is inconsistent with $RESULT_MODE_HK: stored " *
-            "occupation $(stored) differs from derived occupation $(derived) " *
-            "at linear index $(idx)"
-        ))
-    end
-    return nothing
 end
 
 function _occupation_ylim(mode_nk)

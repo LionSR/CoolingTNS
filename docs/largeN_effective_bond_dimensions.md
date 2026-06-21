@@ -193,10 +193,13 @@ fermionic boundary condition metadata.  This keeps the occupation-number
 diagnostics tied to the same convention as the ED and TN observable tests.
 
 The large-N HDF5 summary also audits this convention directly.  When a run
-contains `mode_hk`, `scripts/validation/summarize_largeN_bond_dimensions.jl`
-uses the library routine `ising_energy_from_mode_hk` to reconstruct the
-integrable-Ising energy on the measured mode rows.  This routine is the source
-of truth for the energy coefficient: it evaluates
+contains `mode_hk` and `mode_nk`,
+`scripts/validation/summarize_largeN_bond_dimensions.jl` first verifies
+`mode_nk = mode_occupation_from_hk(mode_hk)`, with paired `NaN` entries accepted
+only for deliberately unmeasured strided rows.  It then uses the library routine
+`ising_energy_from_mode_hk` to reconstruct the integrable-Ising energy on the
+measured mode rows.  This routine is the source of truth for the energy
+coefficient: it evaluates
 ```math
 E_{\mathrm{modes}}(t)=\frac{\Lambda}{2}
 \sum_{k\in\mathrm{grid}(g_F)}\operatorname{coeff}_k\,h_k(t),

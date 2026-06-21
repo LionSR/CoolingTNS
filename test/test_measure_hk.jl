@@ -666,6 +666,19 @@ end
         @test mode_occupation_from_hk(-1.0) == 0.0
         @test mode_occupation_from_hk(1.0) == 1.0
         @test mode_occupation_from_hk([-1.0, 0.0, 1.0]) == [0.0, 0.5, 1.0]
+        mode_hk = [-1.0 NaN; 0.0 1.0]
+        mode_nk = mode_occupation_from_hk(mode_hk)
+        @test validate_mode_nk_matches_hk(mode_nk, mode_hk) === nothing
+        @test_throws DimensionMismatch validate_mode_nk_matches_hk([0.0, 0.5], mode_hk)
+        bad_nan_nk = copy(mode_nk)
+        bad_nan_nk[2, 1] = NaN
+        @test_throws ArgumentError validate_mode_nk_matches_hk(bad_nan_nk, mode_hk)
+        bad_nan_hk = copy(mode_hk)
+        bad_nan_hk[2, 1] = NaN
+        @test_throws ArgumentError validate_mode_nk_matches_hk(mode_nk, bad_nan_hk)
+        bad_mode_nk = copy(mode_nk)
+        bad_mode_nk[1, 1] = 0.25
+        @test_throws ArgumentError validate_mode_nk_matches_hk(bad_mode_nk, mode_hk)
 
         N = 4
         ham_params = IsingParameters(N, 1.0, 0.5, :periodic)

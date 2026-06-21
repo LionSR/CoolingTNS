@@ -73,6 +73,36 @@ array.
 """
 mode_occupation_from_hk(hk) = (hk .+ 1) ./ 2
 
+"""
+    validate_mode_nk_matches_hk(mode_nk, mode_hk; atol=1e-12, rtol=1e-12)
+
+Validate that a stored Bogoliubov occupation array is the derived occupation
+`mode_occupation_from_hk(mode_hk)`.  Shape mismatches throw
+`DimensionMismatch`; value mismatches throw `ArgumentError`; paired `NaN`
+entries are accepted for deliberately unmeasured strided rows.
+"""
+function validate_mode_nk_matches_hk(mode_nk, mode_hk; atol=1e-12, rtol=1e-12)
+    stored = Float64.(mode_nk)
+    expected = Float64.(mode_occupation_from_hk(mode_hk))
+    size(stored) == size(expected) || throw(DimensionMismatch(
+        "$RESULT_MODE_NK has shape $(size(stored)), but $RESULT_MODE_HK implies " *
+        "shape $(size(expected))"
+    ))
+
+    for idx in eachindex(stored, expected)
+        stored_value = stored[idx]
+        derived_value = expected[idx]
+        isnan(stored_value) && isnan(derived_value) && continue
+        isapprox(stored_value, derived_value; atol=atol, rtol=rtol) && continue
+        throw(ArgumentError(
+            "$RESULT_MODE_NK is inconsistent with $RESULT_MODE_HK: stored " *
+            "occupation $(stored_value) differs from derived occupation " *
+            "$(derived_value) at linear index $(idx)"
+        ))
+    end
+    return nothing
+end
+
 const _ISING_FOURIER_SPIN_BCS = (:periodic, :antiperiodic)
 
 """
