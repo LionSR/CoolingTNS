@@ -137,6 +137,13 @@ The current HDF5 summary table therefore contains the sweep-specific columns
 `Dtdvp_sweep_eff`, `peak tdvp sweep max`, and `tdvp sweep sat` in addition to
 the retained-system and transient system-bath columns.
 
+The current large-`N` campaign files do not store measured per-bond
+truncation-error time series.  The evidence below should therefore be read as
+bond-cap and truncation-pressure diagnostics: it records which states reached
+the imposed cap and when, not the discarded Schmidt weight at each truncation.
+Measured truncation-error histories would be an additional diagnostic beyond
+the cap/saturation metadata described here.
+
 ## Mode-Resolved Integrable-Ising Campaigns
 
 The Bogoliubov mode observables `mode_hk` and occupations
@@ -468,11 +475,11 @@ R = 10: Dsys_eff = 489, Dsb_eff = 737
 
 These values are far larger than the bond caps used in earlier exploratory
 large-N curves.  In particular, `Dmax = 40`, `Dmax = 80`, and four-cycle
-`Dmax = 320` runs should be read as truncation diagnostics rather than as
-converged large-N cooling trajectories.  The `Dmax = 960` follow-up also took
-production-scale time for the final high-bond steps, so future ladders should
-write step-level checkpoints or be run as scheduled jobs rather than as
-interactive smoke tests.
+`Dmax = 320` runs should be read as bond-cap and truncation-pressure
+diagnostics rather than as converged large-N cooling trajectories.  The
+`Dmax = 960` follow-up also took production-scale time for the final high-bond
+steps, so future ladders should write step-level checkpoints or be run as
+scheduled jobs rather than as interactive smoke tests.
 
 ## Physical interpretation
 
@@ -490,9 +497,10 @@ they do not yet establish scalable ground-state cooling.
 ```
 
 A credible long-time `N = 64` to `N = 100` production calculation should use a
-controlled Dmax ladder, record truncation and saturation diagnostics, and either
-increase the effective transient bond cap or change the cooling protocol to
-control the system-bath entanglement growth.
+controlled Dmax ladder, keep the existing cap/saturation diagnostics, add
+measured truncation-error histories when available, and either increase the
+effective transient bond cap or change the cooling protocol to control the
+system-bath entanglement growth.
 
 ## Two-Cycle MCWF+TDVP Runtime Calibration
 
@@ -935,7 +943,7 @@ bond-growth bottleneck.
 After PR #229 made Krylov-expanded two-site TDVP the default for MCWF cooling,
 the `N = 64` fixed-detuning diagnostic was rerun.  This rerun supersedes the
 flat pre-expansion TDVP traces as evidence about the corrected implementation,
-but it does not supersede the older tables as historical truncation diagnostics.
+but it does not supersede the older tables as historical bond-cap diagnostics.
 
 The all-frequency low-cap scan was
 
