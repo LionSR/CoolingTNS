@@ -160,6 +160,7 @@ using HDF5
         @test CoolingTNS.RESULT_MODE_GF_SOURCE == "mode_gF_source"
         @test CoolingTNS.RESULT_MODE_HK == "mode_hk"
         @test CoolingTNS.RESULT_MODE_NK == "mode_nk"
+        @test CoolingTNS.RESULT_MODE_ENERGIES == "mode_ek_values"
         @test CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES == "mode_measurement_cycles"
         @test CoolingTNS.RESULT_MODE_HK_TRAJECTORIES == "mode_hk_trajectories"
         @test CoolingTNS.RESULT_MODE_NK_TRAJECTORIES == "mode_nk_trajectories"
@@ -182,6 +183,7 @@ using HDF5
         @test CoolingTNS.RESULT_MODE_GF_SOURCE in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_MODE_HK in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_MODE_NK in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_MODE_ENERGIES in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_MODE_HK_TRAJECTORIES in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_MODE_NK_TRAJECTORIES in CoolingTNS.RESULT_KEYS
@@ -191,6 +193,15 @@ using HDF5
         @test CoolingTNS.RESULT_REQUESTED_STEPS in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_COMPLETED_STEPS in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_STOP_REASON in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_MODE_OBSERVABLE_PAYLOAD_KEYS == (
+            CoolingTNS.RESULT_MODE_HK,
+            CoolingTNS.RESULT_MODE_NK,
+            CoolingTNS.RESULT_MODE_K_INDICES,
+            CoolingTNS.RESULT_MODE_ENERGIES,
+            CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES,
+            CoolingTNS.RESULT_MODE_GF,
+            CoolingTNS.RESULT_MODE_GF_SOURCE,
+        )
     end
 
     @testset "Result save skips duplicate parsed-argument keys" begin

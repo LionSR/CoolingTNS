@@ -155,6 +155,13 @@ using CoolingTNS
         for key in (
             CoolingTNS.RESULT_BATH_MAGNETIZATION,
             CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION,
+            CoolingTNS.RESULT_MODE_HK,
+            CoolingTNS.RESULT_MODE_NK,
+            CoolingTNS.RESULT_MODE_K_INDICES,
+            CoolingTNS.RESULT_MODE_ENERGIES,
+            CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES,
+            CoolingTNS.RESULT_MODE_GF,
+            CoolingTNS.RESULT_MODE_GF_SOURCE,
             CoolingTNS.RESULT_MODE_HK_TRAJECTORIES,
             CoolingTNS.RESULT_MODE_NK_TRAJECTORIES,
             CoolingTNS.RESULT_MODE_HK_STDERR,
@@ -175,5 +182,7 @@ using CoolingTNS
         @test CoolingTNS.TRUNCATION_ERROR_HISTORY_LEGACY_MISSING == "legacy_missing"
         @test CoolingTNS.TRUNCATION_ERROR_HISTORY_MEASURED == "measured"
         @test CoolingTNS.TRUNCATION_ERROR_HISTORY_EMPTY == "empty"
+        @test all(key -> key in CoolingTNS.RESULT_KEYS,
+                  CoolingTNS.RESULT_MODE_OBSERVABLE_PAYLOAD_KEYS)
     end
 end

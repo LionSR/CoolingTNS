@@ -916,15 +916,8 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
     evolved_meanbond_completed = evolved_meanbond[1:completed_index]
     tdvp_sweep_maxbond_completed = tdvp_sweep_maxbond[1:completed_index]
     if cfg["measure_modes"]
-        all(k -> haskey(result, k) && result[k] !== nothing, (
-            RESULT_MODE_GF,
-            RESULT_MODE_GF_SOURCE,
-            RESULT_MODE_HK,
-            RESULT_MODE_NK,
-            RESULT_MODE_K_INDICES,
-            RESULT_MODE_ENERGIES,
-            RESULT_MODE_MEASUREMENT_CYCLES,
-        )) || error(
+        all(k -> haskey(result, k) && result[k] !== nothing,
+            RESULT_MODE_OBSERVABLE_PAYLOAD_KEYS) || error(
             "--measure-modes was requested, but the run did not produce a complete " *
             "Ising Fourier-mode measurement set"
         )
@@ -1037,15 +1030,7 @@ function write_mode_measurement_group!(g, traj_rows)
     all(mode_dataset_present, traj_rows) ||
         error("mode measurements are present for only part of the trajectory ensemble")
 
-    for key in (
-        RESULT_MODE_HK,
-        RESULT_MODE_NK,
-        RESULT_MODE_K_INDICES,
-        RESULT_MODE_ENERGIES,
-        RESULT_MODE_MEASUREMENT_CYCLES,
-        RESULT_MODE_GF,
-        RESULT_MODE_GF_SOURCE,
-    )
+    for key in RESULT_MODE_OBSERVABLE_PAYLOAD_KEYS
         all(row -> get(row, key, nothing) !== nothing, traj_rows) ||
             error("incomplete mode measurement set: missing $key")
     end
