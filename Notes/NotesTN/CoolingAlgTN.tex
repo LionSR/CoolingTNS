@@ -441,7 +441,7 @@ To simulate the effects of noise using the MPO method, we apply the Kraus operat
 \end{equation}
 where $p_e$ represents the probability of a noise event occurring, called the noise strength. The depolarizing noise is applied to every qubit in the system.
 
-The matrix product operator simulations were performed using the ITensor.jl~\cite{Fishman2022ITensor} library. The initial state in the MPO simulations is set to be the infinite temperature identity state. The bond dimension is truncated to a maximum value of $D \leq 100$ with a cutoff of $10^{-5}$, and the Trotter step size is set to $\delta t = 0.1$. The Hamiltonian parameters are set to $J=1$, $h_z=0.5$, and $h_x=-1.05$, corresponding to a non-integrable point in the phase diagram. The coupling strength between the system and the bath is set to $g=0.3$, and the total evolution time is $t_e=2.0$. The number of cooling steps is varied from 100 to 500.
+The matrix product operator simulations were performed using the ITensor.jl~\cite{Fishman2022ITensor} library. The initial state in the MPO simulations is set to be the infinite temperature identity state. Across the historical MPO campaign, archived pilot outputs use truncation caps up to \(D\leq 100\) with cutoff \(10^{-5}\); individual plotted panels below state their own fixed bond caps. The Trotter step size is set to $\delta t = 0.1$. The Hamiltonian parameters are set to $J=1$, $h_z=0.5$, and $h_x=-1.05$, corresponding to a non-integrable point in the phase diagram. The coupling strength between the system and the bath is set to $g=0.3$, and the total evolution time is $t_e=2.0$. The number of cooling steps is varied from 100 to 500.
 
 
 \section{Quantum Trajectory Simulation with Matrix Product States}
@@ -837,7 +837,7 @@ ground-state preparation at \(N=50\) or \(N=100\).
 
 \subsubsection{Noiseless Cooling}
 
-We first investigate the performance of the cooling algorithm in the absence of noise. The MPO simulations are performed for system sizes ranging from $N=10$ to $N=100$, with a bond dimension of $D \leq 100$ and a Trotter step size of $\delta t = 0.1$. The coupling strength between the system and the bath is set to $g=0.3$, and the total evolution time is $t_e=2.0$. The number of cooling steps is varied from 100 to 400.
+We first investigate the performance of the cooling algorithm in the absence of noise. The displayed fixed-bond MPO panels use system sizes \(N=50,100\), bond dimension \(D\leq 20\), Trotter step \(\delta t=0.1\), coupling \(g=0.3\), total evolution time \(t_e=2.0\), and 500 cooling steps. Archived pilot outputs cover additional sizes and caps, but the plotted panels should be interpreted with the fixed-bond cap stated in the caption.
 
 Fig.~\ref{fig:MPOCooling:noiseless} shows the energy and ground state overlap as a function of the number of cooling steps for different system sizes. The initial state is set to be the infinite temperature identity state. In these exploratory runs the energy decreases rapidly in the first few cooling steps and then saturates. The ground state overlap also increases in the plotted data. These observations are evidence that the implemented channel can cool in the tested truncation regime; they are not a convergence proof for large systems, because the current \(N=64\) diagnostics show that the relevant system-bath bond dimensions can be much larger than the bond dimensions used in the historical plots.
 
