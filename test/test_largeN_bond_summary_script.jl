@@ -12,11 +12,25 @@ markdown_column_counts(text::AbstractString) = [
 ]
 
 @testset "Large-N schedule-period labels" begin
+    @test is_deterministic_schedule("round_robin")
+    @test is_deterministic_schedule("descending")
+    @test !is_deterministic_schedule("random")
     @test completed_requested_periods_label([5], [12], 10, "descending") == "0.50/1.20"
     @test completed_requested_periods_label([3, 5], [8, 8], 5, "round_robin") == "0.60-1.00/1.60"
     @test completed_requested_periods_label([5], [12], 10, "random") == "n/a"
     @test completed_requested_periods_label([5], [12], 10, "unknown") == "n/a"
     @test completed_requested_periods_label([5], [12], 0, "descending") == "n/a"
+    @test detuning_coverage_status([10], [12], 10, "descending") ==
+          "full_grid_observed"
+    @test detuning_coverage_status([5], [12], 10, "descending") ==
+          "stopped_partial_grid"
+    @test detuning_coverage_status([2], [2], 5, "round_robin") ==
+          "requested_partial_grid"
+    @test detuning_coverage_status([5], [12], 10, "random") == "n/a"
+    @test detuning_coverage_status(Int[], [12], 10, "descending") == "n/a"
+    @test detuning_coverage_status([5], Int[], 10, "descending") == "n/a"
+    @test detuning_coverage_status([5], [12], 0, "descending") == "n/a"
+    @test detuning_coverage_status([3], [8], 1, "descending") == "single_detuning"
 
     delta_history = [
         NaN NaN
@@ -38,6 +52,40 @@ markdown_column_counts(text::AbstractString) = [
             @test distinct_completed_delta_counts(history, [3]) == [2]
             @test visited_detunings_label(f, [3], 0) == "n/a"
         end
+    finally
+        rm(path; force=true)
+    end
+end
+
+@testset "Large-N summary flags partial deterministic detuning coverage" begin
+    path = tempname() * ".h5"
+    try
+        h5open(path, "w") do f
+            write(f, "Dmax", 8)
+            write(f, CoolingTNS.RESULT_SCHEDULE, "descending")
+            gn = create_group(f, "N4")
+            write(gn, "N", 4)
+            gm = create_group(gn, "mcwf")
+            gr = create_group(gm, "R5")
+
+            write(gr, "M", 1)
+            write(gr, CoolingTNS.RESULT_ENERGY, [-1.0, 0.0, 1.0])
+            write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 1.0, 2.0])
+            write(gr, "system_max_bond", [1, 2, 3])
+            write(gr, "system_mean_bond", [1.0, 2.0, 3.0])
+            write(gr, "evolved_max_bond", [0, 4, 8])
+            write(gr, "evolved_mean_bond", [NaN, 4.0, 8.0])
+            write(gr, CoolingTNS.RESULT_REQUESTED_STEPS, [8])
+            write(gr, CoolingTNS.RESULT_COMPLETED_STEPS, [2])
+            write(gr, CoolingTNS.RESULT_DELTA_LIST, [NaN, 5.0, 4.0])
+        end
+
+        row = only(summarize_file(path))
+        @test row.R == 5
+        @test row.completed_requested == "2/8"
+        @test row.completed_requested_periods == "0.40/1.60"
+        @test row.visited_detunings == "2/5"
+        @test row.detuning_coverage == "stopped_partial_grid"
     finally
         rm(path; force=true)
     end
@@ -92,6 +140,7 @@ end
         @test row.completed_requested == "2/3"
         @test row.completed_requested_periods == "1.00/1.50"
         @test row.visited_detunings == "1-2/2"
+        @test row.detuning_coverage == "full_grid_observed"
         @test row.elapsed_total_seconds == 25.5
         @test row.traj_cycles_per_hour ≈ 3600 * 4 / 25.5
         @test row.stop_reason == "bond_capx1/2"
@@ -136,21 +185,21 @@ end
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap |",
+            "| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap |",
             output,
         )
         @test length(unique(markdown_column_counts(output))) == 1
         @test occursin("| final E/N | relE | best E/N | best relE | tail E/N |", output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | " *
-            "descending | 2/3 | 1.00/1.50 | 1-2/2 | 25.5 | 564.71 | bond_capx1/2 | fixed_range | " *
+            "descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | 25.5 | 564.71 | bond_capx1/2 | fixed_range | " *
             "[0.50000000,3.00000000] | n/a | 12 | >=12 | >=14 | >=14 | " *
             "not_converged_system_and_evolved_and_tdvp_sweep_cap | " *
             "1.00000000 | 2.00000 | " *
             "-0.25000000 | 0.00000 | 0.41666667 | 1.00000 | 3 |",
             output,
         )
-        @test occursin("| 2 | 2 | descending | 2/3 | 1.00/1.50 | 1-2/2 | 25.5 | 564.71 | bond_capx1/2 | fixed_range |", output)
+        @test occursin("| 2 | 2 | descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | 25.5 | 564.71 | bond_capx1/2 | fixed_range |", output)
 
         compact_output = mktemp() do output_path, io
             close(io)
@@ -162,14 +211,14 @@ end
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | final E/N | best E/N | mode max abs dE/N | Dcap |",
+            "| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | mode max abs dE/N | Dcap |",
             compact_output,
         )
         @test length(unique(markdown_column_counts(compact_output))) == 1
         @test occursin("| elapsed_total | traj cycles/hour | stop_reason |", compact_output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | " *
-            "descending | 2/3 | 1.00/1.50 | 1-2/2 | 1.00000000 | -0.25000000 | n/a | 12 | >=12 | >=14 | >=14 | " *
+            "descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | 1.00000000 | -0.25000000 | n/a | 12 | >=12 | >=14 | >=14 | " *
             "not_converged_system_and_evolved_and_tdvp_sweep_cap | 25.5 | 564.71 | bond_capx1/2 |",
             compact_output,
         )
@@ -206,6 +255,7 @@ end
         @test row.completed_requested == "1/1"
         @test row.completed_requested_periods == "n/a"
         @test row.visited_detunings == "n/a"
+        @test row.detuning_coverage == "n/a"
         @test isnan(row.elapsed_total_seconds)
         @test isnan(row.traj_cycles_per_hour)
         @test row.stop_reason == "none"
@@ -228,11 +278,11 @@ end
         end
         @test occursin(
             "| $(basename(path)) | 2 | mcwf | unknown | 1 | 1 | " *
-            "unknown | 1/1 | n/a | n/a | NaN | NaN | none | unknown | " *
+            "unknown | 1/1 | n/a | n/a | n/a | NaN | NaN | none | unknown | " *
             "unknown | unknown | 4 | 2 | >=4 | n/a | not_converged_evolved_cap |",
             output,
         )
-        @test occursin("| 1 | 1 | unknown | 1/1 | n/a | n/a | NaN | NaN | none | unknown |", output)
+        @test occursin("| 1 | 1 | unknown | 1/1 | n/a | n/a | n/a | NaN | NaN | none | unknown |", output)
         @test occursin("| 4.00 | n/a | none | 1 | n/a |", output)
     finally
         rm(path; force=true)
