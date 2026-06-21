@@ -22,12 +22,14 @@ This gives ``a†a = σ⁺σ⁻ = (I + σ_z)/2``, so the **vacuum is all-spins-d
 The notes derive free-fermion formulas (mode energies ``ε_k``, Bogoliubov angles,
 ground-state raw Fourier occupation ``tilde n_k = sin²(varphi_k)``) using this
 JW mapping applied to ``H_notes = (cosθ/2) Σ σ_x σ_x + (sinθ/2) Σ σ_z``. The
-code's Hamiltonian ``H_code = J Σ σ_z σ_z + h Σ σ_x`` is related by a global
-``R_y(π/2)`` rotation, which does not affect the JW operators (they are defined
-in terms of abstract Pauli matrices in the computational basis).
+code Hamiltonian ``H_code = J Σ σ_z σ_z + h Σ σ_x`` satisfies
+``H_code = Λ · U H_notes U†`` with ``Λ = 2√(J²+h²)`` and
+``U = R_y(π/2)^{⊗N}``.  Therefore a code-basis state is first rotated to notes
+coordinates by ``U†``; after this rotation, the JW operators above are evaluated
+as notes-basis Pauli strings.
 
-With this convention, ``⟨ã†_k ã_k⟩`` measured on the ground state of ``H_notes``
-(or equivalently on the rotated ground state of ``H_code``) matches the
+With this convention, ``⟨ã†_k ã_k⟩`` measured on the ground state of
+``H_notes`` (or on the ``U†``-rotated ground state of ``H_code``) matches the
 analytical prediction ``tilde n_k^{GS} = sin²(varphi_k)`` for generic modes,
 where ``varphi_k`` is the Bogoliubov angle, not the momentum angle
 ``φ_k = 2πk/N``.

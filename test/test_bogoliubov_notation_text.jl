@@ -34,6 +34,10 @@ using Test
     @test occursin("positive quasiparticle gaps ε_k for resonance labels", joined_flat)
     @test occursin("The historical name is retained for existing callers. New code should prefer `measure_all_mode_observables`", joined_flat)
     @test occursin("not signed energy-reconstruction coefficients", joined_flat)
+    @test occursin("H_code = Λ · U H_notes U†", joined_flat)
+    @test occursin("Λ = 2√(J²+h²)", joined_flat)
+    @test occursin("code-basis state is first rotated to notes coordinates by ``U†``", joined_flat)
+    @test occursin("JW operators above are evaluated as notes-basis Pauli strings", joined_flat)
 
     forbidden = [
         "(ε_k, n_k, ⟨h_k⟩)",
@@ -44,6 +48,7 @@ using Test
         "Mode energy measurement: h_k",
         "mode energy observable",
         "Mode energy measurements ⟨h_k⟩",
+        "does not affect the JW operators",
     ]
     @test all(phrase -> !occursin(phrase, joined), forbidden)
 end
