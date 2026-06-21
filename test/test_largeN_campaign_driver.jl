@@ -537,13 +537,13 @@ end
                 "evolved_maxbond" => [0, 7, 9],
                 "evolved_meanbond" => [NaN, 5.0, 7.0],
                 "tdvp_sweep_maxbond" => [0, 6, 10],
-                "delta_list" => [NaN, 0.5, 3.0],
-                "te_list" => [NaN, 1.0, 1.25],
+                CoolingTNS.RESULT_DELTA_LIST => [NaN, 0.5, 3.0],
+                CoolingTNS.RESULT_TE_LIST => [NaN, 1.0, 1.25],
                 "final_bond_dims" => [4, 8],
                 "elapsed" => 1.25,
                 "seed" => largeN_trajectory_seed(20260617, 64, 2, 1),
-                "requested_steps" => 2,
-                "completed_steps" => 2,
+                CoolingTNS.RESULT_REQUESTED_STEPS => 2,
+                CoolingTNS.RESULT_COMPLETED_STEPS => 2,
                 "stop_reason" => "",
             ),
         ]
@@ -553,7 +553,7 @@ end
             traj_rows_noncommon_te = [
                 traj_rows[1],
                 merge(copy(traj_rows[1]), Dict{String,Any}(
-                    "te_list" => [NaN, 0.25, 1.75],
+                    CoolingTNS.RESULT_TE_LIST => [NaN, 0.25, 1.75],
                     "elapsed" => 1.5,
                     "seed" => largeN_trajectory_seed(20260617, 64, 2, 2),
                 )),
@@ -570,27 +570,28 @@ end
         end
         h5open(path, "r") do f
             g = f["R2"]
-            @test read(g["delta_values"]) == [0.5, 3.0]
+            @test read(g[CoolingTNS.RESULT_DELTA_VALUES]) == [0.5, 3.0]
+            @test vec(read(g[CoolingTNS.RESULT_ENERGY_TRAJECTORIES])) == [-2.0, -1.5, -1.0]
             @test read(g["detuning_protocol_source"]) == "fixed_range"
             @test read(g["detuning_reference_gap"]) == 0.75
             @test read(g["detuning_delta_min"]) == 0.5
             @test read(g["detuning_delta_max"]) == 3.0
             @test isnan(read(g["detuning_delta_max_factor"]))
             @test read(g["detuning_fixed_across_dmax"]) == true
-            @test read(g["requested_steps"]) == [2]
-            @test read(g["completed_steps"]) == [2]
+            @test read(g[CoolingTNS.RESULT_REQUESTED_STEPS]) == [2]
+            @test read(g[CoolingTNS.RESULT_COMPLETED_STEPS]) == [2]
             @test read(g["stop_reasons"]) == [""]
             @test read(g["trajectory_seeds"]) ==
                   [largeN_trajectory_seed(20260617, 64, 2, 1)]
             @test vec(read(g["tdvp_sweep_max_bond"])) == [0, 6, 10]
             @test read(g["tdvp_sweep_saturation_cycle"]) == [2]
             @test read(g["te_list_is_common"]) == true
-            @test isequal(read(g["te_list"]), [NaN, 1.0, 1.25])
+            @test isequal(read(g[CoolingTNS.RESULT_TE_LIST]), [NaN, 1.0, 1.25])
             @test isequal(vec(read(g["te_lists"])), [NaN, 1.0, 1.25])
 
             g_noncommon_te = f["R2_noncommon_te"]
             @test read(g_noncommon_te["te_list_is_common"]) == false
-            @test !haskey(g_noncommon_te, "te_list")
+            @test !haskey(g_noncommon_te, CoolingTNS.RESULT_TE_LIST)
             @test read(g_noncommon_te["trajectory_seeds"]) ==
                   [largeN_trajectory_seed(20260617, 64, 2, 1),
                    largeN_trajectory_seed(20260617, 64, 2, 2)]
@@ -598,7 +599,7 @@ end
             @test isequal(read(g_noncommon_te["te_lists"])[:, 2], [NaN, 0.25, 1.75])
 
             g_gap = f["R3_gap"]
-            @test read(g_gap["delta_values"]) == [0.75, 1.875, 3.0]
+            @test read(g_gap[CoolingTNS.RESULT_DELTA_VALUES]) == [0.75, 1.875, 3.0]
             @test read(g_gap["detuning_protocol_source"]) == "gap_scaled_range"
             @test read(g_gap["detuning_reference_gap"]) == 0.75
             @test read(g_gap["detuning_delta_min"]) == 0.75
@@ -626,13 +627,13 @@ end
             "evolved_maxbond" => [0, 7, 9],
             "evolved_meanbond" => [NaN, 5.0, 7.0],
             "tdvp_sweep_maxbond" => [0, 6, 10],
-            "delta_list" => [NaN, 0.5, 1.5],
-            "te_list" => [NaN, 1.0, 1.0],
+            CoolingTNS.RESULT_DELTA_LIST => [NaN, 0.5, 1.5],
+            CoolingTNS.RESULT_TE_LIST => [NaN, 1.0, 1.0],
             "final_bond_dims" => [4, 8],
             "elapsed" => 1.25,
             "seed" => 101,
-            "requested_steps" => 2,
-            "completed_steps" => 2,
+            CoolingTNS.RESULT_REQUESTED_STEPS => 2,
+            CoolingTNS.RESULT_COMPLETED_STEPS => 2,
             "stop_reason" => "",
             CoolingTNS.RESULT_MODE_K_INDICES => [1//2, 3//2],
             CoolingTNS.RESULT_MODE_ENERGIES => [0.4, 0.8],
@@ -919,7 +920,7 @@ end
             @test read(f["mode_measurement_stride"]) == 1
             @test read(f["init_state"]) == "theta"
             @test read(f["theta"]) == 0.0
-            @test read(f["randomize_times"]) == false
+            @test read(f[CoolingTNS.RESULT_RANDOMIZE_TIMES]) == false
             @test read(f["trajectory_seed_rule"]) == LARGE_N_TRAJECTORY_SEED_RULE
             @test read(f["h"]) == 0.5
             @test isnan(read(f["hx"]))
@@ -990,7 +991,7 @@ end
 
         h5open(output, "r") do f
             @test read(f["tdvp_sweep_progress"]) == true
-            @test read(f["randomize_times"]) == false
+            @test read(f[CoolingTNS.RESULT_RANDOMIZE_TIMES]) == false
             g = f["N2/mcwf/R1"]
             tdvp_sweep_max_bond = read(g["tdvp_sweep_max_bond"])
             @test size(tdvp_sweep_max_bond) == (2, 1)
@@ -1029,10 +1030,10 @@ end
         h5open(output, "r") do f
             @test read(f["init_state"]) == "product"
             @test read(f["theta"]) == 0.0
-            @test read(f["randomize_times"]) == true
+            @test read(f[CoolingTNS.RESULT_RANDOMIZE_TIMES]) == true
             g = f["N2/mcwf/R1"]
             @test read(g["te_list_is_common"]) == true
-            @test isequal(read(g["te_list"]), [NaN, 0.0])
+            @test isequal(read(g[CoolingTNS.RESULT_TE_LIST]), [NaN, 0.0])
             @test isequal(vec(read(g["te_lists"])), [NaN, 0.0])
         end
     end

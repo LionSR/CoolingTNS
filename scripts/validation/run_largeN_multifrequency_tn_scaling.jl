@@ -949,13 +949,13 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         "evolved_maxbond" => evolved_maxbond_completed,
         "evolved_meanbond" => evolved_meanbond_completed,
         "tdvp_sweep_maxbond" => tdvp_sweep_maxbond_completed,
-        "delta_list" => delta_list,
-        "te_list" => te_list,
+        RESULT_DELTA_LIST => delta_list,
+        RESULT_TE_LIST => te_list,
         "final_bond_dims" => final_dims[],
         "elapsed" => elapsed,
         "seed" => seed,
-        "requested_steps" => get(result, RESULT_REQUESTED_STEPS, steps),
-        "completed_steps" => completed_steps,
+        RESULT_REQUESTED_STEPS => get(result, RESULT_REQUESTED_STEPS, steps),
+        RESULT_COMPLETED_STEPS => completed_steps,
         "stop_reason" => get(result, RESULT_STOP_REASON, ""),
         RESULT_MODE_GF => get(result, RESULT_MODE_GF, nothing),
         RESULT_MODE_GF_SOURCE => get(result, RESULT_MODE_GF_SOURCE, nothing),
@@ -1099,8 +1099,8 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     evolved_maxbond = reduce(hcat, [row["evolved_maxbond"] for row in traj_rows])
     evolved_meanbond = reduce(hcat, [row["evolved_meanbond"] for row in traj_rows])
     tdvp_sweep_maxbond = reduce(hcat, [row["tdvp_sweep_maxbond"] for row in traj_rows])
-    delta_lists = reduce(hcat, [row["delta_list"] for row in traj_rows])
-    te_lists = reduce(hcat, [row["te_list"] for row in traj_rows])
+    delta_lists = reduce(hcat, [row[RESULT_DELTA_LIST] for row in traj_rows])
+    te_lists = reduce(hcat, [row[RESULT_TE_LIST] for row in traj_rows])
     common_delta_list = all(j -> isequal(delta_lists[:, j], delta_lists[:, 1]), 1:M)
     common_te_list = all(j -> isequal(te_lists[:, j], te_lists[:, 1]), 1:M)
 
@@ -1121,7 +1121,7 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     ]
 
     write(g, "M", M)
-    write(g, "E_trajectories", E)
+    write(g, RESULT_ENERGY_TRAJECTORIES, E)
     write(g, "E_mean", E_mean)
     write(g, "E_stderr", E_stderr)
     write(g, "relative_energy_mean", rel_mean)
@@ -1139,18 +1139,26 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     write(g, "tdvp_sweep_saturation_cycle", tdvp_sweep_saturation_cycles)
     write(g, "elapsed_seconds", Float64[row["elapsed"] for row in traj_rows])
     write(g, "trajectory_seeds", Int[row["seed"] for row in traj_rows])
-    write(g, "requested_steps", Int[row["requested_steps"] for row in traj_rows])
-    write(g, "completed_steps", Int[row["completed_steps"] for row in traj_rows])
+    write(
+        g,
+        RESULT_REQUESTED_STEPS,
+        Int[row[RESULT_REQUESTED_STEPS] for row in traj_rows],
+    )
+    write(
+        g,
+        RESULT_COMPLETED_STEPS,
+        Int[row[RESULT_COMPLETED_STEPS] for row in traj_rows],
+    )
     write(g, "stop_reasons", String[row["stop_reason"] for row in traj_rows])
     write(g, "delta_lists", delta_lists)
     write(g, "delta_list_first_trajectory", delta_lists[:, 1])
     write(g, "delta_list_is_common", common_delta_list)
-    common_delta_list && write(g, "delta_list", delta_lists[:, 1])
+    common_delta_list && write(g, RESULT_DELTA_LIST, delta_lists[:, 1])
     write(g, "te_lists", te_lists)
     write(g, "te_list_first_trajectory", te_lists[:, 1])
     write(g, "te_list_is_common", common_te_list)
-    common_te_list && write(g, "te_list", te_lists[:, 1])
-    write(g, "delta_values", Float64.(delta_values))
+    common_te_list && write(g, RESULT_TE_LIST, te_lists[:, 1])
+    write(g, RESULT_DELTA_VALUES, Float64.(delta_values))
     write_largeN_detuning_protocol(g, detuning_protocol)
     write_mode_measurement_group!(g, traj_rows)
 
@@ -1206,11 +1214,11 @@ function run_campaign(cfg)
         write(f, "te", cfg["te"])
         write(f, "init_state", cfg["init_state"])
         write(f, "theta", cfg["theta"])
-        write(f, "randomize_times", cfg["randomize_times"])
+        write(f, RESULT_RANDOMIZE_TIMES, cfg["randomize_times"])
         write(f, "delta_max_factor", cfg["delta_max_factor"])
         write(f, "delta_min_override", cfg["delta_min"] === nothing ? NaN : cfg["delta_min"])
         write(f, "delta_max_override", cfg["delta_max"] === nothing ? NaN : cfg["delta_max"])
-        write(f, "schedule", cfg["schedule"])
+        write(f, RESULT_SCHEDULE, cfg["schedule"])
         write(f, "stop_on_bond_cap", cfg["stop_on_bond_cap"])
         write(f, "seed", cfg["seed"])
         write(f, "trajectory_seed_rule", LARGE_N_TRAJECTORY_SEED_RULE)

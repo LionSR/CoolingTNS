@@ -102,8 +102,8 @@ function detuning_interval_label(delta_min::Real, delta_max::Real)
 end
 
 function delta_values_interval_label(run_group)
-    haskey(run_group, "delta_values") || return "unknown"
-    delta_values = Float64.(read(run_group["delta_values"]))
+    haskey(run_group, RESULT_DELTA_VALUES) || return "unknown"
+    delta_values = Float64.(read(run_group[RESULT_DELTA_VALUES]))
     isempty(delta_values) && return "unknown"
     return detuning_interval_label(minimum(delta_values), maximum(delta_values))
 end
@@ -247,7 +247,7 @@ end
 
 function schedule_label(root, method_group, run_group)
     return String(
-        read_first_group_value("schedule", "unknown", run_group, method_group, root)
+        read_first_group_value(RESULT_SCHEDULE, "unknown", run_group, method_group, root)
     )
 end
 
@@ -267,8 +267,8 @@ end
 function delta_history_matrix(run_group)
     if haskey(run_group, "delta_lists")
         return delta_history_matrix_from_values(read(run_group["delta_lists"]))
-    elseif haskey(run_group, "delta_list")
-        return delta_history_matrix_from_values(read(run_group["delta_list"]))
+    elseif haskey(run_group, RESULT_DELTA_LIST)
+        return delta_history_matrix_from_values(read(run_group[RESULT_DELTA_LIST]))
     end
     return nothing
 end
@@ -407,12 +407,12 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         inferred_completed_steps
     requested_steps_values = read_integer_vector(
         run_group,
-        "requested_steps",
+        RESULT_REQUESTED_STEPS,
         fill(default_requested_steps, M),
     )
     completed_steps_values = read_integer_vector(
         run_group,
-        "completed_steps",
+        RESULT_COMPLETED_STEPS,
         fill(inferred_completed_steps, M),
     )
     schedule = schedule_label(root, method_group, run_group)
