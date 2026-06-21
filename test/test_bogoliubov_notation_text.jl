@@ -5,6 +5,7 @@ using Test
         joinpath(@__DIR__, "..", "src", "ed_backend_complex_jw.jl"),
         joinpath(@__DIR__, "..", "src", "mode_analysis.jl"),
         joinpath(@__DIR__, "..", "src", "dispersion.jl"),
+        joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"),
     ]
 
     for file in source_files
@@ -22,6 +23,7 @@ using Test
     forbidden = [
         "(ε_k, n_k, ⟨h_k⟩)",
         "h_k = 2 n_k - 1",
+        "h_k = 2n_k - 1",
         "mode energies, occupations, ⟨h_k⟩",
     ]
     @test all(phrase -> !occursin(phrase, joined), forbidden)

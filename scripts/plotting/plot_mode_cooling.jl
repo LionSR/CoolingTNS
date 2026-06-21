@@ -39,7 +39,7 @@ using CoolingTNS:
 Return the Bogoliubov quasiparticle occupation matrix for mode-cooling plots.
 
 New result files store `RESULT_MODE_NK` directly. Older files stored only `RESULT_MODE_HK`,
-with `h_k = 2n_k - 1`; those files are converted through
+with `h_k = 2n_k^{Bog} - 1`; those files are converted through
 `CoolingTNS.mode_occupation_from_hk`, which is the single source of truth for
 this convention.
 """
