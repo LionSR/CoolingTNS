@@ -29,10 +29,13 @@ end
         braced_values(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]*)\}", tex_text),
         braced_values(r"\\begin\{overpic\}(?:\[[^\]]*\])?\{([^}]*)\}", tex_text),
     )))
-    missing_figure_notes = [figure for figure in figures if !occursin(figure, readme_text)]
+    readme_figures = sort([match.captures[1] for match in eachmatch(r"(?m)^- `([^`]+)`\s*$", readme_text)])
+    missing_figure_notes = setdiff(figures, readme_figures)
+    extra_figure_notes = setdiff(readme_figures, figures)
 
     @test !isempty(figures)
     @test isempty(missing_figure_notes)
+    @test isempty(extra_figure_notes)
     @test occursin("publication figure PDFs are not tracked", readme_text)
     @test occursin("renders labelled placeholder boxes", readme_text)
 end
