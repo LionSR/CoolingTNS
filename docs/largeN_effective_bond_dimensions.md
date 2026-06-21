@@ -148,7 +148,11 @@ truncation-error time series.  The evidence below should therefore be read as
 bond-cap and truncation-pressure diagnostics: it records which states reached
 the imposed cap and when, not the discarded Schmidt weight at each truncation.
 Measured truncation-error histories would be an additional diagnostic beyond
-the cap/saturation metadata described here.
+the cap/saturation metadata described here.  New campaign files record this
+explicitly as `truncation_error_history_status = not_recorded`; the summary
+script reports older files without that field as `legacy_missing`.  A future
+file that stores `truncation_errors` without the explicit status is reported as
+`measured`.
 
 ## Mode-Resolved Integrable-Ising Campaigns
 

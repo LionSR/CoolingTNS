@@ -31,7 +31,10 @@ The `detuning coverage` column then records whether a deterministic schedule
 has actually completed at least one full detuning-grid period; a prefix shorter
 than one period is marked explicitly rather than left for the reader to infer.
 Single-detuning runs report `single_detuning`, and random schedules report
-`n/a`.
+`n/a`.  The `truncation errors` column reports whether measured truncation-error
+histories are available: current campaign files write `not_recorded`, legacy
+files without the provenance field report `legacy_missing`, and files with a
+measured `truncation_errors` dataset report `measured`.
 """
 
 using CoolingTNS
@@ -433,6 +436,15 @@ function read_largeN_energy_mean(run_group)
     )
 end
 
+function truncation_error_history_status(run_group)
+    if haskey(run_group, RESULT_TRUNCATION_ERROR_HISTORY_STATUS)
+        return String(read(run_group[RESULT_TRUNCATION_ERROR_HISTORY_STATUS]))
+    end
+    haskey(run_group, RESULT_TRUNCATION_ERRORS) &&
+        return TRUNCATION_ERROR_HISTORY_MEASURED
+    return TRUNCATION_ERROR_HISTORY_LEGACY_MISSING
+end
+
 function summarize_run(file_name::AbstractString, root, n_group_name::AbstractString,
                        method_name::AbstractString, method_group, r_group_name::AbstractString,
                        run_group)
@@ -530,6 +542,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
             peak_tdvp_sweep_max, tdvp_sweep_saturation_cycle, threshold
         ) :
         "n/a"
+    truncation_error_status = truncation_error_history_status(run_group)
     bond_status = bond_cap_status(
         system_saturation_cycle, evolved_saturation_cycle,
         tdvp_sweep_saturation_cycle_for_status,
@@ -576,6 +589,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         system_effective_bond=system_effective_bond,
         evolved_effective_bond=evolved_effective_bond,
         tdvp_sweep_effective_bond=tdvp_sweep_effective_bond,
+        truncation_error_history_status=truncation_error_status,
         bond_status=bond_status,
         final_system_max=final_system_max,
         final_system_mean=final_system_mean,
@@ -626,8 +640,8 @@ function sorted_rows(rows)
 end
 
 function print_markdown(rows)
-    println("| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
-    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---|---:|---:|---|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
+    println("| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | truncation errors | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---|---:|---:|---|---|---|---|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | $(row.R) | $(row.M) | " *
@@ -639,6 +653,7 @@ function print_markdown(rows)
             "$(row.threshold) | " *
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
             "$(row.tdvp_sweep_effective_bond) | $(row.bond_status) | " *
+            "$(row.truncation_error_history_status) | " *
             "$(format_float(row.final_e_over_n, 8)) | $(format_float(row.relative_energy, 5)) | " *
             "$(format_float(row.best_e_over_n, 8)) | $(format_float(row.best_relative_energy, 5)) | " *
             "$(format_float(row.tail_e_over_n, 8)) | $(format_float(row.tail_relative_energy, 5)) | " *
@@ -663,8 +678,8 @@ function print_markdown(rows)
 end
 
 function print_compact_markdown(rows)
-    println("| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | mode max abs dE/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | traj cycles/hour | stop_reason |")
-    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---|")
+    println("| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | mode max abs dE/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | truncation errors | elapsed_total | traj cycles/hour | stop_reason |")
+    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---|")
     for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | " *
@@ -676,6 +691,7 @@ function print_compact_markdown(rows)
             "$(format_float_or_na(row.mode_max_abs_err_over_n, 3)) | $(row.threshold) | " *
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
             "$(row.tdvp_sweep_effective_bond) | $(row.bond_status) | " *
+            "$(row.truncation_error_history_status) | " *
             "$(format_float(row.elapsed_total_seconds, 1)) | " *
             "$(format_float(row.traj_cycles_per_hour, 2)) | $(row.stop_reason) |"
         )

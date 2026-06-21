@@ -165,10 +165,14 @@ using CoolingTNS
             CoolingTNS.RESULT_GROUND_STATE_OVERLAP_STD,
             CoolingTNS.RESULT_BOND_DIMS,
             CoolingTNS.RESULT_TRUNCATION_ERRORS,
+            CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS,
             CoolingTNS.RESULT_RENYI_ENTROPY,
             CoolingTNS.RESULT_FINAL_STATE,
         )
             @test key in CoolingTNS.RESULT_KEYS
         end
+        @test CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED == "not_recorded"
+        @test CoolingTNS.TRUNCATION_ERROR_HISTORY_LEGACY_MISSING == "legacy_missing"
+        @test CoolingTNS.TRUNCATION_ERROR_HISTORY_MEASURED == "measured"
     end
 end

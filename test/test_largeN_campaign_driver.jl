@@ -593,6 +593,8 @@ end
                   [largeN_trajectory_seed(20260617, 64, 2, 1)]
             @test vec(read(g["tdvp_sweep_max_bond"])) == [0, 6, 10]
             @test read(g["tdvp_sweep_saturation_cycle"]) == [2]
+            @test read(g[CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS]) ==
+                  CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED
             @test read(g["te_list_is_common"]) == true
             @test isequal(read(g[CoolingTNS.RESULT_TE_LIST]), [NaN, 1.0, 1.25])
             @test isequal(vec(read(g["te_lists"])), [NaN, 1.0, 1.25])

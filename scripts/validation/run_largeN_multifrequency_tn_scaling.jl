@@ -16,7 +16,8 @@ path rather than the practical production path.  Select `--methods mpo` or
 For each system size and each number of bath detunings R, the script records
 energy density, relative energy above the DMRG ground state, ground-state
 overlap, runtime, the explicit detuning protocol, effective bond dimensions,
-and the first cooling cycle where the method-specific bond threshold is reached.
+the first cooling cycle where the method-specific bond threshold is reached,
+and whether measured truncation-error histories were recorded.
 
 Example N=64 campaign:
 
@@ -1137,6 +1138,7 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     write(g, "system_saturation_cycle", system_saturation_cycles)
     write(g, "evolved_saturation_cycle", evolved_saturation_cycles)
     write(g, "tdvp_sweep_saturation_cycle", tdvp_sweep_saturation_cycles)
+    write(g, RESULT_TRUNCATION_ERROR_HISTORY_STATUS, TRUNCATION_ERROR_HISTORY_NOT_RECORDED)
     write(g, "elapsed_seconds", Float64[row["elapsed"] for row in traj_rows])
     write(g, "trajectory_seeds", Int[row["seed"] for row in traj_rows])
     write(
