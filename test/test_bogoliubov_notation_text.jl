@@ -1,6 +1,6 @@
 using Test
 
-@testset "Bogoliubov-angle notation in source comments" begin
+@testset "Bogoliubov angle and occupation notation in source comments" begin
     source_files = [
         joinpath(@__DIR__, "..", "src", "ed_backend_complex_jw.jl"),
         joinpath(@__DIR__, "..", "src", "mode_analysis.jl"),
