@@ -39,18 +39,53 @@ using CoolingTNS:
 
 Return the Bogoliubov quasiparticle occupation matrix for mode-cooling plots.
 
-New result files store `RESULT_MODE_NK` directly. Older files stored only `RESULT_MODE_HK`,
-with `h_k = 2n_k^{Bog} - 1`; those files are converted through
-`CoolingTNS.mode_occupation_from_hk`, which is the single source of truth for
-this convention.
+New result files store `RESULT_MODE_NK` directly, but `RESULT_MODE_HK` remains
+the source observable.  When both datasets are present, the stored occupation is
+accepted only if it agrees with `CoolingTNS.mode_occupation_from_hk`.  Older
+files stored only `RESULT_MODE_HK`; those files are converted through the same
+routine.
 """
 function _mode_occupation_from_plot_data(data::AbstractDict)
     if haskey(data, RESULT_MODE_NK)
-        return Float64.(data[RESULT_MODE_NK])
+        mode_nk = Float64.(data[RESULT_MODE_NK])
+        if haskey(data, RESULT_MODE_HK)
+            _validate_mode_nk_matches_hk(mode_nk, data[RESULT_MODE_HK])
+        end
+        return mode_nk
     elseif haskey(data, RESULT_MODE_HK)
         return Float64.(mode_occupation_from_hk(data[RESULT_MODE_HK]))
     end
     error("Expected HDF5 dataset \"$RESULT_MODE_NK\" or legacy dataset \"$RESULT_MODE_HK\"")
+end
+
+"""
+    _validate_mode_nk_matches_hk(mode_nk, mode_hk)
+
+Validate that a stored Bogoliubov occupation array is the derived occupation
+`mode_occupation_from_hk(mode_hk)`.  Shape mismatches throw `DimensionMismatch`;
+value mismatches throw `ArgumentError`; paired `NaN` entries are accepted for
+unmeasured strided rows.
+"""
+function _validate_mode_nk_matches_hk(mode_nk, mode_hk; atol=1e-12, rtol=1e-12)
+    expected = Float64.(mode_occupation_from_hk(mode_hk))
+    size(mode_nk) == size(expected) || throw(DimensionMismatch(
+        "$RESULT_MODE_NK has shape $(size(mode_nk)), but $RESULT_MODE_HK implies " *
+        "shape $(size(expected))"
+    ))
+
+    for idx in eachindex(mode_nk, expected)
+        stored = mode_nk[idx]
+        derived = expected[idx]
+        both_nan = isnan(stored) && isnan(derived)
+        both_nan && continue
+        isapprox(stored, derived; atol=atol, rtol=rtol) && continue
+        throw(ArgumentError(
+            "$RESULT_MODE_NK is inconsistent with $RESULT_MODE_HK: stored " *
+            "occupation $(stored) differs from derived occupation $(derived) " *
+            "at linear index $(idx)"
+        ))
+    end
+    return nothing
 end
 
 function _occupation_ylim(mode_nk)

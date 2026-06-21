@@ -120,11 +120,7 @@ function run_diagnostic(; do_plot::Bool=false)
     # ========================================================================
 
     mode_hk = results[CoolingTNS.RESULT_MODE_HK]
-    mode_nk = if haskey(results, CoolingTNS.RESULT_MODE_NK)
-        results[CoolingTNS.RESULT_MODE_NK]
-    else
-        CoolingTNS.mode_occupation_from_hk(mode_hk)
-    end
+    mode_nk = CoolingTNS.mode_occupation_from_hk(mode_hk)
     k_indices = results[CoolingTNS.RESULT_MODE_K_INDICES]
     εk_values = results[CoolingTNS.RESULT_MODE_ENERGIES]
     E_list = results[CoolingTNS.RESULT_ENERGY]
