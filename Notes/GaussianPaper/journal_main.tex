@@ -399,9 +399,21 @@ We have deliberately chosen a model for the system, bath, and environment coupli
 where, as in \cref{subsec:total_hamiltonian}, we group modes $k$ and $-k$ together, indexed by $k\ge 0$. Since each map conserves parity, we can use a tensor product structure.
 Similarly, the system Hamiltonian can be written as [cf.~\cref{eq:Hs}]
 \begin{equation}
-    H_{S} = \sum_{k=0}^{N/2} \epsilon_k h_k,
+    H_{S} = \sum_{k=0}^{N/2} \eta_k h_k,
+    \label{eq:Hs_grouped}
 \end{equation}
-where the mode Hamiltonians $h_k$ can be read off from~\cref{eq:Hs}: $h_k=\hat{a}^\dagger_k \hat{a}_k-\hat{a}_{-k}\hat{a}_{-k}^\dagger$ for $k=1,\ldots,N/2-1$ and $h_k=\hat{a}_k^\dagger \hat{a}_k-\hat{a}_k \hat{a}_k^\dagger$ for $k=0,N/2$.
+where the mode Hamiltonians $h_k$ can be read off from~\cref{eq:Hs}: $h_k=\hat{a}^\dagger_k \hat{a}_k-\hat{a}_{-k}\hat{a}_{-k}^\dagger$ for $k=1,\ldots,N/2-1$ and $h_k=\hat{a}_k^\dagger \hat{a}_k-\hat{a}_k \hat{a}_k^\dagger$ for $k=0,N/2$.  The grouped coefficient is
+\begin{equation}
+    \eta_k =
+    \begin{cases}
+        \epsilon_k, & k=1,\ldots,N/2-1,\\[2mm]
+        \epsilon_k/2, & k=0,N/2.
+    \end{cases}
+    \label{eq:grouped_mode_weight}
+\end{equation}
+The factor $1/2$ for the special modes is inherited from the full-grid formula
+\cref{eq:Hs}: the generic block contains the two modes $k$ and $-k$, whereas
+the modes $0$ and $N/2$ are unpaired.
 
 This decomposition has important consequences: first, it allows us to efficiently compute the state at any given time numerically. Furthermore, we can already make some valuable statements about the cooling time and the steady state. Those statements apply to both the noiseless and the noisy case. For the following discussion, we will assume that each mode map $\mathcal{E}_k$ (or $\mathcal{N}_k$) has a unique fixed point, $\sigma_k$, which will be generically the case.
 
@@ -431,7 +443,7 @@ In the case $\alpha>0$, which can be expected outside the phase transition ($\th
 
 Let us now consider how fast the relative energy reaches its steady state value. Since the relative energy is related to the energy density (an intensive quantity), we analyze the convergence of the energy density. Using, again, translational invariance, we have that after $n$ cycles the error in the energy density will be bounded by (see~\cref{subsec:energy_convergence})
 \begin{equation}
-    \frac{1}{N}\sum_{k=0}^{N/2} \left|\tr\left(\epsilon_k h_k \left[\mathcal{E}_k^n(\rho_k)- \sigma_k\right]\right)\right|\le 2 \frac{\sum_{k=0}^{N/2} \epsilon_k e^{-\alpha_k n}}{N} \le e^{- \alpha n},
+    \frac{1}{N}\sum_{k=0}^{N/2} \left|\tr\left(\eta_k h_k \left[\mathcal{E}_k^n(\rho_k)- \sigma_k\right]\right)\right|\le 2 \frac{\sum_{k=0}^{N/2} \eta_k e^{-\alpha_k n}}{N} \le e^{- \alpha n},
 \end{equation}
 where in the last inequality we have neglected terms of $O(1/N)$ and an overall constant.
 $C$ is a constant of order $\mathcal{O}(1)$. Thus, if $\alpha>0$ and we aim for an energy density error of $\epsilon$, we need $n^c=\alpha^{-1}\log(1/\epsilon)$ cycles, independent of $N$.
@@ -453,9 +465,9 @@ where $F_k=\langle \Psi_k|\sigma_k|\Psi_k\rangle$, and we have  decomposed the g
 
 The total energy of the steady state is the sum of mode energies:
 \begin{equation}
-    E =\sum_{k=0}^{N/2} E_k = \sum_{k=0}^{N/2} \epsilon_k \tr( h_k \sigma_k).
+    E =\sum_{k=0}^{N/2} E_k = \sum_{k=0}^{N/2} \eta_k \tr( h_k \sigma_k).
 \end{equation}
-For modes $(k,-k)$ (with $k=1,\ldots,N/2-1$), the ground state energy contribution is $-\epsilon_k$. We thus define the relative energy as $e_k=(E_k+\epsilon_k)/\epsilon_k$, while for $k=0,N/2$ the expression is similar with $\epsilon_k$ replaced by $\epsilon_k/2$. The total relative energy is given by \cref{eq:relative_energy}, with $E_{GS}$ given in \cref{eq:EnergyGS}.
+For modes $(k,-k)$ (with $k=1,\ldots,N/2-1$), the ground state energy contribution is $-\epsilon_k$.  For $k=0,N/2$ it is instead $-\epsilon_k/2$.  Equivalently, with the grouped coefficient in \cref{eq:grouped_mode_weight}, one may write the block relative energy uniformly as $e_k=(E_k+\eta_k)/\eta_k$. The total relative energy is given by \cref{eq:relative_energy}, with $E_{GS}$ given in \cref{eq:EnergyGS}.
 
 The mode steady states $\sigma_k$ can be found by solving the fixed-point equation $\mathcal{E}_k(\sigma_k)=\sigma_k$, a linear equation in a finite-dimensional space. For noiseless cooling, the Hilbert space for each pair $(k,-k)$ is at most four-dimensional, leading to a set of 16 linear equations. Parity symmetry can further simplify this. Furthermore, since the map is Gaussian, the steady state is also Gaussian, so that one can use the covariance matrix formalism to obtain exact expressions. In the noisy case (see \cref{app:CM_derivation}), the same argument applies and one can also get analytical expressions. While these formulas for the relative energy and the fidelity are not always very transparent, we will illustrate them with various plots. We will also present efficient numerical computations and analytics for the case of a finite environment, shown in \cref{app:finite_noise}.
 
