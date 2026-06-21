@@ -531,7 +531,10 @@ The stochastic average of the single trajectory expectation values is equal to t
 	\tr[A \rho_S^k] \approx \frac{1}{N_\text{QT}} \sum_{i=1}^{N_\text{QT}}\bra{\Psi_S^{k,(i)}}A\ket{\Psi_S^{k,(i)}}.
 \end{equation}
 where $A$ is an observable of interest.
-We compute the energy and other observables to check whether the ground state is reached.
+We compute the energy and other observables to compare the trajectory with the
+available ground-state reference, and to check whether the observed approach to
+low energy is stable under the trajectory, time-window, and bond-dimension
+diagnostics.
 
 \paragraph{State overlaps}
 The state fidelity between a given state $\ket{\Phi}$ and $\rho_S^k$ can be computed in parallel

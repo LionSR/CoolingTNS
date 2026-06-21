@@ -22,6 +22,8 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     # Update them together when the notation or bond-dimension evidence changes.
     @test occursin("We study a repeated bath-reset cooling map whose intended fixed point", note_flat)
     @test occursin("Whether a given implementation prepares the ground state is a dynamical and numerical question", note_flat)
+    @test occursin("compare the trajectory with the available ground-state reference", note_flat)
+    @test occursin("stable under the trajectory, time-window, and bond-dimension diagnostics", note_flat)
     @test occursin("This low-entanglement assumption is part of the numerical validation problem", note_flat)
     @test occursin("when the transient system-bath state or the TDVP sweep reaches the imposed bond cap", note_flat)
     @test occursin("not as a final demonstration of ground-state preparation", note_flat)
@@ -220,6 +222,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         "with a bond dimension of \$d \\leq 100\$",
         "h_z\$ and \$h_x\$ are the transverse and longitudinal magnetic fields",
         "\$h_z = 0\$ (classical) and \$h_x = 0\$ (transverse field ising model)",
+        "check whether the ground state is reached",
     ]
     @test all(!occursin(phrase, note_lower) for phrase in forbidden)
 
