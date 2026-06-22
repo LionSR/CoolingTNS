@@ -23,12 +23,13 @@ struct TNBackend <: CoolingBackend end  # Tensor Network Backend
     canonical_backend_name(method::AbstractString) -> String
     canonical_sim_method_name(method::AbstractString) -> String
     canonical_evolution_method_name(method::AbstractString) -> String
+    canonical_initial_state_name(init_state::AbstractString) -> String
 
-Return the canonical command-line token for method-like CLI strings. The generic
+Return the canonical form of string-valued CLI choices. The generic
 `canonical_method_token` trims and lowercases; the typed helpers then validate
-and return the canonical backend, simulation-method, or evolution-method name.
-These helpers are the source of truth for normalizing method-like CLI strings
-before they enter typed dispatch, metadata, or generated command lines.
+and return the canonical backend, simulation-method, evolution-method, or
+initial-state name. These helpers are the source of truth for normalizing these
+tokens before they enter typed dispatch, metadata, or generated command lines.
 """
 canonical_method_token(method::AbstractString) = lowercase(strip(String(method)))
 
@@ -53,6 +54,14 @@ function canonical_evolution_method_name(method::AbstractString)
     error("Unknown evolution method: $method. Use 'continuous' or 'trotter'")
 end
 
+function canonical_initial_state_name(init_state::AbstractString)
+    token = canonical_method_token(init_state)
+    token == "product" && return "product"
+    token == "theta" && return "theta"
+    token == "identity" && return "identity"
+    error("Unknown initial state: $init_state. Use 'product', 'theta', or 'identity'")
+end
+
 """
     normalize_method_token_args!(parsed_args)
 
@@ -68,6 +77,19 @@ function normalize_method_token_args!(parsed_args)
     haskey(parsed_args, "evolution_method") &&
         (parsed_args["evolution_method"] =
             canonical_evolution_method_name(parsed_args["evolution_method"]))
+    return parsed_args
+end
+
+"""
+    normalize_initial_state_args!(parsed_args)
+
+Canonicalize the initial-state command-line field in-place when present. The
+stored value remains a string, but it is one of `product`, `theta`, or
+`identity` before validation or metadata serialization.
+"""
+function normalize_initial_state_args!(parsed_args)
+    haskey(parsed_args, "init_state") &&
+        (parsed_args["init_state"] = canonical_initial_state_name(parsed_args["init_state"]))
     return parsed_args
 end
 

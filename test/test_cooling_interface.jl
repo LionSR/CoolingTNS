@@ -19,11 +19,13 @@ using HDF5
     @testset "Backend Creation" begin
         # Test new backend system
         @test CoolingTNS.canonical_method_token(" Continuous ") == "continuous"
+        @test CoolingTNS.canonical_initial_state_name(" Identity ") == "identity"
         @test CoolingTNS.get_backend("ED") isa CoolingTNS.EDBackend
         @test CoolingTNS.get_backend("TN") isa CoolingTNS.TNBackend
         @test CoolingTNS.get_backend(" ed ") isa CoolingTNS.EDBackend
         @test CoolingTNS.get_backend("tn") isa CoolingTNS.TNBackend
         @test_throws ErrorException CoolingTNS.get_backend("InvalidMethod")
+        @test_throws ErrorException CoolingTNS.canonical_initial_state_name("InvalidState")
     end
 
     @testset "Default Simulation Methods" begin
@@ -112,11 +114,13 @@ using HDF5
             "backend" => " tn ",
             "sim_method" => " Monte_Carlo ",
             "evolution_method" => " Continuous ",
+            "init_state" => " Theta ",
         )
         CoolingTNS.normalize_optimization_args!(padded_explicit)
         @test padded_explicit["backend"] == "TN"
         @test padded_explicit["sim_method"] == "monte_carlo"
         @test padded_explicit["evolution_method"] == "continuous"
+        @test padded_explicit["init_state"] == "theta"
 
         legacy_filename = CoolingTNS.create_filename(
             CoolingTNS.hamiltonian_name(ham_params),
@@ -370,16 +374,21 @@ using HDF5
 
     @testset "Command-line initial-state validation" begin
         parsed = CoolingTNS.parse_commandline([
-            "--sim_method", "density_matrix",
-            "--init_state", "identity",
+            "--sim_method", " Density_Matrix ",
+            "--init_state", " Identity ",
         ])
         @test parsed["sim_method"] == "density_matrix"
         @test parsed["init_state"] == "identity"
 
         @test_throws ArgumentError CoolingTNS.parse_commandline([
-            "--sim_method", "monte_carlo",
-            "--init_state", "identity",
+            "--sim_method", " Monte_Carlo ",
+            "--init_state", " Identity ",
         ])
+        @test_throws ErrorException CoolingTNS.parse_commandline([
+            "--init_state", "bad",
+        ])
+        @test_throws ArgumentError CoolingTNS.create_theta_state_ed(2, " Identity ", 0.0)
+        @test_throws ErrorException CoolingTNS.create_theta_state_ed(2, "bad", 0.0)
     end
 
     @testset "Common parameter boundary conditions" begin

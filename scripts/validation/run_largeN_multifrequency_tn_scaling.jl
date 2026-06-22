@@ -267,9 +267,11 @@ function parse_args(args)
                      "--delta-min", "--delta-max")
             key = replace(a[3:end], "-" => "_")
             cfg[key] = parse(Float64, args[i + 1]); i += 2
-        elseif a in ("--model", "--bc", "--coupling", "--schedule", "--outdir", "--output", "--init-state",
+        elseif a in ("--model", "--bc", "--coupling", "--schedule", "--outdir", "--output",
                      "--progress-csv")
             cfg[replace(a[3:end], "-" => "_")] = args[i + 1]; i += 2
+        elseif a == "--init-state"
+            cfg["init_state"] = canonical_initial_state_name(args[i + 1]); i += 2
         elseif a == "--evolution-method"
             cfg["evolution_method"] = parse_method_name(args[i + 1]); i += 2
         elseif a == "--evolution-method-values"

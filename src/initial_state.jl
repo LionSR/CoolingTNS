@@ -33,6 +33,7 @@ end
 # ============================================================================
 
 function _reject_identity_for_mcwf(init_type::String)
+    init_type = canonical_initial_state_name(init_type)
     if init_type == "identity"
         throw(ArgumentError(
             "init_type=\"identity\" denotes the maximally mixed density matrix " *
@@ -40,6 +41,7 @@ function _reject_identity_for_mcwf(init_type::String)
             "or choose a pure initial state such as \"product\" or \"theta\"."
         ))
     end
+    return init_type
 end
 
 # ============================================================================
@@ -116,6 +118,7 @@ returns pure state vectors, while the identity initial state denotes the
 maximally mixed density matrix.
 """
 function create_theta_state_ed(N::Int, init_type::String, theta::Float64)::EDStateVector
+    init_type = canonical_initial_state_name(init_type)
     if init_type == "identity"
         throw(ArgumentError(
             "create_theta_state_ed constructs pure state vectors; " *
@@ -150,7 +153,7 @@ end
 # Monte Carlo + TN
 function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, E},
                            init_type::String, theta::Float64) where E<:EvolutionMethod
-    _reject_identity_for_mcwf(init_type)
+    init_type = _reject_identity_for_mcwf(init_type)
 
     ϕ₀ = problem.ϕ₀
     sites_sys = siteinds(ϕ₀)
@@ -166,7 +169,7 @@ end
 # Monte Carlo + ED
 function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction, E},
                            init_type::String, theta::Float64) where E<:EvolutionMethod
-    _reject_identity_for_mcwf(init_type)
+    init_type = _reject_identity_for_mcwf(init_type)
 
     N = problem.extra.ham_params.N
     state = create_theta_state_ed(N, init_type, theta)
@@ -180,6 +183,7 @@ end
 # Density Matrix + TN
 function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::UnifiedSimulationParameters{DensityMatrix, E},
                            init_type::String, theta::Float64) where E<:EvolutionMethod
+    init_type = canonical_initial_state_name(init_type)
     ϕ₀ = problem.ϕ₀
     sites_sys = siteinds(ϕ₀)
 
@@ -199,6 +203,7 @@ end
 # Density Matrix + ED
 function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::UnifiedSimulationParameters{DensityMatrix, E},
                            init_type::String, theta::Float64) where E<:EvolutionMethod
+    init_type = canonical_initial_state_name(init_type)
     N = problem.extra.ham_params.N
 
     if init_type == "identity"
