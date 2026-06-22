@@ -144,11 +144,34 @@ function _split_string_correlators(state::Union{MPS,MPO})
     return (Cxx=Cxx, Cyy=Cyy, Cyx=Cyx, Cxy=Cxy)
 end
 
-function _validate_tn_mode_state(state::Union{MPS,MPO}, ham_params::HamiltonianParameters{IsingModel})
-    N = ham_params.N
+function _validate_tn_mode_state_length(state::Union{MPS,MPO}, N::Int)
     state_label = state isa MPS ? "MPS" : "MPO"
     length(state) == N || throw(ArgumentError("$state_label length $(length(state)) does not match N=$N"))
+    return nothing
+end
+
+function _validate_tn_mode_state(state::Union{MPS,MPO}, ham_params::HamiltonianParameters{IsingModel})
+    _validate_tn_mode_state_length(state, ham_params.N)
     return require_ising_fourier_observables(ham_params; observable="TN mode observables")
+end
+
+function _validate_tn_mode_state(state::Union{MPS,MPO}, ham_params::HamiltonianParameters)
+    # Unsupported models should report the observable-domain error before any
+    # state-length mismatch. If this guard is ever extended to another model,
+    # add model-specific TN measurement methods rather than relying on this
+    # generic fallback.
+    require_ising_fourier_observables(ham_params; observable="TN mode observables")
+    _validate_tn_mode_state_length(state, ham_params.N)
+    return nothing
+end
+
+function _reject_unsupported_tn_mode_observable(state::Union{MPS,MPO}, ham_params::HamiltonianParameters)
+    _validate_tn_mode_state(state, ham_params)
+    throw(ArgumentError(
+        "TN mode observables require a model-specific measurement implementation " *
+        "for $(typeof(ham_params.model)); the shared observable-domain guard " *
+        "accepted these Hamiltonian parameters, but no specialized TN method exists"
+    ))
 end
 
 """
@@ -240,6 +263,10 @@ function measure_hk(ψ::MPS, k, ham_params::HamiltonianParameters{IsingModel})
     return _measure_hk_from_correlators(correlators, k, ham_params)
 end
 
+function measure_hk(ψ::MPS, k, ham_params::HamiltonianParameters)
+    return _reject_unsupported_tn_mode_observable(ψ, ham_params)
+end
+
 """
     measure_hk(ρ::MPO, k, ham_params) -> Float64
 
@@ -250,6 +277,10 @@ function measure_hk(ρ::MPO, k, ham_params::HamiltonianParameters{IsingModel})
     _validate_tn_mode_state(ρ, ham_params)
     correlators = _split_string_correlators(ρ)
     return _measure_hk_from_correlators(correlators, k, ham_params)
+end
+
+function measure_hk(ρ::MPO, k, ham_params::HamiltonianParameters)
+    return _reject_unsupported_tn_mode_observable(ρ, ham_params)
 end
 
 """
@@ -263,6 +294,11 @@ keeps the signed special-mode coefficients.
 function measure_all_mode_observables(ψ::MPS, ham_params::HamiltonianParameters{IsingModel};
                                       gF=nothing)
     return _measure_all_mode_observables_tn(ψ, ham_params; gF=gF)
+end
+
+function measure_all_mode_observables(ψ::MPS, ham_params::HamiltonianParameters;
+                                      gF=nothing)
+    return _reject_unsupported_tn_mode_observable(ψ, ham_params)
 end
 
 function _measure_all_mode_observables_tn(state::Union{MPS,MPO}, ham_params::HamiltonianParameters{IsingModel};
@@ -303,6 +339,11 @@ function measure_all_mode_observables(ρ::MPO, ham_params::HamiltonianParameters
     return _measure_all_mode_observables_tn(ρ, ham_params; gF=gF)
 end
 
+function measure_all_mode_observables(ρ::MPO, ham_params::HamiltonianParameters;
+                                      gF=nothing)
+    return _reject_unsupported_tn_mode_observable(ρ, ham_params)
+end
+
 """
     measure_all_mode_energies(ψ_or_ρ, ham_params; gF=nothing)
 
@@ -319,4 +360,10 @@ measure_all_mode_energies(ψ::MPS, ham_params::HamiltonianParameters{IsingModel}
 
 measure_all_mode_energies(ρ::MPO, ham_params::HamiltonianParameters{IsingModel};
                           gF=nothing) =
+    measure_all_mode_observables(ρ, ham_params; gF=gF)
+
+measure_all_mode_energies(ψ::MPS, ham_params::HamiltonianParameters; gF=nothing) =
+    measure_all_mode_observables(ψ, ham_params; gF=gF)
+
+measure_all_mode_energies(ρ::MPO, ham_params::HamiltonianParameters; gF=nothing) =
     measure_all_mode_observables(ρ, ham_params; gF=gF)

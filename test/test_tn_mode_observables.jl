@@ -20,6 +20,20 @@ function _ed_state_vector_to_mps(ψ_ed::CoolingTNS.EDStateVector, sites)
     return ψ_tn
 end
 
+function _test_argument_error_contains(f, text::AbstractString)
+    err = try
+        f()
+        nothing
+    catch err
+        err
+    end
+    @test err isa ArgumentError
+    if err isa ArgumentError
+        @test occursin(text, err.msg)
+    end
+    return err
+end
+
 @testset "TN Mode Observables" begin
     @testset "Notes-to-code Pauli map follows Ry(pi/2) convention" begin
         coeff, op = CoolingTNS._notes_pauli_to_code(:Z)
@@ -346,6 +360,52 @@ end
         ρ_tn = outer(ψ_tn', ψ_tn)
 
         @test_throws ArgumentError measure_hk(ρ_tn, 1//2, ham_params)
+    end
+
+    @testset "TN mode observables reject unsupported Hamiltonian models through shared guard" begin
+        N = 4
+        sites = siteinds("S=1/2", N)
+        ψ_tn = MPS(sites, "X+")
+        ρ_tn = outer(ψ_tn', ψ_tn)
+
+        unsupported_hamiltonians = [
+            NiIsingParameters(N, 1.0, -1.05, 0.5, :periodic),
+            RydbergParameters(N, 1.0, 0.0, 1.0, :open),
+        ]
+
+        for ham_params in unsupported_hamiltonians
+            _test_argument_error_contains(
+                () -> measure_hk(ψ_tn, 1//2, ham_params),
+                "integrable transverse-field Ising",
+            )
+            _test_argument_error_contains(
+                () -> measure_hk(ρ_tn, 1//2, ham_params),
+                "integrable transverse-field Ising",
+            )
+            _test_argument_error_contains(
+                () -> measure_all_mode_observables(ψ_tn, ham_params; gF=1),
+                "integrable transverse-field Ising",
+            )
+            _test_argument_error_contains(
+                () -> measure_all_mode_observables(ρ_tn, ham_params; gF=1),
+                "integrable transverse-field Ising",
+            )
+            _test_argument_error_contains(
+                () -> measure_all_mode_energies(ψ_tn, ham_params; gF=1),
+                "integrable transverse-field Ising",
+            )
+            _test_argument_error_contains(
+                () -> measure_all_mode_energies(ρ_tn, ham_params; gF=1),
+                "integrable transverse-field Ising",
+            )
+        end
+
+        short_sites = siteinds("S=1/2", N - 1)
+        short_ψ = MPS(short_sites, "X+")
+        _test_argument_error_contains(
+            () -> measure_hk(short_ψ, 1//2, first(unsupported_hamiltonians)),
+            "integrable transverse-field Ising",
+        )
     end
 
     @testset "TN MCWF continuous cooling records MPS Fourier modes" begin
