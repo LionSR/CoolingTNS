@@ -265,6 +265,14 @@ Thus, for spin PBC, the $P_x=+1$ sector uses fermionic APBC and half-integer
 momenta, while the $P_x=-1$ sector uses fermionic PBC and integer momenta; for
 spin APBC these assignments are interchanged.
 
+The implementation enforces exactly this domain through
+\texttt{require\_ising\_fourier\_observables}: the Fourier/Bogoliubov mode
+diagnostics are defined only for even-size integrable Ising chains with spin
+periodic or anti-periodic boundary conditions.  Open chains require the
+open-boundary BdG diagnostics of \texttt{NotesED/OBC.tex}, and nonintegrable
+large-\(N\) cooling runs do not have Fourier \texttt{mode\_hk} or
+\texttt{mode\_nk} observables.
+
 Within a fixed sector, the derivation uses the full allowed fermionic grid
 $\phi_k=2\pi k/N$ and the notes Fourier convention
 \begin{equation}
