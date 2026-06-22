@@ -86,7 +86,9 @@ Normalize optimization command-line arguments in place.
 The current parser uses the explicit fields `backend`, `sim_method`, and
 `evolution_method`. Older optimization scripts may instead pass a `method`
 field. In that legacy convention, `MPS` denotes TN Monte Carlo wavefunction
-evolution and `MPO` denotes TN density-matrix Trotter evolution.
+evolution and `MPO` denotes TN density-matrix Trotter evolution. If an
+`init_state` field is present, it is canonicalized to the same token used by
+the command-line parser.
 """
 function normalize_optimization_args!(parsed_args)
     parsed_args["backend"] = get(parsed_args, "backend", "TN")
@@ -101,7 +103,7 @@ function normalize_optimization_args!(parsed_args)
         end
     end
 
-    return normalize_method_token_args!(parsed_args)
+    return normalize_initial_state_args!(normalize_method_token_args!(parsed_args))
 end
 
 

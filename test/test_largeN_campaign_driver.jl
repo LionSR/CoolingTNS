@@ -88,7 +88,7 @@ end
     @test occursin("--theta 0.0", default_init_command)
 
     theta_init_cfg = parse_args([
-        "--init-state", "theta",
+        "--init-state", " Theta ",
         "--theta", "0.0",
         "--outdir", tempdir(),
     ])
@@ -102,15 +102,17 @@ end
 
     identity_init_cfg = parse_args([
         "--methods", "mpo",
-        "--init-state", "identity",
+        "--init-state", " Identity ",
     ])
     @test identity_init_cfg["init_state"] == "identity"
     @test occursin("_initidentity_", output_path(identity_init_cfg))
     @test !occursin("_initidentity_theta", output_path(identity_init_cfg))
+    identity_init_command = join(command_args_for_config(identity_init_cfg), " ")
+    @test occursin("--init-state identity", identity_init_command)
     @test_throws ErrorException parse_args(["--init-state", "bad"])
     @test_throws ErrorException parse_args([
         "--methods", "mcwf",
-        "--init-state", "identity",
+        "--init-state", " Identity ",
     ])
 
     random_schedule_cfg = parse_args([
