@@ -181,9 +181,6 @@ parse_int_list(s::AbstractString) =
 parse_method_list(s::AbstractString) =
     [lowercase(strip(x)) for x in split(s, ",") if !isempty(strip(x))]
 
-parse_evolution_method_list(s::AbstractString) =
-    [lowercase(strip(x)) for x in split(s, ",") if !isempty(strip(x))]
-
 function require_unique_values(values, flag::AbstractString)
     length(unique(values)) == length(values) && return nothing
     error("$flag must not repeat values; repeated campaign axes would overwrite output files")
@@ -270,7 +267,7 @@ function parse_args(args)
                      "--evolution-method", "--progress-csv")
             cfg[replace(a[3:end], "-" => "_")] = args[i + 1]; i += 2
         elseif a == "--evolution-method-values"
-            cfg["evolution_method_values"] = parse_evolution_method_list(args[i + 1]); i += 2
+            cfg["evolution_method_values"] = parse_method_list(args[i + 1]); i += 2
         elseif a == "--verbose"
             cfg["verbose"] = true; i += 1
         elseif a in ("--measure-modes", "--measure_modes")
