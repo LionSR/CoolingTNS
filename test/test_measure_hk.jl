@@ -21,6 +21,20 @@ using LinearAlgebra
 # Helper functions
 # ============================================================================
 
+function _test_argument_error_contains(f, text::AbstractString)
+    err = try
+        f()
+        nothing
+    catch err
+        err
+    end
+    @test err isa ArgumentError
+    if err isa ArgumentError
+        @test occursin(text, err.msg)
+    end
+    return err
+end
+
 """Build H_code = J Σ Z_i Z_{i+1} + h Σ X_i using ed_backend operators."""
 function _build_H(N::Int, J::Float64, h::Float64, bc::Symbol)
     dim = 2^N
@@ -116,6 +130,59 @@ end
         for name in stale_private_names
             @test !occursin(name, ed_backend_text)
         end
+    end
+
+    @testset "ED mode observables reject unsupported Fourier domains" begin
+        ψ4 = CoolingTNS.product_state_ed(4, 0)
+        ρ4 = state_to_density_ed(ψ4)
+        ψ3 = CoolingTNS.product_state_ed(3, 0)
+
+        open_ising = IsingParameters(4, 1.0, 0.5, :open)
+        odd_ising = IsingParameters(3, 1.0, 0.5, :periodic)
+        nonintegrable = NiIsingParameters(4, 1.0, -1.05, 0.5, :periodic)
+
+        _test_argument_error_contains(
+            () -> measure_hk(ψ4, 1//2, open_ising),
+            "spin :periodic or :antiperiodic",
+        )
+        _test_argument_error_contains(
+            () -> measure_hk(ρ4, 1//2, open_ising),
+            "spin :periodic or :antiperiodic",
+        )
+        _test_argument_error_contains(
+            () -> measure_all_mode_observables(ψ4, open_ising),
+            "spin :periodic or :antiperiodic",
+        )
+        _test_argument_error_contains(
+            () -> measure_momentum_distribution_ed_clean(ψ4, open_ising),
+            "spin :periodic or :antiperiodic",
+        )
+
+        _test_argument_error_contains(
+            () -> measure_all_mode_observables(ψ3, odd_ising),
+            "even N",
+        )
+        _test_argument_error_contains(
+            () -> measure_hk(ψ3, 1//2, odd_ising),
+            "even N",
+        )
+        _test_argument_error_contains(
+            () -> measure_momentum_distribution_ed_clean(ψ3, odd_ising),
+            "even N",
+        )
+
+        _test_argument_error_contains(
+            () -> measure_all_mode_observables(ψ4, nonintegrable),
+            "integrable transverse-field Ising",
+        )
+        _test_argument_error_contains(
+            () -> measure_hk(ψ4, 1//2, nonintegrable),
+            "integrable transverse-field Ising",
+        )
+        _test_argument_error_contains(
+            () -> measure_momentum_distribution_ed_clean(ψ4, nonintegrable),
+            "integrable transverse-field Ising",
+        )
     end
 
     @testset "Parity measurement" begin
