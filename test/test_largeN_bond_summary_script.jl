@@ -139,7 +139,7 @@ end
     try
         h5open(path, "w") do f
             write(f, "Dmax", 12)
-            write(f, "evolution_method", "continuous")
+            write(f, LARGE_N_EVOLUTION_METHOD_KEY, "continuous")
             write(f, CoolingTNS.RESULT_SCHEDULE, "descending")
             gn = create_group(f, "N4")
             write(gn, "N", 4)
@@ -158,17 +158,17 @@ end
             write(gr, "system_mean_bond", [1.0 1.0; 4.0 5.0; 8.0 5.0])
             write(gr, "evolved_max_bond", [0 0; 12 6; 8 14])
             write(gr, "evolved_mean_bond", [NaN NaN; 8.0 7.0; 9.0 11.0])
-            write(gr, "tdvp_sweep_max_bond", [0 0; 6 13; 8 14])
-            write(gr, "tdvp_sweep_saturation_cycle", [0, 1])
+            write(gr, LARGE_N_TDVP_SWEEP_MAX_BOND_KEY, [0 0; 6 13; 8 14])
+            write(gr, LARGE_N_TDVP_SWEEP_SATURATION_CYCLE_KEY, [0, 1])
             write(
                 gr,
                 CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS,
                 CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED,
             )
-            write(gr, "elapsed_seconds", [10.0, 15.5])
+            write(gr, LARGE_N_ELAPSED_SECONDS_KEY, [10.0, 15.5])
             write(gr, CoolingTNS.RESULT_REQUESTED_STEPS, [3, 3])
             write(gr, CoolingTNS.RESULT_COMPLETED_STEPS, [2, 2])
-            write(gr, "stop_reasons", ["", "bond_cap"])
+            write(gr, LARGE_N_STOP_REASONS_KEY, ["", "bond_cap"])
             write(gr, CoolingTNS.RESULT_DELTA_VALUES, [0.5, 3.0])
             write(gr, "delta_lists", [NaN NaN; 3.0 3.0; 0.5 3.0])
 
@@ -464,7 +464,7 @@ end
             write(f, "bc", "periodic")
             write(f, "J", J)
             write(f, "h", h)
-            write(f, "evolution_method", "continuous")
+            write(f, LARGE_N_EVOLUTION_METHOD_KEY, "continuous")
             gn = create_group(f, "N4")
             write(gn, "N", N)
             gm = create_group(gn, "mcwf")
@@ -881,7 +881,7 @@ end
     try
         h5open(path, "w") do f
             write(f, "Dmax", 4)
-            write(f, "evolution_method", "continuous")
+            write(f, LARGE_N_EVOLUTION_METHOD_KEY, "continuous")
             gn = create_group(f, "N2")
             write(gn, "N", 2)
             gm = create_group(gn, "mcwf")
@@ -894,8 +894,8 @@ end
             write(gr, "system_mean_bond", [1.0, 2.0])
             write(gr, "evolved_max_bond", [0, 4])
             write(gr, "evolved_mean_bond", [NaN, 4.0])
-            write(gr, "tdvp_sweep_max_bond", [0, 0])
-            write(gr, "tdvp_sweep_saturation_cycle", [0])
+            write(gr, LARGE_N_TDVP_SWEEP_MAX_BOND_KEY, [0, 0])
+            write(gr, LARGE_N_TDVP_SWEEP_SATURATION_CYCLE_KEY, [0])
         end
 
         row = only(summarize_file(path))

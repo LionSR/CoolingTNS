@@ -18,6 +18,16 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test LARGE_N_DETUNING_REFERENCE_ISING_MODE_PAIR == "ising_mode_pair_reference"
     @test LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE == "gap_scaled_range"
     @test LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE == "fixed_range"
+    @test LARGE_N_EVOLUTION_METHOD_KEY == "evolution_method"
+    @test LARGE_N_SYSTEM_SOLVE_REUSED_ACROSS_R_KEY == "system_solve_reused_across_R"
+    @test LARGE_N_BOND_SATURATION_THRESHOLD_KEY == "bond_saturation_threshold"
+    @test LARGE_N_SYSTEM_SATURATION_CYCLE_KEY == "system_saturation_cycle"
+    @test LARGE_N_EVOLVED_SATURATION_CYCLE_KEY == "evolved_saturation_cycle"
+    @test LARGE_N_TDVP_SWEEP_MAX_BOND_KEY == "tdvp_sweep_max_bond"
+    @test LARGE_N_TDVP_SWEEP_SATURATION_CYCLE_KEY ==
+          "tdvp_sweep_saturation_cycle"
+    @test LARGE_N_ELAPSED_SECONDS_KEY == "elapsed_seconds"
+    @test LARGE_N_STOP_REASONS_KEY == "stop_reasons"
     @test largeN_trajectory_seed(20260617, 64, 10, 1) == 84360618
     @test largeN_trajectory_seed(7, 2, 1, 3) == 2010010
     @test_throws ArgumentError largeN_trajectory_seed(7, 2, 0, 1)

@@ -712,11 +712,11 @@ end
             @test read(g[LARGE_N_DETUNING_FIXED_ACROSS_DMAX_KEY]) == true
             @test read(g[CoolingTNS.RESULT_REQUESTED_STEPS]) == [2]
             @test read(g[CoolingTNS.RESULT_COMPLETED_STEPS]) == [2]
-            @test read(g["stop_reasons"]) == [""]
+            @test read(g[LARGE_N_STOP_REASONS_KEY]) == [""]
             @test read(g["trajectory_seeds"]) ==
                   [largeN_trajectory_seed(20260617, 64, 2, 1)]
-            @test vec(read(g["tdvp_sweep_max_bond"])) == [0, 6, 10]
-            @test read(g["tdvp_sweep_saturation_cycle"]) == [2]
+            @test vec(read(g[LARGE_N_TDVP_SWEEP_MAX_BOND_KEY])) == [0, 6, 10]
+            @test read(g[LARGE_N_TDVP_SWEEP_SATURATION_CYCLE_KEY]) == [2]
             @test read(g[CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS]) ==
                   CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED
             @test read(g["te_list_is_common"]) == true
@@ -1188,11 +1188,11 @@ end
             @test read(f["tdvp_sweep_progress"]) == true
             @test read(f[CoolingTNS.RESULT_RANDOMIZE_TIMES]) == false
             g = f["N2/mcwf/R1"]
-            tdvp_sweep_max_bond = read(g["tdvp_sweep_max_bond"])
+            tdvp_sweep_max_bond = read(g[LARGE_N_TDVP_SWEEP_MAX_BOND_KEY])
             @test size(tdvp_sweep_max_bond) == (2, 1)
             @test tdvp_sweep_max_bond[1, 1] == 0
             @test tdvp_sweep_max_bond[2, 1] >= 1
-            @test size(read(g["tdvp_sweep_saturation_cycle"])) == (1,)
+            @test size(read(g[LARGE_N_TDVP_SWEEP_SATURATION_CYCLE_KEY])) == (1,)
         end
     end
 end

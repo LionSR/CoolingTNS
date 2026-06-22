@@ -382,10 +382,10 @@ function method_from_name(method_name::AbstractString)
 end
 
 function saturation_threshold_for(root, method_group, run_group, method_name::AbstractString)
-    haskey(run_group, "bond_saturation_threshold") &&
-        return Int(read(run_group["bond_saturation_threshold"]))
-    haskey(method_group, "bond_saturation_threshold") &&
-        return Int(read(method_group["bond_saturation_threshold"]))
+    haskey(run_group, LARGE_N_BOND_SATURATION_THRESHOLD_KEY) &&
+        return Int(read(run_group[LARGE_N_BOND_SATURATION_THRESHOLD_KEY]))
+    haskey(method_group, LARGE_N_BOND_SATURATION_THRESHOLD_KEY) &&
+        return Int(read(method_group[LARGE_N_BOND_SATURATION_THRESHOLD_KEY]))
     return tn_method_maxdim(method_from_name(method_name), Int(read(root["Dmax"])))
 end
 
@@ -474,7 +474,9 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     N = Int(read(root[n_group_name]["N"]))
     R = parse(Int, r_group_name[2:end])
     M = Int(read(run_group["M"]))
-    evolution = String(read_group_value(method_group, root, "evolution_method", "unknown"))
+    evolution = String(
+        read_group_value(method_group, root, LARGE_N_EVOLUTION_METHOD_KEY, "unknown")
+    )
     threshold = saturation_threshold_for(root, method_group, run_group, method_name)
 
     energy_dataset = read_largeN_energy_mean_with_name(run_group)
@@ -502,22 +504,22 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     detuning_coverage = detuning_coverage_status(
         completed_steps_values, requested_steps_values, R, schedule
     )
-    elapsed_values = read_float_vector(run_group, "elapsed_seconds")
+    elapsed_values = read_float_vector(run_group, LARGE_N_ELAPSED_SECONDS_KEY)
     elapsed_seconds = isempty(elapsed_values) ? NaN : sum(elapsed_values)
     traj_cycles_per_hour = trajectory_cycles_per_hour(
         completed_steps_values, elapsed_seconds
     )
-    stop_reasons = read_string_vector(run_group, "stop_reasons")
+    stop_reasons = read_string_vector(run_group, LARGE_N_STOP_REASONS_KEY)
     system_max_bond = bond_history_matrix(read(run_group["system_max_bond"]))
     system_mean_bond = bond_history_matrix(read(run_group["system_mean_bond"]))
     evolved_max_bond = bond_history_matrix(read(run_group["evolved_max_bond"]))
     evolved_mean_bond = bond_history_matrix(read(run_group["evolved_mean_bond"]))
-    tdvp_sweep_dataset_present = haskey(run_group, "tdvp_sweep_max_bond")
+    tdvp_sweep_dataset_present = haskey(run_group, LARGE_N_TDVP_SWEEP_MAX_BOND_KEY)
     tdvp_sweep_max_bond = tdvp_sweep_dataset_present ?
-        bond_history_matrix(read(run_group["tdvp_sweep_max_bond"])) :
+        bond_history_matrix(read(run_group[LARGE_N_TDVP_SWEEP_MAX_BOND_KEY])) :
         Matrix{Int}(undef, 0, 0)
     tdvp_sweep_saturation_dataset_cycle = first_saturation_from_dataset(
-        run_group, "tdvp_sweep_saturation_cycle"
+        run_group, LARGE_N_TDVP_SWEEP_SATURATION_CYCLE_KEY
     )
     has_tdvp_sweep_history =
         !isempty(tdvp_sweep_max_bond) &&
@@ -540,10 +542,14 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         maximum(tdvp_sweep_max_bond) :
         missing
 
-    system_saturation_cycle = first_saturation_from_dataset(run_group, "system_saturation_cycle")
+    system_saturation_cycle = first_saturation_from_dataset(
+        run_group, LARGE_N_SYSTEM_SATURATION_CYCLE_KEY
+    )
     system_saturation_cycle == 0 &&
         (system_saturation_cycle = first_saturation_from_history(system_max_bond, threshold))
-    evolved_saturation_cycle = first_saturation_from_dataset(run_group, "evolved_saturation_cycle")
+    evolved_saturation_cycle = first_saturation_from_dataset(
+        run_group, LARGE_N_EVOLVED_SATURATION_CYCLE_KEY
+    )
     evolved_saturation_cycle == 0 &&
         (evolved_saturation_cycle = first_saturation_from_history(evolved_max_bond, threshold))
     tdvp_sweep_saturation_cycle_for_status = 0

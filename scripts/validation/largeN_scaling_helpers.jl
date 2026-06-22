@@ -23,6 +23,17 @@ const LARGE_N_DETUNING_REFERENCE_ISING_MODE_PAIR = "ising_mode_pair_reference"
 const LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE = "gap_scaled_range"
 const LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE = "fixed_range"
 
+# Persisted HDF5 evolution and bond-cap diagnostic keys for large-N campaigns.
+const LARGE_N_EVOLUTION_METHOD_KEY = "evolution_method"
+const LARGE_N_SYSTEM_SOLVE_REUSED_ACROSS_R_KEY = "system_solve_reused_across_R"
+const LARGE_N_BOND_SATURATION_THRESHOLD_KEY = "bond_saturation_threshold"
+const LARGE_N_SYSTEM_SATURATION_CYCLE_KEY = "system_saturation_cycle"
+const LARGE_N_EVOLVED_SATURATION_CYCLE_KEY = "evolved_saturation_cycle"
+const LARGE_N_TDVP_SWEEP_MAX_BOND_KEY = "tdvp_sweep_max_bond"
+const LARGE_N_TDVP_SWEEP_SATURATION_CYCLE_KEY = "tdvp_sweep_saturation_cycle"
+const LARGE_N_ELAPSED_SECONDS_KEY = "elapsed_seconds"
+const LARGE_N_STOP_REASONS_KEY = "stop_reasons"
+
 """
     largeN_trajectory_seed(base_seed, N, R, trajectory)
 
