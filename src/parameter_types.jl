@@ -19,36 +19,92 @@ struct EDBackend <: CoolingBackend end  # Exact Diagonalization
 struct TNBackend <: CoolingBackend end  # Tensor Network Backend
 
 """
-    get_backend(method::String) -> CoolingBackend
+    canonical_method_token(method::AbstractString) -> String
+    canonical_backend_name(method::AbstractString) -> String
+    canonical_sim_method_name(method::AbstractString) -> String
+    canonical_evolution_method_name(method::AbstractString) -> String
 
-Convert string method name to backend type.
+Return the canonical command-line token for method-like CLI strings. The generic
+`canonical_method_token` trims and lowercases; the typed helpers then validate
+and return the canonical backend, simulation-method, or evolution-method name.
+These helpers are the source of truth for normalizing method-like CLI strings
+before they enter typed dispatch, metadata, or generated command lines.
 """
-function get_backend(method::String)
-    method == "ED" && return EDBackend()
-    method == "TN" && return TNBackend()
+canonical_method_token(method::AbstractString) = lowercase(strip(String(method)))
+
+function canonical_backend_name(method::AbstractString)
+    token = canonical_method_token(method)
+    token == "ed" && return "ED"
+    token == "tn" && return "TN"
     error("Unknown backend: $method. Use 'ED' for exact diagonalization or 'TN' for tensor network")
 end
 
-"""
-    get_sim_method(method::String) -> SimulationMethod
-
-Convert string to SimulationMethod type.
-"""
-function get_sim_method(method::String)
-    method == "density_matrix" && return DensityMatrix()
-    method == "monte_carlo" && return MonteCarloWavefunction()
+function canonical_sim_method_name(method::AbstractString)
+    token = canonical_method_token(method)
+    token == "density_matrix" && return "density_matrix"
+    token == "monte_carlo" && return "monte_carlo"
     error("Unknown simulation method: $method. Use 'density_matrix' or 'monte_carlo'")
 end
 
+function canonical_evolution_method_name(method::AbstractString)
+    token = canonical_method_token(method)
+    token == "continuous" && return "continuous"
+    token == "trotter" && return "trotter"
+    error("Unknown evolution method: $method. Use 'continuous' or 'trotter'")
+end
+
 """
-    get_evolution_method(method::String) -> EvolutionMethod
+    normalize_method_token_args!(parsed_args)
+
+Canonicalize the method-like command-line fields in-place when present. The
+stored values remain strings, but they are the canonical forms consumed by the
+typed constructors and written to parsed-argument metadata.
+"""
+function normalize_method_token_args!(parsed_args)
+    haskey(parsed_args, "backend") &&
+        (parsed_args["backend"] = canonical_backend_name(parsed_args["backend"]))
+    haskey(parsed_args, "sim_method") &&
+        (parsed_args["sim_method"] = canonical_sim_method_name(parsed_args["sim_method"]))
+    haskey(parsed_args, "evolution_method") &&
+        (parsed_args["evolution_method"] =
+            canonical_evolution_method_name(parsed_args["evolution_method"]))
+    return parsed_args
+end
+
+"""
+    get_backend(method::AbstractString) -> CoolingBackend
+
+Convert string method name to backend type.
+"""
+function get_backend(method::AbstractString)
+    canonical = canonical_backend_name(method)
+    canonical == "ED" && return EDBackend()
+    canonical == "TN" && return TNBackend()
+    error("internal: unrecognized canonical backend token '$canonical'")
+end
+
+"""
+    get_sim_method(method::AbstractString) -> SimulationMethod
+
+Convert string to SimulationMethod type.
+"""
+function get_sim_method(method::AbstractString)
+    canonical = canonical_sim_method_name(method)
+    canonical == "density_matrix" && return DensityMatrix()
+    canonical == "monte_carlo" && return MonteCarloWavefunction()
+    error("internal: unrecognized canonical simulation-method token '$canonical'")
+end
+
+"""
+    get_evolution_method(method::AbstractString) -> EvolutionMethod
 
 Convert string to EvolutionMethod type.
 """
-function get_evolution_method(method::String)
-    method == "continuous" && return ContinuousEvolution()
-    method == "trotter" && return TrotterEvolution()
-    error("Unknown evolution method: $method. Use 'continuous' or 'trotter'")
+function get_evolution_method(method::AbstractString)
+    canonical = canonical_evolution_method_name(method)
+    canonical == "continuous" && return ContinuousEvolution()
+    canonical == "trotter" && return TrotterEvolution()
+    error("internal: unrecognized canonical evolution-method token '$canonical'")
 end
 
 # Default simulation methods for backends

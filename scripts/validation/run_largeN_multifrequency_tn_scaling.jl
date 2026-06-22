@@ -180,7 +180,7 @@ const DEFAULT_OUTDIR = joinpath(@__DIR__, "Data", "largeN_multifrequency")
 parse_int_list(s::AbstractString) =
     [parse(Int, strip(x)) for x in split(s, ",") if !isempty(strip(x))]
 
-parse_method_name(s::AbstractString) = lowercase(strip(s))
+parse_method_name(s::AbstractString) = canonical_method_token(s)
 
 parse_method_list(s::AbstractString) =
     [parse_method_name(x) for x in split(s, ",") if !isempty(strip(x))]

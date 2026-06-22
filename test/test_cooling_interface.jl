@@ -18,8 +18,11 @@ using HDF5
 
     @testset "Backend Creation" begin
         # Test new backend system
+        @test CoolingTNS.canonical_method_token(" Continuous ") == "continuous"
         @test CoolingTNS.get_backend("ED") isa CoolingTNS.EDBackend
         @test CoolingTNS.get_backend("TN") isa CoolingTNS.TNBackend
+        @test CoolingTNS.get_backend(" ed ") isa CoolingTNS.EDBackend
+        @test CoolingTNS.get_backend("tn") isa CoolingTNS.TNBackend
         @test_throws ErrorException CoolingTNS.get_backend("InvalidMethod")
     end
 
@@ -54,6 +57,35 @@ using HDF5
         @test sim_params.pe == 0.003
         @test sim_params.n_trajectories == 5
 
+        normalized_parsed_args = Dict{String, Any}(
+            "backend" => " ed ",
+            "sim_method" => " Density_Matrix ",
+            "evolution_method" => " TROTTER ",
+            "Dmax" => 40,
+            "cutoff" => 1e-7,
+            "tau" => 0.2,
+            "peInt" => 3,
+            "n_trajectories" => 5,
+        )
+        normalized_sim_params = CoolingTNS.create_sim_params_from_args(normalized_parsed_args)
+        @test normalized_sim_params.sim_method isa CoolingTNS.DensityMatrix
+        @test normalized_sim_params.evolution_method isa CoolingTNS.TrotterEvolution
+        @test CoolingTNS.get_sim_method(" MONTE_CARLO ") isa CoolingTNS.MonteCarloWavefunction
+        @test CoolingTNS.get_evolution_method(" Continuous ") isa CoolingTNS.ContinuousEvolution
+
+        parsed_cli = CoolingTNS.parse_commandline([
+            "--backend", " ed ",
+            "--sim_method", " Monte_Carlo ",
+            "--evolution_method", " Continuous ",
+        ])
+        @test parsed_cli["backend"] == "ED"
+        @test parsed_cli["sim_method"] == "monte_carlo"
+        @test parsed_cli["evolution_method"] == "continuous"
+        @test_throws ArgumentError CoolingTNS.parse_commandline([
+            "--sim_method", " Monte_Carlo ",
+            "--init_state", "identity",
+        ])
+
         legacy_mps = Dict{String, Any}("method" => "MPS")
         CoolingTNS.normalize_optimization_args!(legacy_mps)
         @test legacy_mps["backend"] == "TN"
@@ -75,6 +107,71 @@ using HDF5
         @test explicit["backend"] == "ED"
         @test explicit["sim_method"] == "density_matrix"
         @test explicit["evolution_method"] == "continuous"
+
+        padded_explicit = Dict{String, Any}(
+            "backend" => " tn ",
+            "sim_method" => " Monte_Carlo ",
+            "evolution_method" => " Continuous ",
+        )
+        CoolingTNS.normalize_optimization_args!(padded_explicit)
+        @test padded_explicit["backend"] == "TN"
+        @test padded_explicit["sim_method"] == "monte_carlo"
+        @test padded_explicit["evolution_method"] == "continuous"
+
+        legacy_filename = CoolingTNS.create_filename(
+            CoolingTNS.hamiltonian_name(ham_params),
+            N,
+            Dict("coupling" => "XX", "g" => 0.1, "steps" => 5, "te" => 1.0),
+            Dict(
+                "method" => " ed ",
+                "sim_method" => " Density_Matrix ",
+                "evolution_method" => " TROTTER ",
+                "Dmax" => 40,
+                "cutoff" => 1e-7,
+                "tau" => 0.2,
+                "peInt" => 0,
+                "n_trajectories" => 1,
+            ),
+        )
+        @test occursin("SimEDDMtau0.2", legacy_filename)
+        legacy_mpo_filename = CoolingTNS.create_filename(
+            CoolingTNS.hamiltonian_name(ham_params),
+            N,
+            Dict("coupling" => "XX", "g" => 0.1, "steps" => 5, "te" => 1.0),
+            Dict(
+                "method" => "MPO",
+                "sim_method" => "density_matrix",
+                "evolution_method" => "trotter",
+                "Dmax" => 40,
+                "cutoff" => 1e-7,
+                "tau" => 0.2,
+                "peInt" => 0,
+                "n_trajectories" => 1,
+            ),
+        )
+        @test occursin("SimTNDMDmax40tau0.2", legacy_mpo_filename)
+        legacy_mps_filename = CoolingTNS.create_filename(
+            CoolingTNS.hamiltonian_name(ham_params),
+            N,
+            Dict("coupling" => "XX", "g" => 0.1, "steps" => 5, "te" => 1.0),
+            Dict(
+                "method" => " MPS ",
+                "sim_method" => "monte_carlo",
+                "evolution_method" => "continuous",
+                "Dmax" => 40,
+                "cutoff" => 1e-7,
+                "tau" => 0.2,
+                "peInt" => 0,
+                "n_trajectories" => 1,
+            ),
+        )
+        @test occursin("SimTNMCDmax40", legacy_mps_filename)
+        @test_throws ErrorException CoolingTNS.create_filename(
+            CoolingTNS.hamiltonian_name(ham_params),
+            N,
+            Dict("coupling" => "XX", "g" => 0.1, "steps" => 5, "te" => 1.0),
+            Dict("method" => "bad"),
+        )
     end
 
     @testset "HDF5 Result Metadata Namespace" begin
