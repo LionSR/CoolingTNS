@@ -543,6 +543,83 @@ When `--tdvp-sweep-progress` or a nonzero `--tdvp-outputlevel` is supplied for
 such a paired plan, only the generated TDVP commands carry the TDVP-only
 observer options.
 
+## Dmax=64 Paired Trotter/TDVP Descending Comparison
+
+After the paired-plan fix, the same `N = 64`, `Dmax = 64`,
+fixed-detuning descending protocol was run for both MCWF/MPS evolution routes.
+The two commands differed only in `--evolution-method` and in the TDVP-only
+sweep observer option:
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 1,2,5,10 --methods mcwf \
+  --evolution-method trotter --steps 8 --Dmax 64 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending \
+  --outdir .worktree/N64_mcwf_trotter_tdvp_compare_20260622 \
+  --progress-csv .worktree/N64_mcwf_trotter_tdvp_compare_20260622/tdvp_progress_trotter_N64_R1-2-5-10_Dmax64_te1.0_descending.csv \
+  --stop-on-bond-cap --verbose
+```
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 1,2,5,10 --methods mcwf \
+  --evolution-method continuous --steps 8 --Dmax 64 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending \
+  --outdir .worktree/N64_mcwf_trotter_tdvp_compare_20260622 \
+  --progress-csv .worktree/N64_mcwf_trotter_tdvp_compare_20260622/tdvp_progress_continuous_N64_R1-2-5-10_Dmax64_te1.0_descending.csv \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+In the continuous command, `--tau 0.2` is part of the common recorded campaign
+argument set.  The TDVP branch uses the total bath-evolution time `--te 1.0`;
+it stores `tau` in the run metadata but does not use it as a Trotter time step.
+
+The resulting HDF5 files were
+
+```text
+.worktree/N64_mcwf_trotter_tdvp_compare_20260622/largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_stopcap_scheddesc_steps8_Dmax64_te1_tau0.2_seed20260617.h5
+.worktree/N64_mcwf_trotter_tdvp_compare_20260622/largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_continuous_stopcap_scheddesc_steps8_Dmax64_te1_tau0.2_seed20260617.h5
+```
+
+The compact bond summary is
+
+| evolution | R | completed/requested | detuning coverage | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed |
+|---|---:|---|---|---:|---:|---:|---:|---:|---|---:|
+| trotter | 1 | 5/8 | single_detuning | 1.40027789 | 1.38324273 | >=64 | >=64 | n/a | not_converged_system_and_evolved_cap | 35.4 s |
+| trotter | 2 | 4/8 | full_grid_observed | 1.06961751 | 1.04681493 | 54 | >=64 | n/a | not_converged_evolved_cap | 8.3 s |
+| trotter | 5 | 4/8 | stopped_partial_grid | 1.17618615 | 1.17618615 | 53 | >=64 | n/a | not_converged_evolved_cap | 7.4 s |
+| trotter | 10 | 4/8 | requested_partial_grid | 0.92454989 | 0.92454989 | 53 | >=64 | n/a | not_converged_evolved_cap | 7.7 s |
+| continuous | 1 | 5/8 | single_detuning | 1.39308425 | 1.37238762 | >=64 | >=64 | >=64 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 454.4 s |
+| continuous | 2 | 4/8 | full_grid_observed | 1.03055274 | 1.00906275 | 56 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | 202.2 s |
+| continuous | 5 | 4/8 | stopped_partial_grid | 1.07479551 | 1.07479551 | 55 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | 194.3 s |
+| continuous | 10 | 4/8 | requested_partial_grid | 0.87319302 | 0.87319302 | 56 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | 192.6 s |
+
+Thus the corrected paired comparison preserves the earlier physical picture.
+For this finite prefix and cap, TDVP gives lower energies than the Trotter-gate
+route at every tested `R`, and `R = 10` is the best of the four frequency
+counts for both evolution methods.  However, every run is cap-limited before
+the requested eighth cooling cycle.  In particular, the evolved system-bath
+effective bond dimension is only lower bounded by `64` for all `R`, and the
+TDVP sweep observer also reaches `64` for every continuous run.  The best
+observed energy density, `0.87319302`, is still far above the DMRG reference
+`E0/N = -1.3246328892`.  In both HDF5 files above, this reference is the stored
+dataset `N64/mcwf/E0 = -84.7765049115883`, so
+`E0/N = -84.7765049115883/64 = -1.3246328892`; the same metadata stores the
+finite-size gap `N64/mcwf/gap = 0.2744818345585003`.  These data are therefore
+evidence about the relative finite-prefix behavior and bond-growth pressure of
+the two MPS evolution routes, not evidence of scalable ground-state cooling.
+The Trotter-TDVP energy difference also includes the Trotter route's splitting
+error at `tau = 0.2`; a Trotter step-size ladder would be needed before
+attributing that difference only to cooling efficiency or bond truncation.
+
 ## Two-Cycle MCWF+TDVP Runtime Calibration
 
 The first completed fixed-detuning TDVP calibration checks only two cooling
