@@ -120,10 +120,12 @@ To prepare independent commands for process-level parallel execution, use
 each `(N, method, evolution method, R, Dmax)` tuple and assigns distinct HDF5
 and progress CSV paths.  In multi-job plans where `--progress-csv` is supplied,
 generated per-job progress CSV filenames keep the requested CSV stem as a prefix
-and append the HDF5 protocol stem.  Single-job plans keep the requested CSV path
-unchanged.  The driver does not launch these jobs itself; process scheduling
-remains external so each Julia process owns its HDF5 output, progress CSV, and
-deterministic trajectory seed stream.
+and append the HDF5 protocol stem.  Default HDF5 protocol stems include the
+canonical evolution-method token, including `trotter`, so paired Trotter/TDVP
+jobs do not rely on an implicit default.  Single-job plans keep the requested
+CSV path unchanged.  The driver does not launch these jobs itself; process
+scheduling remains external so each Julia process owns its HDF5 output,
+progress CSV, and deterministic trajectory seed stream.
 
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
         --Ns 64 --R-values 1,2,5,10 --methods mcwf --evolution-method continuous \
@@ -1057,6 +1059,13 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
 end
 
 """
+    largeN_evolution_filename_token(cfg) -> String
+
+Return the canonical evolution-method token used in default large-N output stems.
+"""
+largeN_evolution_filename_token(cfg) = cfg["evolution_method"]
+
+"""
     default_output_filename(cfg)
 
 Return the full default HDF5 filename; its stem is the protocol-naming source of truth.
@@ -1065,7 +1074,7 @@ function default_output_filename(cfg)
     Ns = join(cfg["Ns"], "-")
     Rs = join(cfg["R_values"], "-")
     methods = join(cfg["methods"], "-")
-    evolution_suffix = cfg["evolution_method"] == "trotter" ? "" : "_$(cfg["evolution_method"])"
+    evolution_suffix = "_$(largeN_evolution_filename_token(cfg))"
     model_suffix = cfg["model"] == "niising" && cfg["bc"] == "open" ? "" :
         "_$(cfg["model"])_bc$(cfg["bc"])"
     stop_suffix = cfg["stop_on_bond_cap"] ? "_stopcap" : ""

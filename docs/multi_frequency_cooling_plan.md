@@ -289,6 +289,9 @@ run on a many-core machine, the validation driver should first be invoked with
 In multi-job plans where `--progress-csv` is supplied, generated per-job
 progress CSV filenames keep the requested CSV stem as a prefix and append the
 same HDF5 protocol stem; single-job plans keep the requested CSV path unchanged.
+Default HDF5 protocol stems include the canonical evolution-method token,
+including `trotter`, so paired Trotter/TDVP jobs do not rely on an implicit
+default in the filename.
 Thus process-level parallelism can be used without concurrent writes to the same
 output file.  To compare the MPS Trotter-gate route with MCWF+TDVP, use
 `--evolution-method-values trotter,continuous` together with an explicit

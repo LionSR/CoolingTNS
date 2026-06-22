@@ -15,7 +15,9 @@ end
     default_cfg = parse_args(["--outdir", tempdir()])
     @test default_cfg["Ns"] == [64]
     @test default_cfg["methods"] == ["mcwf"]
-    @test occursin("_mcwf_steps", output_path(default_cfg))
+    @test basename(default_output_filename(default_cfg)) ==
+          "largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_trotter_steps40_Dmax40_te2_tau0.2_seed20260617.h5"
+    @test occursin("_mcwf_trotter_steps", output_path(default_cfg))
     default_command = join(command_args_for_config(default_cfg), " ")
     @test occursin("--methods mcwf", default_command)
     @test !occursin("--methods mpo,mcwf", default_command)
@@ -23,7 +25,7 @@ end
     quick_cfg = parse_args(["--quick", "--outdir", tempdir()])
     @test quick_cfg["Ns"] == [8]
     @test quick_cfg["methods"] == ["mpo", "mcwf"]
-    @test occursin("_mpo-mcwf_steps", output_path(quick_cfg))
+    @test occursin("_mpo-mcwf_trotter_steps", output_path(quick_cfg))
     quick_command = join(command_args_for_config(quick_cfg), " ")
     @test occursin("--methods mpo,mcwf", quick_command)
 
@@ -43,7 +45,7 @@ end
 
     explicit_mpo_cfg = parse_args(["--methods", "mpo", "--outdir", tempdir()])
     @test explicit_mpo_cfg["methods"] == ["mpo"]
-    @test occursin("_mpo_steps", output_path(explicit_mpo_cfg))
+    @test occursin("_mpo_trotter_steps", output_path(explicit_mpo_cfg))
 end
 
 @testset "Large-N campaign driver Dmax ladder" begin
@@ -298,7 +300,7 @@ end
     @test all(command -> occursin("--delta-min 0.5051167496264384", command), paired_commands)
     paired_plan_text = sprint(io -> print_parallel_plan(paired_evolution_cfg; io=io))
     @test occursin("Evolution-method jobs share the requested detuning interval", paired_plan_text)
-    @test any(job -> occursin("_mcwf_steps", output_path(job)), paired_jobs)
+    @test any(job -> occursin("_mcwf_trotter_steps", output_path(job)), paired_jobs)
     @test any(job -> occursin("_mcwf_continuous_steps", output_path(job)), paired_jobs)
     paired_no_progress_cfg = parse_args([
         "--Ns", "64",
