@@ -52,6 +52,7 @@ function run_cooling_test(; backend_str, sim_method_str, evolution_method_str,
     return results, problem
 end
 
+# Rebuild coupling parameters after a reference backend resolves the detuning.
 function coupling_with_delta(cp::CoolingTNS.BasicCouplingParameters, delta::Real)
     return CoolingTNS.BasicCouplingParameters(cp.coupling, cp.g, cp.steps, cp.te, Float64(delta))
 end
@@ -155,6 +156,7 @@ if RUN_FULL_TESTS
                 evolution_method_str="continuous",
                 ham_params=ham_params, coupling_params=COUPLING_PARAMS
             )
+            shared_coupling = coupling_with_delta(COUPLING_PARAMS, prob_dm.extra.coupling_params.delta)
 
             # --- MCWF + Continuous (single trajectory for deterministic comparison is not exact,
             #     but should give similar trend; use many trajectories for better average) ---
@@ -162,12 +164,14 @@ if RUN_FULL_TESTS
             n_traj = 50
             mc_E_lists = []
             mc_overlap_lists = []
+            prob_mc = nothing
             for _ in 1:n_traj
-                results_mc, _ = run_cooling_test(
+                results_mc, prob_mc_current = run_cooling_test(
                     backend_str="ED", sim_method_str="monte_carlo",
                     evolution_method_str="continuous",
-                    ham_params=ham_params, coupling_params=COUPLING_PARAMS
+                    ham_params=ham_params, coupling_params=shared_coupling
                 )
+                prob_mc = prob_mc_current
                 push!(mc_E_lists, results_mc[RESULT_ENERGY])
                 push!(mc_overlap_lists, results_mc[RESULT_GROUND_STATE_OVERLAP])
             end
@@ -181,8 +185,10 @@ if RUN_FULL_TESTS
             println("    DM final overlap = $(results_dm[RESULT_GROUND_STATE_OVERLAP][end])")
             println("    MC final overlap = $(mc_overlap_avg[end])")
 
-            # Ground state energy must match
-            @test abs(prob_dm.e₀ - prob_dm.e₀) < 1e-12  # Same problem
+            # Same-backend DM and MCWF legs must use the same problem data.
+            @test prob_mc !== nothing
+            @test abs(prob_dm.e₀ - prob_mc.e₀) < 1e-12
+            @test prob_mc.extra.coupling_params.delta == shared_coupling.delta
 
             # Both should show cooling: final energy < initial energy
             @test results_dm[RESULT_ENERGY][end] < results_dm[RESULT_ENERGY][1] + 1e-10
