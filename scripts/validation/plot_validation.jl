@@ -2,7 +2,7 @@
     plot_validation.jl
 
 Publication-quality validation plots for CoolingTNS.
-Generates 4 PDF figures demonstrating consistency across backends (ED/TN),
+Generates 5 PDF figures demonstrating consistency across backends (ED/TN),
 simulation methods (DM/MC), and evolution methods (Continuous/Trotter).
 
 Run: julia --project=. scripts/validation/plot_validation.jl
@@ -150,43 +150,50 @@ function figure1_method_consistency()
 end
 
 # ============================================================================
-# Figure 2: Trotter Convergence — Error vs tau
+# Figure 2: TN Gate Trotter Convergence — Error vs tau
 # ============================================================================
-function figure2_trotter_convergence()
+function figure2_tn_trotter_convergence()
+    N_trotter = 3
+    steps_trotter = 60
+    ham_trotter = CoolingTNS.IsingParameters(N_trotter, 1.0, 1.0)
+    cp_auto = CoolingTNS.BasicCouplingParameters("XX", G, steps_trotter, TE, nothing)
+    tau_values = [0.4, 0.2, 0.1, 0.05]
+
     println("\n" * "="^60)
-    println("Figure 2: Trotter Convergence (ED DM, N=$N_SYS)")
+    println("Figure 2: TN Gate Trotter Convergence (N=$N_trotter)")
     println("="^60)
 
-    cp = make_coupling(STEPS)
-    tau_values = [0.5, 0.2, 0.1, 0.05, 0.025, 0.01]
+    println("  Running ED continuous reference...")
+    res_ref, prob_ref = run_sim(backend_str="ED", sim_method_str="density_matrix",
+                                evolution_method_str="continuous",
+                                ham_params=ham_trotter, coupling_params=cp_auto)
+    delta_ref = prob_ref.extra.coupling_params.delta
+    cp = CoolingTNS.BasicCouplingParameters("XX", G, steps_trotter, TE, delta_ref)
+    println("  Using shared bath detuning Delta=$delta_ref for TN runs.")
+    E_ref = res_ref[CoolingTNS.RESULT_ENERGY][end] / N_trotter
 
-    # Reference: DM + Continuous
-    println("  Running reference ED DM+Continuous...")
-    res_ref, _ = run_sim(backend_str="ED", sim_method_str="density_matrix",
-                         evolution_method_str="continuous",
-                         ham_params=HAM_PARAMS, coupling_params=cp)
-    E_ref = res_ref[CoolingTNS.RESULT_ENERGY][end] / N_SYS
-
-    E_trotter = Float64[]
+    E_tn = Float64[]
     for tau in tau_values
-        println("  Running ED DM+Trotter tau=$tau...")
-        res, _ = run_sim(backend_str="ED", sim_method_str="density_matrix",
+        println("  Running TN DM+Trotter tau=$tau...")
+        res, _ = run_sim(backend_str="TN", sim_method_str="density_matrix",
                          evolution_method_str="trotter", tau=tau,
-                         ham_params=HAM_PARAMS, coupling_params=cp)
-        push!(E_trotter, res[CoolingTNS.RESULT_ENERGY][end] / N_SYS)
+                         ham_params=ham_trotter, coupling_params=cp,
+                         Dmax=200, cutoff=1e-12)
+        push!(E_tn, res[CoolingTNS.RESULT_ENERGY][end] / N_trotter)
     end
 
-    errors = abs.(E_trotter .- E_ref)
+    errors = abs.(E_tn .- E_ref)
 
     fig, axs = plt.subplots(1, 2, figsize=(10, 4))
 
     # Left: Final E/N vs tau
     ax = axs[0]
-    ax.plot(tau_values, E_trotter, "o-", linewidth=2, markersize=6, color="C0", label="Trotter")
-    ax.axhline(y=E_ref, linewidth=1.5, color="black", linestyle="--", label="Continuous (ref)")
+    ax.plot(tau_values, E_tn, "o-", linewidth=2, markersize=6, color="C0", label="TN Trotter")
+    ax.axhline(y=E_ref, linewidth=1.5, color="black", linestyle="--",
+               label="ED continuous reference")
     ax.set_xlabel(L"$\tau$", fontsize=14)
     ax.set_ylabel(L"Final $E/N$", fontsize=14)
-    ax.set_title("Final energy vs Trotter step", fontsize=16)
+    ax.set_title("Final energy vs gate step", fontsize=16)
     ax.legend(fontsize=11)
     ax.grid(true, alpha=0.3)
 
@@ -195,20 +202,23 @@ function figure2_trotter_convergence()
     # Filter out zero errors for log-log
     mask = errors .> 0
     if any(mask)
-        ax.loglog(tau_values[mask], errors[mask], "o-", linewidth=2, markersize=6, color="C0", label=L"|E_{\mathrm{Trotter}} - E_{\mathrm{cont}}|")
-        # Reference slope-2 line
-        tau_ref = tau_values[mask]
-        slope2 = errors[mask][end] .* (tau_ref ./ tau_ref[end]).^2
-        ax.loglog(tau_ref, slope2, "--", linewidth=1.5, color="gray", label=L"$\mathcal{O}(\tau^2)$")
+        ax.loglog(tau_values[mask], errors[mask], "o-", linewidth=2, markersize=6,
+                  color="C0", label=L"|E_{\mathrm{TN}}(\tau)-E_{\mathrm{ED}}|")
+        if count(mask) >= 2
+            tau_ref = tau_values[mask]
+            slope2 = errors[mask][end] .* (tau_ref ./ tau_ref[end]).^2
+            ax.loglog(tau_ref, slope2, "--", linewidth=1.5, color="gray",
+                      label=L"$\mathcal{O}(\tau^2)$ guide")
+        end
     end
     ax.set_xlabel(L"$\tau$", fontsize=14)
     ax.set_ylabel("Energy error", fontsize=14)
-    ax.set_title("Trotter convergence order", fontsize=16)
+    ax.set_title("TN gate approximation error", fontsize=16)
     ax.legend(fontsize=11)
     ax.grid(true, alpha=0.3, which="both")
 
     fig.tight_layout()
-    path = joinpath(FIGDIR, "validation_trotter_convergence.pdf")
+    path = joinpath(FIGDIR, "validation_tn_trotter_convergence.pdf")
     fig.savefig(path, dpi=300, bbox_inches="tight")
     plt.close(fig)
     println("  Saved: $path")
@@ -401,7 +411,7 @@ function main()
     println("Output: $FIGDIR")
 
     figure1_method_consistency()
-    figure2_trotter_convergence()
+    figure2_tn_trotter_convergence()
     figure3_cross_backend()
     figure4_physical_invariants()
     figure5_ising_vs_niising()

@@ -54,6 +54,7 @@ end
         include("test_late_time_plot_label_text.jl")
         include("test_vqa_comparison_note_text.jl")
         include("test_bath_convention_text.jl")
+        include("test_validation_script_text.jl")
         include("test_gaussianpaper_bibliography_text.jl")
     end
 
