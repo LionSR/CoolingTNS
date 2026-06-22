@@ -144,6 +144,8 @@ Julia and BLAS thread counts:
 To compare the two MCWF/MPS evolution routes under the same physical detuning
 grid, use `--evolution-method-values trotter,continuous` with an explicit
 `--delta-min/--delta-max` interval:
+Evolution-method labels are parsed case-insensitively and emitted in canonical
+lowercase form in generated commands.
 
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
         --Ns 64 --R-values 2,5 --methods mcwf \
@@ -178,8 +180,10 @@ const DEFAULT_OUTDIR = joinpath(@__DIR__, "Data", "largeN_multifrequency")
 parse_int_list(s::AbstractString) =
     [parse(Int, strip(x)) for x in split(s, ",") if !isempty(strip(x))]
 
+parse_method_name(s::AbstractString) = lowercase(strip(s))
+
 parse_method_list(s::AbstractString) =
-    [lowercase(strip(x)) for x in split(s, ",") if !isempty(strip(x))]
+    [parse_method_name(x) for x in split(s, ",") if !isempty(strip(x))]
 
 function require_unique_values(values, flag::AbstractString)
     length(unique(values)) == length(values) && return nothing
@@ -264,8 +268,10 @@ function parse_args(args)
             key = replace(a[3:end], "-" => "_")
             cfg[key] = parse(Float64, args[i + 1]); i += 2
         elseif a in ("--model", "--bc", "--coupling", "--schedule", "--outdir", "--output", "--init-state",
-                     "--evolution-method", "--progress-csv")
+                     "--progress-csv")
             cfg[replace(a[3:end], "-" => "_")] = args[i + 1]; i += 2
+        elseif a == "--evolution-method"
+            cfg["evolution_method"] = parse_method_name(args[i + 1]); i += 2
         elseif a == "--evolution-method-values"
             cfg["evolution_method_values"] = parse_method_list(args[i + 1]); i += 2
         elseif a == "--verbose"
@@ -622,8 +628,7 @@ function sim_params_for(method::AbstractString, cfg)
     else
         error("unknown method '$method'; use mpo or mcwf")
     end
-    evolution_method = cfg["evolution_method"] == "continuous" ?
-        ContinuousEvolution() : TrotterEvolution()
+    evolution_method = get_evolution_method(cfg["evolution_method"])
     if sim_method isa DensityMatrix && evolution_method isa ContinuousEvolution
         error("MPO density-matrix evolution is supported only with TrotterEvolution")
     end
