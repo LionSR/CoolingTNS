@@ -234,18 +234,21 @@ function figure3_cross_backend()
     println("="^60)
 
     ham_cross = CoolingTNS.IsingParameters(N_cross, 1.0, 1.0)
-    cp = CoolingTNS.BasicCouplingParameters("XX", G, STEPS, TE, nothing)
+    cp_cross_auto = CoolingTNS.BasicCouplingParameters("XX", G, STEPS, TE, nothing)
     tau_cross = 0.05
 
     println("  Running ED DM+Trotter...")
     res_ed, prob_cross = run_sim(backend_str="ED", sim_method_str="density_matrix",
                                 evolution_method_str="trotter", tau=tau_cross,
-                                ham_params=ham_cross, coupling_params=cp)
+                                ham_params=ham_cross, coupling_params=cp_cross_auto)
+    delta_cross = prob_cross.extra.coupling_params.delta
+    cp_cross = CoolingTNS.BasicCouplingParameters("XX", G, STEPS, TE, delta_cross)
+    println("  Using shared cross-backend bath detuning Delta=$delta_cross.")
 
     println("  Running TN DM+Trotter...")
     res_tn, _ = run_sim(backend_str="TN", sim_method_str="density_matrix",
                         evolution_method_str="trotter", tau=tau_cross,
-                        ham_params=ham_cross, coupling_params=cp, Dmax=100)
+                        ham_params=ham_cross, coupling_params=cp_cross, Dmax=100)
 
     steps_ax = 0:STEPS
     E_ed = res_ed[CoolingTNS.RESULT_ENERGY] ./ N_cross
