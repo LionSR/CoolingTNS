@@ -157,7 +157,7 @@ function figure2_tn_trotter_convergence()
     steps_trotter = 60
     ham_trotter = CoolingTNS.IsingParameters(N_trotter, 1.0, 1.0)
     cp_auto = CoolingTNS.BasicCouplingParameters("XX", G, steps_trotter, TE, nothing)
-    tau_values = [0.4, 0.2, 0.1, 0.05]
+    tau_values = [0.5, 0.2, 0.1, 0.05]
 
     println("\n" * "="^60)
     println("Figure 2: TN Gate Trotter Convergence (N=$N_trotter)")
