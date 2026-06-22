@@ -294,7 +294,10 @@ output file.  To compare the MPS Trotter-gate route with MCWF+TDVP, use
 `--evolution-method-values trotter,continuous` together with an explicit
 `--delta-min/--delta-max` interval; the fixed interval is part of the comparison
 protocol, so a TDVP-versus-Trotter table is not confounded by separately
-estimated setup gaps.  The planning mode also accepts `--plan-julia-threads` and
+estimated setup gaps.  If `--tdvp-sweep-progress` or a nonzero
+`--tdvp-outputlevel` is supplied in such a paired plan, the generated TDVP
+commands retain the TDVP-only observer options and the generated Trotter
+commands omit them.  The planning mode also accepts `--plan-julia-threads` and
 `--plan-blas-threads`, which prefix the printed commands with
 `JULIA_NUM_THREADS` and BLAS thread environment variables.
 No internal scheduler is recommended at this stage.  The current reproducible
