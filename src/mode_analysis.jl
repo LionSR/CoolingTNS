@@ -126,6 +126,57 @@ function supports_ising_fourier_observables(ham_params::HamiltonianParameters{Is
 end
 
 """
+    require_ising_fourier_observables(ham_params; observable="Fourier/Bogoliubov Ising observables")
+
+Enforce the physical domain of the package's Fourier-grid Ising observables.
+
+The raw Jordan-Wigner Fourier occupation, Bogoliubov mode observables, and
+mode-energy reconstruction are defined here only for the integrable
+transverse-field Ising chain with even `N` and spin `:periodic` or
+`:antiperiodic` boundary conditions.  Callers should use this guard before
+selecting a parity-aware fermionic momentum grid or accessing Ising-specific
+parameters.
+"""
+function require_ising_fourier_observables(
+    ham_params::HamiltonianParameters{IsingModel};
+    observable::AbstractString="Fourier/Bogoliubov Ising observables",
+)
+    if !iseven(ham_params.N)
+        throw(ArgumentError(
+            "The observable domain for $observable requires even N for the " *
+            "Fourier/Bogoliubov grid; got N=$(ham_params.N)"
+        ))
+    end
+    if !(ham_params.bc in _ISING_FOURIER_SPIN_BCS)
+        throw(ArgumentError(
+            "The observable domain for $observable requires spin :periodic or " *
+            ":antiperiodic boundary conditions; got $(ham_params.bc)"
+        ))
+    end
+    return nothing
+end
+
+function require_ising_fourier_observables(
+    ham_params::HamiltonianParameters;
+    observable::AbstractString="Fourier/Bogoliubov Ising observables",
+)
+    throw(ArgumentError(
+        "The observable domain for $observable requires integrable " *
+        "transverse-field Ising Hamiltonian parameters; got $(typeof(ham_params.model))"
+    ))
+end
+
+function require_ising_fourier_observables(
+    ::Nothing;
+    observable::AbstractString="Fourier/Bogoliubov Ising observables",
+)
+    throw(ArgumentError(
+        "The observable domain for $observable requires integrable " *
+        "transverse-field Ising Hamiltonian parameters; got nothing"
+    ))
+end
+
+"""
     ising_mode_detuning_preserves_px(coupling) -> Bool
 
 Return whether the system-side part of the system-bath coupling commutes with
@@ -156,9 +207,8 @@ function ising_mode_detuning_has_special_modes(
     ham_params::HamiltonianParameters{IsingModel};
     parity::Int=1,
 )
-    supports_ising_fourier_observables(ham_params) || throw(ArgumentError(
-        "Ising mode detuning special-mode checks require even-size periodic or antiperiodic Ising parameters"
-    ))
+    require_ising_fourier_observables(ham_params;
+        observable="Ising mode detuning special-mode checks")
     (parity == 1 || parity == -1) ||
         throw(ArgumentError("parity must be +1 or -1, got $parity"))
 
@@ -385,9 +435,8 @@ function ising_mode_detuning_reference(
     ham_params::HamiltonianParameters{IsingModel};
     parity::Int=1,
 )
-    supports_ising_fourier_observables(ham_params) || throw(ArgumentError(
-        "Ising mode detuning references require even-size periodic or antiperiodic Ising parameters"
-    ))
+    require_ising_fourier_observables(ham_params;
+        observable="Ising mode detuning references")
     (parity == 1 || parity == -1) ||
         throw(ArgumentError("parity must be +1 or -1, got $parity"))
 

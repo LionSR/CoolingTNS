@@ -93,6 +93,7 @@ _expect_amdag_an(ψ::EDStateVector, a_m_dag, a_n) = dot(ψ.data, a_m_dag * a_n *
 _expect_amdag_an(ρ::EDDensityMatrix, a_m_dag, a_n) = tr(ρ.data * a_m_dag * a_n)
 
 function _measure_momentum_distribution_ed_clean(state, ham_params; gF=nothing)
+    require_ising_fourier_observables(ham_params; observable="ED momentum distribution")
     N = ham_params.N
 
     # Determine k-grid: parity-aware if gF not specified
@@ -379,9 +380,11 @@ operator for mode ``k``.
 # Arguments
 - `state`: The quantum state (pure or mixed) in the code basis
 - `k`: The mode index (integer or half-integer, as returned by `allowed_k_indices`)
-- `ham_params`: Hamiltonian parameters (must have fields `params.J`, `params.h`, `N`)
+- `ham_params`: integrable Ising Hamiltonian parameters with even `N` and spin
+  `:periodic` or `:antiperiodic` boundary conditions
 """
 function measure_hk(state::EDStateVector, k, ham_params)
+    require_ising_fourier_observables(ham_params; observable="ED measure_hk mode observables")
     N = ham_params.N
     J = ham_params.params.J
     h = ham_params.params.h
@@ -414,6 +417,7 @@ function measure_hk(state::EDStateVector, k, ham_params)
 end
 
 function measure_hk(state::EDDensityMatrix, k, ham_params)
+    require_ising_fourier_observables(ham_params; observable="ED measure_hk mode observables")
     N = ham_params.N
     J = ham_params.params.J
     h = ham_params.params.h
@@ -475,6 +479,7 @@ Use `ising_energy_from_mode_hk` for energy reconstruction from `hk_values`.
 """
 function measure_all_mode_observables(state::Union{EDStateVector, EDDensityMatrix},
                                       ham_params; gF=nothing)
+    require_ising_fourier_observables(ham_params; observable="ED mode observables")
     N = ham_params.N
     J = ham_params.params.J
     h = ham_params.params.h

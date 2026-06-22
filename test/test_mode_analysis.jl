@@ -496,6 +496,46 @@ end
         @test !supports_ising_fourier_observables(NiIsingParameters(4, 1.0, -1.05, 0.5, :periodic))
         @test !supports_ising_fourier_observables(RydbergParameters(4, 1.0, 0.0, 1.0, :periodic))
         @test !supports_ising_fourier_observables(nothing)
+
+        @test require_ising_fourier_observables(
+            IsingParameters(4, 1.0, 0.5, :periodic)) === nothing
+
+        odd_err = try
+            require_ising_fourier_observables(IsingParameters(3, 1.0, 0.5, :periodic))
+            nothing
+        catch err
+            err
+        end
+        @test odd_err isa ArgumentError
+        @test occursin("even N", odd_err.msg)
+
+        open_err = try
+            require_ising_fourier_observables(IsingParameters(4, 1.0, 0.5, :open))
+            nothing
+        catch err
+            err
+        end
+        @test open_err isa ArgumentError
+        @test occursin("spin :periodic or :antiperiodic", open_err.msg)
+
+        ni_err = try
+            require_ising_fourier_observables(
+                NiIsingParameters(4, 1.0, -1.05, 0.5, :periodic))
+            nothing
+        catch err
+            err
+        end
+        @test ni_err isa ArgumentError
+        @test occursin("integrable transverse-field Ising", ni_err.msg)
+
+        nothing_err = try
+            require_ising_fourier_observables(nothing)
+            nothing
+        catch err
+            err
+        end
+        @test nothing_err isa ArgumentError
+        @test occursin("got nothing", nothing_err.msg)
     end
 
     @testset "Mode detuning reference is the parity-preserving two-quasiparticle scale" begin
