@@ -101,7 +101,7 @@ function normalize_optimization_args!(parsed_args)
         end
     end
 
-    return parsed_args
+    return normalize_method_token_args!(parsed_args)
 end
 
 
@@ -286,6 +286,12 @@ function create_filename(
 end
 
 # Backward compatibility for legacy plotting scripts that pass Dicts instead of typed parameters.
+function _legacy_filename_backend(method)
+    token = canonical_method_token(method)
+    token in ("mps", "mpo") && return TNBackend()
+    return get_backend(method)
+end
+
 function create_filename(
     ham_name::AbstractString,
     N::Union{Int, Vector{Int}},
@@ -300,14 +306,9 @@ function create_filename(
         get(coupling_params, "delta", nothing),
     )
 
-    backend = get(sim_params, "method", "") == "ED" ? EDBackend() : TNBackend()
-
-    sim_method =
-        get(sim_params, "sim_method", "") == "density_matrix" ?
-        DensityMatrix() : MonteCarloWavefunction()
-    evolution_method =
-        get(sim_params, "evolution_method", "") == "trotter" ?
-        TrotterEvolution() : ContinuousEvolution()
+    backend = _legacy_filename_backend(get(sim_params, "method", "TN"))
+    sim_method = get_sim_method(get(sim_params, "sim_method", "monte_carlo"))
+    evolution_method = get_evolution_method(get(sim_params, "evolution_method", "continuous"))
 
     sim = UnifiedSimulationParameters(
         sim_method,

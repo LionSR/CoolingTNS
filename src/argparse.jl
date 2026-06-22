@@ -126,5 +126,6 @@ function parse_commandline(args=ARGS)
         action = :store_true
     end
 
-    return _validate_initial_state_args(parse_args(args, s))
+    parsed_args = normalize_method_token_args!(parse_args(args, s))
+    return _validate_initial_state_args(parsed_args)
 end
