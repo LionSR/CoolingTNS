@@ -535,6 +535,10 @@ controlled Dmax ladder, keep the existing cap/saturation diagnostics, add
 measured truncation-error histories when available, and either increase the
 effective evolved system-bath bond cap or change the cooling protocol to
 control the system-bath entanglement growth.
+The large-`N` driver can now print paired MCWF/MPS Trotter and MCWF+TDVP
+commands with `--evolution-method-values trotter,continuous`; this planning
+axis requires an explicit fixed detuning interval, so the comparison keeps the
+physical bath frequencies fixed while varying only the MPS evolution scheme.
 
 ## Two-Cycle MCWF+TDVP Runtime Calibration
 

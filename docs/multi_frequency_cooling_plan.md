@@ -282,16 +282,21 @@ events may occur at different cycles should be launched as independent jobs.
 When no explicit `--output` path is supplied, the generated HDF5 filename
 receives a `_stopcap` suffix so these partial diagnostic outputs do not
 overwrite full benchmark files with the same physical parameters.
-When several `R` values or `Dmax` values are to be run on a many-core machine,
-the validation driver should first be invoked with `--print-parallel-plan`.
-This prints one independent command for each `(N, method, R, Dmax)` tuple and
-assigns distinct HDF5 paths.  In multi-job plans where `--progress-csv` is
-supplied, generated per-job progress CSV filenames keep the requested CSV stem as
-a prefix and append the same HDF5 protocol stem; single-job plans keep the
-requested CSV path unchanged.  Thus process-level parallelism can be used without
-concurrent writes to the same output file.  The planning mode also accepts
-`--plan-julia-threads` and `--plan-blas-threads`, which prefix the printed
-commands with `JULIA_NUM_THREADS` and BLAS thread environment variables.
+When several `R` values, `Dmax` values, or MCWF/MPS evolution methods are to be
+run on a many-core machine, the validation driver should first be invoked with
+`--print-parallel-plan`.  This prints one independent command for each
+`(N, method, evolution method, R, Dmax)` tuple and assigns distinct HDF5 paths.
+In multi-job plans where `--progress-csv` is supplied, generated per-job
+progress CSV filenames keep the requested CSV stem as a prefix and append the
+same HDF5 protocol stem; single-job plans keep the requested CSV path unchanged.
+Thus process-level parallelism can be used without concurrent writes to the same
+output file.  To compare the MPS Trotter-gate route with MCWF+TDVP, use
+`--evolution-method-values trotter,continuous` together with an explicit
+`--delta-min/--delta-max` interval; the fixed interval is part of the comparison
+protocol, so a TDVP-versus-Trotter table is not confounded by separately
+estimated setup gaps.  The planning mode also accepts `--plan-julia-threads` and
+`--plan-blas-threads`, which prefix the printed commands with
+`JULIA_NUM_THREADS` and BLAS thread environment variables.
 No internal scheduler is recommended at this stage.  The current reproducible
 execution convention is to let an external shell, job array, or process manager
 launch the printed commands, because the driver can then keep output ownership,

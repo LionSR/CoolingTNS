@@ -117,13 +117,13 @@ detuning index independently at each cooling cycle.
 
 To prepare independent commands for process-level parallel execution, use
 `--print-parallel-plan`.  The plan splits the campaign into one command for
-each `(N, method, R, Dmax)` tuple and assigns distinct HDF5 and progress CSV
-paths.  In multi-job plans where `--progress-csv` is supplied, generated per-job
-progress CSV filenames keep the requested CSV stem as a prefix and append the
-HDF5 protocol stem.  Single-job plans keep the requested CSV path unchanged.  The
-driver does not launch these jobs itself; process scheduling remains external so
-each Julia process owns its HDF5 output, progress CSV, and deterministic
-trajectory seed stream.
+each `(N, method, evolution method, R, Dmax)` tuple and assigns distinct HDF5
+and progress CSV paths.  In multi-job plans where `--progress-csv` is supplied,
+generated per-job progress CSV filenames keep the requested CSV stem as a prefix
+and append the HDF5 protocol stem.  Single-job plans keep the requested CSV path
+unchanged.  The driver does not launch these jobs itself; process scheduling
+remains external so each Julia process owns its HDF5 output, progress CSV, and
+deterministic trajectory seed stream.
 
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
         --Ns 64 --R-values 1,2,5,10 --methods mcwf --evolution-method continuous \
@@ -140,6 +140,17 @@ Julia and BLAS thread counts:
         --steps 5 --Dmax 96 \
         --delta-min 0.5051167496264384 --delta-max 3.0307004977586303 \
         --print-parallel-plan --plan-julia-threads 1 --plan-blas-threads 1
+
+To compare the two MCWF/MPS evolution routes under the same physical detuning
+grid, use `--evolution-method-values trotter,continuous` with an explicit
+`--delta-min/--delta-max` interval:
+
+    julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+        --Ns 64 --R-values 2,5 --methods mcwf \
+        --evolution-method-values trotter,continuous \
+        --steps 4 --Dmax 128 \
+        --delta-min 0.5051167496264384 --delta-max 3.0307004977586303 \
+        --print-parallel-plan
 
 Fast path check, using the explicit small-N MPO/MCWF validation path:
 
@@ -181,6 +192,7 @@ function parse_args(args)
         "R_values" => [1, 2, 5, 10],
         "methods" => ["mcwf"],
         "evolution_method" => "trotter",
+        "evolution_method_values" => nothing,
         "model" => "niising",
         "bc" => "open",
         "steps" => 40,
@@ -254,6 +266,8 @@ function parse_args(args)
         elseif a in ("--model", "--bc", "--coupling", "--schedule", "--outdir", "--output", "--init-state",
                      "--evolution-method", "--progress-csv")
             cfg[replace(a[3:end], "-" => "_")] = args[i + 1]; i += 2
+        elseif a == "--evolution-method-values"
+            cfg["evolution_method_values"] = parse_method_list(args[i + 1]); i += 2
         elseif a == "--verbose"
             cfg["verbose"] = true; i += 1
         elseif a in ("--measure-modes", "--measure_modes")
@@ -301,16 +315,25 @@ function parse_args(args)
     end
     cfg["evolution_method"] in ("trotter", "continuous") ||
         error("--evolution-method must be trotter or continuous")
+    evolution_methods = campaign_evolution_method_values(cfg)
+    all(method -> method in ("trotter", "continuous"), evolution_methods) ||
+        error("--evolution-method-values entries must be trotter or continuous")
+    require_unique_values(evolution_methods, "--evolution-method-values")
+    if cfg["evolution_method_values"] !== nothing && !cfg["print_parallel_plan"]
+        error("--evolution-method-values is a planning axis and requires --print-parallel-plan")
+    end
     cfg["init_state"] in ("product", "theta", "identity") ||
         error("--init-state must be product, theta, or identity")
     if cfg["init_state"] == "identity" && "mcwf" in cfg["methods"]
         error("--init-state identity is only valid for density-matrix/MPO methods")
     end
-    if cfg["evolution_method"] == "trotter" && Symbol(cfg["bc"]) != :open
-        error("--evolution-method trotter currently requires --bc open in this TN campaign")
-    end
-    if cfg["evolution_method"] == "continuous" && "mpo" in cfg["methods"]
-        error("--evolution-method continuous is only supported for --methods mcwf")
+    for evolution_method in evolution_methods
+        if evolution_method == "trotter" && Symbol(cfg["bc"]) != :open
+            error("--evolution-method trotter currently requires --bc open in this TN campaign")
+        end
+        if evolution_method == "continuous" && "mpo" in cfg["methods"]
+            error("--evolution-method continuous is only supported for --methods mcwf")
+        end
     end
     if cfg["measure_modes"]
         cfg["model"] == "ising" ||
@@ -321,7 +344,7 @@ function parse_args(args)
             error("--measure-modes requires even system sizes")
         all(method -> method == "mcwf", cfg["methods"]) ||
             error("--measure-modes is currently supported in this TN campaign only for --methods mcwf")
-        cfg["evolution_method"] == "continuous" ||
+        all(==("continuous"), evolution_methods) ||
             error("--measure-modes requires --evolution-method continuous in this TN campaign")
     end
     cfg["mode_measurement_stride"] >= 1 ||
@@ -347,7 +370,13 @@ function parse_args(args)
             "run uses the same physical detuning protocol"
         )
     end
-    if cfg["tdvp_sweep_progress"] && cfg["evolution_method"] != "continuous"
+    if length(evolution_methods) > 1 && cfg["delta_min"] === nothing
+        error(
+            "--evolution-method-values requires --delta-min and --delta-max so " *
+            "Trotter and TDVP jobs use the same physical detuning protocol"
+        )
+    end
+    if cfg["tdvp_sweep_progress"] && !all(==("continuous"), evolution_methods)
         error("--tdvp-sweep-progress requires --evolution-method continuous")
     end
     if cfg["stop_on_bond_cap"]
@@ -419,6 +448,13 @@ function campaign_dmax_values(cfg)
     return values
 end
 
+function campaign_evolution_method_values(cfg)
+    values = cfg["evolution_method_values"]
+    values === nothing && return [cfg["evolution_method"]]
+    isempty(values) && error("--evolution-method-values must contain at least one method")
+    return values
+end
+
 function campaign_dmax_configs(cfg)
     values = campaign_dmax_values(cfg)
     return [merge(copy(cfg), Dict{String,Any}("Dmax" => D)) for D in values]
@@ -441,18 +477,22 @@ end
 
 function parallel_plan_configs(cfg)
     dmax_values = campaign_dmax_values(cfg)
+    evolution_methods = campaign_evolution_method_values(cfg)
     njobs = length(cfg["Ns"]) * length(cfg["methods"]) *
-            length(cfg["R_values"]) * length(dmax_values)
+            length(evolution_methods) * length(cfg["R_values"]) * length(dmax_values)
     if cfg["output"] !== nothing && njobs > 1
         error("--output cannot be used with a multi-job --print-parallel-plan")
     end
 
     jobs = Dict{String,Any}[]
-    for D in dmax_values, N in cfg["Ns"], method in cfg["methods"], R in cfg["R_values"]
+    for D in dmax_values, N in cfg["Ns"], method in cfg["methods"],
+        evolution_method in evolution_methods, R in cfg["R_values"]
         run_cfg = merge(copy(cfg), Dict{String,Any}(
             "Ns" => [N],
             "methods" => [method],
             "R_values" => [R],
+            "evolution_method" => evolution_method,
+            "evolution_method_values" => nothing,
             "Dmax" => D,
             "Dmax_values" => nothing,
             "print_parallel_plan" => false,
@@ -558,7 +598,12 @@ function print_parallel_plan(cfg; io=stdout)
     println(io, "# This driver does not launch jobs concurrently.")
     println(io, "# Run these commands with an external process scheduler.")
     println(io, "# Each command has a distinct HDF5 output path.")
-    if length(commands) > 1
+    if length(campaign_evolution_method_values(cfg)) > 1
+        println(io, "# Evolution-method jobs share the requested detuning interval; compare them as distinct MPS evolution schemes.")
+    end
+    if cfg["progress_csv"] === nothing
+        println(io, "# No progress CSV path requested.")
+    elseif length(commands) > 1
         println(io, "# With a base --progress-csv, generated CSV paths keep the requested CSV stem and append the HDF5 protocol stem.")
     else
         println(io, "# With one job, a base --progress-csv path is kept unchanged.")
