@@ -152,6 +152,8 @@ would simply redefine the momentum operators by a $k$-dependent phase
 is used consistently.
 Here, the sum over $k$ is determined by the fermionic boundary conditions, which depend on the spin parity sector. For periodic boundary conditions ($g_F = 1$), $k$ takes integer values $k \in \{-\frac{N}{2}+1, \dots, \frac{N}{2}\}$. For antiperiodic boundary conditions ($g_F = -1$), $k$ takes half-integer values $k \in \{-\frac{N-1}{2}, \dots, \frac{N-1}{2}\}$.
 
+The Fourier/Bogoliubov diagnostics below are closed-chain transverse-field Ising diagnostics: $N$ is even, $g_I=\pm1$, and a fixed spin-parity sector selects $g_F=\pm1$.  For $g_I=0$, translational invariance is absent and the open-chain BdG construction of \texttt{OBC.tex} must be used instead.  For nonintegrable spin Hamiltonians there is no free-fermion Fourier grid of this form, so the code does not define the \texttt{mode\_hk} and \texttt{mode\_nk} observables.
+
 
 \subsection{Fermionic PBC $g_F = 1$ Case}
 
