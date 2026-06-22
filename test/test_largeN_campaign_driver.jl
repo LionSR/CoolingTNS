@@ -242,7 +242,7 @@ end
         "--Ns", "64",
         "--R-values", "2,5",
         "--methods", "mcwf",
-        "--evolution-method-values", "trotter,continuous",
+        "--evolution-method-values", " TROTTER , Continuous ",
         "--steps", "4",
         "--Dmax", "128",
         "--delta-min", "0.5051167496264384",
@@ -678,6 +678,22 @@ end
     @test sim_params_continuous.evolution_method isa CoolingTNS.ContinuousEvolution
     @test sim_params_continuous.n_trajectories == 3
     @test occursin("mcwf_continuous_steps", output_path(continuous_cfg))
+
+    normalized_continuous_cfg = parse_args([
+        "--methods", "mcwf",
+        "--evolution-method", " Continuous ",
+        "--outdir", tempdir(),
+    ])
+    @test normalized_continuous_cfg["evolution_method"] == "continuous"
+    @test sim_params_for("mcwf", normalized_continuous_cfg).evolution_method isa
+          CoolingTNS.ContinuousEvolution
+    @test occursin(
+        "--evolution-method continuous",
+        join(command_args_for_config(normalized_continuous_cfg), " "),
+    )
+    invalid_helper_cfg = copy(normalized_continuous_cfg)
+    invalid_helper_cfg["evolution_method"] = "invalid"
+    @test_throws ErrorException sim_params_for("mcwf", invalid_helper_cfg)
 
     @test_throws ErrorException parse_args(["--evolution-method", "bad"])
     @test_throws ErrorException parse_args([
