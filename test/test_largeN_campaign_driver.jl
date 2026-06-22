@@ -238,6 +238,78 @@ end
     @test shell_word("~/tdvp data") == "'~/tdvp data'"
     @test shell_word("~/tdvp_data") == "~/tdvp_data"
 
+    paired_evolution_cfg = parse_args([
+        "--Ns", "64",
+        "--R-values", "2,5",
+        "--methods", "mcwf",
+        "--evolution-method-values", "trotter,continuous",
+        "--steps", "4",
+        "--Dmax", "128",
+        "--delta-min", "0.5051167496264384",
+        "--delta-max", "3.0307004977586303",
+        "--outdir", tempdir(),
+        "--progress-csv", joinpath(tempdir(), "evolution_progress.csv"),
+        "--print-parallel-plan",
+    ])
+    @test campaign_evolution_method_values(paired_evolution_cfg) == ["trotter", "continuous"]
+    paired_jobs = parallel_plan_configs(paired_evolution_cfg)
+    @test length(paired_jobs) == 4
+    @test count(job -> job["evolution_method"] == "trotter", paired_jobs) == 2
+    @test count(job -> job["evolution_method"] == "continuous", paired_jobs) == 2
+    @test all(job -> job["evolution_method_values"] === nothing, paired_jobs)
+    @test length(unique(output_path.(paired_jobs))) == length(paired_jobs)
+    @test length(unique(job["progress_csv"] for job in paired_jobs)) == length(paired_jobs)
+    paired_commands = parallel_plan_commands(paired_evolution_cfg)
+    @test count(command -> occursin("--evolution-method trotter", command), paired_commands) == 2
+    @test count(command -> occursin("--evolution-method continuous", command), paired_commands) == 2
+    @test !any(command -> occursin("--evolution-method-values", command), paired_commands)
+    @test all(command -> occursin("--delta-min 0.5051167496264384", command), paired_commands)
+    paired_plan_text = sprint(io -> print_parallel_plan(paired_evolution_cfg; io=io))
+    @test occursin("Evolution-method jobs share the requested detuning interval", paired_plan_text)
+    @test any(job -> occursin("_mcwf_steps", output_path(job)), paired_jobs)
+    @test any(job -> occursin("_mcwf_continuous_steps", output_path(job)), paired_jobs)
+    paired_no_progress_cfg = parse_args([
+        "--Ns", "64",
+        "--R-values", "2",
+        "--methods", "mcwf",
+        "--evolution-method-values", "trotter,continuous",
+        "--steps", "4",
+        "--Dmax", "128",
+        "--delta-min", "0.5051167496264384",
+        "--delta-max", "3.0307004977586303",
+        "--outdir", tempdir(),
+        "--print-parallel-plan",
+    ])
+    paired_no_progress_text = sprint(io -> print_parallel_plan(paired_no_progress_cfg; io=io))
+    @test occursin("No progress CSV path requested", paired_no_progress_text)
+    @test !occursin("generated CSV paths", paired_no_progress_text)
+    @test_throws ErrorException parse_args([
+        "--evolution-method-values", "trotter,continuous",
+    ])
+    @test_throws ErrorException parse_args([
+        "--evolution-method-values", "trotter,continuous",
+        "--print-parallel-plan",
+    ])
+    @test_throws ErrorException parse_args([
+        "--methods", "mpo",
+        "--evolution-method-values", "trotter,continuous",
+        "--delta-min", "0.5",
+        "--delta-max", "3.0",
+        "--print-parallel-plan",
+    ])
+    @test_throws ErrorException parse_args([
+        "--evolution-method-values", "trotter,trotter",
+        "--delta-min", "0.5",
+        "--delta-max", "3.0",
+        "--print-parallel-plan",
+    ])
+    @test_throws ErrorException parse_args([
+        "--evolution-method-values", "trotter,bad",
+        "--delta-min", "0.5",
+        "--delta-max", "3.0",
+        "--print-parallel-plan",
+    ])
+
     thread_plan_args = [
         "--Ns", "64",
         "--R-values", "2",
