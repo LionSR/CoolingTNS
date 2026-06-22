@@ -8,6 +8,8 @@ on:
       - "Project.toml"
       - "Manifest.toml"
       - "CondaPkg.toml"
+      - ".github/workflows/*.yml"
+      - ".github/prompts/*.md"
 
 concurrency:
   group: claude-review-${{ github.event.pull_request.number }}
@@ -35,7 +37,25 @@ jobs:
       CLAUDE_SONNET_MODEL: ${{ vars.CLAUDE_SONNET_MODEL }}
 
     steps:
+      - name: Check pull request is still open
+        id: pr-state
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { data: pull } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+            });
+            const skip = pull.state !== 'open';
+            core.setOutput('skip', skip ? 'true' : 'false');
+            if (skip) {
+              const merged = pull.merged_at ? ' after merge' : '';
+              core.notice(`Skipping Claude review for closed PR #${pull.number}${merged}.`);
+            }
+
       - name: Check if head commit is a bot auto-fix
+        if: steps.pr-state.outputs.skip != 'true'
         id: bot-check
         uses: actions/github-script@v8
         with:
@@ -53,7 +73,7 @@ jobs:
             if (isBot) core.notice(`Skipping review for bot-fix commit: ${msg.split('\n')[0]}`);
 
       - name: Check review provider token
-        if: steps.bot-check.outputs.skip != 'true'
+        if: steps.pr-state.outputs.skip != 'true' && steps.bot-check.outputs.skip != 'true'
         id: provider-token
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -67,13 +87,13 @@ jobs:
           fi
 
       - name: Checkout repository under review
-        if: steps.bot-check.outputs.skip != 'true' && steps.provider-token.outputs.skip != 'true'
+        if: steps.pr-state.outputs.skip != 'true' && steps.bot-check.outputs.skip != 'true' && steps.provider-token.outputs.skip != 'true'
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - name: Checkout trusted automation
-        if: steps.bot-check.outputs.skip != 'true' && steps.provider-token.outputs.skip != 'true'
+        if: steps.pr-state.outputs.skip != 'true' && steps.bot-check.outputs.skip != 'true' && steps.provider-token.outputs.skip != 'true'
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.base.ref }}
@@ -81,7 +101,7 @@ jobs:
           fetch-depth: 1
 
       - name: Run Claude Code Review
-        if: steps.bot-check.outputs.skip != 'true' && steps.provider-token.outputs.skip != 'true'
+        if: steps.pr-state.outputs.skip != 'true' && steps.bot-check.outputs.skip != 'true' && steps.provider-token.outputs.skip != 'true'
         id: claude-review
         uses: LionSR/agent-ci-actions@v1
         with:

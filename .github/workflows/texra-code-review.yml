@@ -9,6 +9,8 @@ on:
       - "Project.toml"
       - "Manifest.toml"
       - "CondaPkg.toml"
+      - ".github/workflows/*.yml"
+      - ".github/prompts/*.md"
 
 concurrency:
   group: texra-review-${{ github.event.pull_request.number }}
@@ -23,7 +25,25 @@ jobs:
       contents: read
       pull-requests: write
     steps:
+      - name: Check pull request is still open
+        id: pr-state
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { data: pull } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+            });
+            const skip = pull.state !== 'open';
+            core.setOutput('skip', skip ? 'true' : 'false');
+            if (skip) {
+              const merged = pull.merged_at ? ' after merge' : '';
+              core.notice(`Skipping TeXRA review for closed PR #${pull.number}${merged}.`);
+            }
+
       - name: Checkout pull request
+        if: steps.pr-state.outputs.skip != 'true'
         uses: actions/checkout@v6
         with:
           # The merge ref + full history let the action compute merge-base..head.
@@ -32,6 +52,7 @@ jobs:
           persist-credentials: false
 
       - name: Run TeXRA review
+        if: steps.pr-state.outputs.skip != 'true'
         uses: texra-ai/texra-action/review@v1
         with:
           # Repository-specific review prompt, kept in this repo.
