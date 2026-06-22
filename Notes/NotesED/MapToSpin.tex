@@ -737,18 +737,56 @@ specified explicitly.
 \section{Numerical Simulation of Cooling Dynamics}
 
 
-\subsection{Split-Operator Trotter Method}
+\subsection{ED and Tensor-Network Time Discretizations}
 
-For the Hamiltonians we are considering, a very effective approach is the split-operator method based on a Trotter-Suzuki decomposition. The total Hamiltonian is $H = H_S + H_B + V$. We can split the total Hamiltonian into two parts that are each easy to exponentiate: $H = H_z + H_x$, where $H_z$ contains all $\sigma_z$-type terms (e.g., $\sigma_z\sigma_z$, $\sigma_z$) and $H_x$ contains all $\sigma_x$-type terms.
+For a fixed cooling cycle, let
+\[
+    H_{SB}(c,\Delta)=H_S+H_B(c,\Delta)+V_{SB}(c)
+\]
+denote the full system-bath Hamiltonian in the interleaved code basis.  In the
+exact-diagonalization backend, continuous evolution applies the full
+Hamiltonian exponential,
 \begin{equation}
-    e^{-iHt} \approx \left(e^{-iH_z \delta t} e^{-iH_x \delta t}\right)^M, \quad \text{where } t = M\delta t.
+    \begin{aligned}
+        \ket{\Psi_{SB}(t)}
+        &=e^{-iH_{SB}(c,\Delta)t}\ket{\Psi_{SB}(0)},\\
+        \rho_{SB}(t)
+        &=e^{-iH_{SB}(c,\Delta)t}\rho_{SB}(0)e^{iH_{SB}(c,\Delta)t}.
+    \end{aligned}
 \end{equation}
-This is very efficient to apply to a state vector or density matrix:
-\begin{itemize}
-    \item $e^{-iH_z \delta t}$ is a diagonal operator in the computational ($\sigma_z$) basis. Applying it is just an element-wise multiplication of the state vector by a precomputed vector of phases. This is an $\mathcal{O}(d^N)$ operation.
-    \item $e^{-iH_x \delta t}$ is a product of single-qubit rotations. In the computational basis, this corresponds to applying a tensor product of single-qubit gates, which can also be implemented efficiently.
-\end{itemize}
-This method avoids matrix-matrix or matrix-vector multiplication with large, dense matrices and scales much better. A Trotter step of $\delta t = 0.1$ is typically accurate enough.
+When the ED backend is called with the Trotter-evolution option, the parameter
+\(\tau\) is an upper bound on the substep size rather than the physical step
+itself.  The code chooses
+\begin{equation}
+    M=\left\lceil \frac{t}{\tau}\right\rceil,\qquad
+    \delta t=\frac{t}{M},
+    \label{eq:ed_trotter_time_grid}
+\end{equation}
+up to the small roundoff guard used at exact multiples of \(\tau\), and then
+applies the same full-Hamiltonian exponential \(M\) times.  Thus the ED
+``Trotter'' path is a time-grid convention for the exact dense or sparse
+propagator; it is not the first-order split
+\((e^{-iH_z\delta t}e^{-iH_x\delta t})^M\).
+
+The tensor-network Trotter path is different.  It acts on the interleaved chain
+\((s_1,b_1,s_2,b_2,\ldots,s_N,b_N)\) and approximates a time slice by a
+symmetric product of local gates,
+\begin{equation}
+    \begin{aligned}
+        U_{\delta t}^{\mathrm{TN}}
+        &=G_1^{(1/2)}G_2^{(1/2)}\cdots G_m^{(1/2)}
+          G_m^{(1/2)}\cdots G_2^{(1/2)}G_1^{(1/2)},\\
+        G_j^{(1/2)}
+        &=e^{-ih_j\delta t/2}.
+    \end{aligned}
+\end{equation}
+where the \(h_j\) are the two-site \((s_i,b_i)\) local system-bath terms and
+the three-site \((s_i,b_i,s_{i+1})\) nearest-neighbor Ising terms described in
+the tensor-network note.  This is an interleaved gate decomposition of the
+same full system-bath Hamiltonian, not the standard \(H_z/H_x\) split of the
+system Hamiltonian alone.  Its errors therefore come from the local
+Trotter-Suzuki decomposition and, in MPO or MPS calculations, from the chosen
+bond-dimension truncation.
 
 
 \subsection{Partial Trace for Density Matrices}
@@ -765,10 +803,15 @@ For large numbers of bath qubits, this can be implemented without loops using cl
 
 For the Monte Carlo wave function method, each cooling cycle involves the following steps:
 \begin{enumerate}
-    \item Evolve the joint pure state: $\ket{\Psi_{SB}'} = e^{-iHt} (\ket{\Psi_S} \otimes \ket{0_B})$.
-    \item Compute the probability distribution for measuring the bath in each computational basis state $\ket{n}_B$:
+    \item Evolve the joint pure state:
+          \[
+              \ket{\Psi_{SB}'} =
+              e^{-iH_{SB}(c,\Delta)t}\bigl(\ket{\Psi_S}\otimes\ket{\Omega_B(c)}\bigr).
+          \]
+    \item Compute the probability distribution for measuring the bath in the chosen product basis \(\{\ket{n}_B\}\):
           \begin{equation}
-              p_n = \bra{\Psi_{SB}'} (\Id_S \otimes \ket{n}_B\bra{n}|) \ket{\Psi_{SB}'}.
+              p_n =
+              \left\|(\Id_S \otimes {}_B\bra{n})\ket{\Psi_{SB}'}\right\|^2.
           \end{equation}
           This vector of $2^{N_B}$ probabilities can be computed efficiently by taking the diagonal elements of the bath's reduced density matrix, $\rho_B = \tr_S(\ket{\Psi_{SB}'}\bra{\Psi_{SB}'})$.
     \item Sample a specific outcome $\tilde{n}$ from the distribution $\{p_n\}$. A standard way is to compute the cumulative sum of the probabilities, $C_k = \sum_{j=1}^k p_j$, draw a single random number $r \in [0,1]$, and find the first $k$ such that $r \le C_k$.
