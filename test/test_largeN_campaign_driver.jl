@@ -251,6 +251,8 @@ end
         "--delta-max", "3.0307004977586303",
         "--outdir", tempdir(),
         "--progress-csv", joinpath(tempdir(), "evolution_progress.csv"),
+        "--tdvp-outputlevel", "1",
+        "--tdvp-sweep-progress",
         "--print-parallel-plan",
     ])
     @test campaign_evolution_method_values(paired_evolution_cfg) == ["trotter", "continuous"]
@@ -261,9 +263,37 @@ end
     @test all(job -> job["evolution_method_values"] === nothing, paired_jobs)
     @test length(unique(output_path.(paired_jobs))) == length(paired_jobs)
     @test length(unique(job["progress_csv"] for job in paired_jobs)) == length(paired_jobs)
+    @test all(
+        job -> job["tdvp_sweep_progress"] == (job["evolution_method"] == "continuous"),
+        paired_jobs,
+    )
+    expected_tdvp_outputlevel = paired_evolution_cfg["tdvp_outputlevel"]
+    @test all(
+        job -> job["tdvp_outputlevel"] ==
+               (job["evolution_method"] == "continuous" ? expected_tdvp_outputlevel : 0),
+        paired_jobs,
+    )
     paired_commands = parallel_plan_commands(paired_evolution_cfg)
     @test count(command -> occursin("--evolution-method trotter", command), paired_commands) == 2
     @test count(command -> occursin("--evolution-method continuous", command), paired_commands) == 2
+    @test count(command -> occursin("--tdvp-sweep-progress", command), paired_commands) == 2
+    @test count(command -> occursin("--tdvp-outputlevel 1", command), paired_commands) == 2
+    @test all(
+        command -> !occursin("--tdvp-sweep-progress", command),
+        filter(command -> occursin("--evolution-method trotter", command), paired_commands),
+    )
+    @test all(
+        command -> !occursin("--tdvp-outputlevel", command),
+        filter(command -> occursin("--evolution-method trotter", command), paired_commands),
+    )
+    @test all(
+        command -> occursin("--tdvp-sweep-progress", command),
+        filter(command -> occursin("--evolution-method continuous", command), paired_commands),
+    )
+    @test all(
+        command -> occursin("--tdvp-outputlevel 1", command),
+        filter(command -> occursin("--evolution-method continuous", command), paired_commands),
+    )
     @test !any(command -> occursin("--evolution-method-values", command), paired_commands)
     @test all(command -> occursin("--delta-min 0.5051167496264384", command), paired_commands)
     paired_plan_text = sprint(io -> print_parallel_plan(paired_evolution_cfg; io=io))
@@ -287,6 +317,28 @@ end
     @test !occursin("generated CSV paths", paired_no_progress_text)
     @test_throws ErrorException parse_args([
         "--evolution-method-values", "trotter,continuous",
+    ])
+    @test_throws ErrorException parse_args([
+        "--evolution-method-values", "trotter",
+        "--delta-min", "0.5051167496264384",
+        "--delta-max", "3.0307004977586303",
+        "--tdvp-sweep-progress",
+        "--print-parallel-plan",
+    ])
+    @test_throws ErrorException parse_args([
+        "--evolution-method", "trotter",
+        "--tdvp-outputlevel", "1",
+    ])
+    @test_throws ErrorException parse_args([
+        "--evolution-method", "continuous",
+        "--tdvp-outputlevel", "-1",
+    ])
+    @test_throws ErrorException parse_args([
+        "--evolution-method-values", "trotter",
+        "--delta-min", "0.5051167496264384",
+        "--delta-max", "3.0307004977586303",
+        "--tdvp-outputlevel", "1",
+        "--print-parallel-plan",
     ])
     @test_throws ErrorException parse_args([
         "--evolution-method-values", "trotter,continuous",

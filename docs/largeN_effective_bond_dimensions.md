@@ -539,6 +539,9 @@ The large-`N` driver can now print paired MCWF/MPS Trotter and MCWF+TDVP
 commands with `--evolution-method-values trotter,continuous`; this planning
 axis requires an explicit fixed detuning interval, so the comparison keeps the
 physical bath frequencies fixed while varying only the MPS evolution scheme.
+When `--tdvp-sweep-progress` or a nonzero `--tdvp-outputlevel` is supplied for
+such a paired plan, only the generated TDVP commands carry the TDVP-only
+observer options.
 
 ## Two-Cycle MCWF+TDVP Runtime Calibration
 

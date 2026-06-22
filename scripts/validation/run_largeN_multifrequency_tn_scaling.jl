@@ -146,6 +146,9 @@ grid, use `--evolution-method-values trotter,continuous` with an explicit
 `--delta-min/--delta-max` interval:
 Evolution-method labels are parsed case-insensitively and emitted in canonical
 lowercase form in generated commands.
+If `--tdvp-sweep-progress` or a nonzero `--tdvp-outputlevel` is supplied for
+such a paired plan, it is retained only on the generated `continuous` child
+commands and omitted from the generated `trotter` child commands.
 
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
         --Ns 64 --R-values 2,5 --methods mcwf \
@@ -184,6 +187,25 @@ parse_method_name(s::AbstractString) = canonical_method_token(s)
 
 parse_method_list(s::AbstractString) =
     [parse_method_name(x) for x in split(s, ",") if !isempty(strip(x))]
+
+"""
+    validate_tdvp_only_option(cfg, evolution_methods, flag, enabled)
+
+Validate a TDVP-only diagnostic flag against the requested evolution-method
+axis. A paired planning axis is valid when at least one generated child job is
+continuous; direct runs require all requested evolution methods to be
+continuous.
+"""
+function validate_tdvp_only_option(cfg, evolution_methods, flag::AbstractString, enabled::Bool)
+    enabled || return nothing
+    if cfg["evolution_method_values"] !== nothing
+        any(==("continuous"), evolution_methods) ||
+            error("$flag requires a continuous evolution-method job")
+    elseif !all(==("continuous"), evolution_methods)
+        error("$flag requires --evolution-method continuous")
+    end
+    return nothing
+end
 
 function require_unique_values(values, flag::AbstractString)
     length(unique(values)) == length(values) && return nothing
@@ -384,9 +406,13 @@ function parse_args(args)
             "Trotter and TDVP jobs use the same physical detuning protocol"
         )
     end
-    if cfg["tdvp_sweep_progress"] && !all(==("continuous"), evolution_methods)
-        error("--tdvp-sweep-progress requires --evolution-method continuous")
-    end
+    cfg["tdvp_outputlevel"] >= 0 || error("--tdvp-outputlevel must be non-negative")
+    validate_tdvp_only_option(
+        cfg, evolution_methods, "--tdvp-sweep-progress", cfg["tdvp_sweep_progress"]
+    )
+    validate_tdvp_only_option(
+        cfg, evolution_methods, "--tdvp-outputlevel", cfg["tdvp_outputlevel"] != 0
+    )
     if cfg["stop_on_bond_cap"]
         for method in cfg["methods"]
             ntraj = method == "mcwf" ? cfg["M_mcwf"] : cfg["M_mpo"]
@@ -504,6 +530,9 @@ function parallel_plan_configs(cfg)
             "Dmax" => D,
             "Dmax_values" => nothing,
             "print_parallel_plan" => false,
+            "tdvp_outputlevel" => evolution_method == "continuous" ? cfg["tdvp_outputlevel"] : 0,
+            "tdvp_sweep_progress" =>
+                cfg["tdvp_sweep_progress"] && evolution_method == "continuous",
         ))
         if cfg["progress_csv"] !== nothing && njobs > 1
             run_cfg["progress_csv"] = parallel_progress_csv_path(cfg["progress_csv"], run_cfg)
