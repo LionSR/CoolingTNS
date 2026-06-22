@@ -1144,13 +1144,13 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     write(g, "system_mean_bond", sys_meanbond)
     write(g, "evolved_max_bond", evolved_maxbond)
     write(g, "evolved_mean_bond", evolved_meanbond)
-    write(g, "tdvp_sweep_max_bond", tdvp_sweep_maxbond)
-    write(g, "bond_saturation_threshold", saturation_threshold)
-    write(g, "system_saturation_cycle", system_saturation_cycles)
-    write(g, "evolved_saturation_cycle", evolved_saturation_cycles)
-    write(g, "tdvp_sweep_saturation_cycle", tdvp_sweep_saturation_cycles)
+    write(g, LARGE_N_TDVP_SWEEP_MAX_BOND_KEY, tdvp_sweep_maxbond)
+    write(g, LARGE_N_BOND_SATURATION_THRESHOLD_KEY, saturation_threshold)
+    write(g, LARGE_N_SYSTEM_SATURATION_CYCLE_KEY, system_saturation_cycles)
+    write(g, LARGE_N_EVOLVED_SATURATION_CYCLE_KEY, evolved_saturation_cycles)
+    write(g, LARGE_N_TDVP_SWEEP_SATURATION_CYCLE_KEY, tdvp_sweep_saturation_cycles)
     write(g, RESULT_TRUNCATION_ERROR_HISTORY_STATUS, TRUNCATION_ERROR_HISTORY_NOT_RECORDED)
-    write(g, "elapsed_seconds", Float64[row["elapsed"] for row in traj_rows])
+    write(g, LARGE_N_ELAPSED_SECONDS_KEY, Float64[row["elapsed"] for row in traj_rows])
     write(g, "trajectory_seeds", Int[row["seed"] for row in traj_rows])
     write(
         g,
@@ -1162,7 +1162,7 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
         RESULT_COMPLETED_STEPS,
         Int[row[RESULT_COMPLETED_STEPS] for row in traj_rows],
     )
-    write(g, "stop_reasons", String[row["stop_reason"] for row in traj_rows])
+    write(g, LARGE_N_STOP_REASONS_KEY, String[row["stop_reason"] for row in traj_rows])
     write(g, "delta_lists", delta_lists)
     write(g, "delta_list_first_trajectory", delta_lists[:, 1])
     write(g, "delta_list_is_common", common_delta_list)
@@ -1210,7 +1210,7 @@ function run_campaign(cfg)
         write(f, "R_values", Int.(cfg["R_values"]))
         write(f, "model", cfg["model"])
         write(f, "bc", cfg["bc"])
-        write(f, "evolution_method", cfg["evolution_method"])
+        write(f, LARGE_N_EVOLUTION_METHOD_KEY, cfg["evolution_method"])
         write(f, "steps", cfg["steps"])
         write(f, "Dmax", cfg["Dmax"])
         write(f, "cutoff", cfg["cutoff"])
@@ -1269,8 +1269,8 @@ function run_campaign(cfg)
                 write(gm, "E0", E0)
                 write(gm, "gap", gap)
                 write(gm, LARGE_N_DETUNING_REFERENCE_GAP_SOURCE_KEY, base_detuning.source)
-                write(gm, "evolution_method", cfg["evolution_method"])
-                write(gm, "system_solve_reused_across_R", true)
+                write(gm, LARGE_N_EVOLUTION_METHOD_KEY, cfg["evolution_method"])
+                write(gm, LARGE_N_SYSTEM_SOLVE_REUSED_ACROSS_R_KEY, true)
                 detuning_protocol = largeN_detuning_protocol(gap, cfg)
                 write_largeN_detuning_protocol(gm, detuning_protocol)
 
@@ -1278,7 +1278,7 @@ function run_campaign(cfg)
                 saturation_threshold = CoolingTNS.tn_method_maxdim(
                     sim_params.sim_method, cfg["Dmax"]
                 )
-                write(gm, "bond_saturation_threshold", saturation_threshold)
+                write(gm, LARGE_N_BOND_SATURATION_THRESHOLD_KEY, saturation_threshold)
                 for R in cfg["R_values"]
                     delta_values = largeN_delta_values(detuning_protocol, R)
                     cp_multi = MultiFrequencyCouplingParameters(
