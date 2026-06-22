@@ -52,6 +52,10 @@ function run_cooling_test(; backend_str, sim_method_str, evolution_method_str,
     return results, problem
 end
 
+function coupling_with_delta(cp::CoolingTNS.BasicCouplingParameters, delta::Real)
+    return CoolingTNS.BasicCouplingParameters(cp.coupling, cp.g, cp.steps, cp.te, Float64(delta))
+end
+
 # ============================================================================
 # Common test parameters
 # ============================================================================
@@ -259,37 +263,44 @@ if RUN_FULL_TESTS
 @testset "Cross-Backend: ED vs TN (DM+Continuous/Trotter)" begin
     small_N = 3
     small_ising = CoolingTNS.NiIsingParameters(small_N, 1.0, -1.05, 0.5)
-    small_coupling = CoolingTNS.BasicCouplingParameters("XX", TEST_G, 3, TEST_TE, nothing)
+    small_coupling_auto = CoolingTNS.BasicCouplingParameters("XX", TEST_G, 3, TEST_TE, nothing)
 
     # --- ED (DM + Continuous, the gold standard) ---
     results_ed, prob_ed = run_cooling_test(
         backend_str="ED", sim_method_str="density_matrix",
         evolution_method_str="continuous",
-        ham_params=small_ising, coupling_params=small_coupling
+        ham_params=small_ising, coupling_params=small_coupling_auto
     )
+    small_coupling = coupling_with_delta(small_coupling_auto, prob_ed.extra.coupling_params.delta)
 
     # --- TN (MC + Continuous, since DM+Continuous is unsupported for TN) ---
     # Use multiple TN MC trajectories and average for comparison
     n_traj_tn = 20
     tn_E_lists = []
+    prob_tn = nothing
     for _ in 1:n_traj_tn
-        results_tn_mc, prob_tn = run_cooling_test(
+        results_tn_mc, prob_tn_current = run_cooling_test(
             backend_str="TN", sim_method_str="monte_carlo",
             evolution_method_str="continuous",
             ham_params=small_ising, coupling_params=small_coupling,
             Dmax=100
         )
+        prob_tn = prob_tn_current
         push!(tn_E_lists, results_tn_mc[RESULT_ENERGY])
     end
     tn_E_avg = mean(tn_E_lists)
 
     println("\n  Cross-backend (N=$small_N, niIsing, ED DM vs TN MC avg):")
     println("    ED e₀ = $(prob_ed.e₀)")
+    println("    TN e₀ = $(prob_tn.e₀)")
+    println("    Shared Δ = $(small_coupling.delta)")
     println("    ED final E/N = $(results_ed[RESULT_ENERGY][end]/small_N)")
     println("    TN MC avg final E/N = $(tn_E_avg[end]/small_N)")
 
-    # Ground state energies must agree (checked in problem setup)
-    @test abs(prob_ed.e₀ - prob_ed.e₀) < 1e-10  # Sanity
+    # Ground state energies and explicit detuning must agree across backends.
+    @test prob_tn !== nothing
+    @test abs(prob_ed.e₀ - prob_tn.e₀) < 1e-3
+    @test prob_tn.extra.coupling_params.delta == small_coupling.delta
 
     # Initial energies should agree (same initial state type)
     @test abs(results_ed[RESULT_ENERGY][1] - tn_E_avg[1]) < 0.5
@@ -307,14 +318,15 @@ end
 @testset "Cross-Backend: ED vs TN (DM+Trotter)" begin
     small_N = 3
     small_ising = CoolingTNS.NiIsingParameters(small_N, 1.0, -1.05, 0.5)
-    small_coupling = CoolingTNS.BasicCouplingParameters("XX", TEST_G, 3, TEST_TE, nothing)
+    small_coupling_auto = CoolingTNS.BasicCouplingParameters("XX", TEST_G, 3, TEST_TE, nothing)
 
     # --- ED ---
     results_ed, prob_ed = run_cooling_test(
         backend_str="ED", sim_method_str="density_matrix",
         evolution_method_str="trotter", tau=0.1,
-        ham_params=small_ising, coupling_params=small_coupling
+        ham_params=small_ising, coupling_params=small_coupling_auto
     )
+    small_coupling = coupling_with_delta(small_coupling_auto, prob_ed.extra.coupling_params.delta)
 
     # --- TN ---
     results_tn, prob_tn = run_cooling_test(
@@ -326,6 +338,7 @@ end
     println("\n  Cross-backend (N=$small_N, niIsing, DM+Trotter):")
     println("    ED e₀ = $(prob_ed.e₀)")
     println("    TN e₀ = $(prob_tn.e₀)")
+    println("    Shared Δ = $(small_coupling.delta)")
 
     for step in 1:length(results_ed[RESULT_ENERGY])
         E_ed = results_ed[RESULT_ENERGY][step]
@@ -335,6 +348,7 @@ end
 
     # Ground state energies agree
     @test abs(prob_ed.e₀ - prob_tn.e₀) < 1e-3
+    @test prob_tn.extra.coupling_params.delta == small_coupling.delta
 
     # Initial energies agree
     @test abs(results_ed[RESULT_ENERGY][1] - results_tn[RESULT_ENERGY][1]) < 0.5
