@@ -621,6 +621,71 @@ The Trotter-TDVP energy difference also includes the Trotter route's splitting
 error at `tau = 0.2`; a Trotter step-size ladder would be needed before
 attributing that difference only to cooling efficiency or bond truncation.
 
+## R=10 Trotter Step-Size Ladder at Dmax=64
+
+To probe how sensitive the finite-prefix Trotter-vs-TDVP comparison above is
+to Trotter discretization, the `N = 64`, `R = 10`, `Dmax = 64`,
+fixed-detuning descending Trotter diagnostic was repeated with the same
+trajectory seed and the same physical bath-evolution time `te = 1.0`, while
+varying the nominal Trotter step size:
+
+```bash
+for TAU in 0.2 0.1 0.05; do
+  JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+  julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+    --Ns 64 --R-values 10 --methods mcwf \
+    --evolution-method trotter --steps 8 --Dmax 64 \
+    --cutoff 1e-7 --tau "${TAU}" --model niising --bc open --te 1.0 \
+    --delta-min 0.5051167496264384 \
+    --delta-max 3.0307004977586303 \
+    --schedule descending \
+    --outdir .worktree/N64_trotter_tau_ladder_20260622 \
+    --stop-on-bond-cap --verbose
+done
+```
+
+The generated HDF5 files use the current explicit evolution-method stem:
+
+```text
+.worktree/N64_trotter_tau_ladder_20260622/largeN_multifrequency_tn_N64_R10_mcwf_trotter_stopcap_scheddesc_steps8_Dmax64_te1_tau0.2_seed20260617.h5
+.worktree/N64_trotter_tau_ladder_20260622/largeN_multifrequency_tn_N64_R10_mcwf_trotter_stopcap_scheddesc_steps8_Dmax64_te1_tau0.1_seed20260617.h5
+.worktree/N64_trotter_tau_ladder_20260622/largeN_multifrequency_tn_N64_R10_mcwf_trotter_stopcap_scheddesc_steps8_Dmax64_te1_tau0.05_seed20260617.h5
+```
+
+The compact bond summary is
+
+| tau | completed/requested | detuning coverage | final E/N | best E/N | Dsys_eff | Dsb_eff | bond_status | elapsed |
+|---:|---|---|---:|---:|---:|---:|---|---:|
+| 0.20 | 4/8 | requested_partial_grid | 0.92454989 | 0.92454989 | 53 | >=64 | not_converged_evolved_cap | 28.2 s |
+| 0.10 | 4/8 | requested_partial_grid | 0.87779382 | 0.87779382 | 51 | >=64 | not_converged_evolved_cap | 33.8 s |
+| 0.05 | 5/8 | requested_partial_grid | 0.81458303 | 0.81458303 | >=64 | >=64 | not_converged_system_and_evolved_cap | 72.7 s |
+
+The `tau = 0.2` physics row reproduces the earlier paired-comparison
+`R = 10` Trotter row; its elapsed time differs because the ladder row is an
+independent single-`R` job rather than one row inside the earlier multi-`R`
+campaign.
+
+The equal-cycle rows are consistent with a finite Trotter step-size
+contribution to the `tau = 0.2` deficit, but this single-trajectory MCWF
+comparison does not isolate that contribution from the changed jump-sampling
+cadence discussed below.  At the same four completed cycles, reducing `tau`
+from `0.2` to `0.1` lowers the Trotter energy density from `0.92454989` to
+`0.87779382`, close to the four-cycle TDVP value `0.87319302` above.  Reducing
+to `tau = 0.05` gives a lower value `0.81458303`, but it also reaches five
+completed cycles before the stop-on-cap criterion fires, so it is not an
+equal-cycle comparison with the TDVP row.
+
+The physical conclusion is still negative: every Trotter step-size row is
+bond-cap limited, and the best observed value in this ladder remains far above
+the stored DMRG reference `E0/N = -1.3246328892`.  This ladder is therefore
+evidence that both Trotter step size and MCWF sampling cadence affect the
+finite-prefix comparison; it is not evidence of converged large-system cooling.
+Because this is an MCWF diagnostic, changing `tau` also changes the
+jump-sampling cadence, so the realized stochastic path is not held fixed across
+the ladder; a clean
+step-size-convergence measurement would require fixed realized jump times or an
+ensemble average.
+
 ## Two-Cycle MCWF+TDVP Runtime Calibration
 
 The first completed fixed-detuning TDVP calibration checks only two cooling
