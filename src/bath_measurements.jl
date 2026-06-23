@@ -33,6 +33,14 @@ function _pauli_z_from_ed_bit(bit::Int)
     throw(ArgumentError("ED bath measurement bits must be 0 or 1, got $bit"))
 end
 
+function _require_bath_sample_length(sample::AbstractVector, N_bath::Int, label::AbstractString)
+    N_bath > 0 || throw(ArgumentError("$label requires positive N_bath, got $N_bath"))
+    length(sample) == N_bath || throw(ArgumentError(
+        "$label length $(length(sample)) does not match N_bath=$N_bath",
+    ))
+    return nothing
+end
+
 function _single_site_mpo(sites::Vector{<:Index}, op_name::String, site::Int)
     terms = OpSum()
     terms += 1.0, op_name, site
@@ -43,14 +51,16 @@ end
 # For MPS Monte Carlo, bath magnetization comes from the sampled bath configuration
 function compute_bath_magnetization(::TNBackend, ::QuantumState{TNBackend,MonteCarloWavefunction,E}, 
                                   bath_sample::Vector{Int}, N_bath::Int) where E
+    _require_bath_sample_length(bath_sample, N_bath, "TN bath sample")
     # `sample_bath` returns ITensor site indices: 1 = Up (Z=+1), 2 = Dn (Z=-1).
     return sum(_pauli_z_from_tn_sample.(bath_sample)) / N_bath
 end
 
-# --- ED + Monte Carlo ---  
+# --- ED + Monte Carlo ---
 # For ED Monte Carlo, bath magnetization comes from collapsed measurement
 function compute_bath_magnetization(::EDBackend, ::QuantumState{EDBackend,MonteCarloWavefunction,E},
                                   bath_result::Vector{Int}, N_bath::Int) where E
+    _require_bath_sample_length(bath_result, N_bath, "ED bath measurement")
     # `measure_ed!` returns computational bits: 0 = Up (Z=+1), 1 = Dn (Z=-1).
     return sum(_pauli_z_from_ed_bit.(bath_result)) / N_bath
 end
