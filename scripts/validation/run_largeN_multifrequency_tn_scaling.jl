@@ -247,6 +247,11 @@ function require_unique_values(values, flag::AbstractString)
     error("$flag must not repeat values; repeated campaign axes would overwrite output files")
 end
 
+function require_nonempty_values(values, flag::AbstractString)
+    !isempty(values) && return nothing
+    error("$flag must contain at least one value")
+end
+
 function parse_args(args)
     cfg = Dict{String,Any}(
         "Ns" => [64],
@@ -359,6 +364,9 @@ function parse_args(args)
         end
     end
 
+    require_nonempty_values(cfg["Ns"], "--Ns")
+    require_nonempty_values(cfg["R_values"], "--R-values")
+    require_nonempty_values(cfg["methods"], "--methods")
     all(R -> R >= 1, cfg["R_values"]) || error("all R values must be positive")
     all(N -> N >= 2, cfg["Ns"]) || error("all N values must be at least 2")
     require_unique_values(cfg["Ns"], "--Ns")
