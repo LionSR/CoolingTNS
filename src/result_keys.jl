@@ -46,10 +46,13 @@ const RESULT_MODE_OBSERVABLE_PAYLOAD_KEYS = (
 )
 
 const RESULT_DELTA_LIST = "delta_list"
+const RESULT_TE = "te"
 const RESULT_TE_LIST = "te_list"
 const RESULT_DELTA_VALUES = "delta_values"
 const RESULT_SCHEDULE = "schedule"
 const RESULT_RANDOMIZE_TIMES = "randomize_times"
+const RESULT_INIT_STATE = "init_state"
+const RESULT_INIT_THETA = "theta"
 const RESULT_REQUESTED_STEPS = "requested_steps"
 const RESULT_COMPLETED_STEPS = "completed_steps"
 const RESULT_STOP_REASON = "stop_reason"
@@ -94,10 +97,13 @@ const RESULT_KEYS = (
     RESULT_MODE_HK_STDERR,
     RESULT_MODE_NK_STDERR,
     RESULT_DELTA_LIST,
+    RESULT_TE,
     RESULT_TE_LIST,
     RESULT_DELTA_VALUES,
     RESULT_SCHEDULE,
     RESULT_RANDOMIZE_TIMES,
+    RESULT_INIT_STATE,
+    RESULT_INIT_THETA,
     RESULT_REQUESTED_STEPS,
     RESULT_COMPLETED_STEPS,
     RESULT_STOP_REASON,

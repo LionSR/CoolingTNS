@@ -309,9 +309,11 @@ time_protocol_label(randomize_times::Bool) = randomize_times ? "randomized" : "f
 
 function initial_state_metadata(root, method_group, run_group)
     init_state = String(
-        read_first_group_value("init_state", "unknown", run_group, method_group, root)
+        read_first_group_value(RESULT_INIT_STATE, "unknown", run_group, method_group, root)
     )
-    theta = Float64(read_first_group_value("theta", NaN, run_group, method_group, root))
+    theta = Float64(
+        read_first_group_value(RESULT_INIT_THETA, NaN, run_group, method_group, root)
+    )
     return init_state, theta
 end
 
@@ -571,7 +573,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     evolution = String(
         read_group_value(method_group, root, LARGE_N_EVOLUTION_METHOD_KEY, "unknown")
     )
-    te = Float64(read_first_group_value("te", NaN, run_group, method_group, root))
+    te = Float64(read_first_group_value(RESULT_TE, NaN, run_group, method_group, root))
     randomize_times = randomize_times_flag(root, method_group, run_group)
     time_protocol = time_protocol_label(randomize_times)
     init_state, theta = initial_state_metadata(root, method_group, run_group)
