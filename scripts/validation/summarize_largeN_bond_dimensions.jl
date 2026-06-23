@@ -780,7 +780,7 @@ function trajectory_ensemble_key(row)
         row.delta_range,
         row.delta_factor,
         row.threshold,
-        row.E0,
+        isnan(row.E0) ? missing : row.E0,
     )
 end
 

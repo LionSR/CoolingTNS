@@ -63,6 +63,7 @@ function write_split_trajectory_summary_file(
     completed_steps::Integer,
     stop_reason::AbstractString,
     elapsed_seconds::Real,
+    write_e0::Bool=true,
     write_delta_history::Bool=true,
 )
     N = 4
@@ -77,7 +78,7 @@ function write_split_trajectory_summary_file(
         gn = create_group(f, "N4")
         write(gn, "N", N)
         gm = create_group(gn, "mcwf")
-        write(gm, "E0", E0)
+        write_e0 && write(gm, "E0", E0)
         write(gm, LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY,
               LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE)
         write(gm, LARGE_N_DETUNING_DELTA_MIN_KEY, 0.5)
@@ -351,6 +352,8 @@ end
     path1 = tempname() * ".h5"
     path3 = tempname() * ".h5"
     missing_delta_path = tempname() * ".h5"
+    legacy_e0_path1 = tempname() * ".h5"
+    legacy_e0_path2 = tempname() * ".h5"
     duplicate_path = tempname() * ".h5"
     try
         write_split_trajectory_summary_file(
@@ -383,6 +386,28 @@ end
             stop_reason="",
             elapsed_seconds=7.0,
             write_delta_history=false,
+        )
+        write_split_trajectory_summary_file(
+            legacy_e0_path1;
+            trajectory=7,
+            energy_values=[-1.0, -1.5, -2.0],
+            system_max=[1, 3, 5],
+            evolved_max=[0, 4, 6],
+            completed_steps=2,
+            stop_reason="",
+            elapsed_seconds=7.0,
+            write_e0=false,
+        )
+        write_split_trajectory_summary_file(
+            legacy_e0_path2;
+            trajectory=9,
+            energy_values=[-1.0, -1.25, -1.5],
+            system_max=[1, 3, 5],
+            evolved_max=[0, 4, 6],
+            completed_steps=2,
+            stop_reason="",
+            elapsed_seconds=9.0,
+            write_e0=false,
         )
         write_split_trajectory_summary_file(
             duplicate_path;
@@ -456,11 +481,20 @@ end
         @test mixed_delta_history_row.visited_delta_counts == [2]
         @test mixed_delta_history_row.missing_delta_history_count == 1
         @test mixed_delta_history_row.visited_detunings == "2/2+unknownx1/2"
+        legacy_e0_row = only(combine_trajectory_rows(vcat(
+            summarize_file(legacy_e0_path1),
+            summarize_file(legacy_e0_path2),
+        )))
+        @test legacy_e0_row.file == "trajectory_ensemble(traj=7,9)"
+        @test isnan(legacy_e0_row.E0)
+        @test legacy_e0_row.M == 2
         @test parse_args(["--combine-trajectories", path1]).combine_trajectories
     finally
         rm(path1; force=true)
         rm(path3; force=true)
         rm(missing_delta_path; force=true)
+        rm(legacy_e0_path1; force=true)
+        rm(legacy_e0_path2; force=true)
         rm(duplicate_path; force=true)
     end
 end
