@@ -2,6 +2,9 @@ using Test
 using CoolingTNS
 using ITensors
 using ITensorMPS
+using LinearAlgebra
+
+@isdefined(test_mpo_to_matrix) || include("test_helpers.jl")
 
 @testset "Bath Magnetization Convention" begin
     tn_mc_state = CoolingTNS.QuantumState(
@@ -88,6 +91,28 @@ using ITensorMPS
         ) ≈ -1.0
     end
 
+    @testset "TN reduced MPO canonicalization" begin
+        sites_bath = siteinds("S=1/2", 1)
+        s = sites_bath[1]
+        ρ_tensor = ITensor(ComplexF64, prime(s), s)
+        ρ_tensor[prime(s) => 1, s => 1] = 0.6 + 1e-12im
+        ρ_tensor[prime(s) => 1, s => 2] = 0.2 + 0.3im
+        ρ_tensor[prime(s) => 2, s => 1] = -0.1 + 0.4im
+        ρ_tensor[prime(s) => 2, s => 2] = 0.4 - 1e-12im
+        ρ_raw = MPO([ρ_tensor])
+        raw_matrix = test_mpo_to_matrix(ρ_raw)
+
+        ρ_canonical = CoolingTNS._canonical_reduced_density_mpo(ρ_raw)
+        canonical_matrix = test_mpo_to_matrix(ρ_canonical)
+        expected_matrix = 0.5 * (raw_matrix + raw_matrix')
+        expected_matrix /= tr(expected_matrix)
+
+        @test !ishermitian(raw_matrix)
+        @test ishermitian(canonical_matrix)
+        @test tr(canonical_matrix) ≈ 1.0 atol=1e-14
+        @test canonical_matrix ≈ expected_matrix atol=1e-14
+    end
+
     @testset "TN bath sampling uses the same convention" begin
         N = 2
         sites_sys = siteinds("S=1/2", N)
@@ -111,8 +136,9 @@ using ITensorMPS
 
         ρ_sys = MPO(sites_sys, "Id") / 2.0^N
         ρ_sb = CoolingTNS.appendzeros_MPO(ρ_sys, sites_sb, "XX")
-        ρ_bath = CoolingTNS.partial_trace_system(ρ_sb, sites_sb, sites_bath)
-        ρ_bath /= tr(ρ_bath)
+        ρ_bath = CoolingTNS._canonical_reduced_density_mpo(
+            CoolingTNS.partial_trace_system(ρ_sb, sites_sb, sites_bath)
+        )
 
         tn_dm_state = CoolingTNS.QuantumState(
             CoolingTNS.TNBackend(),

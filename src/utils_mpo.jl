@@ -69,3 +69,18 @@ function partial_trace_system(ρ_sb::MPO, sites::Vector{<:Index}, sites_bath::Ve
         for i in 1:N
     ])
 end
+
+"""
+    _canonical_reduced_density_mpo(ρ::MPO)
+
+Project an MPO reduced-density operator to its Hermitian, trace-one
+representative after a partial trace.
+"""
+function _canonical_reduced_density_mpo(ρ::MPO)
+    ρ_h = 0.5 * (ρ + dag(swapprime(ρ, 0, 1)))
+    trρ = tr(ρ_h)
+    # TN evolution may include MPO truncation before this boundary.  Keep the
+    # existing TN behavior by renormalizing the Hermitian representative rather
+    # than rejecting trace drift that is not present in exact ED arithmetic.
+    return ρ_h / trρ
+end

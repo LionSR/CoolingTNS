@@ -28,10 +28,15 @@ _density_trace_normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("it does not define a different cooling channel", map_flat)
 
     @test occursin(
-        "both density-matrix implementations store the reduced system state rather than the full system-bath state",
+        "both density-matrix implementations form reduced density operators rather than keeping the full system-bath state",
+        tn_flat,
+    )
+    @test occursin(
+        "the reduced bath state is used to compute the bath magnetization before the bath is discarded",
         tn_flat,
     )
     @test occursin(raw"\label{eq:density_post_trace_canonicalization}", tn_flat)
+    @test occursin(raw"\rho_R^{\mathrm{num}}", tn_flat)
     @test occursin(
         "For the MPO path, the dagger in \\cref{eq:density_post_trace_canonicalization} is implemented by swapping the primed and unprimed site layers",
         tn_flat,
@@ -41,7 +46,7 @@ _density_trace_normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         tn_flat,
     )
     @test occursin(
-        "The bath magnetization is computed from the bath reduced state before the bath is discarded",
+        "in exact arithmetic the partial trace already gives a Hermitian, trace-one density matrix",
         tn_flat,
     )
 end

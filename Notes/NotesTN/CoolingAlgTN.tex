@@ -480,25 +480,26 @@ corresponding pure MPS Trotter evolution before bath measurement.
 
 After the time evolution (\ref{eq:rhot}), we perform the partial trace of the bath degrees of freedom. This can be done efficiently for matrix product operators (see Fig.~\ref{fig:MPO}(c)). Essentially, the order-four tensor of the site to be traced out is reduced to a matrix after applying the trace operation and can be merged with neighboring tensors through a contraction.
 
-After this partial trace, both density-matrix implementations store the
-reduced system state rather than the full system-bath state.  The reduced
-state is represented by the same numerical convention in the dense ED and MPO
-paths:
+After the time evolution, both density-matrix implementations form reduced
+density operators rather than keeping the full system-bath state: the reduced
+system state is stored for the next cooling cycle, while the reduced bath state
+is used to compute the bath magnetization before the bath is discarded.  Each
+reduced operator \(R\in\{S,B\}\) is represented by the same numerical
+convention in the dense ED and MPO paths:
 \begin{equation}
-	\rho_S^{\mathrm{num}}
+	\rho_R^{\mathrm{num}}
 	=
-	\frac{\frac12(\rho_S+\rho_S^\dagger)}
-	     {\tr\!\left[\frac12(\rho_S+\rho_S^\dagger)\right]} .
+	\frac{\frac12(\rho_R+\rho_R^\dagger)}
+	     {\tr\!\left[\frac12(\rho_R+\rho_R^\dagger)\right]} .
 	\label{eq:density_post_trace_canonicalization}
 \end{equation}
-For ED this is the dense-matrix operation applied after
-\(\tr_B\).  For the MPO path, the dagger in
+For ED this is the dense-matrix operation applied after \(\tr_B\) or
+\(\tr_S\).  For the MPO path, the dagger in
 \cref{eq:density_post_trace_canonicalization} is implemented by swapping the
 primed and unprimed site layers and taking the ITensor adjoint.  This
 post-trace canonicalization is a numerical representative of the same
-mathematical state: in exact arithmetic \(\tr_B\) already gives a Hermitian,
-trace-one density matrix.  The bath magnetization is computed from the bath
-reduced state before the bath is discarded.
+mathematical state: in exact arithmetic the partial trace already gives a
+Hermitian, trace-one density matrix.
 
 To simulate the effects of noise using the MPO method, we apply the Kraus operators corresponding to the depolarizing noise as operators on the MPO after each cooling step. The depolarizing noise is described by the channel
 \begin{equation}
