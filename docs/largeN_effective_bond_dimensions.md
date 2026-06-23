@@ -51,17 +51,21 @@ a `_trajk` token to both HDF5 and progress-CSV stems and store the physical
 MCWF trajectory labels in the HDF5 `trajectory_indices` dataset.  The HDF5
 metadata is the authoritative protocol record.  The summary table includes the
 stored `te` column, so a later time-ladder comparison does not have to infer
-the bath-evolution time from a filename.  When those split trajectory-axis
-files are summarized together,
+the bath-evolution time from a filename.  It also includes a `time protocol`
+column, which distinguishes fixed cycle times from randomized cycle times using
+the stored `randomize_times` metadata.  When those split trajectory-axis files
+are summarized together,
 `summarize_largeN_bond_dimensions.jl --combine-trajectories` groups compatible
-rows by the physical protocol, including `te`, rejects duplicate trajectory
-labels, and reports one ensemble-level row.  For stop-on-cap files with unequal
-completed prefixes, the energy columns in that combined row are statistics of
-the individual trajectory summaries, not a reconstructed cycle-aligned ensemble
-time series.  If some member files do not contain detuning histories, the
-combined `visited detunings` entry records the known counts and an
-`unknownxq/M` term, rather than attributing the observed histories to the whole
-ensemble.
+rows by the physical protocol, including `te` and whether the cycle times are
+fixed or randomized, rejects duplicate trajectory labels, and reports one
+ensemble-level row.  Thus a fixed-time trajectory file and a randomized-time
+trajectory file with the same mean `te` are not combined as if they were the
+same physical protocol.  For stop-on-cap files with unequal completed prefixes,
+the energy columns in that combined row are statistics of the individual
+trajectory summaries, not a reconstructed cycle-aligned ensemble time series.
+If some member files do not contain detuning histories, the combined
+`visited detunings` entry records the known counts and an `unknownxq/M` term,
+rather than attributing the observed histories to the whole ensemble.
 
 The summary script also reports the stored `completed_steps`,
 `requested_steps`, `elapsed_seconds`, and `stop_reasons` fields.  The
