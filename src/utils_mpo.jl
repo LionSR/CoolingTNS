@@ -78,5 +78,9 @@ representative after a partial trace.
 """
 function _canonical_reduced_density_mpo(ρ::MPO)
     ρ_h = 0.5 * (ρ + dag(swapprime(ρ, 0, 1)))
-    return ρ_h / tr(ρ_h)
+    trρ = tr(ρ_h)
+    # TN evolution may include MPO truncation before this boundary.  Keep the
+    # existing TN behavior by renormalizing the Hermitian representative rather
+    # than rejecting trace drift that is not present in exact ED arithmetic.
+    return ρ_h / trρ
 end
