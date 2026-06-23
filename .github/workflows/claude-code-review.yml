@@ -8,6 +8,9 @@ on:
       - "Project.toml"
       - "Manifest.toml"
       - "CondaPkg.toml"
+      - "Notes/**/*.tex"
+      - "Notes/**/*.bib"
+      - "slides/**/*.tex"
       - ".github/workflows/*.yml"
       - ".github/prompts/*.md"
 
@@ -121,6 +124,6 @@ jobs:
             Repository: ${{ github.repository }}
             Repository owner: ${{ github.repository_owner }}
             Repository name: ${{ github.event.repository.name }}
-            Review this Julia pull request: ${{ github.repository }}/pull/${{ github.event.pull_request.number }}
+            Review this CoolingTNS pull request: ${{ github.repository }}/pull/${{ github.event.pull_request.number }}
             Trigger event: ${{ github.event.action }}
           system-prompt-file: .trusted-actions/.github/prompts/claude-code-review-system-prompt.md

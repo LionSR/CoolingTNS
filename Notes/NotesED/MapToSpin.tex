@@ -208,43 +208,43 @@ First expand the XX part and use the Fourier identities above:
 \end{widetext}
 Now consider a generic paired mode $k\neq 0,N/2$ and group the $k$ and $-k$ contributions (using $\phi_{-k}=-\phi_k$ on either momentum grid).
 It is convenient to separate number and pairing sectors.
-\begin{widetext}
-    \begin{align}
-        \mathcal{N}_{k,-k}
-        &\equiv e^{-i\phi_k}\ta_k\ta_k^\dag - e^{+i\phi_k}\ta_k^\dag\ta_k
-          + e^{+i\phi_k}\ta_{-k}\ta_{-k}^\dag - e^{-i\phi_k}\ta_{-k}^\dag\ta_{-k}\nn\\
-        &= (e^{-i\phi_k}+e^{+i\phi_k})
-           - (e^{-i\phi_k}+e^{+i\phi_k})\,(\ta_k^\dag\ta_k+\ta_{-k}^\dag\ta_{-k})\nn\\
-        &= -2\cos\phi_k\,(\ta_k^\dag\ta_k+\ta_{-k}^\dag\ta_{-k}-1),
-    \end{align}
-\end{widetext}
+\begin{align}
+    \mathcal{N}_{k,-k}
+    &\equiv e^{-i\phi_k}\ta_k\ta_k^\dag - e^{+i\phi_k}\ta_k^\dag\ta_k
+      \nn\\
+    &\quad
+      + e^{+i\phi_k}\ta_{-k}\ta_{-k}^\dag - e^{-i\phi_k}\ta_{-k}^\dag\ta_{-k}\nn\\
+    &= (e^{-i\phi_k}+e^{+i\phi_k})
+       - (e^{-i\phi_k}+e^{+i\phi_k})\,\ta_k^\dag\ta_k\nn\\
+    &\quad
+       - (e^{-i\phi_k}+e^{+i\phi_k})\,\ta_{-k}^\dag\ta_{-k}\nn\\
+    &= -2\cos\phi_k\,(\ta_k^\dag\ta_k+\ta_{-k}^\dag\ta_{-k}-1),
+\end{align}
 where we used normal ordering $\ta_k\ta_k^\dag=1-\ta_k^\dag\ta_k$ and $e^{-i\phi}+e^{+i\phi}=2\cos\phi$.
 Similarly for the pairing sector,
-\begin{widetext}
-    \begin{align}
-        \mathcal{P}_{k,-k}
-        &\equiv e^{-i\phi_k}\ta_k\ta_{-k} - e^{+i\phi_k}\ta_k^\dag\ta_{-k}^\dag
-          + e^{+i\phi_k}\ta_{-k}\ta_k - e^{-i\phi_k}\ta_{-k}^\dag\ta_k^\dag\nn\\
-        &= (e^{-i\phi_k}-e^{+i\phi_k})\,(\ta_k\ta_{-k}+\ta_k^\dag\ta_{-k}^\dag)\nn\\
-        &= -2i\sin\phi_k\,(\ta_k^\dag\ta_{-k}^\dag-\ta_{-k}\ta_k),
-    \end{align}
-\end{widetext}
+\begin{align}
+    \mathcal{P}_{k,-k}
+    &\equiv e^{-i\phi_k}\ta_k\ta_{-k} - e^{+i\phi_k}\ta_k^\dag\ta_{-k}^\dag
+      \nn\\
+    &\quad
+      + e^{+i\phi_k}\ta_{-k}\ta_k - e^{-i\phi_k}\ta_{-k}^\dag\ta_k^\dag\nn\\
+    &= (e^{-i\phi_k}-e^{+i\phi_k})\,(\ta_k\ta_{-k}+\ta_k^\dag\ta_{-k}^\dag)\nn\\
+    &= -2i\sin\phi_k\,(\ta_k^\dag\ta_{-k}^\dag-\ta_{-k}\ta_k),
+\end{align}
 where we used fermionic anticommutation to reorder $\ta_{-k}\ta_k=-\ta_k\ta_{-k}$ and $\ta_{-k}^\dag\ta_k^\dag=-\ta_k^\dag\ta_{-k}^\dag$,
 and then Euler's identity $e^{-i\phi}-e^{+i\phi}=-2i\sin\phi$.
 
 Combining the $k$ and $-k$ pieces of \cref{eq:H_momentum_raw} gives
-\begin{widetext}
-    \begin{align}
-        H_{k,-k}
-        &= \frac{\cos\theta}{2}\big(\mathcal{N}_{k,-k}+\mathcal{P}_{k,-k}\big)\nn\\
-        &\quad
-           -\frac{\sin\theta}{2}\Big[(\ta_k\ta_k^\dag-\ta_k^\dag\ta_k)
-           +(\ta_{-k}\ta_{-k}^\dag-\ta_{-k}^\dag\ta_{-k})\Big]\nn\\
-        &= \big(\sin\theta-\cos\theta\cos\phi_k\big)\,(\ta_k^\dag\ta_k+\ta_{-k}^\dag\ta_{-k}-1)\nn\\
-        &\quad
-           + i\big(-\cos\theta\sin\phi_k\big)\,(\ta_k^\dag\ta_{-k}^\dag-\ta_{-k}\ta_k),
-    \end{align}
-\end{widetext}
+\begin{align}
+    H_{k,-k}
+    &= \frac{\cos\theta}{2}\big(\mathcal{N}_{k,-k}+\mathcal{P}_{k,-k}\big)\nn\\
+    &\quad
+       -\frac{\sin\theta}{2}\Big[(\ta_k\ta_k^\dag-\ta_k^\dag\ta_k)
+       +(\ta_{-k}\ta_{-k}^\dag-\ta_{-k}^\dag\ta_{-k})\Big]\nn\\
+    &= \big(\sin\theta-\cos\theta\cos\phi_k\big)\,(\ta_k^\dag\ta_k+\ta_{-k}^\dag\ta_{-k}-1)\nn\\
+    &\quad
+       + i\big(-\cos\theta\sin\phi_k\big)\,(\ta_k^\dag\ta_{-k}^\dag-\ta_{-k}\ta_k),
+\end{align}
 which is the canonical form quoted below.
 
 Applying these steps to \cref{eq:H_ferm_realspace} and normal ordering $\ta_k\ta_k^\dag=1-\ta_k^\dag\ta_k$, the $(k,-k)$ contribution for a generic paired mode ($k\neq 0,N/2$) can be written as
