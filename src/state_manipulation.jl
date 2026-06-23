@@ -71,10 +71,6 @@ function process_bath(::EDBackend, ::MonteCarloWavefunction, ψ_evolved::EDState
     return measure_ed!(ψ_evolved, interleaved_bath_sites(N_bath))
 end
 
-# ED Density Matrix: return full state, trace during measurements
-process_bath(::EDBackend, ::DensityMatrix, ρ::EDDensityMatrix, _, _) = (ρ, nothing)
-process_bath(::EDBackend, ::DensityMatrix, ρ::Matrix, _, _) = (ρ, nothing)
-
 # ============================================================================
 # Trace Operations
 # ============================================================================

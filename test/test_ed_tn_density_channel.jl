@@ -122,7 +122,7 @@ end
         ρ0, ρ1, H = if backend isa CoolingTNS.EDBackend
             (
                 CoolingTNS.state_to_density_ed(problem.ϕ₀).data,
-                CoolingTNS.trace_out_bath_ed(state1.state, ham_params.N).data,
+                state1.state.data,
                 Matrix(problem.H_sys),
             )
         else
@@ -132,9 +132,13 @@ end
                 test_mpo_to_matrix(problem.H_sys),
             )
         end
+        processed_system_sites = backend isa CoolingTNS.EDBackend ?
+            state1.state.n_qubits :
+            length(state1.state)
 
         return (
             problem=problem,
+            processed_system_sites=processed_system_sites,
             initial_trace=tr(ρ0),
             final_trace=tr(ρ1),
             initial_energy=real(tr(H * ρ0)),
@@ -158,6 +162,8 @@ end
     problem_tn = diag_tn.problem
 
     @test problem_ed.e₀ ≈ problem_tn.e₀ atol=1e-10
+    @test diag_ed.processed_system_sites == ham_params.N
+    @test diag_tn.processed_system_sites == ham_params.N
     @test diag_ed.initial_trace ≈ 1.0 + 0.0im atol=1e-12
     @test diag_tn.initial_trace ≈ 1.0 + 0.0im atol=1e-10
     @test diag_ed.final_trace ≈ 1.0 + 0.0im atol=1e-12

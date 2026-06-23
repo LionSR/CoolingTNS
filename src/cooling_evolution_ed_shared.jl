@@ -226,7 +226,7 @@ Shared measurement function for ED backend.
 """
 function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVector, EDDensityMatrix},
                                 H_sys_mat::AbstractMatrix, ϕ₀::EDStateVector,
-                                ham_params, _bath_info=nothing)
+                                ham_params, bath_info=nothing)
     N_sys = ham_params.N
     sys_state = _system_state_for_measurement(state, N_sys)
     
@@ -244,8 +244,7 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
         # Purity is always 1 for pure states
         # No bath magnetization for system-only state
     else
-        # Density matrix: may be full system+bath or system only
-        ρ_total = state
+        # Density matrix measurements are performed on the reduced system state.
         ρ_sys = sys_state
         
         # Energy
@@ -259,15 +258,8 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
             measurements[RESULT_PURITY][step] = purity_ed(ρ_sys)
         end
         
-        # Bath magnetization (only if we have full state and not first step)
-        if step > 1 &&
-           ρ_total.n_qubits == interleaved_total_sites(N_sys) &&
-           haskey(measurements, RESULT_BATH_MAGNETIZATION)
-            N_bath = N_sys
-            ρ_bath = trace_out_system_ed(ρ_total, N_sys)
-            # Compute magnetization
-            mag = sum(i -> expect_ed(pauli_z(i, N_bath), ρ_bath), 1:N_bath; init=0.0)
-            measurements[RESULT_BATH_MAGNETIZATION][step] = mag / N_bath
+        if haskey(measurements, RESULT_BATH_MAGNETIZATION) && bath_info !== nothing
+            measurements[RESULT_BATH_MAGNETIZATION][step] = Float64(bath_info)
         end
     end
     

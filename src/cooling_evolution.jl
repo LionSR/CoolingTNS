@@ -966,9 +966,13 @@ function prepare_combined_state(problem::CoolingProblem{EDBackend}, state::Quant
     return prepare_combined_state_ed(ρ_sys, N_bath, coupling)
 end
 
-function process_bath_and_update(::CoolingProblem{EDBackend}, ρ_evolved::EDDensityMatrix,
+function process_bath_and_update(problem::CoolingProblem{EDBackend}, ρ_evolved::EDDensityMatrix,
                                state::QuantumState{EDBackend,DensityMatrix,E}, _) where E<:EvolutionMethod
-    return QuantumState(state.backend, state.sim_method, state.evolution_method, ρ_evolved), nothing
+    N_sys = problem.extra.ham_params.N
+    ρ_sys = trace_out_bath_ed(ρ_evolved, N_sys)
+    ρ_bath = trace_out_system_ed(ρ_evolved, N_sys)
+    bath_mag = compute_bath_magnetization(problem.backend, state, ρ_bath.data, N_sys)
+    return QuantumState(state.backend, state.sim_method, state.evolution_method, ρ_sys), bath_mag
 end
 
 # Evolution differs by tau
