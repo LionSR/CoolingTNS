@@ -182,7 +182,7 @@ function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::Uni
 
     N = problem.extra.ham_params.N
     state = if init_type == "ground"
-        EDStateVector(copy(problem.ϕ₀.data), problem.ϕ₀.n_qubits)
+        EDStateVector(problem.ϕ₀.data, problem.ϕ₀.n_qubits)
     else
         create_theta_state_ed(N, init_type, theta)
     end
