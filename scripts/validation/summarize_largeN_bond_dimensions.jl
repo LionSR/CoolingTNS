@@ -65,7 +65,7 @@ const ENERGY_TAIL_WINDOW = 10
 function usage()
     println(
         "usage: julia --project=. scripts/validation/summarize_largeN_bond_dimensions.jl " *
-        "[--compact] [--combine-trajectories] FILE.h5 [FILE2.h5 ...]"
+        "[--compact] [--combine-trajectories] [--skip-invalid] FILE.h5 [FILE2.h5 ...]"
     )
 end
 
@@ -1217,20 +1217,30 @@ end
 function parse_args(args)
     compact = false
     combine_trajectories = false
+    skip_invalid = false
     paths = String[]
     for arg in args
         if arg == "--compact"
             compact = true
         elseif arg == "--combine-trajectories"
             combine_trajectories = true
+        elseif arg == "--skip-invalid"
+            skip_invalid = true
         elseif startswith(arg, "--")
             throw(ArgumentError("unknown option: $arg"))
         else
             push!(paths, arg)
         end
     end
-    return (paths=paths, compact=compact, combine_trajectories=combine_trajectories)
+    return (
+        paths=paths,
+        compact=compact,
+        combine_trajectories=combine_trajectories,
+        skip_invalid=skip_invalid,
+    )
 end
+
+skip_invalid_catches_error(err) = !(err isa InterruptException)
 
 function summarize_largeN_bond_dimensions_main(args=ARGS)
     if isempty(args) || any(arg -> arg in ("-h", "--help"), args)
@@ -1242,7 +1252,13 @@ function summarize_largeN_bond_dimensions_main(args=ARGS)
     rows = NamedTuple[]
     for path in parsed.paths
         isfile(path) || error("not a file: $path")
-        append!(rows, summarize_file(path))
+        try
+            append!(rows, summarize_file(path))
+        catch err
+            parsed.skip_invalid && skip_invalid_catches_error(err) || rethrow()
+            error_summary = first(split(sprint(showerror, err), '\n'))
+            @warn "Skipping invalid large-N campaign input" path error=error_summary
+        end
     end
     isempty(rows) && error("no large-N campaign runs found")
     parsed.combine_trajectories && (rows = combine_trajectory_rows(rows))

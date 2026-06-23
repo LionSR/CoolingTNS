@@ -399,7 +399,40 @@ end
         )
         @test parse_args(["--compact", path]).compact
         @test parse_args(["--compact", path]).paths == [path]
+        @test parse_args(["--skip-invalid", path]).skip_invalid
+        @test skip_invalid_catches_error(ErrorException("bad input"))
+        @test !skip_invalid_catches_error(InterruptException())
         @test_throws ArgumentError parse_args(["--unknown", path])
+
+        invalid_path = tempname() * ".h5"
+        write(invalid_path, "not an HDF5 file")
+        try
+            @test_throws ErrorException summarize_largeN_bond_dimensions_main([
+                "--compact",
+                invalid_path,
+                path,
+            ])
+            skip_output = mktemp() do output_path, io
+                close(io)
+                open(output_path, "w") do out
+                    redirect_stdout(out) do
+                        @test_logs (:warn, r"Skipping invalid large-N campaign input") begin
+                            @test summarize_largeN_bond_dimensions_main([
+                                "--compact",
+                                "--skip-invalid",
+                                invalid_path,
+                                path,
+                            ]) == 0
+                        end
+                    end
+                end
+                read(output_path, String)
+            end
+            @test occursin(basename(path), skip_output)
+            @test !occursin(basename(invalid_path), skip_output)
+        finally
+            rm(invalid_path; force=true)
+        end
     finally
         rm(path; force=true)
     end
