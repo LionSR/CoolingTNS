@@ -506,9 +506,10 @@ end
             )
         end
 
-        @test measurements[RESULT_ENERGY][2] == measurements[RESULT_ENERGY][1]
-        @test measurements[RESULT_GROUND_STATE_OVERLAP][2] ==
-            measurements[RESULT_GROUND_STATE_OVERLAP][1]
+        @test isfinite(measurements[RESULT_ENERGY][1])
+        @test isfinite(measurements[RESULT_GROUND_STATE_OVERLAP][1])
+        @test isnan(measurements[RESULT_ENERGY][2])
+        @test isnan(measurements[RESULT_GROUND_STATE_OVERLAP][2])
         @test measurements[RESULT_MODE_GF_SOURCE] == "state"
         @test all(isfinite, measurements[RESULT_MODE_HK][1, :])
         @test all(isfinite, measurements[RESULT_MODE_NK][1, :])
