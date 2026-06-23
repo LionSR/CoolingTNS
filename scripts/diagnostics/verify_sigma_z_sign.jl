@@ -92,9 +92,9 @@ function verify_sign(; N::Int=6, theta::Float64=0.4, verbose::Bool=true)
         println("-"^88)
         for (i, k) in enumerate(ks)
             println("$(rpad(k,8)) " *
-                    "$(rpad(round(nk_measured[i], digits=6),10)) " *
-                    "$(rpad(round(nk_canonical[i], digits=6),15)) " *
-                    "$(rpad(round(nk_obsolete[i], digits=6),14)) " *
+                    "$(rpad(round(tilde_n_measured[i], digits=6),10)) " *
+                    "$(rpad(round(tilde_n_canonical[i], digits=6),15)) " *
+                    "$(rpad(round(tilde_n_obsolete[i], digits=6),14)) " *
                     "$(rpad(round(canonical_errors[i], sigdigits=3),15)) " *
                     "$(round(obsolete_errors[i], sigdigits=3))")
         end
