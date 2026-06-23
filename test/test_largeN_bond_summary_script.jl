@@ -581,6 +581,8 @@ end
         @test fallback_row.final_e_over_n_values == [-0.5, -0.5]
         @test fallback_row.best_e_over_n_values == [-1.0, -1.0]
         @test fallback_row.tail_e_over_n_values == [-0.75, -0.75]
+        @test isnan(fallback_row.initial_overlap)
+        @test all(isnan, fallback_row.initial_overlap_values)
 
         write_legacy_split_metadata_file(bad_indices_path; trajectory_indices=[1])
         @test_throws ErrorException summarize_file(bad_indices_path)
