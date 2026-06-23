@@ -168,6 +168,16 @@ end
         initial_state_group_key((init_state="theta", theta=NaN)),
         ("theta", missing),
     )
+    @test initial_state_sort_key((
+        init_state="theta",
+        theta=-0.5,
+        init_protocol="theta=-0.500",
+    )) <
+          initial_state_sort_key((
+              init_state="theta",
+              theta=-0.25,
+              init_protocol="theta=-0.250",
+          ))
 
     delta_history = [
         NaN NaN

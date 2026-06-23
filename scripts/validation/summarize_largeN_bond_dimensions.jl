@@ -326,6 +326,12 @@ function initial_state_group_key(row)
     return (init_state, theta_key)
 end
 
+function initial_state_sort_key(row)
+    init_state = String(row.init_state)
+    theta_key = init_state == "theta" && isfinite(row.theta) ? row.theta : Inf
+    return (init_state, theta_key, String(row.init_protocol))
+end
+
 is_deterministic_schedule(schedule::AbstractString) =
     schedule in ("round_robin", "descending")
 
@@ -1131,7 +1137,7 @@ function sorted_rows(rows)
             row.evolution,
             isfinite(row.te) ? row.te : Inf,
             row.randomize_times,
-            row.init_protocol,
+            initial_state_sort_key(row),
             row.R,
             row.file,
         ),
