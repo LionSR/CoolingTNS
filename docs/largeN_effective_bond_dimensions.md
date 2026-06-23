@@ -238,6 +238,10 @@ mode-observable payload (`mode_hk`, `mode_nk`, `mode_k_indices`,
 `mode_gF_source`).  A partial payload is rejected rather than summarized as
 `n/a`, because it is neither a valid absence of mode data nor a complete
 occupation-number diagnostic.
+The mode-energy plotting path applies the same positive-gap check: if
+`mode_ek_values` are present but do not match the stored `mode_k_indices`,
+`N`, `J`, and `h`, the file is rejected rather than repaired by recomputing
+coefficients from the root metadata.
 
 The full TN mode measurement currently evaluates the split-string correlator
 formula for all Fourier modes, and is much more expensive than the scalar
