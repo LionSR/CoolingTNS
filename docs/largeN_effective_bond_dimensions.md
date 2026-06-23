@@ -1601,3 +1601,58 @@ julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
 Generated HDF5 filenames include `_initground`, and the HDF5 metadata records
 `init_state = "ground"`, so these controls cannot be confused with the default
 product-state cooling runs.
+
+### First N=64 R=10 Ground-State Control
+
+The `R = 10`, `Dmax = 128`, `te = 1.0` descending schedule above was repeated
+from the system ground state on 2026-06-23:
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 10 --methods mcwf \
+  --evolution-method continuous --steps 12 --Dmax 128 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending --init-state ground \
+  --progress-csv .worktree/ground_control_dmax128_R10_20260623/tdvp_progress_N64_niising_open_mcwf_R10_Dmax128_te1.0_descending_initground.csv \
+  --outdir .worktree/ground_control_dmax128_R10_20260623 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The run wrote
+
+```text
+.worktree/ground_control_dmax128_R10_20260623/largeN_multifrequency_tn_N64_R10_mcwf_continuous_stopcap_scheddesc_initground_steps12_Dmax128_te1_tau0.2_seed20260617.h5
+.worktree/ground_control_dmax128_R10_20260623/tdvp_progress_N64_niising_open_mcwf_R10_Dmax128_te1.0_descending_initground.csv
+```
+
+The HDF5 summary is
+
+| R | Dcap | completed/requested cycles | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | system sat | evolved sat | tdvp sweep sat | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---:|
+| 10 | 128 | 8/12 | -1.25614747 | -1.32463289 | 121 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 8 | 8 | 1325.6 s |
+
+The completed-cycle prefix is
+
+| cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 3.03070050 | -1.31529539 | 8 | 12 | 39.6 s |
+| 2 | 2.75008008 | -1.30661058 | 11 | 16 | 57.9 s |
+| 3 | 2.46945966 | -1.29378032 | 18 | 24 | 79.9 s |
+| 4 | 2.18883925 | -1.29311923 | 29 | 38 | 117.1 s |
+| 5 | 1.90821883 | -1.28910674 | 46 | 60 | 189.1 s |
+| 6 | 1.62759842 | -1.27613501 | 68 | 90 | 340.2 s |
+| 7 | 1.34697800 | -1.27011979 | 96 | 124 | 657.8 s |
+| 8 | 1.06635758 | -1.25614747 | 121 | 128 | 1325.6 s |
+
+The initial row has `E0/N = -1.3246328892` and overlap `1.0` to printed
+precision, verifying that `--init-state ground` starts from the DMRG reference
+state.  The control remains near the ground-state energy while the default
+product-state run is still at positive energy density, and it delays the
+`Dmax = 128` evolved/TDVP cap from cycle 5 to cycle 8.  It nevertheless heats
+monotonically after initialization and eventually reaches the evolved and TDVP
+sweep caps.  Thus the product-state cap is not solely a near-ground TDVP
+channel artifact, but the fixed descending channel is still not an exact
+ground-state fixed point at this bond cap.

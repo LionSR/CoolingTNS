@@ -273,6 +273,12 @@ near-ground channel-preservation and bond-growth control: it can test whether
 the cooling map itself creates large bond dimensions or energy drift near the
 ground-state reference, but it should not be presented as evidence that a
 generic product-state trajectory reaches the ground state.
+The first `N = 64`, `R = 10`, `Dmax = 128`, `te = 1.0`, descending
+`--init-state ground` control stopped at cycle 8 with `E/N = -1.25614747`,
+`Dsys_eff = 121`, and `Dsb_eff = Dtdvp_sweep_eff >= 128`.  It verifies that
+the code starts at the DMRG reference (`E0/N = -1.3246328892`) and delays the
+cap relative to the product-state run, but it also shows monotone heating and
+eventual evolved/TDVP cap saturation.
 If the purpose of a run is only to locate the first cap event, the validation
 driver can also be run with `--stop-on-bond-cap`.  This stops after the first
 completed cycle whose retained system state, evolved system-bath state, or,
