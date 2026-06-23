@@ -156,8 +156,10 @@ Compute the Fourier-fermion occupation ``tilde n_k = ⟨ã_k^† ã_k⟩`` using
 the complex Jordan–Wigner mapping (notes convention). This is the raw Fourier
 occupation, not the Bogoliubov quasiparticle occupation ``n_k^{Bog}``.
 
-With this convention, ``tilde n_k = (1 + ⟨σ_z⟩)/2`` per mode, and the
-generic-mode ground-state prediction from Bogoliubov theory is
+With this convention the local real-space occupation is
+``a_n^†a_n = (1 + σ^z_n)/2``.  The returned ``tilde n_k`` is instead the
+Fourier correlator sum over ``⟨a_m^†a_n⟩``; for generic modes the
+ground-state prediction from Bogoliubov theory is
 ``tilde n_k^{GS} = sin²(varphi_k)``, where ``varphi_k`` is the Bogoliubov
 angle, not the momentum angle ``φ_k = 2πk/N``.
 
