@@ -58,12 +58,6 @@ function partial_trace_bath(ρ_sb::MPO, sites::Vector{<:Index}, N_sys::Int)
     ])
 end
 
-partial_trace_bath(
-    ρ_sb::MPO,
-    sites::Vector{<:Index},
-    sites_sys::Vector{<:Index},
-) = partial_trace_bath(ρ_sb, sites, length(sites_sys))
-
 function partial_trace_system(ρ_sb::MPO, sites::Vector{<:Index}, N_bath::Int)
     # Trace out system (odd sites) and merge system+bath tensors back into N-site MPO
     return MPO([
@@ -73,12 +67,6 @@ function partial_trace_system(ρ_sb::MPO, sites::Vector{<:Index}, N_bath::Int)
         for i in 1:N_bath
     ])
 end
-
-partial_trace_system(
-    ρ_sb::MPO,
-    sites::Vector{<:Index},
-    sites_bath::Vector{<:Index},
-) = partial_trace_system(ρ_sb, sites, length(sites_bath))
 
 """
 Trace out the bath and return the canonical reduced system density MPO.
