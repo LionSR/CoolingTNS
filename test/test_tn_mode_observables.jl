@@ -496,6 +496,7 @@ end
             sim_params.evolution_method,
             MPS(problem.extra.sites, "Up"),
         )
+        bath_sample = [1, 2, 1, 2]
         @test_logs (:warn, r"Dimension mismatch") (:warn, r"Skipping measurement") begin
             CoolingTNS.perform_backend_measurements!(
                 measurements,
@@ -503,6 +504,7 @@ end
                 problem,
                 wrong_length_state,
                 ham_params,
+                bath_sample,
             )
         end
 
@@ -510,6 +512,7 @@ end
         @test isfinite(measurements[RESULT_GROUND_STATE_OVERLAP][1])
         @test isnan(measurements[RESULT_ENERGY][2])
         @test isnan(measurements[RESULT_GROUND_STATE_OVERLAP][2])
+        @test isnan(measurements[RESULT_BATH_SAMPLE_MAGNETIZATION][2])
         @test measurements[RESULT_MODE_GF_SOURCE] == "state"
         @test all(isfinite, measurements[RESULT_MODE_HK][1, :])
         @test all(isfinite, measurements[RESULT_MODE_NK][1, :])
