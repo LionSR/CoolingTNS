@@ -11,6 +11,29 @@ using SparseArrays
 using KrylovKit
 using Random
 
+const ED_DENSITY_TRACE_TOL = 1e-6
+
+function _normalize_density_trace_ed(data::Matrix{ComplexF64})
+    # Due to floating-point roundoff (especially after many steps), the trace
+    # can drift slightly from 1. We renormalize if the drift is small, and error
+    # out only if it is clearly inconsistent with a density matrix.
+    trρ = tr(data)
+    if abs(trρ - 1.0) > ED_DENSITY_TRACE_TOL
+        error("Density matrix must have trace 1 (got $trρ)")
+    end
+    return data / trρ
+end
+
+"""
+    _canonical_reduced_density_data_ed(data)
+
+Project an ED reduced-density block to its Hermitian, trace-one representative
+after a partial trace, matching the TN MPO post-trace convention.
+"""
+function _canonical_reduced_density_data_ed(data::Matrix{ComplexF64})
+    return _normalize_density_trace_ed(0.5 * (data + data'))
+end
+
 # ============================================================================
 # Quantum State Types for ED Backend
 # ============================================================================
@@ -45,14 +68,7 @@ if !@isdefined(EDDensityMatrix)
         function EDDensityMatrix(data::Matrix{ComplexF64}, n_qubits::Int)
             @assert size(data, 1) == size(data, 2) == 2^n_qubits "Matrix dimension must be 2^n_qubits"
             @assert ishermitian(data) "Density matrix must be Hermitian"
-            # Due to floating-point roundoff (especially after many steps), the
-            # trace can drift slightly from 1. We renormalize if the drift is
-            # small, and error out only if it is clearly inconsistent.
-            trρ = tr(data)
-            if abs(trρ - 1.0) > 1e-6
-                error("Density matrix must have trace 1 (got $trρ)")
-            end
-            data = data / trρ
+            data = _normalize_density_trace_ed(data)
             new(data, n_qubits)
         end
     end
@@ -282,7 +298,7 @@ function partial_trace_ed(ρ::EDDensityMatrix, keep_qubits::Vector{Int})
         end
     end
     
-    return EDDensityMatrix(ρ_reduced, n_keep)
+    return EDDensityMatrix(_canonical_reduced_density_data_ed(ρ_reduced), n_keep)
 end
 
 """

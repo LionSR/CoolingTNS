@@ -550,6 +550,39 @@ end
     @test abs(tr(ρ_sys_recovered.data) - 1.0) < 1e-10
     @test norm(ρ_sys_recovered.data - ρ_sys.data) < 1e-10
 
+    ψ_plus = CoolingTNS.EDStateVector(ComplexF64[1, 1], 1)
+    ψ_one_bath = CoolingTNS.zero_state_ed(1)
+    ρ_roundoff = CoolingTNS.state_to_density_ed(
+        CoolingTNS.interleave_system_bath_ed(ψ_plus, ψ_one_bath)
+    )
+    ρ_expected_one = CoolingTNS.trace_out_bath_ed(ρ_roundoff, 1)
+
+    # Simulate a tiny anti-Hermitian roundoff component in the full dense state.
+    # The reduced density matrix should be projected back to the physical
+    # Hermitian, trace-one representative at the partial-trace boundary.
+    keep_qubits_0 = [0]
+    trace_qubits_0 = [1]
+    row_0 = CoolingTNS.construct_index(0, 0, keep_qubits_0, trace_qubits_0) + 1
+    row_1 = CoolingTNS.construct_index(1, 0, keep_qubits_0, trace_qubits_0) + 1
+    ρ_roundoff.data[row_0, row_1] += 1e-12im
+    ρ_roundoff.data[row_1, row_0] += 1e-12im
+
+    raw_reduced = Matrix{ComplexF64}(undef, 2, 2)
+    for i in 0:1, j in 0:1
+        raw_reduced[i + 1, j + 1] = sum(0:1; init=0.0 + 0.0im) do k
+            idx_i = CoolingTNS.construct_index(i, k, keep_qubits_0, trace_qubits_0) + 1
+            idx_j = CoolingTNS.construct_index(j, k, keep_qubits_0, trace_qubits_0) + 1
+            ρ_roundoff.data[idx_i, idx_j]
+        end
+    end
+    @test !ishermitian(raw_reduced)
+
+    ρ_repaired = CoolingTNS.trace_out_bath_ed(ρ_roundoff, 1)
+
+    @test ishermitian(ρ_repaired.data)
+    @test tr(ρ_repaired.data) ≈ 1.0 atol=1e-14
+    @test ρ_repaired.data ≈ ρ_expected_one.data atol=1e-12
+
     ψ_sys_layout = CoolingTNS.product_state_ed(N, 1)
     ψ_bath_layout = CoolingTNS.product_state_ed(N, 2)
     ρ_layout = CoolingTNS.state_to_density_ed(
