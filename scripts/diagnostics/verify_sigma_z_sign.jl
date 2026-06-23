@@ -39,13 +39,13 @@ function verify_sign(; N::Int=6, theta::Float64=0.4, verbose::Bool=true)
 
     gF = CoolingTNS.fermionic_bc(ham_params.bc, parity)
     ks = CoolingTNS.allowed_k_indices(N, gF)
-    _, nk_measured = CoolingTNS.measure_momentum_distribution_ed_clean(psi0, ham_params; gF=gF)
+    _, tilde_n_measured = CoolingTNS.measure_raw_fourier_occupation_ed(psi0, ham_params; gF=gF)
 
-    nk_canonical = [sin(CoolingTNS.bogoliubov_angle(Float64(k), theta_code, N))^2 for k in ks]
-    nk_obsolete = [_obsolete_opposite_z_occupation(k, theta_code, N) for k in ks]
+    tilde_n_canonical = [sin(CoolingTNS.bogoliubov_angle(Float64(k), theta_code, N))^2 for k in ks]
+    tilde_n_obsolete = [_obsolete_opposite_z_occupation(k, theta_code, N) for k in ks]
 
-    canonical_errors = abs.(nk_measured .- nk_canonical)
-    obsolete_errors = abs.(nk_measured .- nk_obsolete)
+    canonical_errors = abs.(tilde_n_measured .- tilde_n_canonical)
+    obsolete_errors = abs.(tilde_n_measured .- tilde_n_obsolete)
 
     sigma_z_error, obsolete_sigma_z_error = _local_jw_sign_errors()
 
@@ -58,9 +58,9 @@ function verify_sign(; N::Int=6, theta::Float64=0.4, verbose::Bool=true)
         parity=parity_value,
         gF=gF,
         k_indices=ks,
-        measured=nk_measured,
-        canonical=nk_canonical,
-        obsolete=nk_obsolete,
+        measured=tilde_n_measured,
+        canonical=tilde_n_canonical,
+        obsolete=tilde_n_obsolete,
         canonical_error=sum(canonical_errors),
         obsolete_error=sum(obsolete_errors),
         max_canonical_error=maximum(canonical_errors),
@@ -88,13 +88,13 @@ function verify_sign(; N::Int=6, theta::Float64=0.4, verbose::Bool=true)
         println("  canonical source: CoolingTNS.bogoliubov_angle")
         println("  negative control: obsolete opposite-sigma_z sign")
         println()
-        println("k        n_k(ED)    n_k(canonical)  n_k(obsolete)  err_canonical  err_obsolete")
+        println("k        tilde_n_k(ED)  tilde_n_k(canonical)  tilde_n_k(obsolete)  err_canonical  err_obsolete")
         println("-"^88)
         for (i, k) in enumerate(ks)
             println("$(rpad(k,8)) " *
-                    "$(rpad(round(nk_measured[i], digits=6),10)) " *
-                    "$(rpad(round(nk_canonical[i], digits=6),15)) " *
-                    "$(rpad(round(nk_obsolete[i], digits=6),14)) " *
+                    "$(rpad(round(tilde_n_measured[i], digits=6),10)) " *
+                    "$(rpad(round(tilde_n_canonical[i], digits=6),15)) " *
+                    "$(rpad(round(tilde_n_obsolete[i], digits=6),14)) " *
                     "$(rpad(round(canonical_errors[i], sigdigits=3),15)) " *
                     "$(round(obsolete_errors[i], sigdigits=3))")
         end

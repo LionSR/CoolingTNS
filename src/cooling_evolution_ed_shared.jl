@@ -274,9 +274,9 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
     # K-space measurements for ED with periodic/antiperiodic even Ising chains.
     if haskey(measurements, RESULT_MOMENTUM_DISTRIBUTION) && supports_ising_fourier_observables(ham_params)
         gF = _momentum_measurement_gF!(measurements, sys_state, ham_params)
-        k_values, n_k = measure_momentum_distribution_ed_clean(sys_state, ham_params; gF=gF)
-        _ensure_momentum_storage!(measurements, k_values, n_k)
-        measurements[RESULT_MOMENTUM_DISTRIBUTION][step, :] .= n_k
+        k_values, tilde_n_k = measure_raw_fourier_occupation_ed(sys_state, ham_params; gF=gF)
+        _ensure_momentum_storage!(measurements, k_values, tilde_n_k)
+        measurements[RESULT_MOMENTUM_DISTRIBUTION][step, :] .= tilde_n_k
     end
 
     # Bogoliubov mode-observable measurements ⟨h_k⟩

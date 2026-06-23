@@ -2,6 +2,7 @@ using Test
 
 @testset "Bogoliubov angle and occupation notation in source comments" begin
     source_files = [
+        joinpath(@__DIR__, "..", "src", "ed_backend.jl"),
         joinpath(@__DIR__, "..", "src", "ed_backend_complex_jw.jl"),
         joinpath(@__DIR__, "..", "src", "mode_analysis.jl"),
         joinpath(@__DIR__, "..", "src", "dispersion.jl"),
@@ -38,6 +39,10 @@ using Test
     @test occursin("Λ = 2√(J²+h²)", joined_flat)
     @test occursin("code-basis state is first rotated to notes coordinates by ``U†``", joined_flat)
     @test occursin("JW operators above are evaluated as notes-basis Pauli strings", joined_flat)
+    @test occursin("measure_raw_fourier_occupation_ed", joined)
+    @test occursin("raw Fourier occupation ``tilde n_k``", joined_flat)
+    @test occursin("Compatibility wrapper for [`measure_raw_fourier_occupation_ed`](@ref)", joined)
+    @test occursin("New code should prefer `measure_raw_fourier_occupation_ed`", joined_flat)
 
     forbidden = [
         "(ε_k, n_k, ⟨h_k⟩)",

@@ -80,6 +80,8 @@ The generated plots show:
 1. **momentum_dist_*.pdf**: 
    - Shows the raw Fourier occupation \\tilde n_k vs k at different cooling steps
    - This is the Jordan-Wigner Fourier occupation <\\tilde a_k^dagger \\tilde a_k>
+   - This is the quantity returned by `measure_raw_fourier_occupation_ed`;
+     historical result files store it under momentum-distribution keys
    - It is not the Bogoliubov quasiparticle occupation n_k^Bog
    - It is not a mode-energy contribution
    - Initial state (usually uniform or specific pattern based on product state)

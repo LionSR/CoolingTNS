@@ -135,7 +135,7 @@ export compute_excitation_gaps, spectral_delta_values
 
 # Complex JW (notes convention)
 export jordan_wigner_transform_complex, pauli_y_complex
-export measure_momentum_distribution_ed_clean
+export measure_raw_fourier_occupation_ed, measure_momentum_distribution_ed_clean
 # Bogoliubov mode observables and positive quasiparticle gaps
 export measure_hk, measure_all_mode_observables, measure_all_mode_energies, measure_state_parity
 
