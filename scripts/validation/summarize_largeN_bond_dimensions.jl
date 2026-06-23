@@ -11,6 +11,9 @@ Example:
     julia --project=. scripts/validation/summarize_largeN_bond_dimensions.jl \
         --compact /tmp/coolingtns_largeN_mcwf_N64_R1_steps4_Dmax320.h5
 
+    julia --project=. scripts/validation/summarize_largeN_bond_dimensions.jl \
+        --compact --combine-trajectories /tmp/largeN_*_traj*.h5
+
 The output is a Markdown table.  When present, the stored detuning protocol is
 shown next to the bond-dimension diagnostics, so fixed-detuning cutoff sweeps
 can be audited from the summary alone.  The `delta_range` column is the stored
@@ -20,6 +23,13 @@ per trajectory and then averaged over trajectories.  Stop-on-cap provenance is
 read directly from the HDF5 fields `requested_steps`, `completed_steps`,
 `stop_reasons`, and `elapsed_seconds` when available.  The elapsed column is a
 sum over trajectory elapsed times, matching the sequential campaign driver.
+With `--combine-trajectories`, compatible split trajectory-axis files are grouped
+by their physical protocol and summarized as one row after verifying that their
+stored trajectory labels are non-overlapping.  For stopped prefixes with unequal
+completed cycle counts, the energy columns are statistics of the individual
+trajectory summaries rather than a reconstructed cycle-aligned ensemble history.
+Protocol buckets containing only one file are left unchanged, since there is no
+independent trajectory file to combine with it.
 The `traj cycles/hour` column is the corresponding completed trajectory-cycle
 throughput, `3600 * sum(completed_steps) / elapsed_total`.  For deterministic
 multi-frequency schedules, `completed/requested periods` converts the same cycle
@@ -52,7 +62,7 @@ const ENERGY_TAIL_WINDOW = 10
 function usage()
     println(
         "usage: julia --project=. scripts/validation/summarize_largeN_bond_dimensions.jl " *
-        "[--compact] FILE.h5 [FILE2.h5 ...]"
+        "[--compact] [--combine-trajectories] FILE.h5 [FILE2.h5 ...]"
     )
 end
 
@@ -91,6 +101,20 @@ end
 function read_string_vector(run_group, key::AbstractString)
     haskey(run_group, key) || return String[]
     return String.(scalar_or_vector(read(run_group[key])))
+end
+
+function read_trajectory_indices(run_group, M::Integer)
+    default_indices = collect(1:M)
+    return read_integer_vector(run_group, "trajectory_indices", default_indices)
+end
+
+function read_energy_trajectory_matrix(run_group, energy_mean::AbstractVector, M::Integer)
+    if haskey(run_group, RESULT_ENERGY_TRAJECTORIES)
+        values = read(run_group[RESULT_ENERGY_TRAJECTORIES])
+        values isa AbstractVector && return reshape(Float64.(values), :, 1)
+        return Matrix{Float64}(values)
+    end
+    return repeat(reshape(Float64.(energy_mean), :, 1), 1, M)
 end
 
 function read_group_value(primary_group, fallback_group, key::AbstractString, default)
@@ -346,9 +370,8 @@ function distinct_completed_delta_counts(delta_history, completed_steps::Abstrac
     return counts
 end
 
-function visited_detunings_label(run_group, completed_steps::AbstractVector{<:Integer}, R::Integer)
+function visited_detunings_label_from_counts(counts::AbstractVector{<:Integer}, R::Integer)
     R > 0 || return "n/a"
-    counts = distinct_completed_delta_counts(delta_history_matrix(run_group), completed_steps)
     isempty(counts) && return "n/a"
     return "$(range_label(counts))/$(R)"
 end
@@ -478,10 +501,29 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         read_group_value(method_group, root, LARGE_N_EVOLUTION_METHOD_KEY, "unknown")
     )
     threshold = saturation_threshold_for(root, method_group, run_group, method_name)
+    trajectory_indices = read_trajectory_indices(run_group, M)
+    length(trajectory_indices) == M ||
+        error(
+            "trajectory_indices length $(length(trajectory_indices)) does not match M=$M " *
+            "in $(basename(file_name))/$n_group_name/$method_name/$r_group_name"
+        )
+    E0 = Float64(read_group_value(method_group, root, "E0", NaN))
 
     energy_dataset = read_largeN_energy_mean_with_name(run_group)
-    energy_mean = energy_dataset.values
-    relative_energy_mean = read(run_group[RESULT_RELATIVE_ENERGY])
+    energy_mean = vec(Float64.(energy_dataset.values))
+    energy_trajectories = read_energy_trajectory_matrix(run_group, energy_mean, M)
+    size(energy_trajectories, 2) == M ||
+        error(
+            "energy trajectory column count $(size(energy_trajectories, 2)) does not " *
+            "match M=$M in $(basename(file_name))/$n_group_name/$method_name/$r_group_name"
+        )
+    size(energy_trajectories, 1) == length(energy_mean) ||
+        error(
+            "energy trajectory row count $(size(energy_trajectories, 1)) does not " *
+            "match energy length $(length(energy_mean)) in " *
+            "$(basename(file_name))/$n_group_name/$method_name/$r_group_name"
+        )
+    relative_energy_mean = vec(Float64.(read(run_group[RESULT_RELATIVE_ENERGY])))
     inferred_completed_steps = max(length(energy_mean) - 1, 0)
     default_requested_steps = haskey(root, "steps") ?
         Int(read(root["steps"])) :
@@ -500,7 +542,10 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     completed_requested_periods = completed_requested_periods_label(
         completed_steps_values, requested_steps_values, R, schedule
     )
-    visited_detunings = visited_detunings_label(run_group, completed_steps_values, R)
+    visited_delta_counts = distinct_completed_delta_counts(
+        delta_history_matrix(run_group), completed_steps_values
+    )
+    visited_detunings = visited_detunings_label_from_counts(visited_delta_counts, R)
     detuning_coverage = detuning_coverage_status(
         completed_steps_values, requested_steps_values, R, schedule
     )
@@ -534,6 +579,29 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     tail_count = length(energy_mean) - tail_start + 1
     tail_e_over_n = mean(energy_mean[tail_start:end]) / N
     tail_relative_energy = mean(relative_energy_mean[tail_start:end])
+    final_e_over_n_values = vec(energy_trajectories[end, :]) ./ N
+    final_relative_energy_values = isfinite(E0) ?
+        relative_energy.(vec(energy_trajectories[end, :]), Ref(E0)) :
+        fill(final_relative_energy, M)
+    best_energy_values = vec(minimum(energy_trajectories; dims=1))
+    best_e_over_n_values = best_energy_values ./ N
+    best_relative_energy_values = isfinite(E0) ?
+        relative_energy.(best_energy_values, Ref(E0)) :
+        fill(best_relative_energy, M)
+    tail_mean_energy_values = Float64[
+        mean(view(energy_trajectories, tail_start:size(energy_trajectories, 1), trajectory))
+        for trajectory in axes(energy_trajectories, 2)
+    ]
+    tail_e_over_n_values = tail_mean_energy_values ./ N
+    tail_relative_energy_values = isfinite(E0) ?
+        Float64[
+            mean(relative_energy.(
+                view(energy_trajectories, tail_start:size(energy_trajectories, 1), trajectory),
+                Ref(E0),
+            ))
+            for trajectory in axes(energy_trajectories, 2)
+        ] :
+        fill(tail_relative_energy, M)
     final_system_max = final_system_max_bond(system_max_bond)
     final_system_mean = final_system_mean_bond(system_mean_bond)
     peak_evolved_max = peak_evolved_max_bond(evolved_max_bond)
@@ -587,6 +655,21 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     )
 
     return (
+        source_files=(basename(file_name),),
+        E0=E0,
+        trajectory_indices=trajectory_indices,
+        completed_steps_values=completed_steps_values,
+        requested_steps_values=requested_steps_values,
+        visited_delta_counts=visited_delta_counts,
+        elapsed_values=elapsed_values,
+        stop_reason_values=stop_reasons,
+        final_e_over_n_values=final_e_over_n_values,
+        final_relative_energy_values=final_relative_energy_values,
+        best_e_over_n_values=best_e_over_n_values,
+        best_relative_energy_values=best_relative_energy_values,
+        tail_e_over_n_values=tail_e_over_n_values,
+        tail_relative_energy_values=tail_relative_energy_values,
+        tail_count_values=fill(tail_count, M),
         file=basename(file_name),
         N=N,
         method=method_name,
@@ -667,6 +750,237 @@ function summarize_file(path::AbstractString)
     return rows
 end
 
+function trajectory_ensemble_key(row)
+    return (
+        row.N,
+        row.method,
+        row.evolution,
+        row.R,
+        row.schedule,
+        row.delta_protocol,
+        row.delta_range,
+        row.delta_factor,
+        row.threshold,
+        row.E0,
+    )
+end
+
+function concatenate_field(rows, field::Symbol)
+    values = Any[]
+    for row in rows
+        append!(values, collect(getfield(row, field)))
+    end
+    return values
+end
+
+function concatenate_int_field(rows, field::Symbol)
+    return Int[value for value in concatenate_field(rows, field)]
+end
+
+function concatenate_float_field(rows, field::Symbol)
+    return Float64[value for value in concatenate_field(rows, field)]
+end
+
+function concatenate_string_field(rows, field::Symbol)
+    return String[value for value in concatenate_field(rows, field)]
+end
+
+function weighted_row_mean(rows, field::Symbol)
+    weights = Int[row.M for row in rows]
+    values = Float64[getfield(row, field) for row in rows]
+    return sum(values .* weights) / sum(weights)
+end
+
+function combined_string_status(values::AbstractVector{<:AbstractString})
+    isempty(values) && return "n/a"
+    unique_values = sort(unique(values))
+    length(unique_values) == 1 && return only(unique_values)
+    return "mixed:" * join(unique_values, "+")
+end
+
+function first_saturation_from_rows(rows, field::Symbol)
+    cycles = Int[
+        getfield(row, field)
+        for row in rows
+        if !(getfield(row, field) isa Missing) && getfield(row, field) > 0
+    ]
+    return isempty(cycles) ? 0 : minimum(cycles)
+end
+
+function maximum_or_missing(values)
+    present = [value for value in values if !(value isa Missing)]
+    isempty(present) && return missing
+    return maximum(Int.(present))
+end
+
+function trajectory_indices_label(indices::AbstractVector{<:Integer})
+    isempty(indices) && return "none"
+    return join(sort(Int.(indices)), ",")
+end
+
+"""
+    combine_trajectory_bucket(rows)
+
+Combine file-level rows that describe the same physical protocol but disjoint
+stored MCWF trajectory labels.  A singleton bucket is returned unchanged.  For a
+multi-file bucket, `final_e_over_n`, `relative_energy`, `best_e_over_n`, and the
+tail energy columns are means of the corresponding per-trajectory summary
+statistics.  Thus `best_e_over_n` is `mean_i min_t E_i(t)/N`, not
+`min_t mean_i E_i(t)/N`, and unequal stop-on-cap prefixes are not promoted to a
+cycle-aligned ensemble history.  Bond-cap status, detuning coverage, stop
+reasons, and elapsed-time throughput are recomputed from the concatenated
+trajectory metadata.
+"""
+function combine_trajectory_bucket(rows)
+    length(rows) == 1 && return only(rows)
+
+    rows = sort(rows; by=row -> minimum(row.trajectory_indices))
+    indices = concatenate_int_field(rows, :trajectory_indices)
+    unique_indices = unique(indices)
+    length(unique_indices) == length(indices) ||
+        error(
+            "cannot combine split trajectory summaries with duplicate trajectory_indices: " *
+            trajectory_indices_label(indices)
+        )
+
+    base = first(rows)
+    completed_steps = concatenate_int_field(rows, :completed_steps_values)
+    requested_steps = concatenate_int_field(rows, :requested_steps_values)
+    visited_delta_counts = concatenate_int_field(rows, :visited_delta_counts)
+    elapsed_values = concatenate_float_field(rows, :elapsed_values)
+    elapsed_seconds = all(row -> !isempty(row.elapsed_values), rows) ?
+        sum(elapsed_values) :
+        NaN
+    final_e_values = concatenate_float_field(rows, :final_e_over_n_values)
+    final_relative_values = concatenate_float_field(rows, :final_relative_energy_values)
+    best_e_values = concatenate_float_field(rows, :best_e_over_n_values)
+    best_relative_values = concatenate_float_field(rows, :best_relative_energy_values)
+    tail_e_values = concatenate_float_field(rows, :tail_e_over_n_values)
+    tail_relative_values = concatenate_float_field(rows, :tail_relative_energy_values)
+    tail_count_values = concatenate_int_field(rows, :tail_count_values)
+    stop_reasons = concatenate_string_field(rows, :stop_reason_values)
+    source_files = Tuple(concatenate_string_field(rows, :source_files))
+
+    system_saturation_cycle = first_saturation_from_rows(rows, :system_saturation_cycle)
+    evolved_saturation_cycle = first_saturation_from_rows(rows, :evolved_saturation_cycle)
+    has_tdvp_sweep = any(row -> !(row.peak_tdvp_sweep_max isa Missing), rows)
+    tdvp_sweep_saturation_cycle = has_tdvp_sweep ?
+        first_saturation_from_rows(rows, :tdvp_sweep_saturation_cycle) :
+        missing
+    tdvp_sweep_saturation_cycle_for_status =
+        tdvp_sweep_saturation_cycle isa Missing ? 0 : tdvp_sweep_saturation_cycle
+
+    final_system_max = maximum(Int[row.final_system_max for row in rows])
+    peak_evolved_max = maximum(Int[row.peak_evolved_max for row in rows])
+    peak_tdvp_sweep_max = maximum_or_missing([row.peak_tdvp_sweep_max for row in rows])
+
+    return merge(
+        base,
+        (
+            source_files=source_files,
+            E0=base.E0,
+            trajectory_indices=indices,
+            completed_steps_values=completed_steps,
+            requested_steps_values=requested_steps,
+            visited_delta_counts=visited_delta_counts,
+            elapsed_values=elapsed_values,
+            stop_reason_values=stop_reasons,
+            final_e_over_n_values=final_e_values,
+            final_relative_energy_values=final_relative_values,
+            best_e_over_n_values=best_e_values,
+            best_relative_energy_values=best_relative_values,
+            tail_e_over_n_values=tail_e_values,
+            tail_relative_energy_values=tail_relative_values,
+            tail_count_values=tail_count_values,
+            file="trajectory_ensemble(traj=$(trajectory_indices_label(indices)))",
+            M=length(indices),
+            completed_requested="$(range_label(completed_steps))/$(range_label(requested_steps))",
+            completed_requested_periods=completed_requested_periods_label(
+                completed_steps, requested_steps, base.R, base.schedule
+            ),
+            visited_detunings=visited_detunings_label_from_counts(
+                visited_delta_counts, base.R
+            ),
+            detuning_coverage=detuning_coverage_status(
+                completed_steps, requested_steps, base.R, base.schedule
+            ),
+            elapsed_total_seconds=elapsed_seconds,
+            traj_cycles_per_hour=trajectory_cycles_per_hour(
+                completed_steps, elapsed_seconds
+            ),
+            stop_reason=stop_reason_label(stop_reasons),
+            final_e_over_n=mean(final_e_values),
+            relative_energy=mean(final_relative_values),
+            best_e_over_n=mean(best_e_values),
+            best_relative_energy=mean(best_relative_values),
+            tail_e_over_n=mean(tail_e_values),
+            tail_relative_energy=mean(tail_relative_values),
+            tail_count=range_label(tail_count_values),
+            mode_gF=missing,
+            mode_gF_source=missing,
+            mode_measured_rows=missing,
+            mode_last_measured_e_over_n=missing,
+            mode_last_measured_abs_err_over_n=missing,
+            mode_max_abs_err_over_n=missing,
+            system_effective_bond=effective_bond_dimension_label(
+                final_system_max, system_saturation_cycle, base.threshold
+            ),
+            evolved_effective_bond=effective_bond_dimension_label(
+                peak_evolved_max, evolved_saturation_cycle, base.threshold
+            ),
+            tdvp_sweep_effective_bond=has_tdvp_sweep ?
+                effective_bond_dimension_label(
+                    peak_tdvp_sweep_max,
+                    tdvp_sweep_saturation_cycle,
+                    base.threshold,
+                ) :
+                "n/a",
+            truncation_error_history_status=combined_string_status(
+                String[row.truncation_error_history_status for row in rows]
+            ),
+            bond_status=bond_cap_status(
+                system_saturation_cycle,
+                evolved_saturation_cycle,
+                tdvp_sweep_saturation_cycle_for_status,
+            ),
+            final_system_max=final_system_max,
+            final_system_mean=weighted_row_mean(rows, :final_system_mean),
+            peak_evolved_max=peak_evolved_max,
+            peak_evolved_mean=weighted_row_mean(rows, :peak_evolved_mean),
+            peak_tdvp_sweep_max=peak_tdvp_sweep_max,
+            system_saturation_cycle=system_saturation_cycle,
+            evolved_saturation_cycle=evolved_saturation_cycle,
+            tdvp_sweep_saturation_cycle=tdvp_sweep_saturation_cycle,
+            q50=weighted_row_mean(rows, :q50),
+            q75=weighted_row_mean(rows, :q75),
+            q90=weighted_row_mean(rows, :q90),
+            q95=weighted_row_mean(rows, :q95),
+            frac50=weighted_row_mean(rows, :frac50),
+            frac75=weighted_row_mean(rows, :frac75),
+            frac90=weighted_row_mean(rows, :frac90),
+        ),
+    )
+end
+
+function combine_trajectory_rows(rows)
+    buckets = Dict{Any,Vector{NamedTuple}}()
+    key_order = Any[]
+    for row in rows
+        key = trajectory_ensemble_key(row)
+        if !haskey(buckets, key)
+            buckets[key] = NamedTuple[]
+            push!(key_order, key)
+        end
+        push!(buckets[key], row)
+    end
+
+    combined = NamedTuple[]
+    for key in key_order
+        push!(combined, combine_trajectory_bucket(buckets[key]))
+    end
+    return combined
+end
+
 function sorted_rows(rows)
     return sort(rows; by=row -> (row.N, row.method, row.evolution, row.R, row.file))
 end
@@ -732,17 +1046,20 @@ end
 
 function parse_args(args)
     compact = false
+    combine_trajectories = false
     paths = String[]
     for arg in args
         if arg == "--compact"
             compact = true
+        elseif arg == "--combine-trajectories"
+            combine_trajectories = true
         elseif startswith(arg, "--")
             throw(ArgumentError("unknown option: $arg"))
         else
             push!(paths, arg)
         end
     end
-    return (paths=paths, compact=compact)
+    return (paths=paths, compact=compact, combine_trajectories=combine_trajectories)
 end
 
 function summarize_largeN_bond_dimensions_main(args=ARGS)
@@ -758,6 +1075,7 @@ function summarize_largeN_bond_dimensions_main(args=ARGS)
         append!(rows, summarize_file(path))
     end
     isempty(rows) && error("no large-N campaign runs found")
+    parsed.combine_trajectories && (rows = combine_trajectory_rows(rows))
     parsed.compact ? print_compact_markdown(rows) : print_markdown(rows)
     return 0
 end

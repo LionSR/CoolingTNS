@@ -54,6 +54,65 @@ function write_minimal_mode_summary_file(path::AbstractString, mode_hk, mode_nk;
     return nothing
 end
 
+function write_split_trajectory_summary_file(
+    path::AbstractString;
+    trajectory::Integer,
+    energy_values::AbstractVector{<:Real},
+    system_max::AbstractVector{<:Integer},
+    evolved_max::AbstractVector{<:Integer},
+    completed_steps::Integer,
+    stop_reason::AbstractString,
+    elapsed_seconds::Real,
+)
+    N = 4
+    E0 = -4.0
+    length(energy_values) == length(system_max) == length(evolved_max) ||
+        error("split trajectory test data must have matching history lengths")
+    h5open(path, "w") do f
+        write(f, "Dmax", 8)
+        write(f, "steps", 4)
+        write(f, LARGE_N_EVOLUTION_METHOD_KEY, "continuous")
+        write(f, CoolingTNS.RESULT_SCHEDULE, "descending")
+        gn = create_group(f, "N4")
+        write(gn, "N", N)
+        gm = create_group(gn, "mcwf")
+        write(gm, "E0", E0)
+        write(gm, LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY,
+              LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE)
+        write(gm, LARGE_N_DETUNING_DELTA_MIN_KEY, 0.5)
+        write(gm, LARGE_N_DETUNING_DELTA_MAX_KEY, 3.0)
+        write(gm, LARGE_N_DETUNING_DELTA_MAX_FACTOR_KEY, NaN)
+        gr = create_group(gm, "R2")
+
+        energy = Float64.(energy_values)
+        write(gr, "M", 1)
+        write(gr, CoolingTNS.RESULT_ENERGY, energy)
+        write(gr, CoolingTNS.RESULT_ENERGY_TRAJECTORIES, reshape(energy, :, 1))
+        write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY,
+              relative_energy.(energy, Ref(E0)))
+        write(gr, "system_max_bond", Int.(system_max))
+        write(gr, "system_mean_bond", Float64.(system_max))
+        write(gr, "evolved_max_bond", Int.(evolved_max))
+        write(gr, "evolved_mean_bond", Float64.(evolved_max))
+        write(gr, LARGE_N_BOND_SATURATION_THRESHOLD_KEY, 8)
+        write(gr, LARGE_N_SYSTEM_SATURATION_CYCLE_KEY,
+              [first_bond_saturation_cycle(system_max, 8)])
+        write(gr, LARGE_N_EVOLVED_SATURATION_CYCLE_KEY,
+              [first_bond_saturation_cycle(evolved_max, 8)])
+        write(gr, CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS,
+              CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED)
+        write(gr, LARGE_N_ELAPSED_SECONDS_KEY, [Float64(elapsed_seconds)])
+        write(gr, "trajectory_indices", [Int(trajectory)])
+        write(gr, "trajectory_seeds", [largeN_trajectory_seed(20260617, N, 2, trajectory)])
+        write(gr, CoolingTNS.RESULT_REQUESTED_STEPS, [4])
+        write(gr, CoolingTNS.RESULT_COMPLETED_STEPS, [Int(completed_steps)])
+        write(gr, LARGE_N_STOP_REASONS_KEY, [String(stop_reason)])
+        write(gr, "delta_lists", reshape([NaN; 3.0; 0.5; 3.0][1:length(energy)], :, 1))
+        write(gr, CoolingTNS.RESULT_DELTA_VALUES, [0.5, 3.0])
+    end
+    return nothing
+end
+
 @testset "Large-N schedule-period labels" begin
     @test is_deterministic_schedule("round_robin")
     @test is_deterministic_schedule("descending")
@@ -92,8 +151,9 @@ end
             write(f, CoolingTNS.RESULT_DELTA_LIST, [NaN, 1.0, 2.0, 1.0, 3.0])
             history = delta_history_matrix(f)
             @test size(history) == (5, 1)
-            @test distinct_completed_delta_counts(history, [3]) == [2]
-            @test visited_detunings_label(f, [3], 0) == "n/a"
+            counts = distinct_completed_delta_counts(history, [3])
+            @test counts == [2]
+            @test visited_detunings_label_from_counts(counts, 0) == "n/a"
         end
     finally
         rm(path; force=true)
@@ -281,6 +341,163 @@ end
         @test_throws ArgumentError parse_args(["--unknown", path])
     finally
         rm(path; force=true)
+    end
+end
+
+@testset "Large-N summary combines split trajectory-axis files" begin
+    path1 = tempname() * ".h5"
+    path3 = tempname() * ".h5"
+    duplicate_path = tempname() * ".h5"
+    try
+        write_split_trajectory_summary_file(
+            path1;
+            trajectory=1,
+            energy_values=[-1.0, -2.0, -1.0],
+            system_max=[1, 4, 8],
+            evolved_max=[0, 4, 8],
+            completed_steps=2,
+            stop_reason="bond_cap",
+            elapsed_seconds=10.0,
+        )
+        write_split_trajectory_summary_file(
+            path3;
+            trajectory=3,
+            energy_values=[-1.0, -1.5, -2.0, -2.5],
+            system_max=[1, 3, 5, 6],
+            evolved_max=[0, 4, 6, 7],
+            completed_steps=3,
+            stop_reason="",
+            elapsed_seconds=20.0,
+        )
+        write_split_trajectory_summary_file(
+            duplicate_path;
+            trajectory=1,
+            energy_values=[-1.0, -1.5],
+            system_max=[1, 4],
+            evolved_max=[0, 4],
+            completed_steps=1,
+            stop_reason="",
+            elapsed_seconds=5.0,
+        )
+
+        rows = vcat(summarize_file(path1), summarize_file(path3))
+        @test length(rows) == 2
+        combined = combine_trajectory_rows(rows)
+        @test length(combined) == 1
+        row = only(combined)
+        @test row.file == "trajectory_ensemble(traj=1,3)"
+        @test row.source_files == (basename(path1), basename(path3))
+        @test row.trajectory_indices == [1, 3]
+        @test row.M == 2
+        @test row.completed_requested == "2-3/4"
+        @test row.completed_requested_periods == "1.00-1.50/2.00"
+        @test row.visited_detunings == "2/2"
+        @test row.detuning_coverage == "full_grid_observed"
+        @test row.elapsed_total_seconds == 30.0
+        @test row.traj_cycles_per_hour ≈ 3600 * 5 / 30
+        @test row.stop_reason == "bond_capx1/2"
+        @test row.final_e_over_n ≈ mean([-1.0 / 4, -2.5 / 4])
+        @test row.relative_energy ≈ mean([
+            relative_energy(-1.0, -4.0),
+            relative_energy(-2.5, -4.0),
+        ])
+        @test row.best_e_over_n ≈ mean([-2.0 / 4, -2.5 / 4])
+        @test row.tail_count == "3-4"
+        @test row.system_effective_bond == ">=8"
+        @test row.evolved_effective_bond == ">=8"
+        @test row.bond_status == "not_converged_system_and_evolved_cap"
+        @test row.final_system_max == 8
+        @test row.peak_evolved_max == 8
+        @test row.system_saturation_cycle == 2
+        @test row.evolved_saturation_cycle == 2
+        @test ismissing(row.mode_max_abs_err_over_n)
+
+        compact_output = mktemp() do output_path, io
+            close(io)
+            open(output_path, "w") do out
+                redirect_stdout(out) do
+                    summarize_largeN_bond_dimensions_main([
+                        "--compact",
+                        "--combine-trajectories",
+                        path1,
+                        path3,
+                    ])
+                end
+            end
+            read(output_path, String)
+        end
+        @test occursin("trajectory_ensemble(traj=1,3)", compact_output)
+        @test occursin("| 4 | mcwf | continuous | 2 | 2 | descending | 2-3/4 |", compact_output)
+        @test occursin("| full_grid_observed | -0.43750000 | -0.56250000 | n/a | 8 | >=8 | >=8 | n/a | not_converged_system_and_evolved_cap | not_recorded | 30.0 | 600.00 | bond_capx1/2 |", compact_output)
+
+        @test_throws ErrorException combine_trajectory_rows(
+            vcat(rows, summarize_file(duplicate_path))
+        )
+        @test parse_args(["--combine-trajectories", path1]).combine_trajectories
+    finally
+        rm(path1; force=true)
+        rm(path3; force=true)
+        rm(duplicate_path; force=true)
+    end
+end
+
+@testset "Large-N summary validates trajectory metadata fallbacks" begin
+    function write_legacy_split_metadata_file(path; trajectory_indices=nothing,
+                                             energy_trajectories=nothing)
+        h5open(path, "w") do f
+            write(f, "Dmax", 4)
+            write(f, "steps", 1)
+            gn = create_group(f, "N2")
+            write(gn, "N", 2)
+            gm = create_group(gn, "mcwf")
+            gr = create_group(gm, "R1")
+
+            write(gr, "M", 2)
+            write(gr, CoolingTNS.RESULT_ENERGY, [-2.0, -1.0])
+            write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 0.5])
+            write(gr, "system_max_bond", [1 1; 2 3])
+            write(gr, "system_mean_bond", [1.0 1.0; 2.0 3.0])
+            write(gr, "evolved_max_bond", [0 0; 3 4])
+            write(gr, "evolved_mean_bond", [NaN NaN; 3.0 4.0])
+            trajectory_indices === nothing ||
+                write(gr, "trajectory_indices", Int.(trajectory_indices))
+            energy_trajectories === nothing ||
+                write(gr, CoolingTNS.RESULT_ENERGY_TRAJECTORIES,
+                      Float64.(energy_trajectories))
+        end
+    end
+
+    fallback_path = tempname() * ".h5"
+    bad_indices_path = tempname() * ".h5"
+    bad_energy_columns_path = tempname() * ".h5"
+    bad_energy_rows_path = tempname() * ".h5"
+    try
+        write_legacy_split_metadata_file(fallback_path)
+        fallback_row = only(summarize_file(fallback_path))
+        @test fallback_row.trajectory_indices == [1, 2]
+        @test fallback_row.final_e_over_n_values == [-0.5, -0.5]
+        @test fallback_row.best_e_over_n_values == [-1.0, -1.0]
+        @test fallback_row.tail_e_over_n_values == [-0.75, -0.75]
+
+        write_legacy_split_metadata_file(bad_indices_path; trajectory_indices=[1])
+        @test_throws ErrorException summarize_file(bad_indices_path)
+
+        write_legacy_split_metadata_file(
+            bad_energy_columns_path;
+            energy_trajectories=reshape([-2.0, -1.0], :, 1),
+        )
+        @test_throws ErrorException summarize_file(bad_energy_columns_path)
+
+        write_legacy_split_metadata_file(
+            bad_energy_rows_path;
+            energy_trajectories=reshape([-2.0, -1.0], 1, 2),
+        )
+        @test_throws ErrorException summarize_file(bad_energy_rows_path)
+    finally
+        rm(fallback_path; force=true)
+        rm(bad_indices_path; force=true)
+        rm(bad_energy_columns_path; force=true)
+        rm(bad_energy_rows_path; force=true)
     end
 end
 
