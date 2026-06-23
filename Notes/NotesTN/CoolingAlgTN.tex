@@ -443,6 +443,30 @@ above.  Thus one noiseless cooling cycle is
 Here \(\ket{\Omega_B}\) is the coupling-dependent ground state of the bath
 Hamiltonian, for example the negative-eigenvalue state of the selected bath
 Pauli operator.
+For a system ground state \(\ket{\phi_0}\), the relevant fixed-point defect is
+\begin{equation}
+	\delta_{\mathrm{fp}}
+	=
+	\left\|
+	\mathcal C\!\left(\ket{\phi_0}\bra{\phi_0}\right)
+	-\ket{\phi_0}\bra{\phi_0}
+	\right\|_1,
+	\qquad
+	\Delta E_{\mathrm{fp}}
+	=
+	\tr\!\left[
+	H_S\,
+	\mathcal C\!\left(\ket{\phi_0}\bra{\phi_0}\right)
+	\right]-E_0 .
+	\label{eq:ground_state_fixed_point_defect}
+\end{equation}
+Ground-state preservation is the special case
+\(\delta_{\mathrm{fp}}=\Delta E_{\mathrm{fp}}=0\).  It is therefore a property
+of the chosen coupling, detuning, cycle time, and numerical approximation, not
+a formal consequence of appending a fresh bath ground state.  The code tests
+this condition at small size by comparing the ED density-matrix channel with
+the TN density-matrix Trotter channel for one complete cycle starting from
+\(\ket{\phi_0}\).
 This is the same channel convention used by the exact-diagonalization
 implementation.  In the ITensor MPO implementation the call uses
 \texttt{apply\_dag=true} with the same wavefunction gates

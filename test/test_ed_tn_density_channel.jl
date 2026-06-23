@@ -93,3 +93,96 @@ using LinearAlgebra
     E_tn = real(inner(state_s_tn.state, problem_tn.H_sys))
     @test E_tn ≈ E_ed atol=1e-10
 end
+
+@testset "Ground-state fixed-point defect of the cooling channel" begin
+    ham_params = CoolingTNS.NiIsingParameters(2, 1.0, -1.05, 0.5; bc=:open)
+    coupling_params = CoolingTNS.BasicCouplingParameters("ZZ", 0.2, 1, 1.0, nothing)
+
+    function ground_density_channel_diagnostics(backend, evolution_method)
+        sim_params = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.DensityMatrix(),
+            evolution_method;
+            Dmax=64,
+            cutoff=1e-13,
+            tau=0.02,
+            pe=0.0,
+        )
+        problem = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params)
+        state0 = CoolingTNS.setup_initial_state(problem, sim_params, "ground", 0.0)
+        ρ_sb = CoolingTNS.prepare_combined_state(problem, state0)
+        ρ_evolved = CoolingTNS.evolve_cooling_step(
+            problem,
+            ρ_sb,
+            problem.extra.coupling_params.te,
+            sim_params,
+            ham_params,
+        )
+        state1, _ = CoolingTNS.process_bath_and_update(problem, ρ_evolved, state0, sim_params)
+
+        ρ0, ρ1, H = if backend isa CoolingTNS.EDBackend
+            (
+                CoolingTNS.state_to_density_ed(problem.ϕ₀).data,
+                CoolingTNS.trace_out_bath_ed(state1.state, ham_params.N).data,
+                Matrix(problem.H_sys),
+            )
+        else
+            (
+                test_mpo_to_matrix(state0.state),
+                test_mpo_to_matrix(state1.state),
+                test_mpo_to_matrix(problem.H_sys),
+            )
+        end
+
+        return (
+            problem=problem,
+            initial_trace=tr(ρ0),
+            final_trace=tr(ρ1),
+            initial_energy=real(tr(H * ρ0)),
+            final_energy=real(tr(H * ρ1)),
+            initial_purity=real(tr(ρ0 * ρ0)),
+            final_overlap=real(tr(ρ0 * ρ1)),
+            trace_norm_defect=sum(svdvals(ρ1 - ρ0)),
+        )
+    end
+
+    diag_ed = ground_density_channel_diagnostics(
+        CoolingTNS.EDBackend(),
+        CoolingTNS.ContinuousEvolution(),
+    )
+    diag_tn = ground_density_channel_diagnostics(
+        CoolingTNS.TNBackend(),
+        CoolingTNS.TrotterEvolution(),
+    )
+
+    problem_ed = diag_ed.problem
+    problem_tn = diag_tn.problem
+
+    @test problem_ed.e₀ ≈ problem_tn.e₀ atol=1e-10
+    @test diag_ed.initial_trace ≈ 1.0 + 0.0im atol=1e-12
+    @test diag_tn.initial_trace ≈ 1.0 + 0.0im atol=1e-10
+    @test diag_ed.final_trace ≈ 1.0 + 0.0im atol=1e-12
+    @test diag_tn.final_trace ≈ 1.0 + 0.0im atol=1e-10
+    @test diag_ed.initial_energy ≈ problem_ed.e₀ atol=1e-12
+    @test diag_tn.initial_energy ≈ problem_tn.e₀ atol=1e-10
+    @test diag_ed.initial_purity ≈ 1.0 atol=1e-12
+    @test diag_tn.initial_purity ≈ 1.0 atol=1e-10
+
+    drift_ed = diag_ed.final_energy - problem_ed.e₀
+    drift_tn = diag_tn.final_energy - problem_tn.e₀
+    overlap_loss_ed = 1 - diag_ed.final_overlap
+    overlap_loss_tn = 1 - diag_tn.final_overlap
+
+    # This is a map diagnostic, not a numerical target for cooling.  For these
+    # parameters the exact density channel does not leave the system ground
+    # state invariant, and the TN channel reproduces the same one-cycle defect.
+    @test diag_ed.trace_norm_defect > 1e-2
+    @test drift_ed > 1e-2
+    @test overlap_loss_ed > 1e-2
+
+    # The TN-ED tolerance is calibrated for this N=2, g=0.2, tau=0.02
+    # diagnostic.  It is meant to sit well below the O(1e-2) fixed-point defect,
+    # not to give a model-independent Trotter error bound.
+    @test diag_tn.trace_norm_defect ≈ diag_ed.trace_norm_defect atol=5e-5
+    @test drift_tn ≈ drift_ed atol=5e-5
+    @test overlap_loss_tn ≈ overlap_loss_ed atol=5e-5
+end
