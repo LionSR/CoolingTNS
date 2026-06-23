@@ -9,6 +9,9 @@ on:
       - "Project.toml"
       - "Manifest.toml"
       - "CondaPkg.toml"
+      - "Notes/**/*.tex"
+      - "Notes/**/*.bib"
+      - "slides/**/*.tex"
       - ".github/workflows/*.yml"
       - ".github/prompts/*.md"
 

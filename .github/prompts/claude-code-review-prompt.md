@@ -57,11 +57,17 @@ that determines whether the PR can be approved with outstanding issues.
    docstrings explaining what they compute (the physics / the dispatch contract), not
    just the Julia syntax? Missing docstrings on new public surface must be added.
 
-7. ℹ️ **LaTeX `.tex` conventions** (when the PR touches `Notes/`, `slides/`, or other
-   `.tex`): equations must be referenced with `\ref{eq:label}` / `\cref{eq:label}`,
-   never hardcoded equation numbers; labels should be descriptive (`eq:mode_energy`),
-   not positional. Code comments citing the notes must use the LaTeX label, not a
-   numeric equation reference.
+7. 🟡 **LaTeX mathematical notes** (when the PR touches `Notes/`, `slides/`, or other
+   `.tex` / `.bib`): review the change as a mathematical physics change, not as
+   prose. Verify signs, factors of two, Hermitian conjugation, boundary conditions,
+   Jordan-Wigner strings, Fourier phases, momentum grids, and notation against
+   `CLAUDE.md`, adjacent equations, and any matching Julia/MATLAB implementation.
+   Equation references must use `\ref{eq:label}` / `\cref{eq:label}`, never
+   hardcoded equation numbers; labels should be descriptive (`eq:mode_energy`), not
+   positional. Also check for LaTeX defects that affect reviewability or builds:
+   unbalanced environments, invalid labels, broken bibliography keys, and fragile
+   RevTeX constructs such as consecutive `widetext` switches. Code comments citing
+   the notes must use the LaTeX label, not a numeric equation reference.
 
 8. ℹ️ **Debugging hygiene**: No hardcoded conclusions (`println("These match!")`) — use
    tolerance checks that print the actual computed difference. No magic numbers copied

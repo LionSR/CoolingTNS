@@ -48,6 +48,14 @@ a result looks wrong. Do **not** attempt to build or precompile the Julia projec
   correctness signals — they should match within the documented Trotter splitting
   error (~10⁻³). If a mathematical result looks wrong, too strong, or suspicious,
   cite the analytical limit or the `.tex`/MATLAB source it contradicts.
+- **LaTeX mathematical notes:** when the PR touches `Notes/`, `slides/`, `.tex`,
+  or `.bib`, review it as mathematical physics. Check signs, factors of two,
+  Hermitian conjugation, Jordan-Wigner strings, Fourier phases, parity-dependent
+  boundary conditions, momentum grids, and notation against `CLAUDE.md`, adjacent
+  equations, and the matching Julia/MATLAB implementation. Also check LaTeX
+  build/readability hazards that affect correctness review: unbalanced
+  environments, broken `\label`/`\ref`/`\cref` links, missing bibliography keys,
+  and fragile RevTeX constructs such as consecutive `widetext` switches.
 - **Dispatch-architecture integrity:** flag string- or `if`/`else`-based method
   selection, empty wrapper functions, inline code that bypasses an existing
   dispatch entry point, and any new duplicate per-backend file.
@@ -61,8 +69,9 @@ a result looks wrong. Do **not** attempt to build or precompile the Julia projec
 - **Test and reproducibility gaps:** new dispatch combinations or observables
   without tests; changed behavior that breaks cross-backend consistency checks.
 - **Convention violations:** `.tex` edits using hardcoded equation numbers instead
-  of `\ref`/`\cref`; debugging code with hardcoded conclusions (`"These match!"`)
-  or magic numbers copied from previous runs instead of tolerance checks.
+  of `\ref`/`\cref`, positional labels, or notation inconsistent with the code;
+  debugging code with hardcoded conclusions (`"These match!"`) or magic numbers
+  copied from previous runs instead of tolerance checks.
 
 Avoid style nits unless they obscure correctness or make future changes
 substantially harder. Do not invent issues merely to have comments. Prefer inline
