@@ -242,9 +242,10 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
         overlap = abs2(dot(ϕ₀.data, ψ_s.data))
         measurements[RESULT_GROUND_STATE_OVERLAP][step] = overlap
         
-        # Purity is always 1 for pure states
-        if haskey(measurements, RESULT_BATH_MAGNETIZATION) && bath_info !== nothing
-            measurements[RESULT_BATH_MAGNETIZATION][step] =
+        # MCWF bath observations are sampled outcomes, not density-matrix
+        # expectation values.
+        if haskey(measurements, RESULT_BATH_SAMPLE_MAGNETIZATION) && bath_info !== nothing
+            measurements[RESULT_BATH_SAMPLE_MAGNETIZATION][step] =
                 _bath_sample_magnetization(
                     bath_info, N_bath, "ED bath measurement", _pauli_z_from_ed_bit)
         end
