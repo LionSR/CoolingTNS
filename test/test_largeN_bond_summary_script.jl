@@ -63,6 +63,7 @@ function write_split_trajectory_summary_file(
     completed_steps::Integer,
     stop_reason::AbstractString,
     elapsed_seconds::Real,
+    overlap_values=nothing,
     write_e0::Bool=true,
     write_stop_reason::Bool=true,
     write_delta_history::Bool=true,
@@ -88,11 +89,19 @@ function write_split_trajectory_summary_file(
         gr = create_group(gm, "R2")
 
         energy = Float64.(energy_values)
+        overlap = overlap_values === nothing ?
+            fill(0.5, length(energy)) :
+            Float64.(overlap_values)
+        length(overlap) == length(energy) ||
+            error("split trajectory test data must have matching overlap and energy lengths")
         write(gr, "M", 1)
         write(gr, CoolingTNS.RESULT_ENERGY, energy)
         write(gr, CoolingTNS.RESULT_ENERGY_TRAJECTORIES, reshape(energy, :, 1))
         write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY,
               relative_energy.(energy, Ref(E0)))
+        write(gr, CoolingTNS.RESULT_GROUND_STATE_OVERLAP, overlap)
+        write(gr, CoolingTNS.RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES,
+              reshape(overlap, :, 1))
         write(gr, "system_max_bond", Int.(system_max))
         write(gr, "system_mean_bond", Float64.(system_max))
         write(gr, "evolved_max_bond", Int.(evolved_max))
@@ -219,6 +228,7 @@ end
             write(gr, "M", 2)
             write(gr, CoolingTNS.RESULT_ENERGY, [-1.0, 2.0, 4.0])
             write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 1.0, 2.0])
+            write(gr, CoolingTNS.RESULT_GROUND_STATE_OVERLAP, [0.75, 0.50, 0.15])
             write(gr, "system_max_bond", [1 1; 6 9; 12 10])
             write(gr, "system_mean_bond", [1.0 1.0; 4.0 5.0; 8.0 5.0])
             write(gr, "evolved_max_bond", [0 0; 12 6; 8 14])
@@ -262,6 +272,9 @@ end
         @test row.delta_range == "[0.50000000,3.00000000]"
         @test row.delta_factor == "n/a"
         @test row.threshold == 12
+        @test row.initial_e_over_n == -0.25
+        @test row.initial_relative_energy == 0.0
+        @test row.initial_overlap == 0.75
         @test row.final_e_over_n == 1.0
         @test row.relative_energy == 2.0
         @test row.best_e_over_n == -0.25
@@ -305,7 +318,8 @@ end
             output,
         )
         @test length(unique(markdown_column_counts(output))) == 1
-        @test occursin("| bond_status | truncation errors | final E/N |", output)
+        @test occursin("| bond_status | truncation errors | initial E/N |", output)
+        @test occursin("| initial E/N | initial relE | initial overlap | final E/N |", output)
         @test occursin("| final E/N | relE | best E/N | best relE | tail E/N |", output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | " *
@@ -313,6 +327,7 @@ end
             "[0.50000000,3.00000000] | n/a | 12 | >=12 | >=14 | >=14 | " *
             "not_converged_system_and_evolved_and_tdvp_sweep_cap | " *
             "not_recorded | " *
+            "-0.25000000 | 0.00000 | 0.75000 | " *
             "1.00000000 | 2.00000 | " *
             "-0.25000000 | 0.00000 | 0.41666667 | 1.00000 | 3 |",
             output,
@@ -329,7 +344,7 @@ end
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | mode max abs dE/N | Dcap |",
+            "| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | initial E/N | initial overlap | final E/N | best E/N | mode max abs dE/N | Dcap |",
             compact_output,
         )
         @test length(unique(markdown_column_counts(compact_output))) == 1
@@ -337,7 +352,7 @@ end
         @test occursin("| elapsed_total | traj cycles/hour | stop_reason |", compact_output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 2 | 2 | " *
-            "descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | 1.00000000 | -0.25000000 | n/a | 12 | >=12 | >=14 | >=14 | " *
+            "descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | -0.25000000 | 0.75000 | 1.00000000 | -0.25000000 | n/a | 12 | >=12 | >=14 | >=14 | " *
             "not_converged_system_and_evolved_and_tdvp_sweep_cap | not_recorded | 25.5 | 564.71 | bond_capx1/2 |",
             compact_output,
         )
@@ -449,6 +464,9 @@ end
         @test row.elapsed_total_seconds == 30.0
         @test row.traj_cycles_per_hour ≈ 3600 * 5 / 30
         @test row.stop_reason == "bond_capx1/2"
+        @test row.initial_e_over_n ≈ -1.0 / 4
+        @test row.initial_relative_energy ≈ relative_energy(-1.0, -4.0)
+        @test row.initial_overlap ≈ 0.5
         @test row.final_e_over_n ≈ mean([-1.0 / 4, -2.5 / 4])
         @test row.relative_energy ≈ mean([
             relative_energy(-1.0, -4.0),
@@ -481,7 +499,7 @@ end
         end
         @test occursin("trajectory_ensemble(traj=1,3)", compact_output)
         @test occursin("| 4 | mcwf | continuous | 2 | 2 | descending | 2-3/4 |", compact_output)
-        @test occursin("| full_grid_observed | -0.43750000 | -0.56250000 | n/a | 8 | >=8 | >=8 | n/a | not_converged_system_and_evolved_cap | not_recorded | 30.0 | 600.00 | bond_capx1/2 |", compact_output)
+        @test occursin("| full_grid_observed | -0.25000000 | 0.50000 | -0.43750000 | -0.56250000 | n/a | 8 | >=8 | >=8 | n/a | not_converged_system_and_evolved_cap | not_recorded | 30.0 | 600.00 | bond_capx1/2 |", compact_output)
 
         @test_throws ErrorException combine_trajectory_rows(
             vcat(rows, summarize_file(duplicate_path))
@@ -563,6 +581,8 @@ end
         @test fallback_row.final_e_over_n_values == [-0.5, -0.5]
         @test fallback_row.best_e_over_n_values == [-1.0, -1.0]
         @test fallback_row.tail_e_over_n_values == [-0.75, -0.75]
+        @test isnan(fallback_row.initial_overlap)
+        @test all(isnan, fallback_row.initial_overlap_values)
 
         write_legacy_split_metadata_file(bad_indices_path; trajectory_indices=[1])
         @test_throws ErrorException summarize_file(bad_indices_path)

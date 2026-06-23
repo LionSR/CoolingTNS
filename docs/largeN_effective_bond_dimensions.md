@@ -143,15 +143,19 @@ A `no_cap_hit` entry does not by itself imply ground-state cooling or
 trajectory convergence; it only means that the imposed bond cap was not reached
 in the recorded run.
 
-For long-cycle diagnostics, the summary script reports three energy readouts.
-`final E/N` is the last recorded energy density, `best E/N` is the lowest
-recorded energy density, and `tail E/N` is the average over the last ten
-recorded rows, or over the whole trace if fewer than ten rows are present.
-`best relE` is the smallest recorded relative energy; this is kept as a
-separate column because a severely truncated trajectory could in principle
-undershoot the ground-state reference in raw energy.  These fields separate
-monotone cooling, transient low-energy excursions, and late-time plateaus
-without assuming that a finite trajectory has reached a fixed point.
+For long-cycle diagnostics, the summary script reports the initial row together
+with three later energy readouts.  `initial E/N`, `initial relE`, and
+`initial overlap` are read from the stored cycle-0 energy and ground-state
+overlap histories; they make `--init-state ground` controls auditable from the
+same table as the bond diagnostics.  `final E/N` is the last recorded energy
+density, `best E/N` is the lowest recorded energy density, and `tail E/N` is the
+average over the last ten recorded rows, or over the whole trace if fewer than
+ten rows are present.  `best relE` is the smallest recorded relative energy;
+this is kept as a separate column because a severely truncated trajectory could
+in principle undershoot the ground-state reference in raw energy.  These fields
+separate initial-state provenance, monotone cooling, transient low-energy
+excursions, and late-time plateaus without assuming that a finite trajectory has
+reached a fixed point.
 
 The current HDF5 summary table therefore contains the sweep-specific columns
 `Dtdvp_sweep_eff`, `peak tdvp sweep max`, and `tdvp sweep sat` in addition to
@@ -1634,9 +1638,9 @@ The run wrote
 
 The HDF5 summary is
 
-| R | Dcap | completed/requested cycles | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | system sat | evolved sat | tdvp sweep sat | elapsed |
-|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---:|
-| 10 | 128 | 8/12 | -1.25614747 | -1.32463289 | 121 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 8 | 8 | 1325.6 s |
+| R | Dcap | completed/requested cycles | initial E/N | initial overlap | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | system sat | evolved sat | tdvp sweep sat | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---:|
+| 10 | 128 | 8/12 | -1.32463289 | 1.00000 | -1.25614747 | -1.32463289 | 121 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 8 | 8 | 1325.6 s |
 
 The completed-cycle prefix is
 
@@ -1651,9 +1655,9 @@ The completed-cycle prefix is
 | 7 | 1.34697800 | -1.27011979 | 96 | 124 | 657.8 s |
 | 8 | 1.06635758 | -1.25614747 | 121 | 128 | 1325.6 s |
 
-The initial row has `E0/N = -1.3246328892` and overlap `1.0` to printed
-precision, verifying that `--init-state ground` starts from the DMRG reference
-state.  The control remains near the ground-state energy while the default
+The `initial E/N` and `initial overlap` columns verify that `--init-state ground`
+starts from the DMRG reference state.  The control remains near the ground-state
+energy while the default
 product-state run is still at positive energy density, and it delays the
 `Dmax = 128` evolved/TDVP cap from cycle 5 to cycle 8.  It nevertheless heats
 monotonically after initialization and eventually reaches the evolved and TDVP
@@ -1689,11 +1693,11 @@ The run wrote
 
 The HDF5 summary is
 
-| R | Dcap | completed/requested cycles | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | system sat | evolved sat | tdvp sweep sat | elapsed |
-|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---:|
-| 1 | 128 | 8/12 | -1.21970618 | -1.32463289 | 116 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 8 | 8 | 1775.2 s |
-| 2 | 128 | 7/12 | -1.24703609 | -1.32463289 | 108 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 7 | 7 | 899.0 s |
-| 5 | 128 | 8/12 | -1.25381271 | -1.32463289 | 106 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 8 | 8 | 864.1 s |
+| R | Dcap | completed/requested cycles | initial E/N | initial overlap | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | system sat | evolved sat | tdvp sweep sat | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---:|
+| 1 | 128 | 8/12 | -1.32463289 | 1.00000 | -1.21970618 | -1.32463289 | 116 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 8 | 8 | 1775.2 s |
+| 2 | 128 | 7/12 | -1.32463289 | 1.00000 | -1.24703609 | -1.32463289 | 108 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 7 | 7 | 899.0 s |
+| 5 | 128 | 8/12 | -1.32463289 | 1.00000 | -1.25381271 | -1.32463289 | 106 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 8 | 8 | 864.1 s |
 
 The completed-cycle prefixes are
 
