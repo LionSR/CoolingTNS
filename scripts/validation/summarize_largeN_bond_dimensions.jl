@@ -573,6 +573,14 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         completed_steps_values, elapsed_seconds
     )
     stop_reasons = read_string_vector(run_group, LARGE_N_STOP_REASONS_KEY)
+    if isempty(stop_reasons)
+        stop_reasons = fill("", M)
+    elseif length(stop_reasons) != M
+        error(
+            "stop_reasons length $(length(stop_reasons)) does not match M=$M " *
+            "in $(basename(file_name))/$n_group_name/$method_name/$r_group_name"
+        )
+    end
     system_max_bond = bond_history_matrix(read(run_group["system_max_bond"]))
     system_mean_bond = bond_history_matrix(read(run_group["system_mean_bond"]))
     evolved_max_bond = bond_history_matrix(read(run_group["evolved_max_bond"]))

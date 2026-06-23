@@ -64,6 +64,7 @@ function write_split_trajectory_summary_file(
     stop_reason::AbstractString,
     elapsed_seconds::Real,
     write_e0::Bool=true,
+    write_stop_reason::Bool=true,
     write_delta_history::Bool=true,
 )
     N = 4
@@ -108,7 +109,7 @@ function write_split_trajectory_summary_file(
         write(gr, "trajectory_seeds", [largeN_trajectory_seed(20260617, N, 2, trajectory)])
         write(gr, CoolingTNS.RESULT_REQUESTED_STEPS, [4])
         write(gr, CoolingTNS.RESULT_COMPLETED_STEPS, [Int(completed_steps)])
-        write(gr, LARGE_N_STOP_REASONS_KEY, [String(stop_reason)])
+        write_stop_reason && write(gr, LARGE_N_STOP_REASONS_KEY, [String(stop_reason)])
         if write_delta_history
             write(gr, "delta_lists", reshape([NaN; 3.0; 0.5; 3.0][1:length(energy)], :, 1))
             write(gr, CoolingTNS.RESULT_DELTA_VALUES, [0.5, 3.0])
@@ -352,6 +353,7 @@ end
     path1 = tempname() * ".h5"
     path3 = tempname() * ".h5"
     missing_delta_path = tempname() * ".h5"
+    missing_stop_path = tempname() * ".h5"
     legacy_e0_path1 = tempname() * ".h5"
     legacy_e0_path2 = tempname() * ".h5"
     duplicate_path = tempname() * ".h5"
@@ -386,6 +388,17 @@ end
             stop_reason="",
             elapsed_seconds=7.0,
             write_delta_history=false,
+        )
+        write_split_trajectory_summary_file(
+            missing_stop_path;
+            trajectory=6,
+            energy_values=[-1.0, -1.5, -2.0],
+            system_max=[1, 3, 5],
+            evolved_max=[0, 4, 6],
+            completed_steps=2,
+            stop_reason="",
+            elapsed_seconds=7.0,
+            write_stop_reason=false,
         )
         write_split_trajectory_summary_file(
             legacy_e0_path1;
@@ -481,6 +494,13 @@ end
         @test mixed_delta_history_row.visited_delta_counts == [2]
         @test mixed_delta_history_row.missing_delta_history_count == 1
         @test mixed_delta_history_row.visited_detunings == "2/2+unknownx1/2"
+        mixed_stop_reason_row = only(combine_trajectory_rows(vcat(
+            summarize_file(path1),
+            summarize_file(missing_stop_path),
+        )))
+        @test mixed_stop_reason_row.M == 2
+        @test mixed_stop_reason_row.stop_reason_values == ["bond_cap", ""]
+        @test mixed_stop_reason_row.stop_reason == "bond_capx1/2"
         legacy_e0_row = only(combine_trajectory_rows(vcat(
             summarize_file(legacy_e0_path1),
             summarize_file(legacy_e0_path2),
@@ -493,6 +513,7 @@ end
         rm(path1; force=true)
         rm(path3; force=true)
         rm(missing_delta_path; force=true)
+        rm(missing_stop_path; force=true)
         rm(legacy_e0_path1; force=true)
         rm(legacy_e0_path2; force=true)
         rm(duplicate_path; force=true)
@@ -501,7 +522,8 @@ end
 
 @testset "Large-N summary validates trajectory metadata fallbacks" begin
     function write_legacy_split_metadata_file(path; trajectory_indices=nothing,
-                                             energy_trajectories=nothing)
+                                             energy_trajectories=nothing,
+                                             stop_reasons=nothing)
         h5open(path, "w") do f
             write(f, "Dmax", 4)
             write(f, "steps", 1)
@@ -522,6 +544,8 @@ end
             energy_trajectories === nothing ||
                 write(gr, CoolingTNS.RESULT_ENERGY_TRAJECTORIES,
                       Float64.(energy_trajectories))
+            stop_reasons === nothing ||
+                write(gr, LARGE_N_STOP_REASONS_KEY, String.(stop_reasons))
         end
     end
 
@@ -529,10 +553,13 @@ end
     bad_indices_path = tempname() * ".h5"
     bad_energy_columns_path = tempname() * ".h5"
     bad_energy_rows_path = tempname() * ".h5"
+    bad_stop_reasons_path = tempname() * ".h5"
     try
         write_legacy_split_metadata_file(fallback_path)
         fallback_row = only(summarize_file(fallback_path))
         @test fallback_row.trajectory_indices == [1, 2]
+        @test fallback_row.stop_reason_values == ["", ""]
+        @test fallback_row.stop_reason == "none"
         @test fallback_row.final_e_over_n_values == [-0.5, -0.5]
         @test fallback_row.best_e_over_n_values == [-1.0, -1.0]
         @test fallback_row.tail_e_over_n_values == [-0.75, -0.75]
@@ -551,11 +578,17 @@ end
             energy_trajectories=reshape([-2.0, -1.0], 1, 2),
         )
         @test_throws ErrorException summarize_file(bad_energy_rows_path)
+
+        write_legacy_split_metadata_file(
+            bad_stop_reasons_path; stop_reasons=["bond_cap"]
+        )
+        @test_throws ErrorException summarize_file(bad_stop_reasons_path)
     finally
         rm(fallback_path; force=true)
         rm(bad_indices_path; force=true)
         rm(bad_energy_columns_path; force=true)
         rm(bad_energy_rows_path; force=true)
+        rm(bad_stop_reasons_path; force=true)
     end
 end
 
