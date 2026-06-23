@@ -43,6 +43,13 @@ Fixed-detuning Dmax ladder:
         --Dmax-values 160,320,640 \
         --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
 
+Fixed-detuning bath-evolution-time ladder:
+
+    julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+        --Ns 64 --R-values 2,5,10 --methods mcwf --evolution-method continuous \
+        --steps 40 --Dmax 96 --te-values 0.5,1.0 \
+        --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
+
 MCWF+TDVP large-N diagnostic:
 
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
@@ -130,11 +137,13 @@ detuning index independently at each cooling cycle.
 
 To prepare independent commands for process-level parallel execution, use
 `--print-parallel-plan`.  The plan splits the campaign into one command for
-each `(N, method, evolution method, R, Dmax, trajectory index)` tuple and
-assigns distinct HDF5 and progress CSV paths.  The trajectory axis is enabled
-explicitly with `--trajectory-values`, and only for MCWF jobs; generated child
-commands run one trajectory each and store the requested trajectory index used
-by the deterministic seed rule.  In multi-job plans where `--progress-csv` is
+each `(N, method, evolution method, R, Dmax, te, trajectory index)` tuple and
+assigns distinct HDF5 and progress CSV paths.  The `--te-values` axis requires
+an explicit `--delta-min/--delta-max` interval, so time-ladder jobs share the
+same physical detuning protocol.  The trajectory axis is enabled explicitly
+with `--trajectory-values`, and only for MCWF jobs; generated child commands
+run one trajectory each and store the requested trajectory index used by the
+deterministic seed rule.  In multi-job plans where `--progress-csv` is
 supplied, generated per-job progress CSV filenames keep the requested CSV stem
 as a prefix and append the HDF5 protocol stem.  Default HDF5 protocol stems
 include the canonical evolution-method token, including `trotter`, so paired
@@ -201,6 +210,9 @@ const DEFAULT_OUTDIR = joinpath(@__DIR__, "Data", "largeN_multifrequency")
 parse_int_list(s::AbstractString) =
     [parse(Int, strip(x)) for x in split(s, ",") if !isempty(strip(x))]
 
+parse_float_list(s::AbstractString) =
+    [parse(Float64, strip(x)) for x in split(s, ",") if !isempty(strip(x))]
+
 parse_method_name(s::AbstractString) = canonical_method_token(s)
 
 parse_method_list(s::AbstractString) =
@@ -251,6 +263,7 @@ function parse_args(args)
         "coupling" => "XX",
         "g" => 0.3,
         "te" => 2.0,
+        "te_values" => nothing,
         "init_state" => "product",
         "theta" => 0.0,
         "delta_max_factor" => 6.0,
@@ -305,6 +318,8 @@ function parse_args(args)
             cfg[key] = parse(Int, args[i + 1]); i += 2
         elseif a == "--Dmax-values"
             cfg["Dmax_values"] = parse_int_list(args[i + 1]); i += 2
+        elseif a == "--te-values"
+            cfg["te_values"] = parse_float_list(args[i + 1]); i += 2
         elseif a == "--trajectory-index"
             cfg["trajectory_index"] = parse(Int, args[i + 1]); i += 2
         elseif a == "--trajectory-values"
@@ -347,8 +362,13 @@ function parse_args(args)
     cfg["steps"] >= 1 || error("--steps must be at least 1")
     all(D -> D >= 1, campaign_dmax_values(cfg)) ||
         error("all Dmax values must be positive")
-    if cfg["output"] !== nothing && length(campaign_dmax_values(cfg)) > 1
-        error("--output names a single HDF5 file and cannot be used with multiple --Dmax-values")
+    all(isfinite, campaign_te_values(cfg)) ||
+        error("all te values must be finite")
+    all(t -> t >= 0, campaign_te_values(cfg)) ||
+        error("all te values must be non-negative")
+    if cfg["output"] !== nothing &&
+       length(campaign_dmax_values(cfg)) * length(campaign_te_values(cfg)) > 1
+        error("--output names a single HDF5 file and cannot be used with multiple --Dmax-values or --te-values")
     end
     for method in cfg["methods"]
         method in ("mpo", "mcwf") || error("unknown method '$method'; use mpo or mcwf")
@@ -459,6 +479,12 @@ function parse_args(args)
             "run uses the same physical detuning protocol"
         )
     end
+    if cfg["te_values"] !== nothing && cfg["delta_min"] === nothing
+        error(
+            "--te-values requires --delta-min and --delta-max so every evolution-time " *
+            "run uses the same physical detuning protocol"
+        )
+    end
     if length(evolution_methods) > 1 && cfg["delta_min"] === nothing
         error(
             "--evolution-method-values requires --delta-min and --delta-max so " *
@@ -541,6 +567,15 @@ function campaign_dmax_values(cfg)
     return values
 end
 
+function campaign_te_values(cfg)
+    values = cfg["te_values"]
+    values === nothing && return [cfg["te"]]
+    isempty(values) && error("--te-values must contain at least one time")
+    length(unique(values)) == length(values) ||
+        error("--te-values must not repeat an evolution time; repeated values would overwrite output files")
+    return values
+end
+
 function campaign_evolution_method_values(cfg)
     values = cfg["evolution_method_values"]
     values === nothing && return [cfg["evolution_method"]]
@@ -562,8 +597,17 @@ function campaign_trajectory_values(cfg)
 end
 
 function campaign_dmax_configs(cfg)
+    # Retained as the Dmax-only regression oracle for the generalized ladder.
     values = campaign_dmax_values(cfg)
     return [merge(copy(cfg), Dict{String,Any}("Dmax" => D)) for D in values]
+end
+
+function campaign_ladder_configs(cfg)
+    configs = Dict{String,Any}[]
+    for D in campaign_dmax_values(cfg), te in campaign_te_values(cfg)
+        push!(configs, merge(copy(cfg), Dict{String,Any}("Dmax" => D, "te" => te)))
+    end
+    return configs
 end
 
 function shell_word(x)
@@ -583,17 +627,18 @@ end
 
 function parallel_plan_configs(cfg)
     dmax_values = campaign_dmax_values(cfg)
+    te_values = campaign_te_values(cfg)
     evolution_methods = campaign_evolution_method_values(cfg)
     trajectory_values = campaign_trajectory_values(cfg)
     njobs = length(cfg["Ns"]) * length(cfg["methods"]) *
             length(evolution_methods) * length(cfg["R_values"]) *
-            length(dmax_values) * length(trajectory_values)
+            length(dmax_values) * length(te_values) * length(trajectory_values)
     if cfg["output"] !== nothing && njobs > 1
         error("--output cannot be used with a multi-job --print-parallel-plan")
     end
 
     jobs = Dict{String,Any}[]
-    for D in dmax_values, N in cfg["Ns"], method in cfg["methods"],
+    for D in dmax_values, te in te_values, N in cfg["Ns"], method in cfg["methods"],
         evolution_method in evolution_methods, R in cfg["R_values"],
         trajectory_index in trajectory_values
         run_cfg = merge(copy(cfg), Dict{String,Any}(
@@ -604,6 +649,8 @@ function parallel_plan_configs(cfg)
             "evolution_method_values" => nothing,
             "Dmax" => D,
             "Dmax_values" => nothing,
+            "te" => te,
+            "te_values" => nothing,
             "trajectory_index" => trajectory_index,
             "trajectory_values" => nothing,
             "M_mcwf" => trajectory_index === nothing ? cfg["M_mcwf"] : 1,
@@ -717,6 +764,9 @@ function print_parallel_plan(cfg; io=stdout)
     println(io, "# Each command has a distinct HDF5 output path.")
     if length(campaign_evolution_method_values(cfg)) > 1
         println(io, "# Evolution-method jobs share the requested detuning interval; compare them as distinct MPS evolution schemes.")
+    end
+    if length(campaign_te_values(cfg)) > 1
+        println(io, "# Evolution-time jobs share the requested detuning interval; compare them as a fixed-protocol te ladder.")
     end
     if cfg["trajectory_values"] !== nothing
         println(io, "# Trajectory jobs use --M-mcwf 1 and the requested trajectory index in the stored seed rule.")
@@ -1584,7 +1634,7 @@ end
 
 function run_campaign_ladder(cfg)
     outputs = Tuple{String,Vector{NamedTuple}}[]
-    for run_cfg in campaign_dmax_configs(cfg)
+    for run_cfg in campaign_ladder_configs(cfg)
         push!(outputs, run_campaign(run_cfg))
     end
     return outputs
@@ -1597,14 +1647,16 @@ function run_largeN_multifrequency_tn_scaling_main()
         return nothing
     end
     Dmax_values = campaign_dmax_values(cfg)
+    te_values = campaign_te_values(cfg)
     @printf("large-N multi-frequency TN campaign\n")
-    @printf("  Ns=%s R=%s methods=%s evolution=%s steps=%d Dmax=%s tau=%.3g cutoff=%.1e\n",
+    @printf("  Ns=%s R=%s methods=%s evolution=%s steps=%d Dmax=%s te=%s tau=%.3g cutoff=%.1e\n",
             join(cfg["Ns"], ","),
             join(cfg["R_values"], ","),
             join(cfg["methods"], ","),
             cfg["evolution_method"],
             cfg["steps"],
             join(Dmax_values, ","),
+            join(te_values, ","),
             cfg["tau"],
             cfg["cutoff"])
     run_campaign_ladder(cfg)

@@ -66,6 +66,7 @@ end
     cfgs = campaign_dmax_configs(cfg)
     @test [c["Dmax"] for c in cfgs] == [160, 320, 640]
     @test all(c -> c["Dmax_values"] == [160, 320, 640], cfgs)
+    @test campaign_ladder_configs(cfg) == cfgs
 
     paths = output_path.(cfgs)
     @test length(unique(paths)) == 3
@@ -81,6 +82,27 @@ end
     @test output_path(te1_cfg) != output_path(te05_cfg)
     @test occursin("_te1_", output_path(te1_cfg))
     @test occursin("_te0.5_", output_path(te05_cfg))
+
+    te_ladder_cfg = parse_args([
+        "--Ns", "64",
+        "--R-values", "2,5",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--steps", "40",
+        "--Dmax", "96",
+        "--te-values", "0.5,1.0",
+        "--delta-min", "0.5051167496264384",
+        "--delta-max", "3.0307004977586303",
+        "--outdir", tempdir(),
+    ])
+    @test campaign_te_values(te_ladder_cfg) == [0.5, 1.0]
+    te_cfgs = campaign_ladder_configs(te_ladder_cfg)
+    @test [c["te"] for c in te_cfgs] == [0.5, 1.0]
+    @test all(c -> c["Dmax"] == 96, te_cfgs)
+    @test length(unique(output_path.(te_cfgs))) == 2
+    @test occursin("_te0.5_", output_path(te_cfgs[1]))
+    @test occursin("_te1_", output_path(te_cfgs[2]))
+    @test campaign_te_values(parse_args(["--te", "0.25"])) == [0.25]
 
     default_init_cfg = parse_args(["--outdir", tempdir()])
     @test default_init_cfg["init_state"] == "product"
@@ -204,6 +226,7 @@ end
     parallel_jobs = parallel_plan_configs(parallel_cfg)
     @test length(parallel_jobs) == 4
     @test all(job -> job["Dmax_values"] === nothing, parallel_jobs)
+    @test all(job -> job["te_values"] === nothing, parallel_jobs)
     @test all(job -> length(job["Ns"]) == 1, parallel_jobs)
     @test all(job -> length(job["R_values"]) == 1, parallel_jobs)
     @test length(unique(output_path.(parallel_jobs))) == length(parallel_jobs)
@@ -251,6 +274,35 @@ end
     @test occursin("kept unchanged", single_plan_text)
     @test shell_word("~/tdvp data") == "'~/tdvp data'"
     @test shell_word("~/tdvp_data") == "~/tdvp_data"
+
+    te_plan_cfg = parse_args([
+        "--Ns", "64",
+        "--R-values", "2",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--steps", "40",
+        "--Dmax", "96",
+        "--te-values", "0.5,1.0",
+        "--delta-min", "0.5051167496264384",
+        "--delta-max", "3.0307004977586303",
+        "--outdir", tempdir(),
+        "--progress-csv", joinpath(tempdir(), "te_progress.csv"),
+        "--print-parallel-plan",
+    ])
+    te_jobs = parallel_plan_configs(te_plan_cfg)
+    @test length(te_jobs) == 2
+    @test [job["te"] for job in te_jobs] == [0.5, 1.0]
+    @test all(job -> job["te_values"] === nothing, te_jobs)
+    @test length(unique(output_path.(te_jobs))) == 2
+    @test length(unique(job["progress_csv"] for job in te_jobs)) == 2
+    @test occursin("_te0.5_", output_path(te_jobs[1]))
+    @test occursin("_te1_", output_path(te_jobs[2]))
+    te_commands = parallel_plan_commands(te_plan_cfg)
+    @test count(command -> occursin("--te 0.5", command), te_commands) == 1
+    @test count(command -> occursin("--te 1.0", command), te_commands) == 1
+    @test !any(command -> occursin("--te-values", command), te_commands)
+    te_plan_text = sprint(io -> print_parallel_plan(te_plan_cfg; io=io))
+    @test occursin("fixed-protocol te ladder", te_plan_text)
 
     trajectory_plan_cfg = parse_args([
         "--Ns", "64",
@@ -813,6 +865,15 @@ end
     ])
     @test_throws ErrorException parse_args(["--Dmax-values", "160,0"])
     @test_throws ErrorException parse_args(["--Dmax-values", "320,320"])
+    @test_throws ErrorException parse_args(["--te-values", "0.5,1.0"])
+    @test_throws ErrorException parse_args([
+        "--te-values", "0.5,1.0",
+        "--output", joinpath(tempdir(), "single_te.h5"),
+        "--delta-min", "0.5",
+        "--delta-max", "1.0",
+    ])
+    @test_throws ErrorException parse_args(["--te-values", "1.0,1.0"])
+    @test_throws ErrorException parse_args(["--te-values", "1.0,-0.5"])
     @test_throws ErrorException parse_args(["--Ns", "64,64"])
     @test_throws ErrorException parse_args(["--R-values", "2,2"])
     @test_throws ErrorException parse_args(["--methods", "mcwf,mcwf"])

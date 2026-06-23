@@ -43,10 +43,14 @@ convention, which includes the canonical evolution-method token (`trotter` or
 for non-default detuning schedules and randomized evolution times.  Generated
 per-job progress CSV filenames in a parallel plan reuse the same HDF5 protocol
 stem, with the user-supplied CSV stem kept as a prefix.  Plans with
-`--trajectory-values` also add a `_trajk` token to both HDF5 and progress-CSV
-stems and store the physical MCWF trajectory labels in the HDF5
-`trajectory_indices` dataset.  The HDF5 metadata is the authoritative protocol
-record.  When those split trajectory-axis files are summarized together,
+`--te-values` generate one child command per requested evolution time and rely
+on the existing `te` token for distinct HDF5/progress-CSV stems; the axis
+requires an explicit fixed detuning interval so changing `te` does not also
+change the bath-frequency protocol.  Plans with `--trajectory-values` also add
+a `_trajk` token to both HDF5 and progress-CSV stems and store the physical
+MCWF trajectory labels in the HDF5 `trajectory_indices` dataset.  The HDF5
+metadata is the authoritative protocol record.  When those split
+trajectory-axis files are summarized together,
 `summarize_largeN_bond_dimensions.jl --combine-trajectories` groups compatible
 rows by the physical protocol, rejects duplicate trajectory labels, and reports
 one ensemble-level row.  For stop-on-cap files with unequal completed prefixes,
