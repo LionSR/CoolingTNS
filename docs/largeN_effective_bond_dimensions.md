@@ -49,16 +49,19 @@ requires an explicit fixed detuning interval so changing `te` does not also
 change the bath-frequency protocol.  Plans with `--trajectory-values` also add
 a `_trajk` token to both HDF5 and progress-CSV stems and store the physical
 MCWF trajectory labels in the HDF5 `trajectory_indices` dataset.  The HDF5
-metadata is the authoritative protocol record.  When those split
-trajectory-axis files are summarized together,
+metadata is the authoritative protocol record.  The summary table includes the
+stored `te` column, so a later time-ladder comparison does not have to infer
+the bath-evolution time from a filename.  When those split trajectory-axis
+files are summarized together,
 `summarize_largeN_bond_dimensions.jl --combine-trajectories` groups compatible
-rows by the physical protocol, rejects duplicate trajectory labels, and reports
-one ensemble-level row.  For stop-on-cap files with unequal completed prefixes,
-the energy columns in that combined row are statistics of the individual
-trajectory summaries, not a reconstructed cycle-aligned ensemble time series.
-If some member files do not contain detuning histories, the combined
-`visited detunings` entry records the known counts and an `unknownxq/M` term,
-rather than attributing the observed histories to the whole ensemble.
+rows by the physical protocol, including `te`, rejects duplicate trajectory
+labels, and reports one ensemble-level row.  For stop-on-cap files with unequal
+completed prefixes, the energy columns in that combined row are statistics of
+the individual trajectory summaries, not a reconstructed cycle-aligned ensemble
+time series.  If some member files do not contain detuning histories, the
+combined `visited detunings` entry records the known counts and an
+`unknownxq/M` term, rather than attributing the observed histories to the whole
+ensemble.
 
 The summary script also reports the stored `completed_steps`,
 `requested_steps`, `elapsed_seconds`, and `stop_reasons` fields.  The
