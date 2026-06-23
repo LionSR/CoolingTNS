@@ -1,5 +1,5 @@
 """
-Plot energy dispersion ε_k and raw Fourier ground-state occupation \\tilde n_k^(GS).
+Plot energy dispersion ε_k and a BdG raw Fourier reference occupation.
 
 Standalone plotting script. Usage:
     julia --project=. scripts/plotting/plot_dispersion_with_gs.jl
@@ -16,10 +16,11 @@ const _COOLINGTNS_PLOT_DISPERSION_WITH_GS_INCLUDED = true
 """
     plot_dispersion_with_ground_state(N, J, h, bc; delta=nothing, save_fig=true, filename=nothing)
 
-Plot the energy dispersion epsilon_k vs k and raw Fourier ground-state
-occupation \\tilde n_k^(GS) for the transverse-field Ising model.
+Plot the energy dispersion epsilon_k vs k and the parity-unconstrained BdG raw
+Fourier occupation reference for the transverse-field Ising model.
 Here `bc` denotes the fermionic boundary condition used for the plotted
-momentum grid.
+momentum grid.  The occupation reference is not necessarily the fixed-parity
+sector ground state.
 """
 function plot_dispersion_with_ground_state(N::Int, J::Real, h::Real, bc::Symbol;
                                          delta=nothing, save_fig=true, filename=nothing)
@@ -28,7 +29,7 @@ function plot_dispersion_with_ground_state(N::Int, J::Real, h::Real, bc::Symbol;
     k_values = generate_k_values(N, bc)
     k_sorted = sort(k_values)
     e_k = compute_energy_dispersion(k_sorted, J, h)
-    n_k_gs = compute_ground_state_occupation(k_sorted, J, h)
+    n_k_ref = compute_bdg_reference_occupation(k_sorted, J, h)
 
     fig, ax1 = plt.subplots(figsize=(10, 6))
     ax2 = ax1.twinx()
@@ -38,15 +39,15 @@ function plot_dispersion_with_ground_state(N::Int, J::Real, h::Real, bc::Symbol;
     ax1.set_ylabel("epsilon_k", fontsize=14, color="b")
     ax1.tick_params(axis="y", labelcolor="b")
 
-    ax2.plot(k_sorted / pi, n_k_gs, "g--", linewidth=2,
-             label=RAW_FOURIER_GS_OCCUPATION_LABEL)
+    ax2.plot(k_sorted / pi, n_k_ref, "g--", linewidth=2,
+             label=RAW_FOURIER_BDG_REFERENCE_OCCUPATION_LABEL)
     ax2.set_ylabel(RAW_FOURIER_OCCUPATION_LABEL, fontsize=14, color="g")
     ax2.tick_params(axis="y", labelcolor="g")
     ax2.set_ylim(-0.1, 1.1)
 
     add_detuning_energy_marker!(ax1, delta; alpha=0.7)
 
-    ax1.set_title("Energy Dispersion and Raw Fourier Ground-State Occupation\n(N=$N, J=$J, h=$h, BC=$bc)", fontsize=16)
+    ax1.set_title("Energy Dispersion and BdG Raw Fourier Reference\n(N=$N, J=$J, h=$h, BC=$bc)", fontsize=16)
     ax1.grid(true, alpha=0.3)
     ax1.set_xlim(minimum(k_sorted) / pi, maximum(k_sorted) / pi)
 

@@ -18,7 +18,10 @@ const _COOLINGTNS_PLOT_NK_EVOLUTION_INCLUDED = true
 Plot the evolution of the raw Fourier occupation
 ``\\tilde n_k = \\langle \\tilde a_k^\\dagger \\tilde a_k\\rangle`` during the
 cooling process. This is not the Bogoliubov quasiparticle occupation
-``n_k^{\\mathrm{Bog}}``; use `plot_mode_cooling.jl` for the latter.
+``n_k^{\\mathrm{Bog}}``; use `plot_mode_cooling.jl` for the latter.  The
+dashed reference curve is the parity-unconstrained BdG raw Fourier reference on
+the stored fermionic grid, not necessarily the fixed-parity sector ground-state
+occupation.
 """
 function plot_nk_evolution(filename; steps_to_plot=nothing, save_fig=true)
     plt = get_pyplot()
@@ -43,7 +46,7 @@ function plot_nk_evolution(filename; steps_to_plot=nothing, save_fig=true)
     total_steps = size(momentum_dist, 2)
 
     step_indices = select_evolution_steps(total_steps; steps_to_plot=steps_to_plot)
-    n_k_gs = compute_ground_state_occupation(k_values, J, h)
+    n_k_ref = compute_bdg_reference_occupation(k_values, J, h)
 
     fig, ax = plt.subplots(figsize=(10, 6))
     colors = get_evolution_colors(plt, length(step_indices))
@@ -56,8 +59,8 @@ function plot_nk_evolution(filename; steps_to_plot=nothing, save_fig=true)
         end
     end
 
-    ax.plot(k_values/pi, n_k_gs, "k--", linewidth=2.5,
-            label=RAW_FOURIER_GS_OCCUPATION_LABEL)
+    ax.plot(k_values/pi, n_k_ref, "k--", linewidth=2.5,
+            label=RAW_FOURIER_BDG_REFERENCE_OCCUPATION_LABEL)
 
 
     ax.set_xlabel("k/pi", fontsize=14)

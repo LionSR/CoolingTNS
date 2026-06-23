@@ -106,7 +106,8 @@ export TRUNCATION_ERROR_HISTORY_EMPTY
 export RESULT_RENYI_ENTROPY, RESULT_FINAL_STATE
 export RESULT_KEYS
 # Dispersion relations used by plotting helpers; implementations follow mode_analysis.jl
-export generate_k_values, compute_energy_dispersion, compute_ground_state_occupation
+export generate_k_values, compute_energy_dispersion
+export compute_bdg_reference_occupation, compute_ground_state_occupation
 
 # Mode analysis (canonical parameter bridge and dispersion)
 export theta_from_Jh, Jh_from_theta, energy_scale
