@@ -119,6 +119,22 @@ function largeN_progress_stage(stage::Symbol)
     throw(ArgumentError("unknown large-N progress observer stage: $stage"))
 end
 
+"""
+    require_largeN_progress_stage_label(stage) -> String
+
+Return `stage` as a string after checking that it is one of the persisted
+large-N progress CSV labels.  This validates external CSV input and direct
+writer calls against the same label set used by `largeN_progress_stage`.
+"""
+function require_largeN_progress_stage_label(stage)
+    label = String(stage)
+    label in LARGE_N_PROGRESS_STAGES && return label
+    throw(ArgumentError(
+        "unknown large-N progress CSV stage '$label'; expected one of " *
+        join(LARGE_N_PROGRESS_STAGES, ", ")
+    ))
+end
+
 # Progress rows are grouped by the job identity columns when recovering an
 # interrupted run from CSV.  The per-row `te` value is intentionally not part
 # of this key: randomized-time runs draw a different `te` per cycle, and fixed

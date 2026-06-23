@@ -103,6 +103,10 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test largeN_progress_stage(:evolved) == LARGE_N_PROGRESS_STAGE_EVOLVED
     @test largeN_progress_stage(:updated) == LARGE_N_PROGRESS_STAGE_UPDATED
     @test_throws ArgumentError largeN_progress_stage(:tdvp_sweep)
+    @test require_largeN_progress_stage_label("initial") == LARGE_N_PROGRESS_STAGE_INITIAL
+    @test require_largeN_progress_stage_label(LARGE_N_PROGRESS_STAGE_TDVP_SWEEP) ==
+          LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
+    @test_throws ArgumentError require_largeN_progress_stage_label("renormalized")
     @test largeN_trajectory_seed(20260617, 64, 10, 1) == 84360618
     @test largeN_trajectory_seed(7, 2, 1, 3) == 2010010
     @test_throws ArgumentError largeN_trajectory_seed(7, 2, 0, 1)

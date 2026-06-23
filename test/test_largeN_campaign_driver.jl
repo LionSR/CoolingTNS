@@ -1402,6 +1402,21 @@ end
         (max=13, mean=9.25),
         3.5,
     )
+    @test_throws ArgumentError progress_base_row(
+        context,
+        ham_params;
+        stage="renormalized",
+        step=2,
+        cycle=1,
+        delta=0.5,
+        te=2.0,
+        energy_per_site=NaN,
+        relative_energy_value=NaN,
+        overlap=NaN,
+        sys_bs=(max=8, mean=6.5),
+        evolved_bs=(max=13, mean=9.25),
+        elapsed=3.5,
+    )
 end
 
 @testset "Large-N campaign mode measurement smoke run" begin

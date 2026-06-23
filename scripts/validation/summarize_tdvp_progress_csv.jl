@@ -71,7 +71,12 @@ function read_progress_csv(path::AbstractString)
             "row $(line_number + 1) in $path has $(length(values)) fields, " *
             "but the header has $(length(header))"
         ))
-        push!(rows, Dict(zip(header, values)))
+        row = Dict(zip(header, values))
+        haskey(row, "stage") || throw(ArgumentError(
+            "progress CSV header in $path is missing the required stage column"
+        ))
+        require_largeN_progress_stage_label(row["stage"])
+        push!(rows, row)
     end
     return header, rows
 end
