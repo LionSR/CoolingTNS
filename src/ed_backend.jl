@@ -24,8 +24,15 @@ function _normalize_density_trace_ed(data::Matrix{ComplexF64})
     return data / trρ
 end
 
-_canonical_reduced_density_data_ed(data::Matrix{ComplexF64}) =
-    _normalize_density_trace_ed(0.5 * (data + data'))
+"""
+    _canonical_reduced_density_data_ed(data)
+
+Project an ED reduced-density block to its Hermitian, trace-one representative
+after a partial trace, matching the TN MPO post-trace convention.
+"""
+function _canonical_reduced_density_data_ed(data::Matrix{ComplexF64})
+    return _normalize_density_trace_ed(0.5 * (data + data'))
+end
 
 # ============================================================================
 # Quantum State Types for ED Backend
