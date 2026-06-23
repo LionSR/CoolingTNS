@@ -145,7 +145,7 @@ end
 function peak_evolved_bond(rows)
     peak = 0
     for row in rows
-        value = progress_float(row, "evolved_max_bond")
+        value = progress_float(row, LARGE_N_EVOLVED_MAX_BOND_KEY)
         isfinite(value) || continue
         peak = max(peak, Int(round(value)))
     end
@@ -161,7 +161,7 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
 
     system_cap_cycle = 0
     for row in updates
-        if progress_float(row, "system_max_bond") >= threshold
+        if progress_float(row, LARGE_N_SYSTEM_MAX_BOND_KEY) >= threshold
             system_cap_cycle = progress_int(row, "cycle")
             break
         end
@@ -175,7 +175,7 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
         # Evolved rows describe the post-evolution system-bath MPS; TDVP-sweep
         # rows describe the integrator observer history.
         stage in ("tdvp_sweep", "evolved") || continue
-        if progress_float(row, "evolved_max_bond") >= threshold
+        if progress_float(row, LARGE_N_EVOLVED_MAX_BOND_KEY) >= threshold
             if stage == "tdvp_sweep"
                 if tdvp_sweep_cap_cycle == 0
                     tdvp_sweep_cap_cycle = progress_int(row, "cycle")
@@ -212,7 +212,9 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
     completed_cycles = isempty(updates) ? 0 : maximum(progress_int(row, "cycle") for row in updates)
     final_update = isempty(updates) ? nothing : updates[end]
     final_energy = final_update === nothing ? NaN : progress_float(final_update, "energy_per_site")
-    final_system_max = final_update === nothing ? 0 : Int(round(progress_float(final_update, "system_max_bond")))
+    final_system_max = final_update === nothing ?
+        0 :
+        Int(round(progress_float(final_update, LARGE_N_SYSTEM_MAX_BOND_KEY)))
     peak_evolved = peak_evolved_bond(rows)
     last_row = isempty(rows) ? nothing : rows[end]
     last_stage = last_row === nothing ? "none" : progress_cell(last_row, "stage")
@@ -322,8 +324,8 @@ function print_energy_trace(rows)
                 "| $(row.R) | $(row.trajectory) | $(progress_cell(update, "cycle")) | " *
                 "$(format_float(progress_float(update, "delta"), 8)) | " *
                 "$(format_float(progress_float(update, "energy_per_site"), 8)) | " *
-                "$(progress_cell(update, "system_max_bond")) | " *
-                "$(progress_cell(update, "evolved_max_bond")) | " *
+                "$(progress_cell(update, LARGE_N_SYSTEM_MAX_BOND_KEY)) | " *
+                "$(progress_cell(update, LARGE_N_EVOLVED_MAX_BOND_KEY)) | " *
                 "$(format_float(progress_float(update, "elapsed_seconds"), 1)) |"
             )
         end

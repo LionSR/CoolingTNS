@@ -960,11 +960,11 @@ end
                 "E" => [-2.0, -1.5, -1.0],
                 "overlap" => [0.1, 0.2, 0.3],
                 "purity" => [1.0, 1.0, 1.0],
-                "sys_maxbond" => [1, 4, 8],
-                "sys_meanbond" => [1.0, 3.0, 6.0],
-                "evolved_maxbond" => [0, 7, 9],
-                "evolved_meanbond" => [NaN, 5.0, 7.0],
-                "tdvp_sweep_maxbond" => [0, 6, 10],
+                LARGE_N_ROW_SYSTEM_MAX_BOND_KEY => [1, 4, 8],
+                LARGE_N_ROW_SYSTEM_MEAN_BOND_KEY => [1.0, 3.0, 6.0],
+                LARGE_N_ROW_EVOLVED_MAX_BOND_KEY => [0, 7, 9],
+                LARGE_N_ROW_EVOLVED_MEAN_BOND_KEY => [NaN, 5.0, 7.0],
+                LARGE_N_ROW_TDVP_SWEEP_MAX_BOND_KEY => [0, 6, 10],
                 CoolingTNS.RESULT_DELTA_LIST => [NaN, 0.5, 3.0],
                 CoolingTNS.RESULT_TE_LIST => [NaN, 1.0, 1.25],
                 LARGE_N_FINAL_BOND_DIMS_GROUP => [4, 8],
@@ -1066,11 +1066,11 @@ end
             "E" => [-2.0, -1.5, -1.0],
             "overlap" => [0.1, 0.2, 0.3],
             "purity" => [1.0, 1.0, 1.0],
-            "sys_maxbond" => [1, 4, 8],
-            "sys_meanbond" => [1.0, 3.0, 6.0],
-            "evolved_maxbond" => [0, 7, 9],
-            "evolved_meanbond" => [NaN, 5.0, 7.0],
-            "tdvp_sweep_maxbond" => [0, 6, 10],
+            LARGE_N_ROW_SYSTEM_MAX_BOND_KEY => [1, 4, 8],
+            LARGE_N_ROW_SYSTEM_MEAN_BOND_KEY => [1.0, 3.0, 6.0],
+            LARGE_N_ROW_EVOLVED_MAX_BOND_KEY => [0, 7, 9],
+            LARGE_N_ROW_EVOLVED_MEAN_BOND_KEY => [NaN, 5.0, 7.0],
+            LARGE_N_ROW_TDVP_SWEEP_MAX_BOND_KEY => [0, 6, 10],
             CoolingTNS.RESULT_DELTA_LIST => [NaN, 0.5, 1.5],
             CoolingTNS.RESULT_TE_LIST => [NaN, 1.0, 1.0],
             LARGE_N_FINAL_BOND_DIMS_GROUP => [4, 8],
@@ -1292,8 +1292,8 @@ end
     @test row["cycle"] == 1
     @test row["energy_per_site"] == -0.25
     @test row["relative_energy"] == relative_energy(-1.0, -4.0)
-    @test row["system_max_bond"] == 8
-    @test row["evolved_max_bond"] == 13
+    @test row[LARGE_N_SYSTEM_MAX_BOND_KEY] == 8
+    @test row[LARGE_N_EVOLVED_MAX_BOND_KEY] == 13
 
     initial_info = merge(info, (stage=:initial, step=1, delta=NaN, te=NaN))
     initial_row = progress_row(
@@ -1308,7 +1308,7 @@ end
     @test initial_row["cycle"] == 0
     @test initial_row["energy_per_site"] == -1.0
     @test isnan(initial_row["delta"])
-    @test isnan(initial_row["evolved_max_bond"])
+    @test isnan(initial_row[LARGE_N_EVOLVED_MAX_BOND_KEY])
 
     prepared_info = merge(info, (stage=:prepared,))
     prepared_row = progress_row(
@@ -1324,8 +1324,8 @@ end
     @test isnan(prepared_row["energy_per_site"])
     @test isnan(prepared_row["relative_energy"])
     @test isnan(prepared_row["overlap"])
-    @test prepared_row["system_max_bond"] == 8
-    @test prepared_row["evolved_max_bond"] == 11
+    @test prepared_row[LARGE_N_SYSTEM_MAX_BOND_KEY] == 8
+    @test prepared_row[LARGE_N_EVOLVED_MAX_BOND_KEY] == 11
 
     evolved_info = merge(info, (stage=:evolved,))
     evolved_row = progress_row(
@@ -1341,8 +1341,8 @@ end
     @test isnan(evolved_row["energy_per_site"])
     @test isnan(evolved_row["relative_energy"])
     @test isnan(evolved_row["overlap"])
-    @test evolved_row["system_max_bond"] == 8
-    @test evolved_row["evolved_max_bond"] == 13
+    @test evolved_row[LARGE_N_SYSTEM_MAX_BOND_KEY] == 8
+    @test evolved_row[LARGE_N_EVOLVED_MAX_BOND_KEY] == 13
     @test isnan(evolved_row["tdvp_sweep"])
     @test isnan(evolved_row["tdvp_time"])
 
@@ -1359,8 +1359,8 @@ end
     @test sweep_row["stage"] == "tdvp_sweep"
     @test sweep_row["cycle"] == 1
     @test isnan(sweep_row["energy_per_site"])
-    @test sweep_row["system_max_bond"] == 8
-    @test sweep_row["evolved_max_bond"] == 21
+    @test sweep_row[LARGE_N_SYSTEM_MAX_BOND_KEY] == 8
+    @test sweep_row[LARGE_N_EVOLVED_MAX_BOND_KEY] == 21
     @test sweep_row["tdvp_sweep"] == 3
     @test sweep_row["tdvp_time"] == 0.6
 

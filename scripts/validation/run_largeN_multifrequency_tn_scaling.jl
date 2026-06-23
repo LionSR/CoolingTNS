@@ -861,10 +861,10 @@ const PROGRESS_CSV_COLUMNS = (
     "energy_per_site",
     "relative_energy",
     "overlap",
-    "system_max_bond",
-    "system_mean_bond",
-    "evolved_max_bond",
-    "evolved_mean_bond",
+    LARGE_N_SYSTEM_MAX_BOND_KEY,
+    LARGE_N_SYSTEM_MEAN_BOND_KEY,
+    LARGE_N_EVOLVED_MAX_BOND_KEY,
+    LARGE_N_EVOLVED_MEAN_BOND_KEY,
     "tdvp_sweep",
     "tdvp_time",
     "elapsed_seconds",
@@ -934,10 +934,10 @@ function progress_base_row(context, ham_params; stage, step, cycle, delta, te,
         "energy_per_site" => energy_per_site,
         "relative_energy" => relative_energy_value,
         "overlap" => overlap,
-        "system_max_bond" => sys_bs.max,
-        "system_mean_bond" => sys_bs.mean,
-        "evolved_max_bond" => evolved_bs.max,
-        "evolved_mean_bond" => evolved_bs.mean,
+        LARGE_N_SYSTEM_MAX_BOND_KEY => sys_bs.max,
+        LARGE_N_SYSTEM_MEAN_BOND_KEY => sys_bs.mean,
+        LARGE_N_EVOLVED_MAX_BOND_KEY => evolved_bs.max,
+        LARGE_N_EVOLVED_MEAN_BOND_KEY => evolved_bs.mean,
         "tdvp_sweep" => tdvp_sweep,
         "tdvp_time" => tdvp_time,
         "elapsed_seconds" => elapsed,
@@ -1179,11 +1179,11 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         "E" => E,
         "overlap" => overlap,
         "purity" => purity,
-        "sys_maxbond" => sys_maxbond_completed,
-        "sys_meanbond" => sys_meanbond_completed,
-        "evolved_maxbond" => evolved_maxbond_completed,
-        "evolved_meanbond" => evolved_meanbond_completed,
-        "tdvp_sweep_maxbond" => tdvp_sweep_maxbond_completed,
+        LARGE_N_ROW_SYSTEM_MAX_BOND_KEY => sys_maxbond_completed,
+        LARGE_N_ROW_SYSTEM_MEAN_BOND_KEY => sys_meanbond_completed,
+        LARGE_N_ROW_EVOLVED_MAX_BOND_KEY => evolved_maxbond_completed,
+        LARGE_N_ROW_EVOLVED_MEAN_BOND_KEY => evolved_meanbond_completed,
+        LARGE_N_ROW_TDVP_SWEEP_MAX_BOND_KEY => tdvp_sweep_maxbond_completed,
         RESULT_DELTA_LIST => delta_list,
         RESULT_TE_LIST => te_list,
         LARGE_N_FINAL_BOND_DIMS_GROUP => final_dims[],
@@ -1346,11 +1346,12 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     E = reduce(hcat, [row["E"] for row in traj_rows])
     overlap = reduce(hcat, [row["overlap"] for row in traj_rows])
     purity = reduce(hcat, [row["purity"] for row in traj_rows])
-    sys_maxbond = reduce(hcat, [row["sys_maxbond"] for row in traj_rows])
-    sys_meanbond = reduce(hcat, [row["sys_meanbond"] for row in traj_rows])
-    evolved_maxbond = reduce(hcat, [row["evolved_maxbond"] for row in traj_rows])
-    evolved_meanbond = reduce(hcat, [row["evolved_meanbond"] for row in traj_rows])
-    tdvp_sweep_maxbond = reduce(hcat, [row["tdvp_sweep_maxbond"] for row in traj_rows])
+    sys_maxbond = reduce(hcat, [row[LARGE_N_ROW_SYSTEM_MAX_BOND_KEY] for row in traj_rows])
+    sys_meanbond = reduce(hcat, [row[LARGE_N_ROW_SYSTEM_MEAN_BOND_KEY] for row in traj_rows])
+    evolved_maxbond = reduce(hcat, [row[LARGE_N_ROW_EVOLVED_MAX_BOND_KEY] for row in traj_rows])
+    evolved_meanbond = reduce(hcat, [row[LARGE_N_ROW_EVOLVED_MEAN_BOND_KEY] for row in traj_rows])
+    tdvp_sweep_maxbond =
+        reduce(hcat, [row[LARGE_N_ROW_TDVP_SWEEP_MAX_BOND_KEY] for row in traj_rows])
     delta_lists = reduce(hcat, [row[RESULT_DELTA_LIST] for row in traj_rows])
     te_lists = reduce(hcat, [row[RESULT_TE_LIST] for row in traj_rows])
     common_delta_list = all(j -> isequal(delta_lists[:, j], delta_lists[:, 1]), 1:M)
@@ -1360,15 +1361,15 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     E_stderr = M == 1 ? zeros(nsteps) : vec(std(E; dims=2)) ./ sqrt(M)
     rel_mean = relative_energy.(E_mean, Ref(E0))
     system_saturation_cycles = Int[
-        first_bond_saturation_cycle(row["sys_maxbond"], saturation_threshold)
+        first_bond_saturation_cycle(row[LARGE_N_ROW_SYSTEM_MAX_BOND_KEY], saturation_threshold)
         for row in traj_rows
     ]
     evolved_saturation_cycles = Int[
-        first_bond_saturation_cycle(row["evolved_maxbond"], saturation_threshold)
+        first_bond_saturation_cycle(row[LARGE_N_ROW_EVOLVED_MAX_BOND_KEY], saturation_threshold)
         for row in traj_rows
     ]
     tdvp_sweep_saturation_cycles = Int[
-        first_bond_saturation_cycle(row["tdvp_sweep_maxbond"], saturation_threshold)
+        first_bond_saturation_cycle(row[LARGE_N_ROW_TDVP_SWEEP_MAX_BOND_KEY], saturation_threshold)
         for row in traj_rows
     ]
 
@@ -1380,10 +1381,10 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     write(g, RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES, overlap)
     write(g, RESULT_GROUND_STATE_OVERLAP, vec(mean(overlap; dims=2)))
     write(g, "purity_trajectories", purity)
-    write(g, "system_max_bond", sys_maxbond)
-    write(g, "system_mean_bond", sys_meanbond)
-    write(g, "evolved_max_bond", evolved_maxbond)
-    write(g, "evolved_mean_bond", evolved_meanbond)
+    write(g, LARGE_N_SYSTEM_MAX_BOND_KEY, sys_maxbond)
+    write(g, LARGE_N_SYSTEM_MEAN_BOND_KEY, sys_meanbond)
+    write(g, LARGE_N_EVOLVED_MAX_BOND_KEY, evolved_maxbond)
+    write(g, LARGE_N_EVOLVED_MEAN_BOND_KEY, evolved_meanbond)
     write(g, LARGE_N_TDVP_SWEEP_MAX_BOND_KEY, tdvp_sweep_maxbond)
     write(g, LARGE_N_BOND_SATURATION_THRESHOLD_KEY, saturation_threshold)
     write(g, LARGE_N_SYSTEM_SATURATION_CYCLE_KEY, system_saturation_cycles)
@@ -1571,20 +1572,21 @@ function run_campaign(cfg)
                                                  cfg, seed; method=method, R=R,
                                                  trajectory=trajectory_index, E0=E0)
                         push!(traj_rows, row)
-                        peak_evolved_maxbond = maximum(row["evolved_maxbond"][2:end])
+                        peak_evolved_maxbond =
+                            maximum(row[LARGE_N_ROW_EVOLVED_MAX_BOND_KEY][2:end])
                         system_saturation_cycle = first_bond_saturation_cycle(
-                            row["sys_maxbond"], saturation_threshold
+                            row[LARGE_N_ROW_SYSTEM_MAX_BOND_KEY], saturation_threshold
                         )
                         evolved_saturation_cycle = first_bond_saturation_cycle(
-                            row["evolved_maxbond"], saturation_threshold
+                            row[LARGE_N_ROW_EVOLVED_MAX_BOND_KEY], saturation_threshold
                         )
                         tdvp_sweep_saturation_cycle = first_bond_saturation_cycle(
-                            row["tdvp_sweep_maxbond"], saturation_threshold
+                            row[LARGE_N_ROW_TDVP_SWEEP_MAX_BOND_KEY], saturation_threshold
                         )
                         @printf("  traj %d/%d index=%d seed=%d final E/N=%.8f rel=%.6g final_sysD=%d peak_evolvedD=%d sysSat=%s evolvedSat=%s tdvpSweepSat=%s elapsed=%.1fs\n",
                                 m, M, trajectory_index, seed, row["E"][end] / N,
                                 relative_energy(row["E"][end], E0),
-                                row["sys_maxbond"][end],
+                                row[LARGE_N_ROW_SYSTEM_MAX_BOND_KEY][end],
                                 peak_evolved_maxbond,
                                 saturation_cycle_label(system_saturation_cycle),
                                 saturation_cycle_label(evolved_saturation_cycle),
