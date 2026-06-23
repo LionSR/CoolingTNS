@@ -4,34 +4,6 @@ using CoolingTNS
 include(joinpath(@__DIR__, "..", "scripts", "validation",
                  "summarize_tdvp_progress_csv.jl"))
 
-const TDVP_PROGRESS_COLUMNS = [
-    "timestamp",
-    "N",
-    "method",
-    "evolution",
-    "R",
-    "trajectory",
-    "seed",
-    "Dmax",
-    "cutoff",
-    "tau",
-    "stage",
-    "step",
-    "cycle",
-    "delta",
-    "te",
-    "energy_per_site",
-    "relative_energy",
-    "overlap",
-    TDVPProgressCSVSummary.LARGE_N_SYSTEM_MAX_BOND_KEY,
-    TDVPProgressCSVSummary.LARGE_N_SYSTEM_MEAN_BOND_KEY,
-    TDVPProgressCSVSummary.LARGE_N_EVOLVED_MAX_BOND_KEY,
-    TDVPProgressCSVSummary.LARGE_N_EVOLVED_MEAN_BOND_KEY,
-    "tdvp_sweep",
-    "tdvp_time",
-    "elapsed_seconds",
-]
-
 function tdvp_progress_line(; timestamp="2026-06-19T00:00:00",
                             method="mcwf", evolution="continuous",
                             R="2", Dmax="6", stage, step, cycle,
@@ -66,9 +38,12 @@ function tdvp_progress_line(; timestamp="2026-06-19T00:00:00",
         TDVPProgressCSVSummary.LARGE_N_EVOLVED_MEAN_BOND_KEY => evolved_mean_bond,
         "tdvp_sweep" => tdvp_sweep,
         "tdvp_time" => tdvp_time,
-        "elapsed_seconds" => string(elapsed_seconds),
+        TDVPProgressCSVSummary.LARGE_N_ELAPSED_SECONDS_KEY => string(elapsed_seconds),
     )
-    return join((row[col] for col in TDVP_PROGRESS_COLUMNS), ",")
+    return join(
+        (row[col] for col in TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS),
+        ",",
+    )
 end
 
 @testset "TDVP progress CSV summary script" begin
@@ -94,7 +69,7 @@ end
     path = tempname() * ".csv"
     try
         open(path, "w") do io
-            println(io, join(TDVP_PROGRESS_COLUMNS, ","))
+            println(io, join(TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS, ","))
             println(io, tdvp_progress_line(
                 timestamp="\"contains,comma\"",
                 stage="initial", step=1, cycle=0, delta="NaN", te="NaN",
@@ -251,7 +226,7 @@ end
     tdvp_only_path = tempname() * ".csv"
     try
         open(tdvp_only_path, "w") do io
-            println(io, join(TDVP_PROGRESS_COLUMNS, ","))
+            println(io, join(TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS, ","))
             println(io, tdvp_progress_line(
                 stage="initial", step=1, cycle=0, delta="NaN", te="NaN",
                 energy_per_site="1.0", relative_energy="2.0", overlap="0.0",
@@ -290,7 +265,7 @@ end
     both_caps_path = tempname() * ".csv"
     try
         open(both_caps_path, "w") do io
-            println(io, join(TDVP_PROGRESS_COLUMNS, ","))
+            println(io, join(TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS, ","))
             println(io, tdvp_progress_line(
                 R="4", stage="initial", step=1, cycle=0,
                 delta="NaN", te="NaN", energy_per_site="1.0",

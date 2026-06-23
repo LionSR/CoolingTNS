@@ -1372,10 +1372,10 @@ end
             "stage" => "evolved",
         )))
         lines = readlines(path)
-        @test lines[1] == join(PROGRESS_CSV_COLUMNS, ",")
+        @test lines[1] == join(LARGE_N_PROGRESS_CSV_COLUMNS, ",")
         @test length(lines) == 3
         @test occursin("\"contains,comma\"", lines[3])
-        @test count(==(','), lines[1]) == length(PROGRESS_CSV_COLUMNS) - 1
+        @test count(==(','), lines[1]) == length(LARGE_N_PROGRESS_CSV_COLUMNS) - 1
     finally
         rm(path; force=true)
     end
