@@ -560,8 +560,23 @@ end
     # Simulate a tiny anti-Hermitian roundoff component in the full dense state.
     # The reduced density matrix should be projected back to the physical
     # Hermitian, trace-one representative at the partial-trace boundary.
-    ρ_roundoff.data[1, 2] += 1e-12im
-    ρ_roundoff.data[2, 1] += 1e-12im
+    keep_qubits_0 = [0]
+    trace_qubits_0 = [1]
+    row_0 = CoolingTNS.construct_index(0, 0, keep_qubits_0, trace_qubits_0) + 1
+    row_1 = CoolingTNS.construct_index(1, 0, keep_qubits_0, trace_qubits_0) + 1
+    ρ_roundoff.data[row_0, row_1] += 1e-12im
+    ρ_roundoff.data[row_1, row_0] += 1e-12im
+
+    raw_reduced = Matrix{ComplexF64}(undef, 2, 2)
+    for i in 0:1, j in 0:1
+        raw_reduced[i + 1, j + 1] = sum(0:1; init=0.0 + 0.0im) do k
+            idx_i = CoolingTNS.construct_index(i, k, keep_qubits_0, trace_qubits_0) + 1
+            idx_j = CoolingTNS.construct_index(j, k, keep_qubits_0, trace_qubits_0) + 1
+            ρ_roundoff.data[idx_i, idx_j]
+        end
+    end
+    @test !ishermitian(raw_reduced)
+
     ρ_repaired = CoolingTNS.trace_out_bath_ed(ρ_roundoff, 1)
 
     @test ishermitian(ρ_repaired.data)
