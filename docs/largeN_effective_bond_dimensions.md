@@ -1656,3 +1656,74 @@ monotonically after initialization and eventually reaches the evolved and TDVP
 sweep caps.  Thus the product-state cap is not solely a near-ground TDVP
 channel artifact, but the fixed descending channel is still not an exact
 ground-state fixed point at this bond cap.
+
+### Remaining N=64 Ground-State Frequency Controls
+
+The remaining frequency counts were then repeated with the same cap, schedule,
+detuning interval, stopping rule, and thread pinning:
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 1,2,5 --methods mcwf \
+  --evolution-method continuous --steps 12 --Dmax 128 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending --init-state ground \
+  --progress-csv .worktree/ground_control_dmax128_R1_R2_R5_20260623/tdvp_progress_N64_niising_open_mcwf_R1-2-5_Dmax128_te1.0_descending_initground.csv \
+  --outdir .worktree/ground_control_dmax128_R1_R2_R5_20260623 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The run wrote
+
+```text
+.worktree/ground_control_dmax128_R1_R2_R5_20260623/largeN_multifrequency_tn_N64_R1-2-5_mcwf_continuous_stopcap_scheddesc_initground_steps12_Dmax128_te1_tau0.2_seed20260617.h5
+.worktree/ground_control_dmax128_R1_R2_R5_20260623/tdvp_progress_N64_niising_open_mcwf_R1-2-5_Dmax128_te1.0_descending_initground.csv
+```
+
+The HDF5 summary is
+
+| R | Dcap | completed/requested cycles | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | system sat | evolved sat | tdvp sweep sat | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---:|
+| 1 | 128 | 8/12 | -1.21970618 | -1.32463289 | 116 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 8 | 8 | 1775.2 s |
+| 2 | 128 | 7/12 | -1.24703609 | -1.32463289 | 108 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 7 | 7 | 899.0 s |
+| 5 | 128 | 8/12 | -1.25381271 | -1.32463289 | 106 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | none | 8 | 8 | 864.1 s |
+
+The completed-cycle prefixes are
+
+| R | cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 1 | 0.50511675 | -1.31411353 | 8 | 12 | 43.0 s |
+| 1 | 2 | 0.50511675 | -1.29971241 | 11 | 16 | 62.8 s |
+| 1 | 3 | 0.50511675 | -1.29269272 | 17 | 24 | 88.8 s |
+| 1 | 4 | 0.50511675 | -1.27452490 | 26 | 36 | 127.7 s |
+| 1 | 5 | 0.50511675 | -1.26397027 | 40 | 53 | 264.4 s |
+| 1 | 6 | 0.50511675 | -1.25917164 | 58 | 78 | 415.4 s |
+| 1 | 7 | 0.50511675 | -1.24743382 | 86 | 114 | 999.9 s |
+| 1 | 8 | 0.50511675 | -1.21970618 | 116 | 128 | 1775.2 s |
+| 2 | 1 | 3.03070050 | -1.31130003 | 8 | 12 | 25.5 s |
+| 2 | 2 | 0.50511675 | -1.28628510 | 12 | 17 | 48.4 s |
+| 2 | 3 | 3.03070050 | -1.28614583 | 17 | 24 | 76.4 s |
+| 2 | 4 | 0.50511675 | -1.28516011 | 28 | 37 | 121.6 s |
+| 2 | 5 | 3.03070050 | -1.27717497 | 44 | 57 | 210.9 s |
+| 2 | 6 | 0.50511675 | -1.24822873 | 73 | 95 | 416.4 s |
+| 2 | 7 | 3.03070050 | -1.24703609 | 108 | 128 | 899.0 s |
+| 5 | 1 | 3.03070050 | -1.31866536 | 8 | 12 | 16.7 s |
+| 5 | 2 | 2.39930456 | -1.31737635 | 11 | 16 | 34.9 s |
+| 5 | 3 | 1.76790862 | -1.31066100 | 17 | 23 | 56.9 s |
+| 5 | 4 | 1.13651269 | -1.29555827 | 25 | 34 | 89.1 s |
+| 5 | 5 | 0.50511675 | -1.27252963 | 36 | 48 | 143.7 s |
+| 5 | 6 | 3.03070050 | -1.26779560 | 50 | 66 | 241.9 s |
+| 5 | 7 | 2.39930456 | -1.26295293 | 73 | 97 | 436.7 s |
+| 5 | 8 | 1.76790862 | -1.25381271 | 106 | 128 | 864.1 s |
+
+Combining these rows with the `R = 10` ground-state control gives the final
+energy ordering `R = 10 < R = 5 < R = 2 < R = 1`, where lower is better.  All
+four controls start at the same DMRG reference, all heat after initialization,
+and all reach the evolved and TDVP sweep cap at `Dmax = 128` by cycle 7 or 8.
+The near-ground controls therefore separate two effects: the product-state
+trajectory is indeed harder before cycle 5, but the fixed descending channel
+still creates enough entanglement and heating near the ground state to be a
+scaling bottleneck at this cap.

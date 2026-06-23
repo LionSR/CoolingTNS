@@ -279,6 +279,12 @@ The first `N = 64`, `R = 10`, `Dmax = 128`, `te = 1.0`, descending
 that the code starts at the DMRG reference (`E0/N = -1.3246328892`) and delays
 the cap relative to the product-state run, but it also shows monotone heating
 and eventual evolved/TDVP cap saturation.
+The companion `R = 1,2,5` controls at the same cap also start from the DMRG
+reference and stop by the evolved/TDVP cap: `R = 1` at cycle 8 with
+`E/N = -1.21970618`, `R = 2` at cycle 7 with `E/N = -1.24703609`, and
+`R = 5` at cycle 8 with `E/N = -1.25381271`.  Across all four ground-state
+controls, the final energy ordering is `R = 10 < R = 5 < R = 2 < R = 1`, but
+none is an exact ground-state fixed point at `Dmax = 128`.
 If the purpose of a run is only to locate the first cap event, the validation
 driver can also be run with `--stop-on-bond-cap`.  This stops after the first
 completed cycle whose retained system state, evolved system-bath state, or,
