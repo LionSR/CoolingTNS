@@ -320,6 +320,12 @@ function init_protocol_label(init_state::AbstractString, theta::Real)
     return String(init_state)
 end
 
+function initial_state_group_key(row)
+    init_state = String(row.init_state)
+    theta_key = init_state == "theta" && isfinite(row.theta) ? row.theta : missing
+    return (init_state, theta_key)
+end
+
 is_deterministic_schedule(schedule::AbstractString) =
     schedule in ("round_robin", "descending")
 
@@ -868,7 +874,7 @@ function trajectory_ensemble_key(row)
         row.evolution,
         isfinite(row.te) ? row.te : missing,
         row.randomize_times,
-        row.init_protocol,
+        initial_state_group_key(row),
         row.R,
         row.schedule,
         row.delta_protocol,

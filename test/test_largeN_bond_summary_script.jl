@@ -158,6 +158,16 @@ end
     @test init_protocol_label("product", 0.0) == "product"
     @test init_protocol_label("ground", 0.0) == "ground"
     @test init_protocol_label("theta", 0.25) == "theta=0.250"
+    @test isequal(
+        initial_state_group_key((init_state="product", theta=0.25)),
+        ("product", missing),
+    )
+    @test initial_state_group_key((init_state="theta", theta=0.2501)) ==
+          ("theta", 0.2501)
+    @test isequal(
+        initial_state_group_key((init_state="theta", theta=NaN)),
+        ("theta", missing),
+    )
 
     delta_history = [
         NaN NaN
@@ -395,6 +405,8 @@ end
     te_mismatch_path = tempname() * ".h5"
     randomized_time_path = tempname() * ".h5"
     ground_init_path = tempname() * ".h5"
+    theta_init_path1 = tempname() * ".h5"
+    theta_init_path2 = tempname() * ".h5"
     try
         write_split_trajectory_summary_file(
             path1;
@@ -504,6 +516,32 @@ end
             overlap_values=[1.0, 0.9],
             init_state="ground",
         )
+        write_split_trajectory_summary_file(
+            theta_init_path1;
+            trajectory=1,
+            energy_values=[-4.0, -3.5],
+            system_max=[1, 4],
+            evolved_max=[0, 4],
+            completed_steps=1,
+            stop_reason="",
+            elapsed_seconds=5.0,
+            overlap_values=[1.0, 0.9],
+            init_state="theta",
+            theta=0.2501,
+        )
+        write_split_trajectory_summary_file(
+            theta_init_path2;
+            trajectory=2,
+            energy_values=[-4.0, -3.5],
+            system_max=[1, 4],
+            evolved_max=[0, 4],
+            completed_steps=1,
+            stop_reason="",
+            elapsed_seconds=5.0,
+            overlap_values=[1.0, 0.9],
+            init_state="theta",
+            theta=0.2502,
+        )
 
         rows = vcat(summarize_file(path1), summarize_file(path3))
         @test length(rows) == 2
@@ -584,6 +622,13 @@ end
         @test length(split_by_init_rows) == 2
         @test sort([row.init_protocol for row in split_by_init_rows]) ==
               ["ground", "product"]
+        split_by_theta_rows = combine_trajectory_rows(vcat(
+            summarize_file(theta_init_path1),
+            summarize_file(theta_init_path2),
+        ))
+        @test length(split_by_theta_rows) == 2
+        @test all(row.init_protocol == "theta=0.250" for row in split_by_theta_rows)
+        @test sort([row.theta for row in split_by_theta_rows]) == [0.2501, 0.2502]
         mixed_delta_history_row = only(combine_trajectory_rows(vcat(
             summarize_file(path1),
             summarize_file(missing_delta_path),
@@ -618,6 +663,8 @@ end
         rm(te_mismatch_path; force=true)
         rm(randomized_time_path; force=true)
         rm(ground_init_path; force=true)
+        rm(theta_init_path1; force=true)
+        rm(theta_init_path2; force=true)
     end
 end
 
