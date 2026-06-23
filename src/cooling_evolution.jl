@@ -696,9 +696,9 @@ function add_backend_measurements!(measurements, ::CoolingProblem{TNBackend}, ::
     measurements[RESULT_BATH_SAMPLE_MAGNETIZATION] = zeros(Float64, steps + 1)
 end
 
-# ED Monte Carlo tracks bath magnetization + k-space
+# ED Monte Carlo tracks sampled bath magnetization + k-space
 function add_backend_measurements!(measurements, problem::CoolingProblem{EDBackend}, ::QuantumState{EDBackend,MonteCarloWavefunction,E}, steps) where E
-    measurements[RESULT_BATH_MAGNETIZATION] = zeros(Float64, steps + 1)
+    measurements[RESULT_BATH_SAMPLE_MAGNETIZATION] = zeros(Float64, steps + 1)
     add_kspace_measurements!(measurements, problem, steps)
 end
 

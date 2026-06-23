@@ -13,8 +13,8 @@ const RESULT_ENERGY = "E_list"
 const RESULT_RELATIVE_ENERGY = "relative_energy_mean"
 const RESULT_GROUND_STATE_OVERLAP = "GS_overlap_list"
 const RESULT_PURITY = "purity_list"
-const RESULT_BATH_MAGNETIZATION = "bath_mag_list"
-const RESULT_BATH_SAMPLE_MAGNETIZATION = "nb_list"
+const RESULT_BATH_MAGNETIZATION = "bath_mag_list"        # Bath expectation value.
+const RESULT_BATH_SAMPLE_MAGNETIZATION = "nb_list"       # MCWF sampled bath magnetization.
 
 const RESULT_MOMENTUM_DISTRIBUTION = "momentum_dist"
 const RESULT_K_VALUES = "k_values"

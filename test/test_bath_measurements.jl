@@ -236,7 +236,7 @@ using LinearAlgebra
         @test results[CoolingTNS.RESULT_BATH_MAGNETIZATION][2] ≈ -1.0 atol=1e-10
     end
 
-    @testset "ED Monte Carlo cooling populates bath_mag_list" begin
+    @testset "ED Monte Carlo cooling populates nb_list" begin
         N = 2
         backend = CoolingTNS.EDBackend()
         ham_params = CoolingTNS.IsingParameters(N, 1.0, -2.0)
@@ -251,10 +251,11 @@ using LinearAlgebra
         state0 = CoolingTNS.setup_initial_state(problem, sim_params, "product", 0.0)
         results = CoolingTNS.run_cooling(problem, state0, coupling_params, sim_params, ham_params)
 
-        @test haskey(results, CoolingTNS.RESULT_BATH_MAGNETIZATION)
+        @test !haskey(results, CoolingTNS.RESULT_BATH_MAGNETIZATION)
+        @test haskey(results, CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION)
         # With g=0 and te=0, the bath is sampled from the deterministic XX
         # ground state; this is not a statistical MCWF assertion.
-        @test results[CoolingTNS.RESULT_BATH_MAGNETIZATION][2] ≈ -1.0 atol=1e-12
+        @test results[CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION][2] ≈ -1.0 atol=1e-12
     end
 
     @testset "ED density-matrix cooling returns system state and bath_mag_list" begin
