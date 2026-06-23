@@ -1186,7 +1186,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         "tdvp_sweep_maxbond" => tdvp_sweep_maxbond_completed,
         RESULT_DELTA_LIST => delta_list,
         RESULT_TE_LIST => te_list,
-        "final_bond_dims" => final_dims[],
+        LARGE_N_FINAL_BOND_DIMS_GROUP => final_dims[],
         "elapsed" => elapsed,
         "seed" => seed,
         "trajectory" => trajectory,
@@ -1391,8 +1391,8 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     write(g, LARGE_N_TDVP_SWEEP_SATURATION_CYCLE_KEY, tdvp_sweep_saturation_cycles)
     write(g, RESULT_TRUNCATION_ERROR_HISTORY_STATUS, TRUNCATION_ERROR_HISTORY_NOT_RECORDED)
     write(g, LARGE_N_ELAPSED_SECONDS_KEY, Float64[row["elapsed"] for row in traj_rows])
-    write(g, "trajectory_seeds", Int[row["seed"] for row in traj_rows])
-    write(g, "trajectory_indices", Int[row["trajectory"] for row in traj_rows])
+    write(g, LARGE_N_TRAJECTORY_SEEDS_KEY, Int[row["seed"] for row in traj_rows])
+    write(g, LARGE_N_TRAJECTORY_INDICES_KEY, Int[row["trajectory"] for row in traj_rows])
     write(
         g,
         RESULT_REQUESTED_STEPS,
@@ -1404,21 +1404,22 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
         Int[row[RESULT_COMPLETED_STEPS] for row in traj_rows],
     )
     write(g, LARGE_N_STOP_REASONS_KEY, String[row["stop_reason"] for row in traj_rows])
-    write(g, "delta_lists", delta_lists)
-    write(g, "delta_list_first_trajectory", delta_lists[:, 1])
-    write(g, "delta_list_is_common", common_delta_list)
+    write(g, LARGE_N_DELTA_LISTS_KEY, delta_lists)
+    write(g, LARGE_N_DELTA_LIST_FIRST_TRAJECTORY_KEY, delta_lists[:, 1])
+    write(g, LARGE_N_DELTA_LIST_IS_COMMON_KEY, common_delta_list)
     common_delta_list && write(g, RESULT_DELTA_LIST, delta_lists[:, 1])
-    write(g, "te_lists", te_lists)
-    write(g, "te_list_first_trajectory", te_lists[:, 1])
-    write(g, "te_list_is_common", common_te_list)
+    write(g, LARGE_N_TE_LISTS_KEY, te_lists)
+    write(g, LARGE_N_TE_LIST_FIRST_TRAJECTORY_KEY, te_lists[:, 1])
+    write(g, LARGE_N_TE_LIST_IS_COMMON_KEY, common_te_list)
     common_te_list && write(g, RESULT_TE_LIST, te_lists[:, 1])
     write(g, RESULT_DELTA_VALUES, Float64.(delta_values))
     write_largeN_detuning_protocol(g, detuning_protocol)
     write_mode_measurement_group!(g, traj_rows)
 
-    bd = create_group(g, "final_bond_dims")
+    bd = create_group(g, LARGE_N_FINAL_BOND_DIMS_GROUP)
     for (j, row) in enumerate(traj_rows)
-        write(bd, "trajectory_$j", row["final_bond_dims"])
+        write(bd, "$(LARGE_N_FINAL_BOND_DIMS_TRAJECTORY_PREFIX)$j",
+              row[LARGE_N_FINAL_BOND_DIMS_GROUP])
     end
 
     return (
@@ -1492,7 +1493,7 @@ function run_campaign(cfg)
         write(f, RESULT_SCHEDULE, cfg["schedule"])
         write(f, "stop_on_bond_cap", cfg["stop_on_bond_cap"])
         write(f, "seed", cfg["seed"])
-        write(f, "trajectory_seed_rule", LARGE_N_TRAJECTORY_SEED_RULE)
+        write(f, LARGE_N_TRAJECTORY_SEED_RULE_KEY, LARGE_N_TRAJECTORY_SEED_RULE)
 
         for N in cfg["Ns"]
             ham_params = campaign_hamiltonian_parameters(N, cfg)

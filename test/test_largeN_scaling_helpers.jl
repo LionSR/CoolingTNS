@@ -28,6 +28,17 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
           "tdvp_sweep_saturation_cycle"
     @test LARGE_N_ELAPSED_SECONDS_KEY == "elapsed_seconds"
     @test LARGE_N_STOP_REASONS_KEY == "stop_reasons"
+    @test LARGE_N_TRAJECTORY_SEED_RULE_KEY == "trajectory_seed_rule"
+    @test LARGE_N_TRAJECTORY_SEEDS_KEY == "trajectory_seeds"
+    @test LARGE_N_TRAJECTORY_INDICES_KEY == "trajectory_indices"
+    @test LARGE_N_DELTA_LISTS_KEY == "delta_lists"
+    @test LARGE_N_DELTA_LIST_FIRST_TRAJECTORY_KEY == "delta_list_first_trajectory"
+    @test LARGE_N_DELTA_LIST_IS_COMMON_KEY == "delta_list_is_common"
+    @test LARGE_N_TE_LISTS_KEY == "te_lists"
+    @test LARGE_N_TE_LIST_FIRST_TRAJECTORY_KEY == "te_list_first_trajectory"
+    @test LARGE_N_TE_LIST_IS_COMMON_KEY == "te_list_is_common"
+    @test LARGE_N_FINAL_BOND_DIMS_GROUP == "final_bond_dims"
+    @test LARGE_N_FINAL_BOND_DIMS_TRAJECTORY_PREFIX == "trajectory_"
     @test largeN_trajectory_seed(20260617, 64, 10, 1) == 84360618
     @test largeN_trajectory_seed(7, 2, 1, 3) == 2010010
     @test_throws ArgumentError largeN_trajectory_seed(7, 2, 0, 1)

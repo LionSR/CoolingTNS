@@ -108,7 +108,7 @@ end
 
 function read_trajectory_indices(run_group, M::Integer)
     default_indices = collect(1:M)
-    return read_integer_vector(run_group, "trajectory_indices", default_indices)
+    return read_integer_vector(run_group, LARGE_N_TRAJECTORY_INDICES_KEY, default_indices)
 end
 
 function read_energy_trajectory_matrix(run_group, energy_mean::AbstractVector, M::Integer)
@@ -368,8 +368,8 @@ function detuning_coverage_status(
 end
 
 function delta_history_matrix(run_group)
-    if haskey(run_group, "delta_lists")
-        return delta_history_matrix_from_values(read(run_group["delta_lists"]))
+    if haskey(run_group, LARGE_N_DELTA_LISTS_KEY)
+        return delta_history_matrix_from_values(read(run_group[LARGE_N_DELTA_LISTS_KEY]))
     elseif haskey(run_group, RESULT_DELTA_LIST)
         return delta_history_matrix_from_values(read(run_group[RESULT_DELTA_LIST]))
     end
@@ -391,7 +391,7 @@ function distinct_completed_delta_counts(delta_history, completed_steps::Abstrac
     for (trajectory, completed) in enumerate(completed_steps)
         column = ncols == 1 ? 1 : trajectory
         column <= ncols || error(
-            "delta_lists has $ncols trajectory columns, but completed_steps " *
+            "$(LARGE_N_DELTA_LISTS_KEY) has $ncols trajectory columns, but completed_steps " *
             "contains at least $trajectory trajectories"
         )
         last_row = min(Int(completed) + 1, size(delta_history, 1))
@@ -463,11 +463,11 @@ function saturation_threshold_for(root, method_group, run_group, method_name::Ab
 end
 
 function final_link_dimensions(run_group)
-    !haskey(run_group, "final_bond_dims") && return Vector{Vector{Int}}()
-    bond_group = run_group["final_bond_dims"]
+    !haskey(run_group, LARGE_N_FINAL_BOND_DIMS_GROUP) && return Vector{Vector{Int}}()
+    bond_group = run_group[LARGE_N_FINAL_BOND_DIMS_GROUP]
     names = sort(
         String.(keys(bond_group));
-        by=name -> parse(Int, replace(name, "trajectory_" => "")),
+        by=name -> parse(Int, replace(name, LARGE_N_FINAL_BOND_DIMS_TRAJECTORY_PREFIX => "")),
     )
     return [Int.(read(bond_group[name])) for name in names]
 end
