@@ -69,6 +69,8 @@ function write_split_trajectory_summary_file(
     write_delta_history::Bool=true,
     te::Real=1.0,
     randomize_times::Bool=false,
+    init_state::AbstractString="product",
+    theta::Real=0.0,
 )
     N = 4
     E0 = -4.0
@@ -79,6 +81,8 @@ function write_split_trajectory_summary_file(
         write(f, "steps", 4)
         write(f, "te", Float64(te))
         write(f, CoolingTNS.RESULT_RANDOMIZE_TIMES, randomize_times)
+        write(f, "init_state", String(init_state))
+        write(f, "theta", Float64(theta))
         write(f, LARGE_N_EVOLUTION_METHOD_KEY, "continuous")
         write(f, CoolingTNS.RESULT_SCHEDULE, "descending")
         gn = create_group(f, "N4")
@@ -151,6 +155,9 @@ end
     @test detuning_coverage_status([5], Int[], 10, "descending") == "n/a"
     @test detuning_coverage_status([5], [12], 0, "descending") == "n/a"
     @test detuning_coverage_status([3], [8], 1, "descending") == "single_detuning"
+    @test init_protocol_label("product", 0.0) == "product"
+    @test init_protocol_label("ground", 0.0) == "ground"
+    @test init_protocol_label("theta", 0.25) == "theta=0.250"
 
     delta_history = [
         NaN NaN
@@ -219,6 +226,8 @@ end
             write(f, "Dmax", 12)
             write(f, "te", 1.25)
             write(f, CoolingTNS.RESULT_RANDOMIZE_TIMES, false)
+            write(f, "init_state", "product")
+            write(f, "theta", 0.0)
             write(f, LARGE_N_EVOLUTION_METHOD_KEY, "continuous")
             write(f, CoolingTNS.RESULT_SCHEDULE, "descending")
             gn = create_group(f, "N4")
@@ -267,6 +276,8 @@ end
         @test row.te == 1.25
         @test row.randomize_times == false
         @test row.time_protocol == "fixed"
+        @test row.init_state == "product"
+        @test row.init_protocol == "product"
         @test row.R == 2
         @test row.M == 2
         @test row.schedule == "descending"
@@ -323,7 +334,7 @@ end
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | te | time protocol | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap |",
+            "| file | N | method | evolution | te | time protocol | init | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap |",
             output,
         )
         @test length(unique(markdown_column_counts(output))) == 1
@@ -331,7 +342,7 @@ end
         @test occursin("| initial E/N | initial relE | initial overlap | final E/N |", output)
         @test occursin("| final E/N | relE | best E/N | best relE | tail E/N |", output)
         @test occursin(
-            "| $(basename(path)) | 4 | mcwf | continuous | 1.250 | fixed | 2 | 2 | " *
+            "| $(basename(path)) | 4 | mcwf | continuous | 1.250 | fixed | product | 2 | 2 | " *
             "descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | 25.5 | 564.71 | bond_capx1/2 | fixed_range | " *
             "[0.50000000,3.00000000] | n/a | 12 | >=12 | >=14 | >=14 | " *
             "not_converged_system_and_evolved_and_tdvp_sweep_cap | " *
@@ -353,14 +364,14 @@ end
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | te | time protocol | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | initial E/N | initial overlap | final E/N | best E/N | mode max abs dE/N | Dcap |",
+            "| file | N | method | evolution | te | time protocol | init | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | initial E/N | initial overlap | final E/N | best E/N | mode max abs dE/N | Dcap |",
             compact_output,
         )
         @test length(unique(markdown_column_counts(compact_output))) == 1
         @test occursin("| bond_status | truncation errors | elapsed_total |", compact_output)
         @test occursin("| elapsed_total | traj cycles/hour | stop_reason |", compact_output)
         @test occursin(
-            "| $(basename(path)) | 4 | mcwf | continuous | 1.250 | fixed | 2 | 2 | " *
+            "| $(basename(path)) | 4 | mcwf | continuous | 1.250 | fixed | product | 2 | 2 | " *
             "descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | -0.25000000 | 0.75000 | 1.00000000 | -0.25000000 | n/a | 12 | >=12 | >=14 | >=14 | " *
             "not_converged_system_and_evolved_and_tdvp_sweep_cap | not_recorded | 25.5 | 564.71 | bond_capx1/2 |",
             compact_output,
@@ -383,6 +394,7 @@ end
     duplicate_path = tempname() * ".h5"
     te_mismatch_path = tempname() * ".h5"
     randomized_time_path = tempname() * ".h5"
+    ground_init_path = tempname() * ".h5"
     try
         write_split_trajectory_summary_file(
             path1;
@@ -480,6 +492,18 @@ end
             elapsed_seconds=5.0,
             randomize_times=true,
         )
+        write_split_trajectory_summary_file(
+            ground_init_path;
+            trajectory=1,
+            energy_values=[-4.0, -3.5],
+            system_max=[1, 4],
+            evolved_max=[0, 4],
+            completed_steps=1,
+            stop_reason="",
+            elapsed_seconds=5.0,
+            overlap_values=[1.0, 0.9],
+            init_state="ground",
+        )
 
         rows = vcat(summarize_file(path1), summarize_file(path3))
         @test length(rows) == 2
@@ -489,6 +513,7 @@ end
         @test row.file == "trajectory_ensemble(traj=1,3)"
         @test row.te == 1.0
         @test row.time_protocol == "fixed"
+        @test row.init_protocol == "product"
         @test row.source_files == (basename(path1), basename(path3))
         @test row.trajectory_indices == [1, 3]
         @test row.M == 2
@@ -533,7 +558,7 @@ end
             read(output_path, String)
         end
         @test occursin("trajectory_ensemble(traj=1,3)", compact_output)
-        @test occursin("| 4 | mcwf | continuous | 1.000 | fixed | 2 | 2 | descending | 2-3/4 |", compact_output)
+        @test occursin("| 4 | mcwf | continuous | 1.000 | fixed | product | 2 | 2 | descending | 2-3/4 |", compact_output)
         @test occursin("| full_grid_observed | -0.25000000 | 0.50000 | -0.43750000 | -0.56250000 | n/a | 8 | >=8 | >=8 | n/a | not_converged_system_and_evolved_cap | not_recorded | 30.0 | 600.00 | bond_capx1/2 |", compact_output)
 
         @test_throws ErrorException combine_trajectory_rows(
@@ -552,6 +577,13 @@ end
         @test length(split_by_time_protocol_rows) == 2
         @test sort([row.time_protocol for row in split_by_time_protocol_rows]) ==
               ["fixed", "randomized"]
+        split_by_init_rows = combine_trajectory_rows(vcat(
+            summarize_file(path1),
+            summarize_file(ground_init_path),
+        ))
+        @test length(split_by_init_rows) == 2
+        @test sort([row.init_protocol for row in split_by_init_rows]) ==
+              ["ground", "product"]
         mixed_delta_history_row = only(combine_trajectory_rows(vcat(
             summarize_file(path1),
             summarize_file(missing_delta_path),
@@ -585,6 +617,7 @@ end
         rm(duplicate_path; force=true)
         rm(te_mismatch_path; force=true)
         rm(randomized_time_path; force=true)
+        rm(ground_init_path; force=true)
     end
 end
 
@@ -685,6 +718,7 @@ end
         @test row.evolution == "unknown"
         @test isnan(row.te)
         @test row.time_protocol == "fixed"
+        @test row.init_protocol == "unknown"
         @test row.schedule == "unknown"
         @test row.completed_requested == "1/1"
         @test row.completed_requested_periods == "n/a"
@@ -713,7 +747,7 @@ end
             read(output_path, String)
         end
         @test occursin(
-            "| $(basename(path)) | 2 | mcwf | unknown | NaN | fixed | 1 | 1 | " *
+            "| $(basename(path)) | 2 | mcwf | unknown | NaN | fixed | unknown | 1 | 1 | " *
             "unknown | 1/1 | n/a | n/a | n/a | NaN | NaN | none | unknown | " *
             "unknown | unknown | 4 | 2 | >=4 | n/a | not_converged_evolved_cap | legacy_missing |",
             output,
