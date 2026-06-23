@@ -967,7 +967,7 @@ end
                 "tdvp_sweep_maxbond" => [0, 6, 10],
                 CoolingTNS.RESULT_DELTA_LIST => [NaN, 0.5, 3.0],
                 CoolingTNS.RESULT_TE_LIST => [NaN, 1.0, 1.25],
-                "final_bond_dims" => [4, 8],
+                LARGE_N_FINAL_BOND_DIMS_GROUP => [4, 8],
                 "elapsed" => 1.25,
                 "seed" => largeN_trajectory_seed(20260617, 64, 2, 1),
                 "trajectory" => 1,
@@ -1020,26 +1020,26 @@ end
             @test read(g[CoolingTNS.RESULT_REQUESTED_STEPS]) == [2]
             @test read(g[CoolingTNS.RESULT_COMPLETED_STEPS]) == [2]
             @test read(g[LARGE_N_STOP_REASONS_KEY]) == [""]
-            @test read(g["trajectory_seeds"]) ==
+            @test read(g[LARGE_N_TRAJECTORY_SEEDS_KEY]) ==
                   [largeN_trajectory_seed(20260617, 64, 2, 1)]
-            @test read(g["trajectory_indices"]) == [1]
+            @test read(g[LARGE_N_TRAJECTORY_INDICES_KEY]) == [1]
             @test vec(read(g[LARGE_N_TDVP_SWEEP_MAX_BOND_KEY])) == [0, 6, 10]
             @test read(g[LARGE_N_TDVP_SWEEP_SATURATION_CYCLE_KEY]) == [2]
             @test read(g[CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS]) ==
                   CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED
-            @test read(g["te_list_is_common"]) == true
+            @test read(g[LARGE_N_TE_LIST_IS_COMMON_KEY]) == true
             @test isequal(read(g[CoolingTNS.RESULT_TE_LIST]), [NaN, 1.0, 1.25])
-            @test isequal(vec(read(g["te_lists"])), [NaN, 1.0, 1.25])
+            @test isequal(vec(read(g[LARGE_N_TE_LISTS_KEY])), [NaN, 1.0, 1.25])
 
             g_noncommon_te = f["R2_noncommon_te"]
-            @test read(g_noncommon_te["te_list_is_common"]) == false
+            @test read(g_noncommon_te[LARGE_N_TE_LIST_IS_COMMON_KEY]) == false
             @test !haskey(g_noncommon_te, CoolingTNS.RESULT_TE_LIST)
-            @test read(g_noncommon_te["trajectory_seeds"]) ==
+            @test read(g_noncommon_te[LARGE_N_TRAJECTORY_SEEDS_KEY]) ==
                   [largeN_trajectory_seed(20260617, 64, 2, 1),
                    largeN_trajectory_seed(20260617, 64, 2, 2)]
-            @test read(g_noncommon_te["trajectory_indices"]) == [1, 2]
-            @test isequal(read(g_noncommon_te["te_list_first_trajectory"]), [NaN, 1.0, 1.25])
-            @test isequal(read(g_noncommon_te["te_lists"])[:, 2], [NaN, 0.25, 1.75])
+            @test read(g_noncommon_te[LARGE_N_TRAJECTORY_INDICES_KEY]) == [1, 2]
+            @test isequal(read(g_noncommon_te[LARGE_N_TE_LIST_FIRST_TRAJECTORY_KEY]), [NaN, 1.0, 1.25])
+            @test isequal(read(g_noncommon_te[LARGE_N_TE_LISTS_KEY])[:, 2], [NaN, 0.25, 1.75])
 
             g_gap = f["R3_gap"]
             @test read(g_gap[CoolingTNS.RESULT_DELTA_VALUES]) == [0.75, 1.875, 3.0]
@@ -1073,7 +1073,7 @@ end
             "tdvp_sweep_maxbond" => [0, 6, 10],
             CoolingTNS.RESULT_DELTA_LIST => [NaN, 0.5, 1.5],
             CoolingTNS.RESULT_TE_LIST => [NaN, 1.0, 1.0],
-            "final_bond_dims" => [4, 8],
+            LARGE_N_FINAL_BOND_DIMS_GROUP => [4, 8],
             "elapsed" => 1.25,
             "seed" => 101,
             "trajectory" => 1,
@@ -1151,8 +1151,8 @@ end
             @test read(g[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 1, 2]
             @test read(g[CoolingTNS.RESULT_MODE_GF]) == -1
             @test read(g[CoolingTNS.RESULT_MODE_GF_SOURCE]) == "state"
-            @test read(g["trajectory_seeds"]) == [101, 102]
-            @test read(g["trajectory_indices"]) == [1, 2]
+            @test read(g[LARGE_N_TRAJECTORY_SEEDS_KEY]) == [101, 102]
+            @test read(g[LARGE_N_TRAJECTORY_INDICES_KEY]) == [1, 2]
             @test size(read(g[CoolingTNS.RESULT_MODE_HK_TRAJECTORIES])) == (3, 2, 2)
             @test read(g[CoolingTNS.RESULT_MODE_HK_TRAJECTORIES])[:, :, 1] ≈ mode_hk_1
             @test read(g[CoolingTNS.RESULT_MODE_HK_TRAJECTORIES])[:, :, 2] ≈ mode_hk_2
@@ -1167,8 +1167,8 @@ end
             single_hk_stderr = read(g_single[CoolingTNS.RESULT_MODE_HK_STDERR])
             single_nk_stderr = read(g_single[CoolingTNS.RESULT_MODE_NK_STDERR])
             @test read(g_single[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 2]
-            @test read(g_single["trajectory_seeds"]) == [101]
-            @test read(g_single["trajectory_indices"]) == [1]
+            @test read(g_single[LARGE_N_TRAJECTORY_SEEDS_KEY]) == [101]
+            @test read(g_single[LARGE_N_TRAJECTORY_INDICES_KEY]) == [1]
             @test all(isnan, single_hk[2, :])
             @test all(isnan, single_nk[2, :])
             @test all(isnan, single_hk_stderr[2, :])
@@ -1182,8 +1182,8 @@ end
             ensemble_hk_stderr = read(g_ensemble[CoolingTNS.RESULT_MODE_HK_STDERR])
             ensemble_nk_stderr = read(g_ensemble[CoolingTNS.RESULT_MODE_NK_STDERR])
             @test read(g_ensemble[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 2]
-            @test read(g_ensemble["trajectory_seeds"]) == [101, 102]
-            @test read(g_ensemble["trajectory_indices"]) == [1, 2]
+            @test read(g_ensemble[LARGE_N_TRAJECTORY_SEEDS_KEY]) == [101, 102]
+            @test read(g_ensemble[LARGE_N_TRAJECTORY_INDICES_KEY]) == [1, 2]
             @test all(isnan, ensemble_hk[2, :])
             @test all(isnan, ensemble_nk[2, :])
             @test all(isnan, ensemble_hk_stderr[2, :])
@@ -1430,7 +1430,7 @@ end
             @test read(f[CoolingTNS.RESULT_INIT_STATE]) == "theta"
             @test read(f[CoolingTNS.RESULT_INIT_THETA]) == 0.0
             @test read(f[CoolingTNS.RESULT_RANDOMIZE_TIMES]) == false
-            @test read(f["trajectory_seed_rule"]) == LARGE_N_TRAJECTORY_SEED_RULE
+            @test read(f[LARGE_N_TRAJECTORY_SEED_RULE_KEY]) == LARGE_N_TRAJECTORY_SEED_RULE
             @test read(f["h"]) == 0.5
             @test isnan(read(f["hx"]))
             @test isnan(read(f["hz"]))
@@ -1460,9 +1460,9 @@ end
             @test all(n -> -1e-12 <= n <= 1 + 1e-12, mode_nk)
             @test read(g[CoolingTNS.RESULT_MODE_GF]) == -1
             @test read(g[CoolingTNS.RESULT_MODE_GF_SOURCE]) == "state"
-            @test read(g["trajectory_seeds"]) ==
+            @test read(g[LARGE_N_TRAJECTORY_SEEDS_KEY]) ==
                   [largeN_trajectory_seed(20260617, 2, 1, 3)]
-            @test read(g["trajectory_indices"]) == [3]
+            @test read(g[LARGE_N_TRAJECTORY_INDICES_KEY]) == [3]
             @test read(g[CoolingTNS.RESULT_MODE_K_INDICES]) == Float64.([-1//2, 1//2])
             @test length(read(g[CoolingTNS.RESULT_MODE_ENERGIES])) == 2
             @test all(isfinite, read(g[CoolingTNS.RESULT_MODE_ENERGIES]))
@@ -1544,9 +1544,9 @@ end
             @test read(f[CoolingTNS.RESULT_INIT_THETA]) == 0.0
             @test read(f[CoolingTNS.RESULT_RANDOMIZE_TIMES]) == true
             g = f["N2/mcwf/R1"]
-            @test read(g["te_list_is_common"]) == true
+            @test read(g[LARGE_N_TE_LIST_IS_COMMON_KEY]) == true
             @test isequal(read(g[CoolingTNS.RESULT_TE_LIST]), [NaN, 0.0])
-            @test isequal(vec(read(g["te_lists"])), [NaN, 0.0])
+            @test isequal(vec(read(g[LARGE_N_TE_LISTS_KEY])), [NaN, 0.0])
         end
     end
 end

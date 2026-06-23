@@ -122,13 +122,13 @@ function write_split_trajectory_summary_file(
         write(gr, CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS,
               CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED)
         write(gr, LARGE_N_ELAPSED_SECONDS_KEY, [Float64(elapsed_seconds)])
-        write(gr, "trajectory_indices", [Int(trajectory)])
-        write(gr, "trajectory_seeds", [largeN_trajectory_seed(20260617, N, 2, trajectory)])
+        write(gr, LARGE_N_TRAJECTORY_INDICES_KEY, [Int(trajectory)])
+        write(gr, LARGE_N_TRAJECTORY_SEEDS_KEY, [largeN_trajectory_seed(20260617, N, 2, trajectory)])
         write(gr, CoolingTNS.RESULT_REQUESTED_STEPS, [4])
         write(gr, CoolingTNS.RESULT_COMPLETED_STEPS, [Int(completed_steps)])
         write_stop_reason && write(gr, LARGE_N_STOP_REASONS_KEY, [String(stop_reason)])
         if write_delta_history
-            write(gr, "delta_lists", reshape([NaN; 3.0; 0.5; 3.0][1:length(energy)], :, 1))
+            write(gr, LARGE_N_DELTA_LISTS_KEY, reshape([NaN; 3.0; 0.5; 3.0][1:length(energy)], :, 1))
             write(gr, CoolingTNS.RESULT_DELTA_VALUES, [0.5, 3.0])
         end
     end
@@ -281,11 +281,11 @@ end
             write(gr, CoolingTNS.RESULT_COMPLETED_STEPS, [2, 2])
             write(gr, LARGE_N_STOP_REASONS_KEY, ["", "bond_cap"])
             write(gr, CoolingTNS.RESULT_DELTA_VALUES, [0.5, 3.0])
-            write(gr, "delta_lists", [NaN NaN; 3.0 3.0; 0.5 3.0])
+            write(gr, LARGE_N_DELTA_LISTS_KEY, [NaN NaN; 3.0 3.0; 0.5 3.0])
 
-            bd = create_group(gr, "final_bond_dims")
-            write(bd, "trajectory_1", [4, 8, 12])
-            write(bd, "trajectory_2", [12, 12, 12])
+            bd = create_group(gr, LARGE_N_FINAL_BOND_DIMS_GROUP)
+            write(bd, LARGE_N_FINAL_BOND_DIMS_TRAJECTORY_PREFIX * "1", [4, 8, 12])
+            write(bd, LARGE_N_FINAL_BOND_DIMS_TRAJECTORY_PREFIX * "2", [12, 12, 12])
         end
 
         rows = summarize_file(path)
@@ -732,7 +732,7 @@ end
             write(gr, "evolved_max_bond", [0 0; 3 4])
             write(gr, "evolved_mean_bond", [NaN NaN; 3.0 4.0])
             trajectory_indices === nothing ||
-                write(gr, "trajectory_indices", Int.(trajectory_indices))
+                write(gr, LARGE_N_TRAJECTORY_INDICES_KEY, Int.(trajectory_indices))
             energy_trajectories === nothing ||
                 write(gr, CoolingTNS.RESULT_ENERGY_TRAJECTORIES,
                       Float64.(energy_trajectories))
