@@ -195,7 +195,7 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
     for row in rows
         stage = progress_cell(row, "stage")
         cycle = progress_int(row, "cycle")
-        elapsed = progress_float(row, "elapsed_seconds")
+        elapsed = progress_float(row, LARGE_N_ELAPSED_SECONDS_KEY)
         if stage == "prepared"
             prepared_or_sweep_elapsed[cycle] = elapsed
         elseif stage == "tdvp_sweep" && haskey(prepared_or_sweep_elapsed, cycle)
@@ -326,7 +326,7 @@ function print_energy_trace(rows)
                 "$(format_float(progress_float(update, "energy_per_site"), 8)) | " *
                 "$(progress_cell(update, LARGE_N_SYSTEM_MAX_BOND_KEY)) | " *
                 "$(progress_cell(update, LARGE_N_EVOLVED_MAX_BOND_KEY)) | " *
-                "$(format_float(progress_float(update, "elapsed_seconds"), 1)) |"
+                "$(format_float(progress_float(update, LARGE_N_ELAPSED_SECONDS_KEY), 1)) |"
             )
         end
     end

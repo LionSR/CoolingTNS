@@ -58,6 +58,36 @@ const LARGE_N_ROW_EVOLVED_MAX_BOND_KEY = "evolved_maxbond"
 const LARGE_N_ROW_EVOLVED_MEAN_BOND_KEY = "evolved_meanbond"
 const LARGE_N_ROW_TDVP_SWEEP_MAX_BOND_KEY = "tdvp_sweep_maxbond"
 
+# Persisted progress CSV schema.  These columns are written by the large-N
+# campaign driver and read by the interrupted-run recovery summarizer.
+const LARGE_N_PROGRESS_CSV_COLUMNS = (
+    "timestamp",
+    "N",
+    "method",
+    "evolution",
+    "R",
+    "trajectory",
+    "seed",
+    "Dmax",
+    "cutoff",
+    "tau",
+    "stage",
+    "step",
+    "cycle",
+    "delta",
+    "te",
+    "energy_per_site",
+    "relative_energy",
+    "overlap",
+    LARGE_N_SYSTEM_MAX_BOND_KEY,
+    LARGE_N_SYSTEM_MEAN_BOND_KEY,
+    LARGE_N_EVOLVED_MAX_BOND_KEY,
+    LARGE_N_EVOLVED_MEAN_BOND_KEY,
+    "tdvp_sweep",
+    "tdvp_time",
+    LARGE_N_ELAPSED_SECONDS_KEY,
+)
+
 """
     largeN_trajectory_seed(base_seed, N, R, trajectory)
 

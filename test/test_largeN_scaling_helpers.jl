@@ -48,6 +48,33 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test LARGE_N_ROW_EVOLVED_MAX_BOND_KEY == "evolved_maxbond"
     @test LARGE_N_ROW_EVOLVED_MEAN_BOND_KEY == "evolved_meanbond"
     @test LARGE_N_ROW_TDVP_SWEEP_MAX_BOND_KEY == "tdvp_sweep_maxbond"
+    @test LARGE_N_PROGRESS_CSV_COLUMNS == (
+        "timestamp",
+        "N",
+        "method",
+        "evolution",
+        "R",
+        "trajectory",
+        "seed",
+        "Dmax",
+        "cutoff",
+        "tau",
+        "stage",
+        "step",
+        "cycle",
+        "delta",
+        "te",
+        "energy_per_site",
+        "relative_energy",
+        "overlap",
+        LARGE_N_SYSTEM_MAX_BOND_KEY,
+        LARGE_N_SYSTEM_MEAN_BOND_KEY,
+        LARGE_N_EVOLVED_MAX_BOND_KEY,
+        LARGE_N_EVOLVED_MEAN_BOND_KEY,
+        "tdvp_sweep",
+        "tdvp_time",
+        LARGE_N_ELAPSED_SECONDS_KEY,
+    )
     @test largeN_trajectory_seed(20260617, 64, 10, 1) == 84360618
     @test largeN_trajectory_seed(7, 2, 1, 3) == 2010010
     @test_throws ArgumentError largeN_trajectory_seed(7, 2, 0, 1)

@@ -842,34 +842,6 @@ function bond_cap_stop_reason(step, saturation_threshold, sys_maxbond,
     return (system_hit || evolved_hit || tdvp_sweep_hit) ? "bond_cap" : nothing
 end
 
-const PROGRESS_CSV_COLUMNS = (
-    "timestamp",
-    "N",
-    "method",
-    "evolution",
-    "R",
-    "trajectory",
-    "seed",
-    "Dmax",
-    "cutoff",
-    "tau",
-    "stage",
-    "step",
-    "cycle",
-    "delta",
-    "te",
-    "energy_per_site",
-    "relative_energy",
-    "overlap",
-    LARGE_N_SYSTEM_MAX_BOND_KEY,
-    LARGE_N_SYSTEM_MEAN_BOND_KEY,
-    LARGE_N_EVOLVED_MAX_BOND_KEY,
-    LARGE_N_EVOLVED_MEAN_BOND_KEY,
-    "tdvp_sweep",
-    "tdvp_time",
-    "elapsed_seconds",
-)
-
 """Return a single RFC-4180-compatible CSV cell for scalar progress data."""
 function csv_cell(x)
     x === nothing && return ""
@@ -883,7 +855,7 @@ end
 """Append one flushed progress row, creating the header when the file is new."""
 function append_progress_csv_row(path::AbstractString, row)
     mkpath(dirname(path))
-    expected_header = join(PROGRESS_CSV_COLUMNS, ",")
+    expected_header = join(LARGE_N_PROGRESS_CSV_COLUMNS, ",")
     needs_header = !isfile(path) || filesize(path) == 0
     if !needs_header
         existing_header = open(readline, path)
@@ -896,7 +868,10 @@ function append_progress_csv_row(path::AbstractString, row)
     end
     open(path, "a") do io
         needs_header && println(io, expected_header)
-        println(io, join((csv_cell(get(row, col, "")) for col in PROGRESS_CSV_COLUMNS), ","))
+        println(
+            io,
+            join((csv_cell(get(row, col, "")) for col in LARGE_N_PROGRESS_CSV_COLUMNS), ","),
+        )
         flush(io)
     end
     return nothing
@@ -940,7 +915,7 @@ function progress_base_row(context, ham_params; stage, step, cycle, delta, te,
         LARGE_N_EVOLVED_MEAN_BOND_KEY => evolved_bs.mean,
         "tdvp_sweep" => tdvp_sweep,
         "tdvp_time" => tdvp_time,
-        "elapsed_seconds" => elapsed,
+        LARGE_N_ELAPSED_SECONDS_KEY => elapsed,
     )
 end
 
