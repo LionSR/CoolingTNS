@@ -848,6 +848,49 @@ worsens the capped energy compared with the \(t_e=1.0\) value
 \(E/N=0.84528025\).  At this fixed descending schedule, a smaller evolution
 time is a cap-delay mechanism rather than evidence of ground-state cooling.
 
+\paragraph{Near-ground controls.}
+The same validation driver also admits \texttt{--init-state ground}.  This
+initial condition is not a restarted cooling trajectory: it reuses the
+ground-state reference already computed during \texttt{setup\_problem}, namely
+the DMRG MPS in the tensor-network backend or the exact ground vector in the
+ED backend.  It is therefore a control for the channel and the tensor-network
+representation near the desired fixed point.  It asks whether the chosen
+system-bath evolution creates energy drift or large bond dimensions even when
+the system starts at the ground-state reference.
+
+For the same \(N=64\), \(D_{\max}=128\), \(t_e=1.0\), descending fixed-detuning
+protocol used above, all four values \(R=1,2,5,10\) were repeated from this
+ground-state initial condition.  The stored initial row verifies
+\[
+	E_{\mathrm{initial}}/N=-1.32463289,\qquad
+	|\braket{\psi_{\mathrm{DMRG}}|\psi(0)}|^2=1 .
+\]
+The stop-on-cap summaries are
+\[
+\begin{array}{c|c|c|c|c}
+R & \text{completed/requested} & E_{\mathrm{final}}/N
+  & D_{\mathrm{sys}}^{\mathrm{eff}}
+  & D_{\mathrm{sb}}^{\mathrm{eff}}\\
+\hline
+1 & 8/12 & -1.21970618 & 116 & \geq 128\\
+2 & 7/12 & -1.24703609 & 108 & \geq 128\\
+5 & 8/12 & -1.25381271 & 106 & \geq 128\\
+10 & 8/12 & -1.25614747 & 121 & \geq 128
+\end{array}
+\]
+and in every row the TDVP sweep observer also gives
+\[
+	D_{\mathrm{TDVP\ sweep}}^{\mathrm{eff}}\geq 128 .
+\]
+Thus the near-ground trajectories are much closer to the target energy than the
+product-state trajectories, but they still heat monotonically after
+initialization and eventually hit the evolved-system-bath and TDVP-sweep caps.
+The final ordering is \(R=10<R=5<R=2<R=1\) in energy density, with lower energy
+being better.  These controls show that the product-state bond-growth problem
+is not merely an artifact of starting far from the ground state, and that the
+fixed descending channel is not an exact ground-state fixed point at
+\(D_{\max}=128\).
+
 \section{Bayesian Optimization for Hyperparameter Tuning}
 Optimizing the performance of the cooling algorithm requires finding the optimal values for hyperparameters such as the coupling strength $g$ and the evolution time $t_e$. However, the relationship between these hyperparameters and the cooling efficiency is complex and evaluating the cooling efficiency for a given set of hyperparameters is computationally expensive. We employ Bayesian optimization, a framework for global optimization of expensive black-box functions~\cite{Frazier2018Tutorial}, to address this challenge.
 
