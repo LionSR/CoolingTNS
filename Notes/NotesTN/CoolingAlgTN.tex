@@ -504,6 +504,14 @@ primed and unprimed site layers and taking the ITensor adjoint.  This
 post-trace canonicalization is a numerical representative of the same
 mathematical state: in exact arithmetic the partial trace already gives a
 Hermitian, trace-one density matrix.
+The result schema follows this statistical distinction.  The density-matrix ED
+and MPO paths store the bath expectation value
+\begin{equation}
+	m_B=\frac{1}{N_B}\sum_{i=1}^{N_B}
+	\tr\!\left(\rho_B\,\sigma^z_{b_i}\right)
+\end{equation}
+under \texttt{bath\_mag\_list}.  Here the computational bath convention is
+\(0\mapsto +1\), \(1\mapsto -1\), matching the dense ED trace convention.
 
 To simulate the effects of noise using the MPO method, we apply the Kraus operators corresponding to the depolarizing noise as operators on the MPO after each cooling step. The depolarizing noise is described by the channel
 \begin{equation}
@@ -544,6 +552,22 @@ Each stochastic trajectory begins from the same initial normalized pure state $\
 	      This method ensures that the sampled trajectories are representative of the true dynamics and avoids the need to simulate the full density matrix.
 	\item The state is renormalized, and we continue with step 1 until $k = N_\text{steps}$.
 \end{enumerate}
+
+For MCWF/MPS and ED MCWF runs, the bath diagnostic is the normalized
+magnetization of the sampled bath string, not a reduced-density expectation
+value.  If the sampled string is \(\alpha=(\alpha_1,\ldots,\alpha_{N_B})\),
+then
+\begin{equation}
+	m_B^{\mathrm{sample}}(\alpha)
+	=\frac{1}{N_B}\sum_{i=1}^{N_B} z(\alpha_i),
+	\qquad z(0)=+1,\quad z(1)=-1 .
+\end{equation}
+The public output key for this sampled MCWF observable is \texttt{nb\_list}
+(\texttt{RESULT\_BATH\_SAMPLE\_MAGNETIZATION}).  The key
+\texttt{bath\_mag\_list} is reserved for the density-matrix bath expectation
+described above.  Consequently ED MCWF and TN MCWF outputs can be compared
+using the same sampled-observable key, while ED/MPO density-matrix outputs use
+the expectation-valued key.
 
 The implementation contains two time-evolution routes for MPS trajectories.
 For \texttt{ContinuousEvolution}, the code uses the time-dependent variational

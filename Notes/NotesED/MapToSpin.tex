@@ -844,6 +844,16 @@ the numerical representative
 This Hermitian, trace-one representative removes roundoff-level
 anti-Hermitian components introduced by finite-precision arithmetic; it does
 not define a different cooling channel.
+The bath magnetization recorded on this density-matrix path is the
+expectation value
+\begin{equation}
+    m_B=\frac{1}{N_B}\sum_{i=1}^{N_B}
+    \tr\!\left(\rho_B\,\sigma^z_{b_i}\right),
+    \label{eq:ed_bath_magnetization_expectation}
+\end{equation}
+with the computational convention \(0\mapsto +1\), \(1\mapsto -1\).  In the
+public result dictionary this expectation-valued diagnostic is stored under
+\texttt{bath\_mag\_list}.
 
 \subsection{Sampling for Quantum Trajectories}
 
@@ -866,6 +876,21 @@ For the Monte Carlo wave function method, each cooling cycle involves the follow
               \ket{\Psi_S^{\text{new}}} = \frac{(\Id_S \otimes \bra{\tilde{n}}_B) \ket{\Psi_{SB}'}}{\sqrt{p_{\tilde{n}}}}.
           \end{equation}
 \end{enumerate}
+
+The corresponding bath diagnostic is not the expectation value in
+\cref{eq:ed_bath_magnetization_expectation}; it is the sampled magnetization
+of the observed bit string \(\tilde n=(\tilde n_1,\ldots,\tilde n_{N_B})\):
+\begin{equation}
+    m_B^{\mathrm{sample}}(\tilde n)
+    =\frac{1}{N_B}\sum_{i=1}^{N_B} z(\tilde n_i),
+    \qquad
+    z(0)=+1,\quad z(1)=-1.
+    \label{eq:ed_bath_sample_magnetization}
+\end{equation}
+The ED and tensor-network MCWF implementations store this sampled observable
+under \texttt{nb\_list}.  Thus \texttt{bath\_mag\_list} denotes a reduced
+density-matrix expectation value, while \texttt{nb\_list} denotes a
+postmeasurement sample with the same normalized Pauli-\(Z\) convention.
 
 
 
