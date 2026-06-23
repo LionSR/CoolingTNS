@@ -29,6 +29,15 @@ using LinearAlgebra
                 @test length(state.state) == N
                 @test maxlinkdim(state.state) == 1  # Product state has bond dimension 1
             end
+
+            @testset "Ground State" begin
+                state = CoolingTNS.setup_initial_state(problem, sim_params, "ground", 0.0)
+                @test state isa CoolingTNS.QuantumState
+                @test state.state isa MPS
+                @test length(state.state) == N
+                @test abs(inner(problem.ϕ₀, state.state)) ≈ 1.0 atol=1e-10
+                @test state.state !== problem.ϕ₀
+            end
             
             @testset "Identity State Rejected" begin
                 @test_throws ArgumentError CoolingTNS.setup_initial_state(
@@ -67,12 +76,23 @@ using LinearAlgebra
                 @test state.state isa CoolingTNS.EDStateVector
             end
 
+            @testset "Ground State" begin
+                state = CoolingTNS.setup_initial_state(problem, sim_params, "ground", 0.0)
+                @test state isa CoolingTNS.QuantumState
+                @test state.state isa CoolingTNS.EDStateVector
+                @test state.state.data ≈ problem.ϕ₀.data atol=1e-12
+                @test state.state.data !== problem.ϕ₀.data
+            end
+
             @testset "Identity State Rejected" begin
                 @test_throws ArgumentError CoolingTNS.setup_initial_state(
                     problem, sim_params, "identity", 0.0
                 )
                 @test_throws ArgumentError CoolingTNS.create_theta_state_ed(
                     N, "identity", 0.0
+                )
+                @test_throws ArgumentError CoolingTNS.create_theta_state_ed(
+                    N, "ground", 0.0
                 )
             end
         end
@@ -100,6 +120,14 @@ using LinearAlgebra
                 @test state.state isa MPO
                 @test length(state.state) == N
             end
+
+            @testset "Ground State MPO" begin
+                state = CoolingTNS.setup_initial_state(problem, sim_params, "ground", 0.0)
+                @test state isa CoolingTNS.QuantumState
+                @test state.state isa MPO
+                @test length(state.state) == N
+                @test inner(state.state, outer(problem.ϕ₀', problem.ϕ₀)) ≈ 1.0 atol=1e-10
+            end
             
             @testset "Theta States MPO" begin
                 # Test different theta values
@@ -125,6 +153,15 @@ using LinearAlgebra
                 @test state.state isa CoolingTNS.EDDensityMatrix
                 @test tr(state.state.data) ≈ 1.0 + 0.0im atol=1e-12
                 @test state.state.data ≈ Matrix{ComplexF64}(I, 2^N, 2^N) / 2^N atol=1e-12
+            end
+
+            @testset "Ground State Density Matrix" begin
+                state = CoolingTNS.setup_initial_state(problem, sim_params, "ground", 0.0)
+                expected = CoolingTNS.state_to_density_ed(problem.ϕ₀)
+                @test state isa CoolingTNS.QuantumState
+                @test state.state isa CoolingTNS.EDDensityMatrix
+                @test state.state.data ≈ expected.data atol=1e-12
+                @test tr(state.state.data) ≈ 1.0 + 0.0im atol=1e-12
             end
         end
     end

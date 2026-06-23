@@ -111,6 +111,16 @@ end
     @test !occursin("_initidentity_theta", output_path(identity_init_cfg))
     identity_init_command = join(command_args_for_config(identity_init_cfg), " ")
     @test occursin("--init-state identity", identity_init_command)
+    ground_init_cfg = parse_args([
+        "--methods", "mcwf",
+        "--init-state", " Ground ",
+        "--outdir", tempdir(),
+    ])
+    @test ground_init_cfg["init_state"] == "ground"
+    @test occursin("_initground_", output_path(ground_init_cfg))
+    @test !occursin("_initground_theta", output_path(ground_init_cfg))
+    ground_init_command = join(command_args_for_config(ground_init_cfg), " ")
+    @test occursin("--init-state ground", ground_init_command)
     @test_throws ErrorException parse_args(["--init-state", "bad"])
     @test_throws ErrorException parse_args([
         "--methods", "mcwf",

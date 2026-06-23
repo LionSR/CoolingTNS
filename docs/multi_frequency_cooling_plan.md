@@ -267,6 +267,12 @@ Future long TDVP runs should enable `--tdvp-sweep-progress` so interrupted runs
 retain the inner TDVP sweep-level bond-dimension trace in the HDF5 output.
 Adding `--progress-csv` also preserves a textual per-observer-event trace for
 live monitoring and partial-run inspection.
+The driver also supports `--init-state ground`, which reuses the ground state
+already computed during `setup_problem` as the initial system state.  This is a
+near-ground channel-preservation and bond-growth control: it can test whether
+the cooling map itself creates large bond dimensions or energy drift near the
+ground-state reference, but it should not be presented as evidence that a
+generic product-state trajectory reaches the ground state.
 If the purpose of a run is only to locate the first cap event, the validation
 driver can also be run with `--stop-on-bond-cap`.  This stops after the first
 completed cycle whose retained system state, evolved system-bath state, or,

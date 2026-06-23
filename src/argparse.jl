@@ -9,7 +9,7 @@ function _validate_initial_state_args(parsed_args)
             "--init_state identity denotes the maximally mixed density matrix " *
             "and requires --sim_method density_matrix. For Monte Carlo " *
             "wavefunction simulations, choose a pure initial state such as " *
-            "product or theta."
+            "product, theta, or ground."
         ))
     end
 
@@ -114,7 +114,7 @@ function parse_commandline(args=ARGS)
         arg_type = String
         default = "XX"
         "--init_state"
-        help = "initial state type: 'product' (default), 'identity' (maximally mixed; density matrix only), 'theta' (use --theta value)"
+        help = "initial state type: 'product' (default), 'identity' (maximally mixed; density matrix only), 'theta' (use --theta value), or 'ground' (system ground state)"
         arg_type = String
         default = "product"
         "--theta"

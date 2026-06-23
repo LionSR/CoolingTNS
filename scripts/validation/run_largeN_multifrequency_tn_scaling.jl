@@ -58,6 +58,19 @@ Mode-resolved integrable-Ising campaign:
         --h -1.05 --init-state theta --theta 0.0 --measure-modes \
         --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
 
+Near-ground bond-growth control:
+
+    julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+        --Ns 64 --R-values 10 --methods mcwf --evolution-method continuous \
+        --steps 12 --Dmax 128 --init-state ground \
+        --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
+
+The `ground` initial state reuses the system ground state already computed by
+`setup_problem`: the DMRG MPS for TN backends and the exact ground vector for
+ED backends.  This is a near-ground channel benchmark for bond growth and
+energy drift; it is not evidence that a generic product-state cooling run can
+reach the ground state.
+
 If `--measure-modes` is used without an explicit detuning interval, the
 gap-scaled interval for the default periodic, parity-preserving `XX` coupling
 is referenced to the lowest generic analytic two-quasiparticle energy
@@ -363,8 +376,8 @@ function parse_args(args)
     if cfg["evolution_method_values"] !== nothing && !cfg["print_parallel_plan"]
         error("--evolution-method-values is a planning axis and requires --print-parallel-plan")
     end
-    cfg["init_state"] in ("product", "theta", "identity") ||
-        error("--init-state must be product, theta, or identity")
+    cfg["init_state"] in ("product", "theta", "identity", "ground") ||
+        error("--init-state must be product, theta, identity, or ground")
     if cfg["init_state"] == "identity" && "mcwf" in cfg["methods"]
         error("--init-state identity is only valid for density-matrix/MPO methods")
     end
@@ -1161,6 +1174,8 @@ function default_output_filename(cfg)
         ""
     elseif cfg["init_state"] == "identity"
         "_initidentity"
+    elseif cfg["init_state"] == "ground"
+        "_initground"
     else
         @sprintf("_init%s_theta%.12g", cfg["init_state"], cfg["theta"])
     end

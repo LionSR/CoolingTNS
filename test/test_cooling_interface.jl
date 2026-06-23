@@ -20,6 +20,7 @@ using HDF5
         # Test new backend system
         @test CoolingTNS.canonical_method_token(" Continuous ") == "continuous"
         @test CoolingTNS.canonical_initial_state_name(" Identity ") == "identity"
+        @test CoolingTNS.canonical_initial_state_name(" Ground ") == "ground"
         @test CoolingTNS.get_backend("ED") isa CoolingTNS.EDBackend
         @test CoolingTNS.get_backend("TN") isa CoolingTNS.TNBackend
         @test CoolingTNS.get_backend(" ed ") isa CoolingTNS.EDBackend
