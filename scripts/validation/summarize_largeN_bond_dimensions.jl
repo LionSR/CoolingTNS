@@ -472,9 +472,7 @@ end
 
 Read the large-N aggregate energy time series.  New files use the canonical
 `RESULT_ENERGY` key, while archived files may still use the legacy `E_mean`
-dataset.  The summary script does not read the overlap-mean series, so the
-corresponding archived `GS_overlap_mean` fallback is intentionally unnecessary
-here.  Return both the values and the HDF5 dataset name used, so downstream
+dataset.  Return both the values and the HDF5 dataset name used, so downstream
 validation errors identify the actual source dataset.
 """
 function read_largeN_energy_mean_with_name(run_group)
@@ -486,6 +484,31 @@ function read_largeN_energy_mean_with_name(run_group)
         "large-N run group is missing both $RESULT_ENERGY and legacy E_mean " *
         "energy-mean datasets"
     )
+end
+
+"""
+    read_overlap_trajectory_matrix(run_group, nsteps, M)
+
+Return a `(nsteps, M)` matrix of ground-state overlaps.  Current campaign files
+store trajectory-resolved overlaps; older files may store only the aggregate
+overlap history.  Files without overlap data are summarized with `NaN` entries
+so legacy bond-dimension tables remain readable.
+"""
+function read_overlap_trajectory_matrix(run_group, nsteps::Integer, M::Integer)
+    if haskey(run_group, RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES)
+        values = read(run_group[RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES])
+        values isa AbstractVector && return reshape(Float64.(values), :, 1)
+        return Matrix{Float64}(values)
+    end
+
+    overlap_mean = if haskey(run_group, RESULT_GROUND_STATE_OVERLAP)
+        Float64.(vec(read(run_group[RESULT_GROUND_STATE_OVERLAP])))
+    elseif haskey(run_group, "GS_overlap_mean")
+        Float64.(vec(read(run_group["GS_overlap_mean"])))
+    else
+        fill(NaN, nsteps)
+    end
+    return repeat(reshape(overlap_mean, :, 1), 1, M)
 end
 
 function truncation_error_history_status(run_group)
@@ -532,6 +555,18 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     size(energy_trajectories, 1) == length(energy_mean) ||
         error(
             "energy trajectory row count $(size(energy_trajectories, 1)) does not " *
+            "match energy length $(length(energy_mean)) in " *
+            "$(basename(file_name))/$n_group_name/$method_name/$r_group_name"
+        )
+    overlap_trajectories = read_overlap_trajectory_matrix(run_group, length(energy_mean), M)
+    size(overlap_trajectories, 2) == M ||
+        error(
+            "overlap trajectory column count $(size(overlap_trajectories, 2)) does not " *
+            "match M=$M in $(basename(file_name))/$n_group_name/$method_name/$r_group_name"
+        )
+    size(overlap_trajectories, 1) == length(energy_mean) ||
+        error(
+            "overlap trajectory row count $(size(overlap_trajectories, 1)) does not " *
             "match energy length $(length(energy_mean)) in " *
             "$(basename(file_name))/$n_group_name/$method_name/$r_group_name"
         )
@@ -597,6 +632,14 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         (any(value -> value != 0, tdvp_sweep_max_bond) ||
          tdvp_sweep_saturation_dataset_cycle > 0)
 
+    initial_e_over_n = energy_mean[1] / N
+    initial_relative_energy = relative_energy_mean[1]
+    initial_overlap = mean(vec(overlap_trajectories[1, :]))
+    initial_e_over_n_values = vec(energy_trajectories[1, :]) ./ N
+    initial_relative_energy_values = isfinite(E0) ?
+        relative_energy.(vec(energy_trajectories[1, :]), Ref(E0)) :
+        fill(initial_relative_energy, M)
+    initial_overlap_values = vec(overlap_trajectories[1, :])
     final_e_over_n = energy_mean[end] / N
     final_relative_energy = relative_energy_mean[end]
     best_e_over_n = minimum(energy_mean) / N
@@ -690,6 +733,9 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         missing_delta_history_count=missing_delta_history_count,
         elapsed_values=elapsed_values,
         stop_reason_values=stop_reasons,
+        initial_e_over_n_values=initial_e_over_n_values,
+        initial_relative_energy_values=initial_relative_energy_values,
+        initial_overlap_values=initial_overlap_values,
         final_e_over_n_values=final_e_over_n_values,
         final_relative_energy_values=final_relative_energy_values,
         best_e_over_n_values=best_e_over_n_values,
@@ -715,6 +761,9 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         delta_range=detuning.delta_range,
         delta_factor=detuning.delta_factor,
         threshold=threshold,
+        initial_e_over_n=initial_e_over_n,
+        initial_relative_energy=initial_relative_energy,
+        initial_overlap=initial_overlap,
         final_e_over_n=final_e_over_n,
         relative_energy=final_relative_energy,
         best_e_over_n=best_e_over_n,
@@ -852,7 +901,9 @@ Combine file-level rows that describe the same physical protocol but disjoint
 stored MCWF trajectory labels.  A singleton bucket is returned unchanged.  For a
 multi-file bucket, `final_e_over_n`, `relative_energy`, `best_e_over_n`, and the
 tail energy columns are means of the corresponding per-trajectory summary
-statistics.  Thus `best_e_over_n` is `mean_i min_t E_i(t)/N`, not
+statistics.  The same convention is used for initial-row diagnostics, so
+`initial_e_over_n` is the mean of per-trajectory initial energies.  Thus
+`best_e_over_n` is `mean_i min_t E_i(t)/N`, not
 `min_t mean_i E_i(t)/N`, and unequal stop-on-cap prefixes are not promoted to a
 cycle-aligned ensemble history.  Bond-cap status, detuning coverage, stop
 reasons, and elapsed-time throughput are recomputed from the concatenated
@@ -887,6 +938,9 @@ function combine_trajectory_bucket(rows)
         NaN
     final_e_values = concatenate_float_field(rows, :final_e_over_n_values)
     final_relative_values = concatenate_float_field(rows, :final_relative_energy_values)
+    initial_e_values = concatenate_float_field(rows, :initial_e_over_n_values)
+    initial_relative_values = concatenate_float_field(rows, :initial_relative_energy_values)
+    initial_overlap_values = concatenate_float_field(rows, :initial_overlap_values)
     best_e_values = concatenate_float_field(rows, :best_e_over_n_values)
     best_relative_values = concatenate_float_field(rows, :best_relative_energy_values)
     tail_e_values = concatenate_float_field(rows, :tail_e_over_n_values)
@@ -920,6 +974,9 @@ function combine_trajectory_bucket(rows)
             missing_delta_history_count=missing_delta_history_count,
             elapsed_values=elapsed_values,
             stop_reason_values=stop_reasons,
+            initial_e_over_n_values=initial_e_values,
+            initial_relative_energy_values=initial_relative_values,
+            initial_overlap_values=initial_overlap_values,
             final_e_over_n_values=final_e_values,
             final_relative_energy_values=final_relative_values,
             best_e_over_n_values=best_e_values,
@@ -946,6 +1003,9 @@ function combine_trajectory_bucket(rows)
                 completed_steps, elapsed_seconds
             ),
             stop_reason=stop_reason_label(stop_reasons),
+            initial_e_over_n=mean(initial_e_values),
+            initial_relative_energy=mean(initial_relative_values),
+            initial_overlap=mean(initial_overlap_values),
             final_e_over_n=mean(final_e_values),
             relative_energy=mean(final_relative_values),
             best_e_over_n=mean(best_e_values),
@@ -1023,8 +1083,8 @@ function sorted_rows(rows)
 end
 
 function print_markdown(rows)
-    println("| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | truncation errors | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
-    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---|---:|---:|---|---|---|---|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
+    println("| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | truncation errors | initial E/N | initial relE | initial overlap | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---|---:|---:|---|---|---|---|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | $(row.R) | $(row.M) | " *
@@ -1037,6 +1097,9 @@ function print_markdown(rows)
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
             "$(row.tdvp_sweep_effective_bond) | $(row.bond_status) | " *
             "$(row.truncation_error_history_status) | " *
+            "$(format_float(row.initial_e_over_n, 8)) | " *
+            "$(format_float(row.initial_relative_energy, 5)) | " *
+            "$(format_float(row.initial_overlap, 5)) | " *
             "$(format_float(row.final_e_over_n, 8)) | $(format_float(row.relative_energy, 5)) | " *
             "$(format_float(row.best_e_over_n, 8)) | $(format_float(row.best_relative_energy, 5)) | " *
             "$(format_float(row.tail_e_over_n, 8)) | $(format_float(row.tail_relative_energy, 5)) | " *
@@ -1061,14 +1124,16 @@ function print_markdown(rows)
 end
 
 function print_compact_markdown(rows)
-    println("| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | mode max abs dE/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | truncation errors | elapsed_total | traj cycles/hour | stop_reason |")
-    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---|")
+    println("| file | N | method | evolution | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | initial E/N | initial overlap | final E/N | best E/N | mode max abs dE/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | truncation errors | elapsed_total | traj cycles/hour | stop_reason |")
+    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---|")
     for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | " *
             "$(row.R) | $(row.M) | $(row.schedule) | $(row.completed_requested) | " *
             "$(row.completed_requested_periods) | $(row.visited_detunings) | " *
             "$(row.detuning_coverage) | " *
+            "$(format_float(row.initial_e_over_n, 8)) | " *
+            "$(format_float(row.initial_overlap, 5)) | " *
             "$(format_float(row.final_e_over_n, 8)) | " *
             "$(format_float(row.best_e_over_n, 8)) | " *
             "$(format_float_or_na(row.mode_max_abs_err_over_n, 3)) | $(row.threshold) | " *
