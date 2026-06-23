@@ -58,6 +58,22 @@ const LARGE_N_ROW_EVOLVED_MAX_BOND_KEY = "evolved_maxbond"
 const LARGE_N_ROW_EVOLVED_MEAN_BOND_KEY = "evolved_meanbond"
 const LARGE_N_ROW_TDVP_SWEEP_MAX_BOND_KEY = "tdvp_sweep_maxbond"
 
+# Progress CSV stage labels.  These labels define the physical meaning of a
+# flushed observer row, and are shared by the campaign writer and recovery
+# summarizer.
+const LARGE_N_PROGRESS_STAGE_INITIAL = "initial"
+const LARGE_N_PROGRESS_STAGE_PREPARED = "prepared"
+const LARGE_N_PROGRESS_STAGE_EVOLVED = "evolved"
+const LARGE_N_PROGRESS_STAGE_UPDATED = "updated"
+const LARGE_N_PROGRESS_STAGE_TDVP_SWEEP = "tdvp_sweep"
+const LARGE_N_PROGRESS_STAGES = (
+    LARGE_N_PROGRESS_STAGE_INITIAL,
+    LARGE_N_PROGRESS_STAGE_PREPARED,
+    LARGE_N_PROGRESS_STAGE_EVOLVED,
+    LARGE_N_PROGRESS_STAGE_UPDATED,
+    LARGE_N_PROGRESS_STAGE_TDVP_SWEEP,
+)
+
 # Persisted progress CSV schema.  These columns are written by the large-N
 # campaign driver and read by the interrupted-run recovery summarizer.
 const LARGE_N_PROGRESS_CSV_COLUMNS = (
@@ -87,6 +103,21 @@ const LARGE_N_PROGRESS_CSV_COLUMNS = (
     "tdvp_time",
     LARGE_N_ELAPSED_SECONDS_KEY,
 )
+
+"""
+    largeN_progress_stage(stage::Symbol) -> String
+
+Return the persisted progress-CSV stage label for a cooling observer stage.
+Unknown observer stages are rejected explicitly so that recovery summaries do
+not silently misclassify the physical row type.
+"""
+function largeN_progress_stage(stage::Symbol)
+    stage === :initial && return LARGE_N_PROGRESS_STAGE_INITIAL
+    stage === :prepared && return LARGE_N_PROGRESS_STAGE_PREPARED
+    stage === :evolved && return LARGE_N_PROGRESS_STAGE_EVOLVED
+    stage === :updated && return LARGE_N_PROGRESS_STAGE_UPDATED
+    throw(ArgumentError("unknown large-N progress observer stage: $stage"))
+end
 
 # Progress rows are grouped by the job identity columns when recovering an
 # interrupted run from CSV.  The per-row `te` value is intentionally not part

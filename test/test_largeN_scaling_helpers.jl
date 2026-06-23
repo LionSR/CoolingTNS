@@ -48,6 +48,18 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test LARGE_N_ROW_EVOLVED_MAX_BOND_KEY == "evolved_maxbond"
     @test LARGE_N_ROW_EVOLVED_MEAN_BOND_KEY == "evolved_meanbond"
     @test LARGE_N_ROW_TDVP_SWEEP_MAX_BOND_KEY == "tdvp_sweep_maxbond"
+    @test LARGE_N_PROGRESS_STAGE_INITIAL == "initial"
+    @test LARGE_N_PROGRESS_STAGE_PREPARED == "prepared"
+    @test LARGE_N_PROGRESS_STAGE_EVOLVED == "evolved"
+    @test LARGE_N_PROGRESS_STAGE_UPDATED == "updated"
+    @test LARGE_N_PROGRESS_STAGE_TDVP_SWEEP == "tdvp_sweep"
+    @test LARGE_N_PROGRESS_STAGES == (
+        "initial",
+        "prepared",
+        "evolved",
+        "updated",
+        "tdvp_sweep",
+    )
     @test LARGE_N_PROGRESS_CSV_COLUMNS == (
         "timestamp",
         "N",
@@ -86,6 +98,11 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
         "cutoff",
         "tau",
     )
+    @test largeN_progress_stage(:initial) == LARGE_N_PROGRESS_STAGE_INITIAL
+    @test largeN_progress_stage(:prepared) == LARGE_N_PROGRESS_STAGE_PREPARED
+    @test largeN_progress_stage(:evolved) == LARGE_N_PROGRESS_STAGE_EVOLVED
+    @test largeN_progress_stage(:updated) == LARGE_N_PROGRESS_STAGE_UPDATED
+    @test_throws ArgumentError largeN_progress_stage(:tdvp_sweep)
     @test largeN_trajectory_seed(20260617, 64, 10, 1) == 84360618
     @test largeN_trajectory_seed(7, 2, 1, 3) == 2010010
     @test_throws ArgumentError largeN_trajectory_seed(7, 2, 0, 1)

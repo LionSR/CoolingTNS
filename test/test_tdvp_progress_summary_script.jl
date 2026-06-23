@@ -57,6 +57,15 @@ end
           tn_method_maxdim(MonteCarloWavefunction(), 7)
     @test TDVPProgressCSVSummary.default_progress_cap("mpo", 7) ==
           tn_method_maxdim(DensityMatrix(), 7)
+    @test TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGES == (
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_INITIAL,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_PREPARED,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_EVOLVED,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_UPDATED,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_TDVP_SWEEP,
+    )
+    @test TDVPProgressCSVSummary.largeN_progress_stage(:updated) ==
+          TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_UPDATED
     @test TDVPProgressCSVSummary.LARGE_N_PROGRESS_GROUP_COLUMNS == (
         "N",
         "method",
@@ -209,7 +218,7 @@ end
         @test row.max_sweep == 2
         @test row.last_step == 4
         @test row.last_cycle == 3
-        @test row.last_stage == "tdvp_sweep"
+        @test row.last_stage == TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
         @test length(row.updates) == 2
 
         mpo_row = only(filter(row -> row.method == "mpo", rows))
@@ -230,7 +239,7 @@ end
         @test mpo_row.max_sweep_cycle == 0
         @test mpo_row.last_step == 3
         @test mpo_row.last_cycle == 2
-        @test mpo_row.last_stage == "updated"
+        @test mpo_row.last_stage == TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_UPDATED
 
         output = mktemp() do output_path, io
             close(io)

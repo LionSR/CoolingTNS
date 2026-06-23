@@ -925,7 +925,7 @@ function progress_row(context, info, ham_params, E0, sys_bs, evolved_bs, elapsed
     overlap = has_energy ? info.measurements[RESULT_GROUND_STATE_OVERLAP][info.step] : NaN
     return progress_base_row(
         context, ham_params;
-        stage=string(info.stage),
+        stage=largeN_progress_stage(info.stage),
         step=info.step,
         cycle=info.step - 1,
         delta=info.delta,
@@ -946,7 +946,7 @@ function tdvp_sweep_progress_row(context, tdvp_context, sweep, current_time,
                                  ham_params, evolved_bs, elapsed)
     return progress_base_row(
         context, ham_params;
-        stage="tdvp_sweep",
+        stage=LARGE_N_PROGRESS_STAGE_TDVP_SWEEP,
         step=tdvp_context.step,
         cycle=tdvp_context.step - 1,
         delta=tdvp_context.delta,
