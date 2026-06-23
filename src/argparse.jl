@@ -6,7 +6,7 @@ function _validate_initial_state_args(parsed_args)
 
     if init_state == "identity" && sim_method == "monte_carlo"
         throw(ArgumentError(
-            "--init_state identity denotes the maximally mixed density matrix " *
+            "--init-state identity denotes the maximally mixed density matrix " *
             "and requires --sim_method density_matrix. For Monte Carlo " *
             "wavefunction simulations, choose a pure initial state such as " *
             "product, theta, or ground."
@@ -113,8 +113,9 @@ function parse_commandline(args=ARGS)
         help = "coupling type"
         arg_type = String
         default = "XX"
-        "--init_state"
+        ["--init-state", "--init_state"]
         help = "initial state type: 'product' (default), 'identity' (maximally mixed; density matrix only), 'theta' (use --theta value), or 'ground' (system ground state)"
+        dest_name = "init_state"
         arg_type = String
         default = "product"
         "--theta"

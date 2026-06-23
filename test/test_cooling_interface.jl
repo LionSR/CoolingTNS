@@ -86,7 +86,7 @@ using HDF5
         @test parsed_cli["evolution_method"] == "continuous"
         @test_throws ArgumentError CoolingTNS.parse_commandline([
             "--sim_method", " Monte_Carlo ",
-            "--init_state", "identity",
+            "--init-state", "identity",
         ])
 
         legacy_mps = Dict{String, Any}("method" => "MPS")
@@ -382,17 +382,24 @@ using HDF5
     @testset "Command-line initial-state validation" begin
         parsed = CoolingTNS.parse_commandline([
             "--sim_method", " Density_Matrix ",
-            "--init_state", " Identity ",
+            "--init-state", " Identity ",
         ])
         @test parsed["sim_method"] == "density_matrix"
         @test parsed["init_state"] == "identity"
 
+        legacy_parsed = CoolingTNS.parse_commandline([
+            "--sim_method", " Density_Matrix ",
+            "--init_state", " Theta ",
+        ])
+        @test legacy_parsed["sim_method"] == "density_matrix"
+        @test legacy_parsed["init_state"] == "theta"
+
         @test_throws ArgumentError CoolingTNS.parse_commandline([
             "--sim_method", " Monte_Carlo ",
-            "--init_state", " Identity ",
+            "--init-state", " Identity ",
         ])
         @test_throws ErrorException CoolingTNS.parse_commandline([
-            "--init_state", "bad",
+            "--init-state", "bad",
         ])
         @test_throws ArgumentError CoolingTNS.create_theta_state_ed(2, " Identity ", 0.0)
         @test_throws ErrorException CoolingTNS.create_theta_state_ed(2, "bad", 0.0)
