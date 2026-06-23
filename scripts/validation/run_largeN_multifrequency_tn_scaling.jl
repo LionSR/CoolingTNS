@@ -117,14 +117,17 @@ detuning index independently at each cooling cycle.
 
 To prepare independent commands for process-level parallel execution, use
 `--print-parallel-plan`.  The plan splits the campaign into one command for
-each `(N, method, evolution method, R, Dmax)` tuple and assigns distinct HDF5
-and progress CSV paths.  In multi-job plans where `--progress-csv` is supplied,
-generated per-job progress CSV filenames keep the requested CSV stem as a prefix
-and append the HDF5 protocol stem.  Default HDF5 protocol stems include the
-canonical evolution-method token, including `trotter`, so paired Trotter/TDVP
-jobs do not rely on an implicit default.  Single-job plans keep the requested
-CSV path unchanged.  The driver does not launch these jobs itself; process
-scheduling remains external so each Julia process owns its HDF5 output,
+each `(N, method, evolution method, R, Dmax, trajectory index)` tuple and
+assigns distinct HDF5 and progress CSV paths.  The trajectory axis is enabled
+explicitly with `--trajectory-values`, and only for MCWF jobs; generated child
+commands run one trajectory each and store the requested trajectory index used
+by the deterministic seed rule.  In multi-job plans where `--progress-csv` is
+supplied, generated per-job progress CSV filenames keep the requested CSV stem
+as a prefix and append the HDF5 protocol stem.  Default HDF5 protocol stems
+include the canonical evolution-method token, including `trotter`, so paired
+Trotter/TDVP jobs do not rely on an implicit default.  Single-job plans keep the
+requested CSV path unchanged.  The driver does not launch these jobs itself;
+process scheduling remains external so each Julia process owns its HDF5 output,
 progress CSV, and deterministic trajectory seed stream.
 
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
@@ -244,6 +247,8 @@ function parse_args(args)
         "randomize_times" => false,
         "M_mcwf" => 1,
         "M_mpo" => 1,
+        "trajectory_index" => nothing,
+        "trajectory_values" => nothing,
         "seed" => 20260617,
         "outdir" => get(ENV, "COOLINGTNS_DATADIR", DEFAULT_OUTDIR),
         "output" => nothing,
@@ -287,6 +292,10 @@ function parse_args(args)
             cfg[key] = parse(Int, args[i + 1]); i += 2
         elseif a == "--Dmax-values"
             cfg["Dmax_values"] = parse_int_list(args[i + 1]); i += 2
+        elseif a == "--trajectory-index"
+            cfg["trajectory_index"] = parse(Int, args[i + 1]); i += 2
+        elseif a == "--trajectory-values"
+            cfg["trajectory_values"] = parse_int_list(args[i + 1]); i += 2
         elseif a in ("--cutoff", "--tau", "--J", "--h", "--hx", "--hz", "--g", "--te", "--theta", "--delta-max-factor",
                      "--delta-min", "--delta-max")
             key = replace(a[3:end], "-" => "_")
@@ -383,6 +392,41 @@ function parse_args(args)
         error("--mode-measurement-stride must be at least 1")
     if !cfg["measure_modes"] && cfg["mode_measurement_stride"] != 1
         error("--mode-measurement-stride requires --measure-modes")
+    end
+    validate_trajectory_index(value, flag) = begin
+        value >= 1 ||
+            error("$flag must be positive")
+        value < LARGE_N_TRAJECTORY_SEED_R_STRIDE ||
+            error(
+                "$flag must be less than $(LARGE_N_TRAJECTORY_SEED_R_STRIDE) " *
+                "to match the stored trajectory seed rule"
+            )
+        return nothing
+    end
+    if cfg["trajectory_index"] !== nothing && cfg["trajectory_values"] !== nothing
+        error("--trajectory-index and --trajectory-values cannot be combined")
+    end
+    if cfg["trajectory_index"] !== nothing
+        validate_trajectory_index(cfg["trajectory_index"], "--trajectory-index")
+        cfg["methods"] == ["mcwf"] ||
+            error("--trajectory-index is currently supported only for --methods mcwf")
+        cfg["M_mcwf"] == 1 ||
+            error("--trajectory-index selects one explicit MCWF trajectory and requires --M-mcwf 1")
+    end
+    if cfg["trajectory_values"] !== nothing
+        isempty(cfg["trajectory_values"]) &&
+            error("--trajectory-values must contain at least one trajectory index")
+        foreach(
+            value -> validate_trajectory_index(value, "--trajectory-values"),
+            cfg["trajectory_values"],
+        )
+        require_unique_values(cfg["trajectory_values"], "--trajectory-values")
+        cfg["print_parallel_plan"] ||
+            error("--trajectory-values is a planning axis and requires --print-parallel-plan")
+        cfg["methods"] == ["mcwf"] ||
+            error("--trajectory-values is currently supported only for --methods mcwf")
+        cfg["M_mcwf"] == 1 ||
+            error("--trajectory-values emits one-trajectory jobs and requires --M-mcwf 1")
     end
     try
         cfg["schedule_symbol"] = parse_multi_frequency_schedule(cfg["schedule"])
@@ -491,6 +535,19 @@ function campaign_evolution_method_values(cfg)
     return values
 end
 
+"""
+    campaign_trajectory_values(cfg)
+
+Return the trajectory-index planning axis.  Without an explicit trajectory
+axis, the parallel planner uses one `nothing` entry so ordinary campaign jobs
+retain their in-file `1:M` ensemble behavior.
+"""
+function campaign_trajectory_values(cfg)
+    cfg["trajectory_values"] !== nothing && return cfg["trajectory_values"]
+    cfg["trajectory_index"] !== nothing && return [cfg["trajectory_index"]]
+    return Union{Nothing,Int}[nothing]
+end
+
 function campaign_dmax_configs(cfg)
     values = campaign_dmax_values(cfg)
     return [merge(copy(cfg), Dict{String,Any}("Dmax" => D)) for D in values]
@@ -514,15 +571,18 @@ end
 function parallel_plan_configs(cfg)
     dmax_values = campaign_dmax_values(cfg)
     evolution_methods = campaign_evolution_method_values(cfg)
+    trajectory_values = campaign_trajectory_values(cfg)
     njobs = length(cfg["Ns"]) * length(cfg["methods"]) *
-            length(evolution_methods) * length(cfg["R_values"]) * length(dmax_values)
+            length(evolution_methods) * length(cfg["R_values"]) *
+            length(dmax_values) * length(trajectory_values)
     if cfg["output"] !== nothing && njobs > 1
         error("--output cannot be used with a multi-job --print-parallel-plan")
     end
 
     jobs = Dict{String,Any}[]
     for D in dmax_values, N in cfg["Ns"], method in cfg["methods"],
-        evolution_method in evolution_methods, R in cfg["R_values"]
+        evolution_method in evolution_methods, R in cfg["R_values"],
+        trajectory_index in trajectory_values
         run_cfg = merge(copy(cfg), Dict{String,Any}(
             "Ns" => [N],
             "methods" => [method],
@@ -531,6 +591,9 @@ function parallel_plan_configs(cfg)
             "evolution_method_values" => nothing,
             "Dmax" => D,
             "Dmax_values" => nothing,
+            "trajectory_index" => trajectory_index,
+            "trajectory_values" => nothing,
+            "M_mcwf" => trajectory_index === nothing ? cfg["M_mcwf"] : 1,
             "print_parallel_plan" => false,
             "tdvp_outputlevel" => evolution_method == "continuous" ? cfg["tdvp_outputlevel"] : 0,
             "tdvp_sweep_progress" =>
@@ -596,6 +659,8 @@ function command_args_for_config(cfg; script_path=joinpath("scripts", "validatio
     cfg["measure_modes"] && push!(args, "--measure-modes")
     cfg["mode_measurement_stride"] == 1 ||
         append!(args, ["--mode-measurement-stride", string(cfg["mode_measurement_stride"])])
+    cfg["trajectory_index"] === nothing ||
+        append!(args, ["--trajectory-index", string(cfg["trajectory_index"])])
     cfg["verbose"] && push!(args, "--verbose")
     return args
 end
@@ -639,6 +704,9 @@ function print_parallel_plan(cfg; io=stdout)
     println(io, "# Each command has a distinct HDF5 output path.")
     if length(campaign_evolution_method_values(cfg)) > 1
         println(io, "# Evolution-method jobs share the requested detuning interval; compare them as distinct MPS evolution schemes.")
+    end
+    if cfg["trajectory_values"] !== nothing
+        println(io, "# Trajectory jobs use --M-mcwf 1 and the requested trajectory index in the stored seed rule.")
     end
     if cfg["progress_csv"] === nothing
         println(io, "# No progress CSV path requested.")
@@ -1045,6 +1113,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         "final_bond_dims" => final_dims[],
         "elapsed" => elapsed,
         "seed" => seed,
+        "trajectory" => trajectory,
         RESULT_REQUESTED_STEPS => get(result, RESULT_REQUESTED_STEPS, steps),
         RESULT_COMPLETED_STEPS => completed_steps,
         "stop_reason" => get(result, RESULT_STOP_REASON, ""),
@@ -1095,10 +1164,12 @@ function default_output_filename(cfg)
     else
         @sprintf("_init%s_theta%.12g", cfg["init_state"], cfg["theta"])
     end
+    trajectory_suffix = cfg["trajectory_index"] === nothing ? "" :
+        "_traj$(cfg["trajectory_index"])"
     # `te` is a scanned physical protocol parameter, so keep more digits than
     # the legacy `tau` token to avoid collisions between nearby evolution times.
     return @sprintf(
-        "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s%s%s%s_steps%d_Dmax%d_te%.12g_tau%.3g_seed%d.h5",
+        "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s%s%s%s%s_steps%d_Dmax%d_te%.12g_tau%.3g_seed%d.h5",
         Ns,
         Rs,
         methods,
@@ -1108,6 +1179,7 @@ function default_output_filename(cfg)
         schedule_suffix * random_time_suffix,
         mode_suffix,
         init_suffix,
+        trajectory_suffix,
         cfg["steps"],
         cfg["Dmax"],
         cfg["te"],
@@ -1242,6 +1314,7 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     write(g, RESULT_TRUNCATION_ERROR_HISTORY_STATUS, TRUNCATION_ERROR_HISTORY_NOT_RECORDED)
     write(g, LARGE_N_ELAPSED_SECONDS_KEY, Float64[row["elapsed"] for row in traj_rows])
     write(g, "trajectory_seeds", Int[row["seed"] for row in traj_rows])
+    write(g, "trajectory_indices", Int[row["trajectory"] for row in traj_rows])
     write(
         g,
         RESULT_REQUESTED_STEPS,
@@ -1285,6 +1358,23 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
         ),
         elapsed=sum(row["elapsed"] for row in traj_rows),
     )
+end
+
+"""
+    campaign_run_trajectory_indices(method, cfg)
+
+Return the physical trajectory labels to execute in one campaign file.  A direct
+`--trajectory-index k` run executes only `k`; otherwise the ordinary sequential
+ensemble labels `1:M` are used.
+"""
+function campaign_run_trajectory_indices(method::AbstractString, cfg)
+    if cfg["trajectory_index"] !== nothing
+        method == "mcwf" ||
+            error("--trajectory-index is currently supported only for --methods mcwf")
+        return [cfg["trajectory_index"]]
+    end
+    M = method == "mcwf" ? cfg["M_mcwf"] : cfg["M_mpo"]
+    return collect(1:M)
 end
 
 function run_campaign(cfg)
@@ -1364,7 +1454,8 @@ function run_campaign(cfg)
                 detuning_protocol = largeN_detuning_protocol(gap, cfg)
                 write_largeN_detuning_protocol(gm, detuning_protocol)
 
-                M = method == "mcwf" ? cfg["M_mcwf"] : cfg["M_mpo"]
+                trajectory_indices = campaign_run_trajectory_indices(method, cfg)
+                M = length(trajectory_indices)
                 saturation_threshold = CoolingTNS.tn_method_maxdim(
                     sim_params.sim_method, cfg["Dmax"]
                 )
@@ -1395,11 +1486,11 @@ function run_campaign(cfg)
                             N, method, R, M, minimum(delta_values), maximum(delta_values))
 
                     traj_rows = Vector{Dict{String,Any}}()
-                    for m in 1:M
-                        seed = largeN_trajectory_seed(cfg["seed"], N, R, m)
+                    for (m, trajectory_index) in enumerate(trajectory_indices)
+                        seed = largeN_trajectory_seed(cfg["seed"], N, R, trajectory_index)
                         row = run_one_trajectory(problem, ham_params, cp_multi, sim_params,
                                                  cfg, seed; method=method, R=R,
-                                                 trajectory=m, E0=E0)
+                                                 trajectory=trajectory_index, E0=E0)
                         push!(traj_rows, row)
                         peak_evolved_maxbond = maximum(row["evolved_maxbond"][2:end])
                         system_saturation_cycle = first_bond_saturation_cycle(
@@ -1411,8 +1502,8 @@ function run_campaign(cfg)
                         tdvp_sweep_saturation_cycle = first_bond_saturation_cycle(
                             row["tdvp_sweep_maxbond"], saturation_threshold
                         )
-                        @printf("  traj %d/%d seed=%d final E/N=%.8f rel=%.6g final_sysD=%d peak_evolvedD=%d sysSat=%s evolvedSat=%s tdvpSweepSat=%s elapsed=%.1fs\n",
-                                m, M, seed, row["E"][end] / N,
+                        @printf("  traj %d/%d index=%d seed=%d final E/N=%.8f rel=%.6g final_sysD=%d peak_evolvedD=%d sysSat=%s evolvedSat=%s tdvpSweepSat=%s elapsed=%.1fs\n",
+                                m, M, trajectory_index, seed, row["E"][end] / N,
                                 relative_energy(row["E"][end], E0),
                                 row["sys_maxbond"][end],
                                 peak_evolved_maxbond,

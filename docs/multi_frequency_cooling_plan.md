@@ -285,7 +285,13 @@ overwrite full benchmark files with the same physical parameters.
 When several `R` values, `Dmax` values, or MCWF/MPS evolution methods are to be
 run on a many-core machine, the validation driver should first be invoked with
 `--print-parallel-plan`.  This prints one independent command for each
-`(N, method, evolution method, R, Dmax)` tuple and assigns distinct HDF5 paths.
+`(N, method, evolution method, R, Dmax, trajectory index)` tuple and assigns
+distinct HDF5 paths.  The trajectory axis is explicit: adding
+`--trajectory-values 1,2,3` is supported for MCWF jobs and emits one
+single-trajectory command per requested index, each carrying `--M-mcwf 1` and a
+distinct HDF5/progress-CSV protocol stem.  This is the recommended way to launch
+ensemble members whose stop-on-cap cycles may differ, because the deterministic
+seed rule remains tied to the stored trajectory index.
 In multi-job plans where `--progress-csv` is supplied, generated per-job
 progress CSV filenames keep the requested CSV stem as a prefix and append the
 same HDF5 protocol stem; single-job plans keep the requested CSV path unchanged.

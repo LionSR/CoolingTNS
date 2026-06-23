@@ -42,8 +42,11 @@ convention, which includes the canonical evolution-method token (`trotter` or
 `continuous`), the evolution time `te`, mode-measurement suffixes, and suffixes
 for non-default detuning schedules and randomized evolution times.  Generated
 per-job progress CSV filenames in a parallel plan reuse the same HDF5 protocol
-stem, with the user-supplied CSV stem kept as a prefix.  The HDF5 metadata is
-the authoritative protocol record.
+stem, with the user-supplied CSV stem kept as a prefix.  Plans with
+`--trajectory-values` also add a `_trajk` token to both HDF5 and progress-CSV
+stems and store the physical MCWF trajectory labels in the HDF5
+`trajectory_indices` dataset.  The HDF5 metadata is the authoritative protocol
+record.
 
 The summary script also reports the stored `completed_steps`,
 `requested_steps`, `elapsed_seconds`, and `stop_reasons` fields.  The
