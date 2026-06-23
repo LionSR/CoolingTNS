@@ -12,6 +12,12 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
 end
 
 @testset "Large-N campaign driver method defaults" begin
+    @test parse_method_name(" MCWF ") == "mcwf"
+    @test parse_evolution_method_name(" TROTTER ") == "trotter"
+    @test_throws ErrorException parse_evolution_method_name("mcwf")
+    @test_throws ErrorException parse_args(["--evolution-method", "mcwf"])
+    @test_throws ErrorException parse_args(["--methods", "continuous"])
+
     default_cfg = parse_args(["--outdir", tempdir()])
     @test default_cfg["Ns"] == [64]
     @test default_cfg["methods"] == ["mcwf"]
