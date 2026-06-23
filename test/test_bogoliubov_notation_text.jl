@@ -41,6 +41,8 @@ using Test
     @test occursin("JW operators above are evaluated as notes-basis Pauli strings", joined_flat)
     @test occursin("measure_raw_fourier_occupation_ed", joined)
     @test occursin("raw Fourier occupation ``tilde n_k``", joined_flat)
+    @test occursin("local real-space occupation is ``a_n^†a_n = (1 + σ^z_n)/2``", joined_flat)
+    @test occursin("The returned ``tilde n_k`` is instead the Fourier correlator sum over ``⟨a_m^†a_n⟩``", joined_flat)
     @test occursin("Compatibility wrapper for [`measure_raw_fourier_occupation_ed`](@ref)", joined)
     @test occursin("New code should prefer `measure_raw_fourier_occupation_ed`", joined_flat)
 
@@ -54,6 +56,7 @@ using Test
         "mode energy observable",
         "Mode energy measurements ⟨h_k⟩",
         "does not affect the JW operators",
+        "tilde n_k = " * "(1 + ⟨σ_z⟩)/2`` per mode",
     ]
     @test all(phrase -> !occursin(phrase, joined), forbidden)
 end
