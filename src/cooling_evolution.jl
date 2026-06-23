@@ -1091,17 +1091,12 @@ function process_bath_and_update(problem::CoolingProblem{TNBackend}, ρ_evolved:
                                _sim_params) where E<:EvolutionMethod
     sites = problem.extra.sites
     N = length(sites) ÷ 2
-    sites_sys = interleaved_system_indices(sites, N)
     sites_bath = interleaved_bath_indices(sites, N)
 
-    ρ_b = _canonical_reduced_density_mpo(
-        partial_trace_system(ρ_evolved, sites, sites_bath)
-    )
+    ρ_b = _reduced_bath_density_mpo(ρ_evolved, sites, N)
     bath_mag = compute_bath_magnetization(problem.backend, state, ρ_b, sites_bath)
 
-    ρ_s = _canonical_reduced_density_mpo(
-        partial_trace_bath(ρ_evolved, sites, sites_sys)
-    )
+    ρ_s = _reduced_system_density_mpo(ρ_evolved, sites, N)
 
     return QuantumState(state.backend, state.sim_method, state.evolution_method, ρ_s), bath_mag
 end
