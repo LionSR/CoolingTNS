@@ -228,6 +228,7 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
                                 H_sys_mat::AbstractMatrix, ϕ₀::EDStateVector,
                                 ham_params, bath_info=nothing)
     N_sys = ham_params.N
+    N_bath = ham_params.N
     sys_state = _system_state_for_measurement(state, N_sys)
     
     if isa(sys_state, EDStateVector)
@@ -242,7 +243,11 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
         measurements[RESULT_GROUND_STATE_OVERLAP][step] = overlap
         
         # Purity is always 1 for pure states
-        # No bath magnetization for system-only state
+        if haskey(measurements, RESULT_BATH_MAGNETIZATION) && bath_info !== nothing
+            measurements[RESULT_BATH_MAGNETIZATION][step] =
+                _bath_sample_magnetization(
+                    bath_info, N_bath, "ED bath measurement", _pauli_z_from_ed_bit)
+        end
     else
         # Density matrix measurements are performed on the reduced system state.
         ρ_sys = sys_state
