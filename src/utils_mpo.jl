@@ -48,27 +48,37 @@ function appendzeros_MPO(ρ::MPO, sites::Vector{<:Index}, coupling::String="XX")
     return MPO(dataρ_appended)
 end
 
-function partial_trace_bath(ρ_sb::MPO, sites::Vector{<:Index}, sites_sys::Vector{<:Index})
-    N = length(sites_sys)
+function partial_trace_bath(ρ_sb::MPO, sites::Vector{<:Index}, N_sys::Int)
     # Trace out bath (even sites) and merge system+bath tensors back into N-site MPO
     return MPO([
         ρ_sb[interleaved_system_site(i)] *
         ρ_sb[interleaved_bath_site(i)] *
         delta(sites[interleaved_bath_site(i)], sites[interleaved_bath_site(i)]')
-        for i in 1:N
+        for i in 1:N_sys
     ])
 end
 
-function partial_trace_system(ρ_sb::MPO, sites::Vector{<:Index}, sites_bath::Vector{<:Index})
-    N = length(sites_bath)
+partial_trace_bath(
+    ρ_sb::MPO,
+    sites::Vector{<:Index},
+    sites_sys::Vector{<:Index},
+) = partial_trace_bath(ρ_sb, sites, length(sites_sys))
+
+function partial_trace_system(ρ_sb::MPO, sites::Vector{<:Index}, N_bath::Int)
     # Trace out system (odd sites) and merge system+bath tensors back into N-site MPO
     return MPO([
         ρ_sb[interleaved_system_site(i)] *
         ρ_sb[interleaved_bath_site(i)] *
         delta(sites[interleaved_system_site(i)], sites[interleaved_system_site(i)]')
-        for i in 1:N
+        for i in 1:N_bath
     ])
 end
+
+partial_trace_system(
+    ρ_sb::MPO,
+    sites::Vector{<:Index},
+    sites_bath::Vector{<:Index},
+) = partial_trace_system(ρ_sb, sites, length(sites_bath))
 
 """
 Trace out the bath and return the canonical reduced system density MPO.
@@ -77,8 +87,7 @@ The returned MPO uses the post-trace representative implemented by
 `_canonical_reduced_density_mpo`.
 """
 function _reduced_system_density_mpo(ρ_sb::MPO, sites::Vector{<:Index}, N_sys::Int)
-    sites_sys = interleaved_system_indices(sites, N_sys)
-    return _canonical_reduced_density_mpo(partial_trace_bath(ρ_sb, sites, sites_sys))
+    return _canonical_reduced_density_mpo(partial_trace_bath(ρ_sb, sites, N_sys))
 end
 
 """
@@ -88,8 +97,7 @@ The returned MPO uses the post-trace representative implemented by
 `_canonical_reduced_density_mpo`.
 """
 function _reduced_bath_density_mpo(ρ_sb::MPO, sites::Vector{<:Index}, N_bath::Int)
-    sites_bath = interleaved_bath_indices(sites, N_bath)
-    return _canonical_reduced_density_mpo(partial_trace_system(ρ_sb, sites, sites_bath))
+    return _canonical_reduced_density_mpo(partial_trace_system(ρ_sb, sites, N_bath))
 end
 
 """
