@@ -215,8 +215,13 @@ parse_float_list(s::AbstractString) =
 
 parse_method_name(s::AbstractString) = canonical_method_token(s)
 
+parse_evolution_method_name(s::AbstractString) = canonical_evolution_method_name(s)
+
 parse_method_list(s::AbstractString) =
     [parse_method_name(x) for x in split(s, ",") if !isempty(strip(x))]
+
+parse_evolution_method_list(s::AbstractString) =
+    [parse_evolution_method_name(x) for x in split(s, ",") if !isempty(strip(x))]
 
 """
     validate_tdvp_only_option(cfg, evolution_methods, flag, enabled)
@@ -334,9 +339,9 @@ function parse_args(args)
         elseif a in ("--init-state", "--init_state")
             cfg["init_state"] = canonical_initial_state_name(args[i + 1]); i += 2
         elseif a == "--evolution-method"
-            cfg["evolution_method"] = parse_method_name(args[i + 1]); i += 2
+            cfg["evolution_method"] = parse_evolution_method_name(args[i + 1]); i += 2
         elseif a == "--evolution-method-values"
-            cfg["evolution_method_values"] = parse_method_list(args[i + 1]); i += 2
+            cfg["evolution_method_values"] = parse_evolution_method_list(args[i + 1]); i += 2
         elseif a == "--verbose"
             cfg["verbose"] = true; i += 1
         elseif a in ("--measure-modes", "--measure_modes")

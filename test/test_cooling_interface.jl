@@ -19,6 +19,9 @@ using HDF5
     @testset "Backend Creation" begin
         # Test new backend system
         @test CoolingTNS.canonical_method_token(" Continuous ") == "continuous"
+        @test canonical_backend_name(" ed ") == "ED"
+        @test canonical_sim_method_name(" Monte_Carlo ") == "monte_carlo"
+        @test canonical_evolution_method_name(" TROTTER ") == "trotter"
         @test CoolingTNS.canonical_initial_state_name(" Identity ") == "identity"
         @test CoolingTNS.canonical_initial_state_name(" Ground ") == "ground"
         @test CoolingTNS.get_backend("ED") isa CoolingTNS.EDBackend
@@ -26,6 +29,9 @@ using HDF5
         @test CoolingTNS.get_backend(" ed ") isa CoolingTNS.EDBackend
         @test CoolingTNS.get_backend("tn") isa CoolingTNS.TNBackend
         @test_throws ErrorException CoolingTNS.get_backend("InvalidMethod")
+        @test_throws ErrorException canonical_backend_name("InvalidBackend")
+        @test_throws ErrorException canonical_sim_method_name("InvalidSimulation")
+        @test_throws ErrorException canonical_evolution_method_name("InvalidEvolution")
         @test_throws ErrorException CoolingTNS.canonical_initial_state_name("InvalidState")
     end
 
