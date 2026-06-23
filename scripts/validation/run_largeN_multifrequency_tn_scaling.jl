@@ -597,6 +597,7 @@ function campaign_trajectory_values(cfg)
 end
 
 function campaign_dmax_configs(cfg)
+    # Retained as the Dmax-only regression oracle for the generalized ladder.
     values = campaign_dmax_values(cfg)
     return [merge(copy(cfg), Dict{String,Any}("Dmax" => D)) for D in values]
 end
