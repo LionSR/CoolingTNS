@@ -949,7 +949,14 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     end
 
     if haskey(measurements, RESULT_BATH_SAMPLE_MAGNETIZATION) && bath_info !== nothing
-        measurements[RESULT_BATH_SAMPLE_MAGNETIZATION][step] = compute_bath_magnetization(problem.backend, state, bath_info, ham_params.N)
+        if system_state_is_measurable
+            measurements[RESULT_BATH_SAMPLE_MAGNETIZATION][step] =
+                compute_bath_magnetization(problem.backend, state, bath_info, ham_params.N)
+        else
+            # The bath sample is valid in isolation, but this post-step row has
+            # failed system observables; keep the row consistently non-finite.
+            measurements[RESULT_BATH_SAMPLE_MAGNETIZATION][step] = NaN
+        end
     end
 
     if system_state_is_measurable
