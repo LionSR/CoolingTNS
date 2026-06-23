@@ -29,6 +29,10 @@ const LARGE_N_SYSTEM_SOLVE_REUSED_ACROSS_R_KEY = "system_solve_reused_across_R"
 const LARGE_N_BOND_SATURATION_THRESHOLD_KEY = "bond_saturation_threshold"
 const LARGE_N_SYSTEM_SATURATION_CYCLE_KEY = "system_saturation_cycle"
 const LARGE_N_EVOLVED_SATURATION_CYCLE_KEY = "evolved_saturation_cycle"
+const LARGE_N_SYSTEM_MAX_BOND_KEY = "system_max_bond"
+const LARGE_N_SYSTEM_MEAN_BOND_KEY = "system_mean_bond"
+const LARGE_N_EVOLVED_MAX_BOND_KEY = "evolved_max_bond"
+const LARGE_N_EVOLVED_MEAN_BOND_KEY = "evolved_mean_bond"
 const LARGE_N_TDVP_SWEEP_MAX_BOND_KEY = "tdvp_sweep_max_bond"
 const LARGE_N_TDVP_SWEEP_SATURATION_CYCLE_KEY = "tdvp_sweep_saturation_cycle"
 const LARGE_N_ELAPSED_SECONDS_KEY = "elapsed_seconds"
@@ -44,6 +48,15 @@ const LARGE_N_TE_LIST_FIRST_TRAJECTORY_KEY = "te_list_first_trajectory"
 const LARGE_N_TE_LIST_IS_COMMON_KEY = "te_list_is_common"
 const LARGE_N_FINAL_BOND_DIMS_GROUP = "final_bond_dims"
 const LARGE_N_FINAL_BOND_DIMS_TRAJECTORY_PREFIX = "trajectory_"
+
+# Internal trajectory-row keys used before ensemble aggregation.  They are not
+# HDF5 dataset names, but keeping them adjacent to the persisted bond keys
+# prevents writer-side drift in the large-N diagnostics.
+const LARGE_N_ROW_SYSTEM_MAX_BOND_KEY = "sys_maxbond"
+const LARGE_N_ROW_SYSTEM_MEAN_BOND_KEY = "sys_meanbond"
+const LARGE_N_ROW_EVOLVED_MAX_BOND_KEY = "evolved_maxbond"
+const LARGE_N_ROW_EVOLVED_MEAN_BOND_KEY = "evolved_meanbond"
+const LARGE_N_ROW_TDVP_SWEEP_MAX_BOND_KEY = "tdvp_sweep_maxbond"
 
 """
     largeN_trajectory_seed(base_seed, N, R, trajectory)

@@ -23,6 +23,10 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test LARGE_N_BOND_SATURATION_THRESHOLD_KEY == "bond_saturation_threshold"
     @test LARGE_N_SYSTEM_SATURATION_CYCLE_KEY == "system_saturation_cycle"
     @test LARGE_N_EVOLVED_SATURATION_CYCLE_KEY == "evolved_saturation_cycle"
+    @test LARGE_N_SYSTEM_MAX_BOND_KEY == "system_max_bond"
+    @test LARGE_N_SYSTEM_MEAN_BOND_KEY == "system_mean_bond"
+    @test LARGE_N_EVOLVED_MAX_BOND_KEY == "evolved_max_bond"
+    @test LARGE_N_EVOLVED_MEAN_BOND_KEY == "evolved_mean_bond"
     @test LARGE_N_TDVP_SWEEP_MAX_BOND_KEY == "tdvp_sweep_max_bond"
     @test LARGE_N_TDVP_SWEEP_SATURATION_CYCLE_KEY ==
           "tdvp_sweep_saturation_cycle"
@@ -39,6 +43,11 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test LARGE_N_TE_LIST_IS_COMMON_KEY == "te_list_is_common"
     @test LARGE_N_FINAL_BOND_DIMS_GROUP == "final_bond_dims"
     @test LARGE_N_FINAL_BOND_DIMS_TRAJECTORY_PREFIX == "trajectory_"
+    @test LARGE_N_ROW_SYSTEM_MAX_BOND_KEY == "sys_maxbond"
+    @test LARGE_N_ROW_SYSTEM_MEAN_BOND_KEY == "sys_meanbond"
+    @test LARGE_N_ROW_EVOLVED_MAX_BOND_KEY == "evolved_maxbond"
+    @test LARGE_N_ROW_EVOLVED_MEAN_BOND_KEY == "evolved_meanbond"
+    @test LARGE_N_ROW_TDVP_SWEEP_MAX_BOND_KEY == "tdvp_sweep_maxbond"
     @test largeN_trajectory_seed(20260617, 64, 10, 1) == 84360618
     @test largeN_trajectory_seed(7, 2, 1, 3) == 2010010
     @test_throws ArgumentError largeN_trajectory_seed(7, 2, 0, 1)

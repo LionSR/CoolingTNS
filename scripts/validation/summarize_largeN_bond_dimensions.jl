@@ -659,10 +659,10 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
             "in $(basename(file_name))/$n_group_name/$method_name/$r_group_name"
         )
     end
-    system_max_bond = bond_history_matrix(read(run_group["system_max_bond"]))
-    system_mean_bond = bond_history_matrix(read(run_group["system_mean_bond"]))
-    evolved_max_bond = bond_history_matrix(read(run_group["evolved_max_bond"]))
-    evolved_mean_bond = bond_history_matrix(read(run_group["evolved_mean_bond"]))
+    system_max_bond = bond_history_matrix(read(run_group[LARGE_N_SYSTEM_MAX_BOND_KEY]))
+    system_mean_bond = bond_history_matrix(read(run_group[LARGE_N_SYSTEM_MEAN_BOND_KEY]))
+    evolved_max_bond = bond_history_matrix(read(run_group[LARGE_N_EVOLVED_MAX_BOND_KEY]))
+    evolved_mean_bond = bond_history_matrix(read(run_group[LARGE_N_EVOLVED_MEAN_BOND_KEY]))
     tdvp_sweep_dataset_present = haskey(run_group, LARGE_N_TDVP_SWEEP_MAX_BOND_KEY)
     tdvp_sweep_max_bond = tdvp_sweep_dataset_present ?
         bond_history_matrix(read(run_group[LARGE_N_TDVP_SWEEP_MAX_BOND_KEY])) :
