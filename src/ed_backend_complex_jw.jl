@@ -20,18 +20,19 @@ This gives ``a†a = σ⁺σ⁻ = (I + σ_z)/2``, so the **vacuum is all-spins-d
 # Why this convention?
 
 The notes derive free-fermion formulas (mode energies ``ε_k``, Bogoliubov angles,
-ground-state raw Fourier occupation ``tilde n_k = sin²(varphi_k)``) using this
-JW mapping applied to ``H_notes = (cosθ/2) Σ σ_x σ_x + (sinθ/2) Σ σ_z``. The
-code Hamiltonian ``H_code = J Σ σ_z σ_z + h Σ σ_x`` satisfies
+and the generic-mode raw Fourier reference
+``tilde n_k = sin²(varphi_k)``) using this JW mapping applied to
+``H_notes = (cosθ/2) Σ σ_x σ_x + (sinθ/2) Σ σ_z``. The code Hamiltonian
+``H_code = J Σ σ_z σ_z + h Σ σ_x`` satisfies
 ``H_code = Λ · U H_notes U†`` with ``Λ = 2√(J²+h²)`` and
 ``U = R_y(π/2)^{⊗N}``.  Therefore a code-basis state is first rotated to notes
 coordinates by ``U†``; after this rotation, the JW operators above are evaluated
 as notes-basis Pauli strings.
 
-With this convention, ``⟨ã†_k ã_k⟩`` measured on the ground state of
-``H_notes`` (or on the ``U†``-rotated ground state of ``H_code``) matches the
-analytical prediction ``tilde n_k^{GS} = sin²(varphi_k)`` for generic modes,
-where ``varphi_k`` is the Bogoliubov angle, not the momentum angle
+With this convention, ``⟨ã†_k ã_k⟩`` measured on a sector whose ground state is
+the paired-mode Bogoliubov vacuum matches the analytical prediction
+``tilde n_k^{ref} = sin²(varphi_k)`` for generic modes, where ``varphi_k`` is
+the Bogoliubov angle, not the momentum angle
 ``φ_k = 2πk/N``.
 
 # Note on the minus sign
@@ -159,9 +160,9 @@ occupation, not the Bogoliubov quasiparticle occupation ``n_k^{Bog}``.
 With this convention the local real-space occupation is
 ``a_n^†a_n = (1 + σ^z_n)/2``.  The returned ``tilde n_k`` is instead the
 Fourier correlator sum over ``⟨a_m^†a_n⟩``; for generic modes the
-ground-state prediction from Bogoliubov theory is
-``tilde n_k^{GS} = sin²(varphi_k)``, where ``varphi_k`` is the Bogoliubov
-angle, not the momentum angle ``φ_k = 2πk/N``.
+BdG reference prediction is ``tilde n_k^{ref} = sin²(varphi_k)`` for generic
+modes, where ``varphi_k`` is the Bogoliubov angle, not the momentum angle
+``φ_k = 2πk/N``.
 
 Supported boundary conditions: `:periodic`, `:antiperiodic`.
 

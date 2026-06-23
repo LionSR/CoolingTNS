@@ -993,7 +993,7 @@ end
             @test all(dispersion .>= 0)
             @test dispersion ≈ expected_dispersion atol=1e-15
 
-            occupations = compute_ground_state_occupation(k_values, J, h)
+            occupations = compute_bdg_reference_occupation(k_values, J, h)
             expected_occupations = map(ks) do k
                 kf = Float64(k)
                 if abs(sin(2π * kf / N)) < 1e-12
@@ -1005,14 +1005,36 @@ end
             end
 
             @test occupations ≈ expected_occupations atol=1e-15
+            @test compute_ground_state_occupation(k_values, J, h) ≈ occupations atol=1e-15
         end
 
         critical_k_values = generate_k_values(N, :periodic)
-        critical_occupations = compute_ground_state_occupation(critical_k_values, 1.0, 1.0)
+        critical_occupations = compute_bdg_reference_occupation(
+            critical_k_values, 1.0, 1.0)
         k0_index = findfirst(k -> abs(k) < 1e-12, critical_k_values)
 
         @test k0_index !== nothing
         @test critical_occupations[k0_index] ≈ 0.5 atol=1e-15
+    end
+
+    @testset "BdG reference occupation is not always the sector ground state" begin
+        N = 4
+        J, h = 1.0, 0.5
+        ham_params = IsingParameters(N, J, h, :antiperiodic)
+        H_code = _test_build_H_code(N, J, h, :antiperiodic)
+        Px = _test_parity_x(N)
+
+        _, ψ_even = _test_gs_in_sector(H_code, Px, 1)
+        state_even = CoolingTNS.EDStateVector(ψ_even, N)
+        gF_even = fermionic_bc(:antiperiodic, 1)
+
+        k_values, sector_occupation = measure_raw_fourier_occupation_ed(
+            state_even, ham_params; gF=gF_even)
+        bdg_reference = compute_bdg_reference_occupation(k_values, J, h)
+
+        @test gF_even == 1
+        @test maximum(abs.(sector_occupation .- bdg_reference)) > 0.9
+        @test compute_ground_state_occupation(k_values, J, h) ≈ bdg_reference atol=1e-15
     end
 
     @testset "Energy reconstruction from mode h_k" begin

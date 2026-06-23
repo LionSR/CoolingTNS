@@ -10,6 +10,9 @@ using Test
         joinpath(@__DIR__, "..", "src", "cooling_evolution.jl"),
         joinpath(@__DIR__, "..", "src", "cooling_evolution_ed_shared.jl"),
         joinpath(@__DIR__, "..", "src", "tn_mode_observables.jl"),
+        joinpath(@__DIR__, "..", "scripts", "plotting", "PlotUtils.jl"),
+        joinpath(@__DIR__, "..", "scripts", "plotting", "plot_nk_evolution.jl"),
+        joinpath(@__DIR__, "..", "scripts", "plotting", "plot_dispersion_with_gs.jl"),
         joinpath(@__DIR__, "..", "scripts", "plotting", "plot_mode_cooling.jl"),
     ]
 
@@ -20,6 +23,7 @@ using Test
 
     joined = join(read.(source_files, String), "\n")
     joined_flat = replace(joined, r"\s+" => " ")
+    plotutils_text = read(joinpath(@__DIR__, "..", "scripts", "plotting", "PlotUtils.jl"), String)
     @test occursin("sin²(varphi_k)", joined)
     @test occursin("φ_k = 2πk/N", joined)
     @test occursin("n_k^{Bog}", joined)
@@ -41,6 +45,12 @@ using Test
     @test occursin("JW operators above are evaluated as notes-basis Pauli strings", joined_flat)
     @test occursin("measure_raw_fourier_occupation_ed", joined)
     @test occursin("raw Fourier occupation ``tilde n_k``", joined_flat)
+    @test occursin("compute_bdg_reference_occupation", joined)
+    @test occursin("parity-unconstrained BdG reference value", joined_flat)
+    @test occursin("mode-wise energy-minimizing BdG reference", joined_flat)
+    @test occursin("RAW_FOURIER_BDG_REFERENCE_OCCUPATION_LABEL", joined)
+    @test occursin("RAW_FOURIER_GS_OCCUPATION_LABEL = RAW_FOURIER_BDG_REFERENCE_OCCUPATION_LABEL", joined)
+    @test occursin("compute_ground_state_occupation", plotutils_text)
     @test occursin("local real-space occupation is ``a_n^†a_n = (1 + σ^z_n)/2``", joined_flat)
     @test occursin("The returned ``tilde n_k`` is instead the Fourier correlator sum over ``⟨a_m^†a_n⟩``", joined_flat)
     @test occursin("Compatibility wrapper for [`measure_raw_fourier_occupation_ed`](@ref)", joined)
@@ -57,6 +67,12 @@ using Test
         "Mode energy measurements ⟨h_k⟩",
         "does not affect the JW operators",
         "tilde n_k = " * "(1 + ⟨σ_z⟩)/2`` per mode",
+        "RAW_FOURIER_BDG_" * "VACUUM_OCCUPATION_LABEL",
+        "compute_bogoliubov_" * "vacuum_occupation",
+        "equal to the Bogoliubov-vacuum expectation",
+        "not necessarily the strict all-quasiparticle-empty",
+        raw"\tilde n_k^" * raw"{\mathrm{GS}}",
+        raw"\tilde n_k^" * raw"{\mathrm{BdG\,vac}}",
     ]
     @test all(phrase -> !occursin(phrase, joined), forbidden)
 end
