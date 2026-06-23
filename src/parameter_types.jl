@@ -592,8 +592,41 @@ struct TensorNetworkResults <: CoolingResults
     truncation_errors::Vector{Float64}     # Measured truncation errors; empty if unavailable
     renyi_entropy::Vector{Vector{Float64}}  # Entanglement entropy profile
     # Additional fields for consistency with other backends
-    bath_magnetization_list::Vector{Float64}  # Bath magnetization evolution
+    bath_magnetization_list::Union{Vector{Float64}, Nothing}  # Bath expectation value, when measured
+    bath_sample_magnetization_list::Union{Vector{Float64}, Nothing}  # MCWF sampled bath magnetization
     final_state::Any                       # Final state (MPS or MPO)
+end
+
+"""
+    TensorNetworkResults(energy_list, gs_overlap_list, purity_list, bond_dims,
+        truncation_errors, renyi_entropy, bath_magnetization_list, final_state;
+        bath_sample_magnetization_list=nothing)
+
+Backward-compatible constructor for tensor-network results.  The bath expectation
+value and sampled bath magnetization are serialized only when supplied.
+"""
+function TensorNetworkResults(
+    energy_list::Vector{Float64},
+    gs_overlap_list::Vector{Float64},
+    purity_list::Vector{Float64},
+    bond_dims::Vector{Vector{Int}},
+    truncation_errors::Vector{Float64},
+    renyi_entropy::Vector{Vector{Float64}},
+    bath_magnetization_list::Union{Vector{Float64}, Nothing},
+    final_state;
+    bath_sample_magnetization_list::Union{Vector{Float64}, Nothing}=nothing,
+)
+    return TensorNetworkResults(
+        energy_list,
+        gs_overlap_list,
+        purity_list,
+        bond_dims,
+        truncation_errors,
+        renyi_entropy,
+        bath_magnetization_list,
+        bath_sample_magnetization_list,
+        final_state,
+    )
 end
 
 # ============================================================================
@@ -739,7 +772,12 @@ function to_dict(results::TensorNetworkResults)
         RESULT_ENERGY => results.energy_list,
         RESULT_GROUND_STATE_OVERLAP => results.gs_overlap_list,
         RESULT_PURITY => results.purity_list,
-        RESULT_BATH_MAGNETIZATION => results.bath_magnetization_list,
+    )
+    _add_optional_result!(result, RESULT_BATH_MAGNETIZATION, results.bath_magnetization_list)
+    _add_optional_result!(
+        result,
+        RESULT_BATH_SAMPLE_MAGNETIZATION,
+        results.bath_sample_magnetization_list,
     )
     _add_nonempty_result!(result, RESULT_BOND_DIMS, results.bond_dims)
     _add_nonempty_result!(result, RESULT_TRUNCATION_ERRORS, results.truncation_errors)
@@ -750,12 +788,14 @@ end
 
 
 """
-    TensorNetworkResults(E_list, GS_list, bath_mag_list, final_state)
+    TensorNetworkResults(E_list, GS_list, bath_mag_list, final_state;
+        bath_sample_magnetization_list=nothing)
 
 Simplified constructor for TensorNetworkResults with just the essential data.
 """
 function TensorNetworkResults(E_list::Vector{Float64}, GS_list::Vector{Float64}, 
-                            bath_mag_list::Vector{Float64}, final_state)
+                            bath_mag_list::Vector{Float64}, final_state;
+                            bath_sample_magnetization_list=nothing)
     # For simplified construction, use empty vectors for optional fields.
     # In particular, a zero truncation-error series would be a measured
     # statement, not a placeholder for unavailable data.
@@ -766,7 +806,6 @@ function TensorNetworkResults(E_list::Vector{Float64}, GS_list::Vector{Float64},
     
     return TensorNetworkResults(E_list, GS_list, purity_list, bond_dims, 
                                truncation_errors, renyi_entropy, 
-                               bath_mag_list, final_state)
+                               bath_mag_list, final_state;
+                               bath_sample_magnetization_list)
 end
-
-# Remove duplicate definition - already defined above
