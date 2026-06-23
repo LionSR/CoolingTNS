@@ -46,6 +46,12 @@ using LinearAlgebra
         @test_throws ArgumentError CoolingTNS.compute_bath_magnetization(
             CoolingTNS.TNBackend(), tn_mc_state, [0], 1
         )
+        @test_throws ArgumentError CoolingTNS.compute_bath_magnetization(
+            CoolingTNS.TNBackend(), tn_mc_state, [1], 2
+        )
+        @test_throws ArgumentError CoolingTNS.compute_bath_magnetization(
+            CoolingTNS.TNBackend(), tn_mc_state, [1, 2], 0
+        )
 
         # ED samples are computational bits: 0 = Up, 1 = Dn.
         @test CoolingTNS.compute_bath_magnetization(
@@ -59,6 +65,12 @@ using LinearAlgebra
         ) ≈ 0.0
         @test_throws ArgumentError CoolingTNS.compute_bath_magnetization(
             CoolingTNS.EDBackend(), ed_mc_state, [2], 1
+        )
+        @test_throws ArgumentError CoolingTNS.compute_bath_magnetization(
+            CoolingTNS.EDBackend(), ed_mc_state, [0], 2
+        )
+        @test_throws ArgumentError CoolingTNS.compute_bath_magnetization(
+            CoolingTNS.EDBackend(), ed_mc_state, [0, 1], 0
         )
     end
 
