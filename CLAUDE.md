@@ -80,7 +80,9 @@ julia optCooling.jl --search_method Bayesian --num_trials 20 --N 10 --problem ni
 - `--steps`: Number of cooling iterations
 - `--tau`: Time step for Trotter evolution
 - `--Dmax`: Maximum bond dimension for tensor networks
-- `--init_state`: Initial state type (product, identity, theta)
+- `--init-state`: Initial state type (product, identity, theta, ground).
+  The parsed metadata key remains `init_state`; `--init_state` is accepted as a
+  legacy command-line alias.
 - `--theta`: Dimensionless theta-code parameter for the initial state
   (-0.5 -> |0>, 0 -> |+>, 0.5 -> |1>)
 - `--n_trajectories`: Number of trajectories for Monte Carlo method

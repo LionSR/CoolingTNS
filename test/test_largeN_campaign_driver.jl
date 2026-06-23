@@ -123,6 +123,14 @@ end
     theta_init_command = join(command_args_for_config(theta_init_cfg), " ")
     @test occursin("--init-state theta", theta_init_command)
     @test occursin("--theta 0.0", theta_init_command)
+    legacy_theta_init_cfg = parse_args([
+        "--init_state", " Theta ",
+        "--theta", "0.25",
+    ])
+    @test legacy_theta_init_cfg["init_state"] == "theta"
+    @test legacy_theta_init_cfg["theta"] == 0.25
+    legacy_theta_init_command = join(command_args_for_config(legacy_theta_init_cfg), " ")
+    @test occursin("--init-state theta", legacy_theta_init_command)
 
     identity_init_cfg = parse_args([
         "--methods", "mpo",

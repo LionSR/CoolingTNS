@@ -624,7 +624,7 @@ The purity of the density matrix $\rho_S^k$ is not the average of the trajectory
 	\tr[(\rho_S^k)^2] \approx \frac{1}{N_\text{QT}^2} \sum_{i,i'=1}^{N_\text{QT}} \left|\braket{\Psi_S^{k,(i)}|\Psi_S^{k,(i')}}\right|^2.
 \end{equation}
 
-The matrix product state simulations were performed using the ITensor.jl~\cite{Fishman2022ITensor} library. Since an MPS quantum trajectory is a pure state simulation, its initial condition is a specified pure product state rather than the maximally mixed density matrix used in the MPO simulations. In the large-\(N\) validation scripts and the HDF5 protocol metadata, the public initial-state selector is the \texttt{--init-state} command-line option and the stored \texttt{init\_state} field. The value \texttt{product} denotes a uniform computational-basis product state, while \texttt{theta} denotes the product-state family in \eqref{eq:code-theta-map}. The internal \texttt{setup\_initial\_state} helper still takes an argument historically named \texttt{init\_type}; this is not the public protocol key. The identity state is therefore reserved for density-matrix simulations unless an explicit pure-state ensemble or purification is introduced.
+The matrix product state simulations were performed using the ITensor.jl~\cite{Fishman2022ITensor} library. Since an MPS quantum trajectory is a pure state simulation, its initial condition is a specified pure product state rather than the maximally mixed density matrix used in the MPO simulations. In the public command-line interfaces, the preferred initial-state selector is \texttt{--init-state}; the stored HDF5 protocol field is \texttt{init\_state}. The legacy spelling \texttt{--init\_state} is accepted as a command-line compatibility alias, but it is not the name of a distinct protocol field. The value \texttt{product} denotes a uniform computational-basis product state, while \texttt{theta} denotes the product-state family in \eqref{eq:code-theta-map}. The internal \texttt{setup\_initial\_state} helper still takes an argument historically named \texttt{init\_type}; this is not the public protocol key. The identity state is therefore reserved for density-matrix simulations unless an explicit pure-state ensemble or purification is introduced.
 
 Consistent with the bond-dimension evidence below, the large-\(N\) validation
 driver now treats MCWF/MPS as the default production-sized tensor-network path.
@@ -870,7 +870,7 @@ In the thermodynamic limit, these states have energy density
 \end{equation}
 ranging over most of the energy band (see Fig.~\ref{fig:ELNI}).
 
-For the large-\(N\) validation driver, the public protocol value \texttt{init\_state="theta"} (entered as \texttt{--init-state theta}) reaches an internal \texttt{setup\_initial\_state} path that uses a dimensionless input parameter, denoted here by $\vartheta$, rather than the physical angle $\alpha$ itself. The convention is
+For the public protocol value \texttt{init\_state="theta"} (entered as \texttt{--init-state theta}), the internal \texttt{setup\_initial\_state} path uses a dimensionless input parameter, denoted here by $\vartheta$, rather than the physical angle $\alpha$ itself. The convention is
 \begin{equation}
 	\begin{aligned}
 		\alpha(\vartheta)
