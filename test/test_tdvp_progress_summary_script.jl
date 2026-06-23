@@ -57,6 +57,35 @@ end
           tn_method_maxdim(MonteCarloWavefunction(), 7)
     @test TDVPProgressCSVSummary.default_progress_cap("mpo", 7) ==
           tn_method_maxdim(DensityMatrix(), 7)
+    @test TDVPProgressCSVSummary.LARGE_N_PROGRESS_GROUP_COLUMNS == (
+        "N",
+        "method",
+        "evolution",
+        "R",
+        "trajectory",
+        "seed",
+        "Dmax",
+        "cutoff",
+        "tau",
+    )
+    fixed_identity_a = Dict(
+        "N" => "64",
+        "method" => "mcwf",
+        "evolution" => "continuous",
+        "R" => "5",
+        "trajectory" => "1",
+        "seed" => "84310618",
+        "Dmax" => "96",
+        "cutoff" => "1.0e-6",
+        "tau" => "0.2",
+        "te" => "0.34",
+    )
+    fixed_identity_b = merge(fixed_identity_a, Dict("te" => "1.86"))
+    @test TDVPProgressCSVSummary.group_key(fixed_identity_a) ==
+          TDVPProgressCSVSummary.group_key(fixed_identity_b)
+    @test TDVPProgressCSVSummary.group_label(
+        TDVPProgressCSVSummary.group_key(fixed_identity_a)
+    ).R == "5"
     err = try
         TDVPProgressCSVSummary.default_progress_cap("ed", 7)
         nothing

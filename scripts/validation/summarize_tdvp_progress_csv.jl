@@ -19,18 +19,6 @@ using Printf
 
 include(joinpath(@__DIR__, "largeN_scaling_helpers.jl"))
 
-const PROGRESS_GROUP_COLUMNS = [
-    "N",
-    "method",
-    "evolution",
-    "R",
-    "trajectory",
-    "seed",
-    "Dmax",
-    "cutoff",
-    "tau",
-]
-
 function usage()
     println(
         "usage: julia --project=. scripts/validation/summarize_tdvp_progress_csv.jl " *
@@ -103,11 +91,11 @@ function progress_int(row, name::AbstractString)
 end
 
 function group_key(row)
-    return Tuple(progress_cell(row, col) for col in PROGRESS_GROUP_COLUMNS)
+    return Tuple(progress_cell(row, col) for col in LARGE_N_PROGRESS_GROUP_COLUMNS)
 end
 
 function group_label(key)
-    return NamedTuple{Tuple(Symbol.(PROGRESS_GROUP_COLUMNS))}(key)
+    return NamedTuple{Tuple(Symbol.(LARGE_N_PROGRESS_GROUP_COLUMNS))}(key)
 end
 
 function format_float(value::Real, digits::Int=2)

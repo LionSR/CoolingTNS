@@ -88,6 +88,22 @@ const LARGE_N_PROGRESS_CSV_COLUMNS = (
     LARGE_N_ELAPSED_SECONDS_KEY,
 )
 
+# Progress rows are grouped by the job identity columns when recovering an
+# interrupted run from CSV.  The per-row `te` value is intentionally not part
+# of this key: randomized-time runs draw a different `te` per cycle, and fixed
+# `--te-values` scans are emitted as separate planned jobs with distinct paths.
+const LARGE_N_PROGRESS_GROUP_COLUMNS = (
+    "N",
+    "method",
+    "evolution",
+    "R",
+    "trajectory",
+    "seed",
+    "Dmax",
+    "cutoff",
+    "tau",
+)
+
 """
     largeN_trajectory_seed(base_seed, N, R, trajectory)
 

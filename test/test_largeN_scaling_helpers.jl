@@ -75,6 +75,17 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
         "tdvp_time",
         LARGE_N_ELAPSED_SECONDS_KEY,
     )
+    @test LARGE_N_PROGRESS_GROUP_COLUMNS == (
+        "N",
+        "method",
+        "evolution",
+        "R",
+        "trajectory",
+        "seed",
+        "Dmax",
+        "cutoff",
+        "tau",
+    )
     @test largeN_trajectory_seed(20260617, 64, 10, 1) == 84360618
     @test largeN_trajectory_seed(7, 2, 1, 3) == 2010010
     @test_throws ArgumentError largeN_trajectory_seed(7, 2, 0, 1)
