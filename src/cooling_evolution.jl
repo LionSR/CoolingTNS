@@ -784,7 +784,7 @@ function _record_ising_mode_measurements!(measurements, step::Int, state, ham_pa
     return true
 end
 
-function _copy_previous_ising_mode_measurements!(measurements, step::Int)
+function _mark_failed_ising_mode_measurements!(measurements, step::Int)
     step > 1 || return false
     if haskey(measurements, RESULT_MODE_MEASUREMENT_CYCLES)
         cycle = step - 1
@@ -793,8 +793,10 @@ function _copy_previous_ising_mode_measurements!(measurements, step::Int)
     hk = get(measurements, RESULT_MODE_HK, nothing)
     nk = get(measurements, RESULT_MODE_NK, nothing)
     (hk isa AbstractMatrix && nk isa AbstractMatrix) || return false
-    hk[step, :] .= hk[step - 1, :]
-    nk[step, :] .= nk[step - 1, :]
+    # A failed scheduled measurement must remain non-finite; copying the previous
+    # mode row would fabricate an apparently flat occupation trajectory.
+    hk[step, :] .= NaN
+    nk[step, :] .= NaN
     return true
 end
 
@@ -953,7 +955,7 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
     if system_state_is_measurable
         _record_ising_mode_measurements!(measurements, step, ψ_s, ham_params)
     else
-        _copy_previous_ising_mode_measurements!(measurements, step)
+        _mark_failed_ising_mode_measurements!(measurements, step)
     end
 end
 

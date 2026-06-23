@@ -473,7 +473,7 @@ end
         @test results_tn[RESULT_MODE_NK] ≈ results_ed[RESULT_MODE_NK] atol=1e-8
     end
 
-    @testset "TN MCWF mode rows follow dimension-mismatch fallback" begin
+    @testset "TN MCWF mode rows reject dimension-mismatch fallback" begin
         N = 4
         ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
         coupling_params = BasicCouplingParameters("XX", 0.0, 1, 0.0, 0.5)
@@ -510,8 +510,16 @@ end
         @test measurements[RESULT_GROUND_STATE_OVERLAP][2] ==
             measurements[RESULT_GROUND_STATE_OVERLAP][1]
         @test measurements[RESULT_MODE_GF_SOURCE] == "state"
-        @test measurements[RESULT_MODE_HK][2, :] == measurements[RESULT_MODE_HK][1, :]
-        @test measurements[RESULT_MODE_NK][2, :] == measurements[RESULT_MODE_NK][1, :]
+        @test all(isfinite, measurements[RESULT_MODE_HK][1, :])
+        @test all(isfinite, measurements[RESULT_MODE_NK][1, :])
+        @test all(isnan, measurements[RESULT_MODE_HK][2, :])
+        @test all(isnan, measurements[RESULT_MODE_NK][2, :])
+        @test_throws ArgumentError validate_mode_measurement_rows(
+            measurements[RESULT_MODE_HK],
+            measurements[RESULT_MODE_NK],
+            measurements[RESULT_MODE_MEASUREMENT_CYCLES];
+            energy=measurements[RESULT_ENERGY],
+        )
     end
 
     @testset "TN MCWF mode stride keeps skipped mismatch rows as NaN" begin
