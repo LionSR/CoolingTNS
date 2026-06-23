@@ -52,6 +52,9 @@ rows by the physical protocol, rejects duplicate trajectory labels, and reports
 one ensemble-level row.  For stop-on-cap files with unequal completed prefixes,
 the energy columns in that combined row are statistics of the individual
 trajectory summaries, not a reconstructed cycle-aligned ensemble time series.
+If some member files do not contain detuning histories, the combined
+`visited detunings` entry records the known counts and an `unknownxq/M` term,
+rather than attributing the observed histories to the whole ensemble.
 
 The summary script also reports the stored `completed_steps`,
 `requested_steps`, `elapsed_seconds`, and `stop_reasons` fields.  The

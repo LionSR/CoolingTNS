@@ -63,6 +63,7 @@ function write_split_trajectory_summary_file(
     completed_steps::Integer,
     stop_reason::AbstractString,
     elapsed_seconds::Real,
+    write_delta_history::Bool=true,
 )
     N = 4
     E0 = -4.0
@@ -107,8 +108,10 @@ function write_split_trajectory_summary_file(
         write(gr, CoolingTNS.RESULT_REQUESTED_STEPS, [4])
         write(gr, CoolingTNS.RESULT_COMPLETED_STEPS, [Int(completed_steps)])
         write(gr, LARGE_N_STOP_REASONS_KEY, [String(stop_reason)])
-        write(gr, "delta_lists", reshape([NaN; 3.0; 0.5; 3.0][1:length(energy)], :, 1))
-        write(gr, CoolingTNS.RESULT_DELTA_VALUES, [0.5, 3.0])
+        if write_delta_history
+            write(gr, "delta_lists", reshape([NaN; 3.0; 0.5; 3.0][1:length(energy)], :, 1))
+            write(gr, CoolingTNS.RESULT_DELTA_VALUES, [0.5, 3.0])
+        end
     end
     return nothing
 end
@@ -347,6 +350,7 @@ end
 @testset "Large-N summary combines split trajectory-axis files" begin
     path1 = tempname() * ".h5"
     path3 = tempname() * ".h5"
+    missing_delta_path = tempname() * ".h5"
     duplicate_path = tempname() * ".h5"
     try
         write_split_trajectory_summary_file(
@@ -368,6 +372,17 @@ end
             completed_steps=3,
             stop_reason="",
             elapsed_seconds=20.0,
+        )
+        write_split_trajectory_summary_file(
+            missing_delta_path;
+            trajectory=5,
+            energy_values=[-1.0, -1.5, -2.0],
+            system_max=[1, 3, 5],
+            evolved_max=[0, 4, 6],
+            completed_steps=2,
+            stop_reason="",
+            elapsed_seconds=7.0,
+            write_delta_history=false,
         )
         write_split_trajectory_summary_file(
             duplicate_path;
@@ -433,10 +448,19 @@ end
         @test_throws ErrorException combine_trajectory_rows(
             vcat(rows, summarize_file(duplicate_path))
         )
+        mixed_delta_history_row = only(combine_trajectory_rows(vcat(
+            summarize_file(path1),
+            summarize_file(missing_delta_path),
+        )))
+        @test mixed_delta_history_row.M == 2
+        @test mixed_delta_history_row.visited_delta_counts == [2]
+        @test mixed_delta_history_row.missing_delta_history_count == 1
+        @test mixed_delta_history_row.visited_detunings == "2/2+unknownx1/2"
         @test parse_args(["--combine-trajectories", path1]).combine_trajectories
     finally
         rm(path1; force=true)
         rm(path3; force=true)
+        rm(missing_delta_path; force=true)
         rm(duplicate_path; force=true)
     end
 end

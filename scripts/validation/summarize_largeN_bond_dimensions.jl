@@ -370,10 +370,22 @@ function distinct_completed_delta_counts(delta_history, completed_steps::Abstrac
     return counts
 end
 
-function visited_detunings_label_from_counts(counts::AbstractVector{<:Integer}, R::Integer)
+function visited_detunings_label_from_counts(
+    counts::AbstractVector{<:Integer},
+    R::Integer;
+    unknown_count::Integer=0,
+    total_count::Integer=length(counts) + unknown_count,
+)
     R > 0 || return "n/a"
-    isempty(counts) && return "n/a"
-    return "$(range_label(counts))/$(R)"
+    unknown_count >= 0 ||
+        error("unknown detuning-history count must be non-negative")
+    total_count >= length(counts) + unknown_count ||
+        error("total detuning-history count is smaller than known plus unknown counts")
+    isempty(counts) && unknown_count == 0 && return "n/a"
+    known_label = isempty(counts) ? "" : "$(range_label(counts))/$(R)"
+    unknown_count == 0 && return known_label
+    unknown_label = "unknownx$(unknown_count)/$(total_count)"
+    return isempty(known_label) ? unknown_label : "$(known_label)+$(unknown_label)"
 end
 
 function stop_reason_label(reasons::AbstractVector{<:AbstractString})
@@ -546,6 +558,12 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         delta_history_matrix(run_group), completed_steps_values
     )
     visited_detunings = visited_detunings_label_from_counts(visited_delta_counts, R)
+    missing_delta_history_count = M - length(visited_delta_counts)
+    missing_delta_history_count >= 0 ||
+        error(
+            "visited detuning count length $(length(visited_delta_counts)) exceeds M=$M " *
+            "in $(basename(file_name))/$n_group_name/$method_name/$r_group_name"
+        )
     detuning_coverage = detuning_coverage_status(
         completed_steps_values, requested_steps_values, R, schedule
     )
@@ -661,6 +679,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         completed_steps_values=completed_steps_values,
         requested_steps_values=requested_steps_values,
         visited_delta_counts=visited_delta_counts,
+        missing_delta_history_count=missing_delta_history_count,
         elapsed_values=elapsed_values,
         stop_reason_values=stop_reasons,
         final_e_over_n_values=final_e_over_n_values,
@@ -847,6 +866,13 @@ function combine_trajectory_bucket(rows)
     completed_steps = concatenate_int_field(rows, :completed_steps_values)
     requested_steps = concatenate_int_field(rows, :requested_steps_values)
     visited_delta_counts = concatenate_int_field(rows, :visited_delta_counts)
+    missing_delta_history_count = sum(Int[row.missing_delta_history_count for row in rows])
+    length(visited_delta_counts) + missing_delta_history_count == length(indices) ||
+        error(
+            "combined detuning-history accounting does not match trajectory count: " *
+            "$(length(visited_delta_counts)) known + $(missing_delta_history_count) unknown " *
+            "for $(length(indices)) trajectories"
+        )
     elapsed_values = concatenate_float_field(rows, :elapsed_values)
     elapsed_seconds = all(row -> !isempty(row.elapsed_values), rows) ?
         sum(elapsed_values) :
@@ -883,6 +909,7 @@ function combine_trajectory_bucket(rows)
             completed_steps_values=completed_steps,
             requested_steps_values=requested_steps,
             visited_delta_counts=visited_delta_counts,
+            missing_delta_history_count=missing_delta_history_count,
             elapsed_values=elapsed_values,
             stop_reason_values=stop_reasons,
             final_e_over_n_values=final_e_values,
@@ -899,7 +926,9 @@ function combine_trajectory_bucket(rows)
                 completed_steps, requested_steps, base.R, base.schedule
             ),
             visited_detunings=visited_detunings_label_from_counts(
-                visited_delta_counts, base.R
+                visited_delta_counts, base.R;
+                unknown_count=missing_delta_history_count,
+                total_count=length(indices),
             ),
             detuning_coverage=detuning_coverage_status(
                 completed_steps, requested_steps, base.R, base.schedule
