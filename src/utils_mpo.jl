@@ -70,13 +70,23 @@ function partial_trace_system(ρ_sb::MPO, sites::Vector{<:Index}, sites_bath::Ve
     ])
 end
 
-"""Trace out the bath and return the canonical reduced system density MPO."""
+"""
+Trace out the bath and return the canonical reduced system density MPO.
+
+The returned MPO uses the post-trace representative implemented by
+`_canonical_reduced_density_mpo`.
+"""
 function _reduced_system_density_mpo(ρ_sb::MPO, sites::Vector{<:Index}, N_sys::Int)
     sites_sys = interleaved_system_indices(sites, N_sys)
     return _canonical_reduced_density_mpo(partial_trace_bath(ρ_sb, sites, sites_sys))
 end
 
-"""Trace out the system and return the canonical reduced bath density MPO."""
+"""
+Trace out the system and return the canonical reduced bath density MPO.
+
+The returned MPO uses the post-trace representative implemented by
+`_canonical_reduced_density_mpo`.
+"""
 function _reduced_bath_density_mpo(ρ_sb::MPO, sites::Vector{<:Index}, N_bath::Int)
     sites_bath = interleaved_bath_indices(sites, N_bath)
     return _canonical_reduced_density_mpo(partial_trace_system(ρ_sb, sites, sites_bath))
