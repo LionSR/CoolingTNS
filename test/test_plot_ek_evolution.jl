@@ -75,11 +75,25 @@ end
     @test validate_mode_ek_values_match_grid(stored_εk, k_indices, N, J, h) ≈ stored_εk
     @test _checked_mode_energy_coefficients(stored_εk, k_indices, N, J, h) ≈ coeffs
     @test stored_εk ≈ 2 .* abs.(coeffs) atol=1e-12
-    @test_logs (:warn, r"Stored positive quasiparticle gaps differ") begin
-        _checked_mode_energy_coefficients(fill(0.0, length(k_indices)), k_indices, N, J, h)
-    end
+    @test_throws ArgumentError _checked_mode_energy_coefficients(
+        fill(0.0, length(k_indices)), k_indices, N, J, h)
     @test_throws DimensionMismatch _checked_mode_energy_coefficients(
         stored_εk[1:end-1], k_indices, N, J, h)
+
+    mktempdir() do dir
+        filename = joinpath(dir, "bad_mode_gaps.h5")
+        h5open(filename, "w") do file
+            write(file, RESULT_MODE_HK, reshape(fill(-1.0, length(k_indices)), 1, :))
+            write(file, RESULT_MODE_K_INDICES, Float64.(k_indices))
+            write(file, RESULT_MODE_ENERGIES, fill(0.0, length(k_indices)))
+            write(file, RESULT_ENERGY, [-1.0])
+            write(file, "N", N)
+            write(file, "J", J)
+            write(file, "h", h)
+            write(file, "bc", "periodic")
+        end
+        @test_throws ArgumentError plot_ek_evolution(filename; save_fig=false)
+    end
 end
 
 @testset "Mode energy plot refuses Fourier occupations as energies" begin
