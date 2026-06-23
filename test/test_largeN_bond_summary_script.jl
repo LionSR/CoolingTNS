@@ -157,6 +157,7 @@ end
     @test detuning_coverage_status([3], [8], 1, "descending") == "single_detuning"
     @test init_protocol_label("product", 0.0) == "product"
     @test init_protocol_label("ground", 0.0) == "ground"
+    @test init_protocol_label("identity", 0.0) == "identity"
     @test init_protocol_label("theta", 0.25) == "theta=0.250"
     @test isequal(
         initial_state_group_key((init_state="product", theta=0.25)),
