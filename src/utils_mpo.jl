@@ -69,3 +69,14 @@ function partial_trace_system(ρ_sb::MPO, sites::Vector{<:Index}, sites_bath::Ve
         for i in 1:N
     ])
 end
+
+"""
+    _canonical_reduced_density_mpo(ρ::MPO)
+
+Project an MPO reduced-density operator to its Hermitian, trace-one
+representative after a partial trace.
+"""
+function _canonical_reduced_density_mpo(ρ::MPO)
+    ρ_h = 0.5 * (ρ + dag(swapprime(ρ, 0, 1)))
+    return ρ_h / tr(ρ_h)
+end

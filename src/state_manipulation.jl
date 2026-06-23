@@ -7,7 +7,6 @@ sampling, and tracing out subsystems.
 
 using ITensors
 using ITensorMPS
-using LinearAlgebra
 
 
 # ============================================================================
@@ -62,8 +61,10 @@ end
 function process_bath(::TNBackend, ::DensityMatrix, ρ_sb::MPO, N_sys::Int, _N_bath::Int)
     sites = [siteind(ρ_sb, i) for i in eachindex(ρ_sb)]
     sites_sys = interleaved_system_indices(sites, N_sys)
-    ρ_s = partial_trace_bath(ρ_sb, sites, sites_sys)
-    return ρ_s / tr(ρ_s), nothing
+    ρ_s = _canonical_reduced_density_mpo(
+        partial_trace_bath(ρ_sb, sites, sites_sys)
+    )
+    return ρ_s, nothing
 end
 
 # ED Backend
@@ -81,7 +82,9 @@ trace_out_bath(::EDBackend, ρ::EDDensityMatrix, N_sys::Int, _) = trace_out_bath
 function trace_out_bath(::TNBackend, ρ::MPO, N_sys::Int, _)
     sites = [siteind(ρ, i) for i in eachindex(ρ)]
     sites_sys = interleaved_system_indices(sites, N_sys)
-    return partial_trace_bath(ρ, sites, sites_sys)
+    return _canonical_reduced_density_mpo(
+        partial_trace_bath(ρ, sites, sites_sys)
+    )
 end
 
 # Matrix support for backward compatibility
