@@ -87,12 +87,14 @@ using CoolingTNS
         @test data[CoolingTNS.RESULT_GROUND_STATE_OVERLAP] === overlap
         @test data[CoolingTNS.RESULT_PURITY] == ones(length(E))
         @test data[CoolingTNS.RESULT_BATH_MAGNETIZATION] === bath_mag
+        @test !haskey(data, CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION)
         @test !haskey(data, CoolingTNS.RESULT_BOND_DIMS)
         @test !haskey(data, CoolingTNS.RESULT_TRUNCATION_ERRORS)
         @test !haskey(data, CoolingTNS.RESULT_RENYI_ENTROPY)
         @test !haskey(data, "energy_list")
         @test !haskey(data, "gs_overlap_list")
         @test !haskey(data, "bath_magnetization_list")
+        @test !haskey(data, "bath_sample_magnetization_list")
         @test !haskey(data, "final_state")
 
         bond_dims = [[1], [1, 2]]
@@ -108,13 +110,48 @@ using CoolingTNS
             renyi_entropy,
             bath_mag,
             final_state,
+            bath_sample_magnetization_list=bath_sample_mag,
         )
         full_data = CoolingTNS.to_dict(full_results)
 
         @test full_data[CoolingTNS.RESULT_BOND_DIMS] === bond_dims
         @test full_data[CoolingTNS.RESULT_TRUNCATION_ERRORS] === truncation_errors
         @test full_data[CoolingTNS.RESULT_RENYI_ENTROPY] === renyi_entropy
+        @test full_data[CoolingTNS.RESULT_BATH_MAGNETIZATION] === bath_mag
+        @test full_data[CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION] === bath_sample_mag
         @test full_data[CoolingTNS.RESULT_FINAL_STATE] === final_state
+        @test !haskey(full_data, "bath_sample_magnetization_list")
+
+        sample_only_results = CoolingTNS.TensorNetworkResults(
+            E,
+            overlap,
+            purity,
+            bond_dims,
+            truncation_errors,
+            renyi_entropy,
+            nothing,
+            nothing;
+            bath_sample_magnetization_list=bath_sample_mag,
+        )
+        sample_only_data = CoolingTNS.to_dict(sample_only_results)
+
+        @test !haskey(sample_only_data, CoolingTNS.RESULT_BATH_MAGNETIZATION)
+        @test sample_only_data[CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION] === bath_sample_mag
+
+        no_bath_results = CoolingTNS.TensorNetworkResults(
+            E,
+            overlap,
+            purity,
+            bond_dims,
+            truncation_errors,
+            renyi_entropy,
+            nothing,
+            nothing,
+        )
+        no_bath_data = CoolingTNS.to_dict(no_bath_results)
+
+        @test !haskey(no_bath_data, CoolingTNS.RESULT_BATH_MAGNETIZATION)
+        @test !haskey(no_bath_data, CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION)
     end
 
     @testset "Live density-matrix bath schema is representable" begin

@@ -258,6 +258,30 @@ using LinearAlgebra
         @test results[CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION][2] ≈ -1.0 atol=1e-12
     end
 
+    @testset "TN Monte Carlo cooling populates nb_list" begin
+        N = 2
+        backend = CoolingTNS.TNBackend()
+        ham_params = CoolingTNS.IsingParameters(N, 1.0, -2.0)
+        coupling_params = CoolingTNS.BasicCouplingParameters("XX", 0.0, 1, 0.0, 1.0)
+        sim_params = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.MonteCarloWavefunction(),
+            CoolingTNS.TrotterEvolution();
+            Dmax=20,
+            cutoff=1e-10,
+            tau=0.1,
+        )
+
+        problem = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params)
+        state0 = CoolingTNS.setup_initial_state(problem, sim_params, "product", 0.0)
+        results = CoolingTNS.run_cooling(problem, state0, coupling_params, sim_params, ham_params)
+
+        @test !haskey(results, CoolingTNS.RESULT_BATH_MAGNETIZATION)
+        @test haskey(results, CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION)
+        # With g=0 and te=0, the bath sample is deterministic in the same
+        # normalized Pauli-Z convention used by the ED MCWF test above.
+        @test results[CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION][2] ≈ -1.0 atol=1e-12
+    end
+
     @testset "ED density-matrix cooling returns system state and bath_mag_list" begin
         N = 2
         backend = CoolingTNS.EDBackend()
