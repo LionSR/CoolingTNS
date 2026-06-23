@@ -1409,8 +1409,8 @@ end
             @test read(f["bc"]) == "periodic"
             @test read(f["measure_modes"]) == true
             @test read(f["mode_measurement_stride"]) == 1
-            @test read(f["init_state"]) == "theta"
-            @test read(f["theta"]) == 0.0
+            @test read(f[CoolingTNS.RESULT_INIT_STATE]) == "theta"
+            @test read(f[CoolingTNS.RESULT_INIT_THETA]) == 0.0
             @test read(f[CoolingTNS.RESULT_RANDOMIZE_TIMES]) == false
             @test read(f["trajectory_seed_rule"]) == LARGE_N_TRAJECTORY_SEED_RULE
             @test read(f["h"]) == 0.5
@@ -1522,8 +1522,8 @@ end
         end
 
         h5open(output, "r") do f
-            @test read(f["init_state"]) == "product"
-            @test read(f["theta"]) == 0.0
+            @test read(f[CoolingTNS.RESULT_INIT_STATE]) == "product"
+            @test read(f[CoolingTNS.RESULT_INIT_THETA]) == 0.0
             @test read(f[CoolingTNS.RESULT_RANDOMIZE_TIMES]) == true
             g = f["N2/mcwf/R1"]
             @test read(g["te_list_is_common"]) == true

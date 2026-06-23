@@ -119,7 +119,7 @@ h5open(outfile, "w") do f
     write(f, "N", N)
     write(f, "coupling", coupling)
     write(f, "g", g)
-    write(f, "te", te)
+    write(f, RESULT_TE, te)
     write(f, "steps", steps)
     write(f, "window", window)
     write(f, "Dmax", sim_params.Dmax)

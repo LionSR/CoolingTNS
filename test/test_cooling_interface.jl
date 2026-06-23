@@ -269,7 +269,10 @@ using HDF5
         @test CoolingTNS.RESULT_MODE_HK_STDERR == "mode_hk_stderr"
         @test CoolingTNS.RESULT_MODE_NK_STDERR == "mode_nk_stderr"
         @test CoolingTNS.RESULT_DELTA_LIST == "delta_list"
+        @test CoolingTNS.RESULT_TE == "te"
         @test CoolingTNS.RESULT_TE_LIST == "te_list"
+        @test CoolingTNS.RESULT_INIT_STATE == "init_state"
+        @test CoolingTNS.RESULT_INIT_THETA == "theta"
         @test CoolingTNS.RESULT_REQUESTED_STEPS == "requested_steps"
         @test CoolingTNS.RESULT_COMPLETED_STEPS == "completed_steps"
         @test CoolingTNS.RESULT_STOP_REASON == "stop_reason"
@@ -292,6 +295,9 @@ using HDF5
         @test CoolingTNS.RESULT_MODE_HK_STDERR in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_MODE_NK_STDERR in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_DELTA_LIST in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_TE in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_INIT_STATE in CoolingTNS.RESULT_KEYS
+        @test CoolingTNS.RESULT_INIT_THETA in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_REQUESTED_STEPS in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_COMPLETED_STEPS in CoolingTNS.RESULT_KEYS
         @test CoolingTNS.RESULT_STOP_REASON in CoolingTNS.RESULT_KEYS

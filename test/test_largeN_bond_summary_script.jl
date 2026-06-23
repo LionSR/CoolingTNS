@@ -79,10 +79,10 @@ function write_split_trajectory_summary_file(
     h5open(path, "w") do f
         write(f, "Dmax", 8)
         write(f, "steps", 4)
-        write(f, "te", Float64(te))
+        write(f, CoolingTNS.RESULT_TE, Float64(te))
         write(f, CoolingTNS.RESULT_RANDOMIZE_TIMES, randomize_times)
-        write(f, "init_state", String(init_state))
-        write(f, "theta", Float64(theta))
+        write(f, CoolingTNS.RESULT_INIT_STATE, String(init_state))
+        write(f, CoolingTNS.RESULT_INIT_THETA, Float64(theta))
         write(f, LARGE_N_EVOLUTION_METHOD_KEY, "continuous")
         write(f, CoolingTNS.RESULT_SCHEDULE, "descending")
         gn = create_group(f, "N4")
@@ -245,10 +245,10 @@ end
     try
         h5open(path, "w") do f
             write(f, "Dmax", 12)
-            write(f, "te", 1.25)
+            write(f, CoolingTNS.RESULT_TE, 1.25)
             write(f, CoolingTNS.RESULT_RANDOMIZE_TIMES, false)
-            write(f, "init_state", "product")
-            write(f, "theta", 0.0)
+            write(f, CoolingTNS.RESULT_INIT_STATE, "product")
+            write(f, CoolingTNS.RESULT_INIT_THETA, 0.0)
             write(f, LARGE_N_EVOLUTION_METHOD_KEY, "continuous")
             write(f, CoolingTNS.RESULT_SCHEDULE, "descending")
             gn = create_group(f, "N4")
