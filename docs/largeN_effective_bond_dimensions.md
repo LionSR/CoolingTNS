@@ -1565,3 +1565,39 @@ It does not improve the cooling prefix: the stopped energy density is
 `1.00873665`, worse than the corresponding `te = 1.0` stopped value
 `0.84528025`.  At this fixed descending schedule, smaller `te` is therefore a
 cap-delay mechanism rather than a route to the ground state.
+
+## Near-Ground Initial-State Control
+
+The large-`N` driver also supports a near-ground control through
+`--init-state ground`.  This does not load a restarted trajectory from HDF5.
+It reuses the system ground state already computed by `setup_problem`: the
+DMRG MPS stored in the TN `CoolingProblem`, or the exact ground vector stored
+in the ED `CoolingProblem`.  For density-matrix methods the initial system
+state is the corresponding pure ground-state density operator.
+
+This option is intended for the benchmark question raised by the capped
+product-state runs: does the cooling channel and its system-bath evolution
+still generate large bond dimensions when the system is already near the
+ground-state reference?  A stable `--init-state ground` trajectory would be a
+channel-preservation and bond-growth control; it would not show that the same
+protocol can cool a generic product state to the ground state.  Conversely,
+large bond growth or energy drift from this control would indicate that the
+channel/evolution path itself is a bottleneck.
+
+A representative command for the current best capped schedule is
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 10 --methods mcwf \
+  --evolution-method continuous --steps 12 --Dmax 128 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending --init-state ground \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+Generated HDF5 filenames include `_initground`, and the HDF5 metadata records
+`init_state = "ground"`, so these controls cannot be confused with the default
+product-state cooling runs.

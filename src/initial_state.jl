@@ -19,7 +19,8 @@ Direct dispatch implementation for initial state setup.
 
 For `init_type == "theta"`, `theta` is the dimensionless code parameter
 `theta_code`. The corresponding physical product-state angle is
-`initial_product_angle(theta_code)`.
+`initial_product_angle(theta_code)`. For `init_type == "ground"`, the initial
+state is the system ground state already stored in `problem`.
 """
 
 # Generic fallback
@@ -38,7 +39,7 @@ function _reject_identity_for_mcwf(init_type::String)
         throw(ArgumentError(
             "init_type=\"identity\" denotes the maximally mixed density matrix " *
             "and is not a single MonteCarloWavefunction state. Use DensityMatrix() " *
-            "or choose a pure initial state such as \"product\" or \"theta\"."
+            "or choose a pure initial state such as \"product\", \"theta\", or \"ground\"."
         ))
     end
     return init_type
@@ -125,6 +126,12 @@ function create_theta_state_ed(N::Int, init_type::String, theta::Float64)::EDSta
             "init_type=\"identity\" is a density matrix initial state."
         ))
     end
+    if init_type == "ground"
+        throw(ArgumentError(
+            "create_theta_state_ed cannot construct init_type=\"ground\" without " *
+            "a CoolingProblem ground-state reference. Use setup_initial_state instead."
+        ))
+    end
 
     if init_type != "theta"
         # Default product state - all zeros |00...0⟩
@@ -158,7 +165,9 @@ function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::Uni
     ϕ₀ = problem.ϕ₀
     sites_sys = siteinds(ϕ₀)
 
-    if init_type == "theta"
+    if init_type == "ground"
+        ψ_s = deepcopy(problem.ϕ₀)
+    elseif init_type == "theta"
         ψ_s = _theta_product_mps(sites_sys, theta)
     else
         ψ_s = MPS(sites_sys, "Up")
@@ -172,7 +181,11 @@ function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::Uni
     init_type = _reject_identity_for_mcwf(init_type)
 
     N = problem.extra.ham_params.N
-    state = create_theta_state_ed(N, init_type, theta)
+    state = if init_type == "ground"
+        EDStateVector(copy(problem.ϕ₀.data), problem.ϕ₀.n_qubits)
+    else
+        create_theta_state_ed(N, init_type, theta)
+    end
     return QuantumState(problem.backend, sim_params.sim_method, sim_params.evolution_method, state)
 end
 
@@ -190,6 +203,9 @@ function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::Uni
     if init_type == "identity"
         ρ_s = MPO(sites_sys, "Id")
         ρ_s = ρ_s / (2.0^length(sites_sys))
+    elseif init_type == "ground"
+        ψ_s = deepcopy(problem.ϕ₀)
+        ρ_s = outer(ψ_s', ψ_s)
     elseif init_type == "theta"
         ψ_s = _theta_product_mps(sites_sys, theta)
         ρ_s = outer(ψ_s', ψ_s)
@@ -208,6 +224,8 @@ function setup_initial_state(problem::CoolingProblem{EDBackend}, sim_params::Uni
 
     if init_type == "identity"
         ρ = maximally_mixed_ed(N)
+    elseif init_type == "ground"
+        ρ = state_to_density_ed(problem.ϕ₀)
     else
         ψ = create_theta_state_ed(N, init_type, theta)
         ρ = state_to_density_ed(ψ)

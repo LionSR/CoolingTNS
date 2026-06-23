@@ -59,7 +59,8 @@ function canonical_initial_state_name(init_state::AbstractString)
     token == "product" && return "product"
     token == "theta" && return "theta"
     token == "identity" && return "identity"
-    error("Unknown initial state: $init_state. Use 'product', 'theta', or 'identity'")
+    token == "ground" && return "ground"
+    error("Unknown initial state: $init_state. Use 'product', 'theta', 'identity', or 'ground'")
 end
 
 """
@@ -84,8 +85,8 @@ end
     normalize_initial_state_args!(parsed_args)
 
 Canonicalize the initial-state command-line field in-place when present. The
-stored value remains a string, but it is one of `product`, `theta`, or
-`identity` before validation or metadata serialization.
+stored value remains a string, but it is one of `product`, `theta`, `identity`,
+or `ground` before validation or metadata serialization.
 """
 function normalize_initial_state_args!(parsed_args)
     haskey(parsed_args, "init_state") &&
