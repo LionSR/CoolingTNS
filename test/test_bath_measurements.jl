@@ -136,9 +136,7 @@ using LinearAlgebra
 
         ρ_sys = MPO(sites_sys, "Id") / 2.0^N
         ρ_sb = CoolingTNS.appendzeros_MPO(ρ_sys, sites_sb, "XX")
-        ρ_bath = CoolingTNS._canonical_reduced_density_mpo(
-            CoolingTNS.partial_trace_system(ρ_sb, sites_sb, sites_bath)
-        )
+        ρ_bath = CoolingTNS._reduced_bath_density_mpo(ρ_sb, sites_sb, N)
 
         tn_dm_state = CoolingTNS.QuantumState(
             CoolingTNS.TNBackend(),
@@ -150,6 +148,59 @@ using LinearAlgebra
         @test CoolingTNS.compute_bath_magnetization(
             CoolingTNS.TNBackend(), tn_dm_state, ρ_bath, sites_bath
         ) ≈ -1.0
+    end
+
+    @testset "TN reduced density entry points share system convention" begin
+        N = 2
+        backend = CoolingTNS.TNBackend()
+        ham_params = CoolingTNS.IsingParameters(N, 1.0, -2.0)
+        coupling_params = CoolingTNS.BasicCouplingParameters("XX", 0.0, 1, 0.2, 1.0)
+        sim_params = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.DensityMatrix(),
+            CoolingTNS.TrotterEvolution();
+            Dmax=20,
+            cutoff=1e-10,
+            tau=0.1,
+        )
+
+        problem = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params)
+        state0 = CoolingTNS.setup_initial_state(problem, sim_params, "identity", 0.0)
+        ρ_sb = CoolingTNS.prepare_combined_state(problem, state0)
+        sites = problem.extra.sites
+        sites_bath = CoolingTNS.interleaved_bath_indices(sites, N)
+
+        expected_system = CoolingTNS._reduced_system_density_mpo(ρ_sb, sites, N)
+        expected_system_matrix = test_mpo_to_matrix(expected_system)
+
+        state1, bath_mag = CoolingTNS.process_bath_and_update(
+            problem,
+            ρ_sb,
+            state0,
+            sim_params,
+        )
+        processed_system, bath_info = CoolingTNS.process_bath(
+            backend,
+            CoolingTNS.DensityMatrix(),
+            ρ_sb,
+            N,
+            N,
+        )
+        traced_system = CoolingTNS.trace_out_bath(backend, ρ_sb, N, N)
+        expected_bath = CoolingTNS._reduced_bath_density_mpo(ρ_sb, sites, N)
+        expected_bath_mag = CoolingTNS.compute_bath_magnetization(
+            backend,
+            state0,
+            expected_bath,
+            sites_bath,
+        )
+
+        @test test_mpo_to_matrix(state1.state) ≈ expected_system_matrix atol=1e-12
+        @test test_mpo_to_matrix(processed_system) ≈ expected_system_matrix atol=1e-12
+        @test test_mpo_to_matrix(traced_system) ≈ expected_system_matrix atol=1e-12
+        @test bath_info === nothing
+        @test bath_mag ≈ expected_bath_mag atol=1e-12
+        @test ishermitian(expected_system_matrix)
+        @test tr(expected_system_matrix) ≈ 1.0 atol=1e-12
     end
 
     @testset "TN density-matrix cooling populates bath_mag_list" begin

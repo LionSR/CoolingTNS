@@ -60,10 +60,7 @@ end
 
 function process_bath(::TNBackend, ::DensityMatrix, ρ_sb::MPO, N_sys::Int, _N_bath::Int)
     sites = [siteind(ρ_sb, i) for i in eachindex(ρ_sb)]
-    sites_sys = interleaved_system_indices(sites, N_sys)
-    ρ_s = _canonical_reduced_density_mpo(
-        partial_trace_bath(ρ_sb, sites, sites_sys)
-    )
+    ρ_s = _reduced_system_density_mpo(ρ_sb, sites, N_sys)
     return ρ_s, nothing
 end
 
@@ -81,10 +78,7 @@ trace_out_bath(::EDBackend, ρ::EDDensityMatrix, N_sys::Int, _) = trace_out_bath
 
 function trace_out_bath(::TNBackend, ρ::MPO, N_sys::Int, _)
     sites = [siteind(ρ, i) for i in eachindex(ρ)]
-    sites_sys = interleaved_system_indices(sites, N_sys)
-    return _canonical_reduced_density_mpo(
-        partial_trace_bath(ρ, sites, sites_sys)
-    )
+    return _reduced_system_density_mpo(ρ, sites, N_sys)
 end
 
 # Matrix support for backward compatibility
