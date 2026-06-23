@@ -272,7 +272,9 @@ end
 """
     partial_trace_ed(ρ::EDDensityMatrix, keep_qubits::Vector{Int}) -> EDDensityMatrix
 
-Trace out all qubits except those specified in keep_qubits.
+Trace out all qubits except those specified in keep_qubits. The reduced dense
+block is returned as its Hermitian, trace-one representative, matching the TN
+MPO post-trace convention.
 """
 function partial_trace_ed(ρ::EDDensityMatrix, keep_qubits::Vector{Int})
     n_total = ρ.n_qubits

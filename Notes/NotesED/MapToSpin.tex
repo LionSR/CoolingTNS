@@ -793,13 +793,50 @@ bond-dimension truncation.
 
 \subsection{Partial Trace for Density Matrices}
 
-In the simulation of the cooling dynamics, we need to trace out bath qubits from a density matrix $\rho$ represented in the computational basis.
-Tracing out the $k$-th qubit corresponds to summing subblocks of the density matrix. For example, to trace out the first qubit, you partition $\rho$ into four blocks based on the state of the first qubit:
+In the simulation of the cooling dynamics, we need to trace out bath qubits
+from a density matrix \(\rho\) represented in the computational basis.  In the
+dense ED implementation the system-bath basis is interleaved,
+\[
+    \ket{s_1,b_1,s_2,b_2,\ldots,s_N,b_N},
+\]
+so tracing out the bath keeps the odd sites
+\(\{1,3,\ldots,2N-1\}\), while tracing out the system keeps the even sites
+\(\{2,4,\ldots,2N\}\).  More generally, if \(K\) is the ordered set of kept
+qubits and \(T\) is the ordered set of traced qubits, the reduced matrix is
+computed as
+\begin{equation}
+    (\tr_T \rho)_{ij}
+    =
+    \sum_{\alpha}
+    \rho_{I(i,\alpha;K,T),\, I(j,\alpha;K,T)} ,
+    \label{eq:ed_partial_trace_index}
+\end{equation}
+where \(I(i,\alpha;K,T)\) is the full computational-basis index obtained by
+placing the kept bitstring \(i\) on \(K\) and the traced bitstring \(\alpha\)
+on \(T\).  This is the map implemented by
+\texttt{partial\_trace\_ed} and \texttt{construct\_index}.
+
+For example, tracing out the first qubit corresponds to summing subblocks of
+the density matrix.  One partitions \(\rho\) into four blocks according to the
+state of that qubit:
 \begin{equation}
     \rho = \begin{pmatrix} \rho_{00} & \rho_{01} \\ \rho_{10} & \rho_{11} \end{pmatrix}.
 \end{equation}
-The traced-out matrix is $\rho' = \rho_{00} + \rho_{11}$. This can be done iteratively for all bath qubits.
-For large numbers of bath qubits, this can be implemented without loops using clever indexing in MATLAB or Python, by identifying the indices that need to be summed together.
+The traced-out matrix is \(\rho'=\rho_{00}+\rho_{11}\).
+
+In exact arithmetic, the partial trace of a density matrix is Hermitian and
+has trace one.  The dense ED code therefore represents the reduced block by
+the numerical representative
+\begin{equation}
+    \rho_{\mathrm{red}}^{\mathrm{num}}
+    =
+    \frac{\frac12(\rho_{\mathrm{red}}+\rho_{\mathrm{red}}^\dagger)}
+         {\tr\!\left[\frac12(\rho_{\mathrm{red}}+\rho_{\mathrm{red}}^\dagger)\right]} .
+    \label{eq:ed_reduced_density_canonicalization}
+\end{equation}
+This Hermitian, trace-one representative removes roundoff-level
+anti-Hermitian components introduced by finite-precision arithmetic; it does
+not define a different cooling channel.
 
 \subsection{Sampling for Quantum Trajectories}
 
