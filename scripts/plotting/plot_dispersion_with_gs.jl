@@ -1,5 +1,5 @@
 """
-Plot energy dispersion ε_k and a BdG raw Fourier reference occupation.
+Plot energy dispersion ε_k and a BdG raw Fourier reference occupation ``\\tilde n_k``.
 
 Standalone plotting script. Usage:
     julia --project=. scripts/plotting/plot_dispersion_with_gs.jl
@@ -17,7 +17,7 @@ const _COOLINGTNS_PLOT_DISPERSION_WITH_GS_INCLUDED = true
     plot_dispersion_with_ground_state(N, J, h, bc; delta=nothing, save_fig=true, filename=nothing)
 
 Plot the energy dispersion epsilon_k vs k and the parity-unconstrained BdG raw
-Fourier occupation reference for the transverse-field Ising model.
+Fourier occupation reference ``\\tilde n_k`` for the transverse-field Ising model.
 Here `bc` denotes the fermionic boundary condition used for the plotted
 momentum grid.  The occupation reference is not necessarily the fixed-parity
 sector ground state.
