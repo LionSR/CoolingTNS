@@ -449,9 +449,16 @@ With the relabeled Fourier sign used in the code one instead writes
 \(\tilde n_k^{\mathrm{code}}=\tilde n_{-k}\), equivalently replacing
 \(e^{i(m-n)\phi_k}\) in \cref{eq:raw_fourier_occupation} by
 \(e^{i(n-m)\phi_k}\).  This is only a relabeling of the momentum grid, but it
-must not be hidden in the notation.  In the Bogoliubov vacuum,
+must not be hidden in the notation.  In the chosen-operator vacuum,
 \(\tilde n_k=\sin^2\varphi_k\) for generic modes, whereas
 \(n_k^{\mathrm{Bog}}=0\) and \(\langle h_k\rangle=-1\).
+The separate dashed reference used in the raw-Fourier plots is the
+parity-unconstrained, mode-wise energy-minimizing BdG reference:
+for generic modes it is again \(\sin^2\varphi_k\), while for a special mode
+it has \(\tilde n_k^{\mathrm{ref}}=1\) if \(w_k<0\),
+\(\tilde n_k^{\mathrm{ref}}=0\) if \(w_k>0\), and \(1/2\) at exact
+degeneracy.  This reference is not, in general, the fixed-parity sector
+ground-state occupation.
 The energy reconstruction uses \(h_k\) and the signed coefficient
 \(\operatorname{coeff}_k\), not the expression \(\epsilon_k\tilde n_k\).
 The individual observables \(h_k\) and the signed coefficients
@@ -651,7 +658,7 @@ More generally, in a fixed parity sector $P=\pm 1$ the fermionic boundary condit
 \begin{align}
     H_{\mathrm{spin}}^{g_F} = \frac{1}{2}\sum_{k\in\mathrm{grid}(g_F)} \operatorname{coeff}_k\, h_k,
 \end{align}
-with $\operatorname{coeff}_k=\epsilon_k$ for generic modes and $\operatorname{coeff}_k=w_k$ (signed) for the special modes (when present). The Bogoliubov vacuum, defined by
+with $\operatorname{coeff}_k=\epsilon_k$ for generic modes and $\operatorname{coeff}_k=w_k$ (signed) for the special modes (when present). The chosen-operator vacuum, defined by
 \begin{align}
     \hat{a}_k\ket{0} = 0 \quad \text{for all } k,
 \end{align}
@@ -659,7 +666,7 @@ has $\langle h_k\rangle=-1$ for all modes (with the special modes unoccupied), a
 \begin{align}
     E_{\mathrm{vac}}^{g_F} = -\frac{1}{2}\sum_{k\in\mathrm{grid}(g_F)} \operatorname{coeff}_k.
 \end{align}
-For $g_F=-1$ (half-integer $k$ grid) there are no special modes and this reduces to $E_{\mathrm{vac}}^{g_F=-1}=-\sum_{k=1/2}^{(N-1)/2}\epsilon_k$. For $g_F=+1$ (integer $k$ grid) the special modes contribute $\operatorname{coeff}_0=w_0$ and $\operatorname{coeff}_{N/2}=w_{N/2}$ (signed). In a fixed parity sector the true sector ground state can differ from the Bogoliubov vacuum when the allowed fermion parity requires occupying one or more modes; this distinction is tested against exact diagonalization in the code.
+For $g_F=-1$ (half-integer $k$ grid) there are no special modes and this reduces to $E_{\mathrm{vac}}^{g_F=-1}=-\sum_{k=1/2}^{(N-1)/2}\epsilon_k$. For $g_F=+1$ (integer $k$ grid) the special modes contribute $\operatorname{coeff}_0=w_0$ and $\operatorname{coeff}_{N/2}=w_{N/2}$ (signed). Thus, if a special-mode coefficient is negative, the parity-unconstrained energy-minimizing assignment has $\langle h_k\rangle=+1$ for that mode, not the vacuum value $-1$. In a fixed parity sector the true sector ground state can differ from both the chosen-operator vacuum and the parity-unconstrained BdG reference when the allowed fermion parity requires or forbids occupying one or more modes; this distinction is tested against exact diagonalization in the code.
 
 Let $E_0^{\mathrm{even}}$ and $E_0^{\mathrm{odd}}$ denote the lowest energies in the even and odd parity sectors, respectively.
 There are two distinct energy gaps:

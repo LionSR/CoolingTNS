@@ -29,11 +29,10 @@ and the generic-mode raw Fourier reference
 coordinates by ``U†``; after this rotation, the JW operators above are evaluated
 as notes-basis Pauli strings.
 
-With this convention, ``⟨ã†_k ã_k⟩`` measured on a sector whose ground state is
-the paired-mode Bogoliubov vacuum matches the analytical prediction
+With this convention, ``⟨ã†_k ã_k⟩`` measured in the chosen-operator vacuum
+on a half-integer grid matches the analytical prediction
 ``tilde n_k^{ref} = sin²(varphi_k)`` for generic modes, where ``varphi_k`` is
-the Bogoliubov angle, not the momentum angle
-``φ_k = 2πk/N``.
+the Bogoliubov angle, not the momentum angle ``φ_k = 2πk/N``.
 
 # Note on the minus sign
 
@@ -385,9 +384,15 @@ operator for mode ``k``.
 
 # Returns
 - `Float64`: The dimensionless Bogoliubov mode observable, in the range [-1, +1].
-  - ``⟨h_k⟩ = -1``: mode is in its ground state (Bogoliubov vacuum)
-  - ``⟨h_k⟩ = +1``: mode is maximally excited
+  - ``⟨h_k⟩ = -1``: zero occupation of the chosen mode operator
+  - ``⟨h_k⟩ = +1``: unit occupation of the chosen mode operator
   - ``⟨h_k⟩ = 0``: mode is in an equal mixture (e.g., infinite temperature)
+
+For generic modes the signed energy coefficient is positive, so ``⟨h_k⟩=-1``
+is also the mode-wise energy minimum. For integer-grid special modes the
+coefficient is the signed ``w_k``; if ``w_k<0``, the mode-wise
+energy-minimizing value is instead ``⟨h_k⟩=+1`` when the spin-parity sector
+allows that occupation.
 
 # Method
 1. Rotates the state from the code basis (ZZ + X) to the notes basis (XX + Z)

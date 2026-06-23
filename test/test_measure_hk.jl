@@ -3,7 +3,7 @@ Tests for Bogoliubov mode-observable measurement
 (measure_hk, measure_all_mode_observables, measure_state_parity).
 
 These tests verify that:
-1. The ground state has ⟨h_k⟩ = -1 for all modes (Bogoliubov vacuum)
+1. The even half-integer-grid ground state has ⟨h_k⟩ = -1 for all modes
 2. Excited states have ⟨h_k⟩ > -1 for the excited mode
 3. Total energy from mode decomposition matches ⟨H⟩
 4. Signed mode coefficients reconstruct the ground-state energy
@@ -237,7 +237,7 @@ end
         end
     end
 
-    @testset "Ground state h_k = -1 (N=$N)" for N in [4, 6]
+    @testset "Even-sector ground state has h_k = -1 (N=$N)" for N in [4, 6]
         J, h = 1.0, 0.5
         θ = theta_from_Jh(J, h)
         ham_params = IsingParameters(N, J, h, :periodic)
@@ -255,7 +255,7 @@ end
         end
     end
 
-    @testset "Ground state h_k = -1, odd sector (N=$N)" for N in [4, 6]
+    @testset "Odd-sector ground state occupies one special mode (N=$N)" for N in [4, 6]
         J, h = 1.0, 0.5
         θ = theta_from_Jh(J, h)
         Λ = energy_scale(J, h)
@@ -263,14 +263,14 @@ end
         H = _build_H(N, J, h, :periodic)
 
         # Odd parity sector (Px=-1) → gF=+1 (integer k, with special modes)
-        # The odd-sector GS is NOT the Bogoliubov vacuum (which has Nf=0, even parity).
+        # The odd-sector GS is not the chosen-operator vacuum (which has Nf=0, even parity).
         # It has one quasiparticle excited in the cheapest special mode.
         E_gs_odd, ψ_gs_odd = _find_gs_in_sector(H, N, -1)
         gs_odd = EDStateVector(ψ_gs_odd, N)
         gF = fermionic_bc(:periodic, -1)  # gF = +1
         ks = allowed_k_indices(N, gF)
 
-        # Most modes should have h_k = -1 (still in vacuum for that mode)
+        # Most modes should have h_k = -1 (zero occupation of that mode)
         # One special mode should have h_k = +1 (occupied)
         hk_vals = Dict{Any, Float64}()
         for k in ks

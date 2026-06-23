@@ -704,7 +704,14 @@ end
 """
     vacuum_energy(N, θ, gF) -> E_vac
 
-Bogoliubov vacuum energy in notes units: ``E_vac = -(1/2) Σ_k coeff_k``.
+Chosen-operator vacuum energy in notes units:
+``E_vac = -(1/2) Σ_k coeff_k``.
+
+This is the energy of the reference with ``h_k=-1`` for every mode. On integer
+grids with a special-mode coefficient ``w_k<0``, the parity-unconstrained
+mode-wise energy minimum fills that special mode instead, so this reference is
+not always the same as `compute_bdg_reference_occupation` or as a fixed-sector
+ground state.
 
 For ``g_F = -1`` (half-integer k, no special modes):
 ``E_vac = -Σ_{k=1/2}^{(N-1)/2} ε_k``.
@@ -720,7 +727,7 @@ end
 """
     vacuum_energy_Jh(N, J, h, gF) -> E_vac
 
-Bogoliubov vacuum energy in code units.
+Chosen-operator vacuum energy in code units.
 """
 function vacuum_energy_Jh(N, J, h, gF)
     θ = theta_from_Jh(J, h)

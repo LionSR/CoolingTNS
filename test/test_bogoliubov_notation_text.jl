@@ -55,6 +55,8 @@ using Test
     @test occursin("The returned ``tilde n_k`` is instead the Fourier correlator sum over ``⟨a_m^†a_n⟩``", joined_flat)
     @test occursin("Compatibility wrapper for [`measure_raw_fourier_occupation_ed`](@ref)", joined)
     @test occursin("New code should prefer `measure_raw_fourier_occupation_ed`", joined_flat)
+    @test occursin("zero occupation of the chosen mode operator", joined_flat)
+    @test occursin("if ``w_k<0``, the mode-wise energy-minimizing value is instead ``⟨h_k⟩=+1``", joined_flat)
 
     forbidden = [
         "(ε_k, n_k, ⟨h_k⟩)",
@@ -71,6 +73,7 @@ using Test
         "compute_bogoliubov_" * "vacuum_occupation",
         "equal to the Bogoliubov-vacuum expectation",
         "not necessarily the strict all-quasiparticle-empty",
+        "``⟨h_k⟩ = -1``: mode is in its ground state",
         raw"\tilde n_k^" * raw"{\mathrm{GS}}",
         raw"\tilde n_k^" * raw"{\mathrm{BdG\,vac}}",
     ]

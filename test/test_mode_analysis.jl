@@ -340,6 +340,8 @@ end
         @test file_contains(cooling_tn_path, raw"\operatorname{coeff}_k")
         @test file_contains(cooling_tn_path, raw"ground state within a fixed spin-parity sector need not have")
         @test file_contains(cooling_tn_path, raw"$\langle h_q\rangle=+1$")
+        @test file_contains(cooling_tn_path, raw"zero occupation of the chosen mode")
+        @test file_contains(cooling_tn_path, raw"special mode with $w_k<0$ the energy contribution is minimized by")
         @test file_contains(cooling_tn_path, raw"APBC")
         @test file_contains(cooling_tn_path, raw"integer-grid cases")
         @test file_contains(cooling_tn_path, raw"\tan(2\varphi_k)&=\frac{r_k}{w_k}")
@@ -355,6 +357,9 @@ end
         @test file_contains(cooling_tn_path, raw"\tilde a^{\mathrm{code}}_k")
         @test file_contains(cooling_tn_path, raw"=\tilde a^{\mathrm{notes}}_{-k}")
         @test file_contains(cooling_tn_path, raw"r^{\mathrm{code}}_k&=+\cos\theta\sin\phi_k")
+        @test file_contains(note_path, raw"parity-unconstrained, mode-wise energy-minimizing BdG reference")
+        @test file_contains(note_path, raw"\tilde n_k^{\mathrm{ref}}=1")
+        @test file_contains(note_path, raw"the true sector ground state can differ from both the chosen-operator vacuum")
         @test file_contains(cooling_tn_path, raw"M_{\mathrm{TDVP}}=\left\lceil \frac{t_e}{\tau}\right\rceil")
         @test file_contains(cooling_tn_path, raw"\label{eq:TDVPKrylovExpansion}")
         @test file_contains(cooling_tn_path, raw"\mathcal{K}_m(H_{SB},\ket{\Psi_0})")
@@ -649,7 +654,7 @@ end
         @test evals_code ≈ Λ * evals_notes atol=1e-10
     end
 
-    @testset "Vacuum energy matches ED ground state (N=$N, bc=$bc)" for
+    @testset "Chosen-operator vacuum energy matches even-sector ED ground state (N=$N, bc=$bc)" for
             N in [4, 6], bc in [:periodic]
 
         J, h = 1.0, 0.5
@@ -662,17 +667,17 @@ end
 
         @test norm(H_code * Px - Px * H_code) < 1e-10  # [H, Px] = 0
 
-        # Even parity sector (Px=+1) → gF=-1 (half-integer k, no special modes)
-        # The Bogoliubov vacuum has Nf=0 (even) → lives in the even sector.
+        # Even parity sector (Px=+1) → gF=-1 (half-integer k, no special modes).
+        # Here the chosen-operator vacuum has Nf=0 and is the sector ground state.
         gF_even = fermionic_bc(bc, 1)
         E_gs_even, _ = _test_gs_in_sector(H_code, Px, 1)
         E_vac_even = vacuum_energy_Jh(N, J, h, gF_even)
         @test E_gs_even ≈ E_vac_even atol=1e-10
 
-        # Odd parity sector (Px=-1) → gF=+1 (integer k, with special modes)
-        # The Bogoliubov vacuum has Nf=0 (even), so it does NOT live in the odd sector.
-        # The odd-sector GS is the vacuum + cheapest single-fermion excitation,
-        # which is occupying the special mode with the lowest w_k.
+        # Odd parity sector (Px=-1) → gF=+1 (integer k, with special modes).
+        # The chosen-operator vacuum has Nf=0, so it does not live in the odd sector.
+        # The odd-sector GS is obtained by occupying the special mode with the
+        # lowest signed w_k.
         # When w_k < 0, occupying that mode LOWERS the energy below E_vac.
         gF_odd = fermionic_bc(bc, -1)
         E_gs_odd, _ = _test_gs_in_sector(H_code, Px, -1)
@@ -702,7 +707,7 @@ end
         # Mode energies (code units)
         ε_modes = [mode_energy_Jh(Float64(k), J, h, N) for k in ks if Float64(k) > 0]
 
-        # In the even sector, the Bogoliubov vacuum is the GS.
+        # In the even half-integer-grid sector, the chosen-operator vacuum is the GS.
         # Excited states are obtained by creating quasiparticle pairs.
         # The smallest excitation gap within the sector should be 2ε_min
         # (creating a pair in the lowest mode).

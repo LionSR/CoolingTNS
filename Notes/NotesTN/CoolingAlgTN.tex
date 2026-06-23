@@ -325,7 +325,7 @@ routines store the individual Bogoliubov mode observable
 \end{equation}
 This $n_k^{\mathrm{Bog}}$ is the quasiparticle occupation; it is not the raw
 momentum occupation $\langle\tilde a_k^\dagger\tilde a_k\rangle$, which equals
-$\sin^2\varphi_k$ in the Bogoliubov vacuum for generic modes.  The exact energy
+$\sin^2\varphi_k$ in the chosen-operator vacuum for generic modes.  The exact energy
 reconstruction used to compare ED and tensor-network results is
 \begin{align}
 	\langle H_{\mathrm{code}}\rangle
@@ -341,6 +341,10 @@ reconstruction used to compare ED and tensor-network results is
 The signed special-mode coefficient $w_k$ is essential.  Replacing it by
 $|w_k|$, or writing a mode contribution as $\epsilon_k n_k$ without specifying
 which occupation is meant, gives a different quantity.
+Equivalently, $\langle h_k\rangle=-1$ means zero occupation of the chosen mode
+operator.  For generic modes this is the mode-wise energy minimum, but for a
+special mode with $w_k<0$ the energy contribution is minimized by
+$\langle h_k\rangle=+1$ if the spin-parity sector permits that occupation.
 On an integer fermionic grid, this signed convention also means that the
 ground state within a fixed spin-parity sector need not have
 $\langle h_k\rangle=-1$ for every mode.  If a special-mode coefficient $w_q$
