@@ -944,8 +944,8 @@ function perform_backend_measurements!(measurements, step::Int, problem::Cooling
         measurements[RESULT_GROUND_STATE_OVERLAP][step] = abs2(inner(ψ_s, ϕ₀))
     else
         @warn "Skipping measurement due to dimension mismatch"
-        measurements[RESULT_ENERGY][step] = measurements[RESULT_ENERGY][step-1]
-        measurements[RESULT_GROUND_STATE_OVERLAP][step] = measurements[RESULT_GROUND_STATE_OVERLAP][step-1]
+        measurements[RESULT_ENERGY][step] = NaN
+        measurements[RESULT_GROUND_STATE_OVERLAP][step] = NaN
     end
 
     if haskey(measurements, RESULT_BATH_SAMPLE_MAGNETIZATION) && bath_info !== nothing
