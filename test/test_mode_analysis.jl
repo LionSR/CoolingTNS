@@ -6,7 +6,8 @@ These tests verify that:
 1. The parameter mapping between (J,h) and θ is correct and invertible
 2. The analytic mode energies match ED eigenvalue gaps
 3. The vacuum energy matches the ED ground state energy in the correct parity sector
-4. The JW convention gives the correct n_k matching Bogoliubov predictions
+4. The JW convention gives the correct raw Fourier occupation matching
+   Bogoliubov predictions
 5. The fermionic boundary conditions are correctly determined from spin BC and parity
 """
 
@@ -802,7 +803,7 @@ end
         @test sort(predicted) ≈ sort(ed_sector) atol=1e-8
     end
 
-    @testset "n_k from JW matches Bogoliubov prediction (N=$N)" for N in [4, 6]
+    @testset "Raw Fourier occupation from JW matches Bogoliubov prediction (N=$N)" for N in [4, 6]
         J, h = 1.0, 0.5
         θ = theta_from_Jh(J, h)
         Λ = energy_scale(J, h)
@@ -829,7 +830,7 @@ end
             end
             nk_measured = real(nk)
 
-            # Bogoliubov prediction: n_k = sin²(varphi_bogo)
+            # Bogoliubov prediction: tilde n_k = sin²(varphi_bogo)
             varphi_bogo = bogoliubov_angle(Float64(k), θ, N)
             nk_pred = sin(varphi_bogo)^2
 

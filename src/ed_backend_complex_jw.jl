@@ -92,8 +92,8 @@ end
 _expect_amdag_an(ψ::EDStateVector, a_m_dag, a_n) = dot(ψ.data, a_m_dag * a_n * ψ.data)
 _expect_amdag_an(ρ::EDDensityMatrix, a_m_dag, a_n) = tr(ρ.data * a_m_dag * a_n)
 
-function _measure_momentum_distribution_ed_clean(state, ham_params; gF=nothing)
-    require_ising_fourier_observables(ham_params; observable="ED momentum distribution")
+function _measure_raw_fourier_occupation_ed(state, ham_params; gF=nothing)
+    require_ising_fourier_observables(ham_params; observable="ED raw Fourier occupation")
     N = ham_params.N
 
     # Determine k-grid: parity-aware if gF not specified
@@ -102,14 +102,14 @@ function _measure_momentum_distribution_ed_clean(state, ham_params; gF=nothing)
         sector = _reference_parity_sector_with_source(px)
         parity = sector.parity
         if sector.source === :reference
-            @warn "measure_momentum_distribution: state has no definite P_x parity " *
+            @warn "measure_raw_fourier_occupation_ed: state has no definite P_x parity " *
                   "(⟨P_x⟩ = $px); using the P_x = $parity reference grid"
         end
         gF = fermionic_bc(ham_params.bc, parity)
     end
 
     k_indices = allowed_k_indices(N, gF)
-    n_k = zeros(Float64, length(k_indices))
+    tilde_n_k = zeros(Float64, length(k_indices))
 
     # Rotate state to notes basis (JW operators are defined in computational/notes basis)
     if state isa EDStateVector
@@ -142,19 +142,19 @@ function _measure_momentum_distribution_ed_clean(state, ham_params; gF=nothing)
             nk += phase * _expect_amdag_an(notes_state, a_dag_ops[m], a_ops[n])
         end
 
-        n_k[ki] = real(nk)
+        tilde_n_k[ki] = real(nk)
     end
 
     k_momentum = [2π * Float64(k) / N for k in k_indices]
-    return k_momentum, n_k
+    return k_momentum, tilde_n_k
 end
 
 """
-    measure_momentum_distribution_ed_clean(state, ham_params; gF=nothing) -> (k_values, n_k)
+    measure_raw_fourier_occupation_ed(state, ham_params; gF=nothing) -> (k_values, tilde_n_k)
 
 Compute the Fourier-fermion occupation ``tilde n_k = ⟨ã_k^† ã_k⟩`` using
-the complex Jordan–Wigner mapping (notes convention). The returned array is
-named ``n_k`` by the existing API.
+the complex Jordan–Wigner mapping (notes convention). This is the raw Fourier
+occupation, not the Bogoliubov quasiparticle occupation ``n_k^{Bog}``.
 
 With this convention, ``tilde n_k = (1 + ⟨σ_z⟩)/2`` per mode, and the
 generic-mode ground-state prediction from Bogoliubov theory is
@@ -177,11 +177,27 @@ eigenstates use their physical sector. States with no definite ``P_x`` parity
 have no unique fermionic boundary condition, so the function uses the even
 reference sector shared by the cooling diagnostics. Pass `gF=±1` to override.
 """
+measure_raw_fourier_occupation_ed(ψ::EDStateVector, ham_params; gF=nothing) =
+    _measure_raw_fourier_occupation_ed(ψ, ham_params; gF=gF)
+
+measure_raw_fourier_occupation_ed(ρ::EDDensityMatrix, ham_params; gF=nothing) =
+    _measure_raw_fourier_occupation_ed(ρ, ham_params; gF=gF)
+
+"""
+    measure_momentum_distribution_ed_clean(state, ham_params; gF=nothing) -> (k_values, tilde_n_k)
+
+Compatibility wrapper for [`measure_raw_fourier_occupation_ed`](@ref).
+
+The historical name is retained for existing callers and result-processing
+scripts. New code should prefer `measure_raw_fourier_occupation_ed`, because the
+returned quantity is the raw Fourier occupation ``tilde n_k`` and should not be
+read as the Bogoliubov occupation ``n_k^{Bog}``.
+"""
 measure_momentum_distribution_ed_clean(ψ::EDStateVector, ham_params; gF=nothing) =
-    _measure_momentum_distribution_ed_clean(ψ, ham_params; gF=gF)
+    measure_raw_fourier_occupation_ed(ψ, ham_params; gF=gF)
 
 measure_momentum_distribution_ed_clean(ρ::EDDensityMatrix, ham_params; gF=nothing) =
-    _measure_momentum_distribution_ed_clean(ρ, ham_params; gF=gF)
+    measure_raw_fourier_occupation_ed(ρ, ham_params; gF=gF)
 
 # =============================================================================
 # Basis rotation: code ↔ notes

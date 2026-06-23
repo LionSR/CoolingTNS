@@ -154,6 +154,10 @@ end
             "spin :periodic or :antiperiodic",
         )
         _test_argument_error_contains(
+            () -> measure_raw_fourier_occupation_ed(ψ4, open_ising),
+            "spin :periodic or :antiperiodic",
+        )
+        _test_argument_error_contains(
             () -> measure_momentum_distribution_ed_clean(ψ4, open_ising),
             "spin :periodic or :antiperiodic",
         )
@@ -167,6 +171,10 @@ end
             "even N",
         )
         _test_argument_error_contains(
+            () -> measure_raw_fourier_occupation_ed(ψ3, odd_ising),
+            "even N",
+        )
+        _test_argument_error_contains(
             () -> measure_momentum_distribution_ed_clean(ψ3, odd_ising),
             "even N",
         )
@@ -177,6 +185,10 @@ end
         )
         _test_argument_error_contains(
             () -> measure_hk(ψ4, 1//2, nonintegrable),
+            "integrable transverse-field Ising",
+        )
+        _test_argument_error_contains(
+            () -> measure_raw_fourier_occupation_ed(ψ4, nonintegrable),
             "integrable transverse-field Ising",
         )
         _test_argument_error_contains(
@@ -473,7 +485,7 @@ end
             run_cooling(problem, state0, coupling_params, sim_params, ham_params)
         end
 
-        k_expected, nk_expected = measure_momentum_distribution_ed_clean(ρ0, ham_params)
+        k_expected, nk_expected = measure_raw_fourier_occupation_ed(ρ0, ham_params)
 
         @test results[RESULT_MOMENTUM_GF] == fermionic_bc(:periodic, 1)
         @test results[RESULT_MOMENTUM_GF_SOURCE] == "state"
@@ -545,7 +557,7 @@ end
         @test size(results[RESULT_MOMENTUM_DISTRIBUTION], 2) == length(results[RESULT_K_VALUES])
 
         gF = results[RESULT_MOMENTUM_GF]
-        k_expected, nk_expected = measure_momentum_distribution_ed_clean(ρ0, ham_params; gF=gF)
+        k_expected, nk_expected = measure_raw_fourier_occupation_ed(ρ0, ham_params; gF=gF)
         @test results[RESULT_K_VALUES] ≈ k_expected atol=1e-12
         @test results[RESULT_MOMENTUM_DISTRIBUTION][1, :] ≈ nk_expected atol=1e-10
     end
@@ -601,9 +613,9 @@ end
         expected_k_values = [2π * Float64(k) / N for k in expected_ks]
 
         k_auto, nk_auto = @test_logs (:warn, r"no definite P_x parity") begin
-            measure_momentum_distribution_ed_clean(ρ_mix, ham_params)
+            measure_raw_fourier_occupation_ed(ρ_mix, ham_params)
         end
-        k_ref, nk_ref = measure_momentum_distribution_ed_clean(
+        k_ref, nk_ref = measure_raw_fourier_occupation_ed(
             ρ_mix,
             ham_params;
             gF=expected_gF,
@@ -622,7 +634,7 @@ end
         @test ε_auto ≈ ε_ref atol=1e-12
     end
 
-    @testset "Legacy ED n_k helper delegates to canonical JW measurement" begin
+    @testset "Raw Fourier ED helpers delegate to canonical JW measurement" begin
         N = 4; J = 1.0; h = 0.5
         for bc in [:periodic, :antiperiodic]
             ham_params = IsingParameters(N, J, h, bc)
@@ -635,11 +647,14 @@ end
 
             states = (problem.ϕ₀, state_to_density_ed(problem.ϕ₀))
             for state in states
-                k_old, nk_old = CoolingTNS.measure_momentum_distribution_ed(state, ham_params)
-                k_canon, nk_canon = measure_momentum_distribution_ed_clean(state, ham_params)
+                k_raw, tilde_n_raw = measure_raw_fourier_occupation_ed(state, ham_params)
+                k_clean, tilde_n_clean = measure_momentum_distribution_ed_clean(state, ham_params)
+                k_old, tilde_n_old = CoolingTNS.measure_momentum_distribution_ed(state, ham_params)
 
-                @test k_old ≈ k_canon atol=1e-12
-                @test nk_old ≈ nk_canon atol=1e-10
+                @test k_clean ≈ k_raw atol=1e-12
+                @test tilde_n_clean ≈ tilde_n_raw atol=1e-10
+                @test k_old ≈ k_raw atol=1e-12
+                @test tilde_n_old ≈ tilde_n_raw atol=1e-10
             end
         end
     end

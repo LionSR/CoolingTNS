@@ -1,13 +1,13 @@
 #!/usr/bin/env julia
-# Verify that measure_momentum_distribution_ed_clean now:
+# Verify that measure_raw_fourier_occupation_ed:
 # 1. Auto-detects parity and uses correct k-grid
-# 2. Rotates to notes basis before computing n_k
+# 2. Rotates to notes basis before computing tilde n_k
 # 3. Matches BdG predictions to machine precision
 using CoolingTNS, LinearAlgebra
 
 function verify_nk_fix()
     println("="^70)
-    println("VERIFICATION: measure_momentum_distribution_ed_clean fix")
+    println("VERIFICATION: measure_raw_fourier_occupation_ed")
     println("="^70)
 
     all_pass = true
@@ -24,30 +24,30 @@ function verify_nk_fix()
         ks = CoolingTNS.allowed_k_indices(N, gF)
 
         # Test auto-detection
-        k_vals, nk = CoolingTNS.measure_momentum_distribution_ed_clean(ψ0, ham_params)
+        k_vals, tilde_n_k = CoolingTNS.measure_raw_fourier_occupation_ed(ψ0, ham_params)
 
         # BdG predictions
-        nk_pred = [sin(CoolingTNS.bogoliubov_angle(Float64(k), θ_val, N))^2 for k in ks]
+        tilde_n_k_pred = [sin(CoolingTNS.bogoliubov_angle(Float64(k), θ_val, N))^2 for k in ks]
 
-        max_err = maximum(abs.(nk .- nk_pred))
+        max_err = maximum(abs.(tilde_n_k .- tilde_n_k_pred))
         pass = max_err < 1e-10
 
-        status = pass ? "✅" : "❌"
+        status = pass ? "PASS" : "FAIL"
         println("\nN=$N, θ=$(round(θ_val,digits=2)), gF=$gF: max_err=$(round(max_err,sigdigits=3)) $status")
 
         if !pass
             all_pass = false
             for (i, k) in enumerate(ks)
-                println("  k=$k: measured=$(round(nk[i],digits=6)), predicted=$(round(nk_pred[i],digits=6))")
+                println("  k=$k: measured=$(round(tilde_n_k[i],digits=6)), predicted=$(round(tilde_n_k_pred[i],digits=6))")
             end
         end
     end
 
     println("\n" * "="^70)
     if all_pass
-        println("ALL TESTS PASSED ✅")
+        println("ALL TESTS PASSED")
     else
-        println("SOME TESTS FAILED ❌")
+        println("SOME TESTS FAILED")
     end
 end
 

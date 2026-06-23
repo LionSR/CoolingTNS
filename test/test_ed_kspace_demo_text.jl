@@ -11,6 +11,7 @@ using Test
     canonical_angle = "θ = atan(h, J)"
     resonance_condition = "ε_k ≈ |δ|"
     raw_fourier_label = raw"raw Fourier occupation \\tilde n_k"
+    raw_fourier_helper = "measure_raw_fourier_occupation_ed"
     bogoliubov_label = "n_k^Bog = (1 + <h_k>)/2"
     not_raw_energy = raw"not ε_k \\tilde n_k"
     guide_canonical = "2sqrt(J^2+h^2) * sqrt(1 - sin(2θ) * cos(2π*k/N))"
@@ -33,6 +34,7 @@ using Test
     @test occursin(canonical_angle, text)
     @test occursin(resonance_condition, text)
     @test occursin(raw_fourier_label, text)
+    @test occursin(raw_fourier_helper, text)
     @test occursin(bogoliubov_label, text)
     @test occursin(not_raw_energy, text)
     @test occursin(guide_canonical, guide_text)

@@ -590,17 +590,17 @@ end
 """
     measure_momentum_distribution_ed(state::Union{EDStateVector, EDDensityMatrix}, ham_params::HamiltonianParameters)
 
-Deprecated compatibility wrapper for the canonical ED momentum-distribution
+Deprecated compatibility wrapper for the canonical ED raw-Fourier occupation
 measurement.
 
-The implementation lives in `measure_momentum_distribution_ed_clean`, which uses
-the notes-aligned complex Jordan-Wigner convention and the parity-aware
-fermionic momentum grid. Keep this name as a thin wrapper so older call sites do
-not silently use a second convention. New code should call
-`measure_momentum_distribution_ed_clean` directly.
+The implementation lives in `measure_raw_fourier_occupation_ed`, which uses the
+notes-aligned complex Jordan-Wigner convention and the parity-aware fermionic
+momentum grid. Keep this name as a thin wrapper so older call sites do not
+silently use a second convention. New code should call
+`measure_raw_fourier_occupation_ed` directly.
 """
 function measure_momentum_distribution_ed(state::Union{EDStateVector, EDDensityMatrix}, ham_params::HamiltonianParameters)
-    return measure_momentum_distribution_ed_clean(state, ham_params)
+    return measure_raw_fourier_occupation_ed(state, ham_params)
 end
 
 """
