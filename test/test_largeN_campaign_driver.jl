@@ -17,6 +17,9 @@ end
     @test_throws ErrorException parse_evolution_method_name("mcwf")
     @test_throws ErrorException parse_args(["--evolution-method", "mcwf"])
     @test_throws ErrorException parse_args(["--methods", "continuous"])
+    @test_throws ErrorException parse_args(["--Ns", ""])
+    @test_throws ErrorException parse_args(["--R-values", ","])
+    @test_throws ErrorException parse_args(["--methods", ""])
 
     default_cfg = parse_args(["--outdir", tempdir()])
     @test default_cfg["Ns"] == [64]
@@ -898,6 +901,7 @@ end
     @test_throws ErrorException parse_args(["--plan-blas-threads", "1"])
     @test_throws ErrorException parse_args(["--trajectory-index", "0"])
     @test_throws ErrorException parse_args(["--trajectory-index", "10000"])
+    @test_throws ErrorException parse_args(["--trajectory-values", ""])
     @test_throws ErrorException parse_args([
         "--methods", "mpo",
         "--trajectory-index", "2",
