@@ -242,6 +242,38 @@ end
     @test shell_word("~/tdvp data") == "'~/tdvp data'"
     @test shell_word("~/tdvp_data") == "~/tdvp_data"
 
+    trajectory_plan_cfg = parse_args([
+        "--Ns", "64",
+        "--R-values", "2",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--steps", "5",
+        "--Dmax", "96",
+        "--outdir", tempdir(),
+        "--progress-csv", joinpath(tempdir(), "traj_progress.csv"),
+        "--trajectory-values", "1,3",
+        "--print-parallel-plan",
+    ])
+    @test campaign_trajectory_values(trajectory_plan_cfg) == [1, 3]
+    trajectory_jobs = parallel_plan_configs(trajectory_plan_cfg)
+    @test length(trajectory_jobs) == 2
+    @test [job["trajectory_index"] for job in trajectory_jobs] == [1, 3]
+    @test all(job -> job["trajectory_values"] === nothing, trajectory_jobs)
+    @test all(job -> job["M_mcwf"] == 1, trajectory_jobs)
+    @test length(unique(output_path.(trajectory_jobs))) == 2
+    @test length(unique(job["progress_csv"] for job in trajectory_jobs)) == 2
+    @test occursin("_traj1_steps", output_path(trajectory_jobs[1]))
+    @test occursin("_traj3_steps", output_path(trajectory_jobs[2]))
+    @test occursin("_traj1_steps", basename(trajectory_jobs[1]["progress_csv"]))
+    @test occursin("_traj3_steps", basename(trajectory_jobs[2]["progress_csv"]))
+    trajectory_commands = parallel_plan_commands(trajectory_plan_cfg)
+    @test all(command -> occursin("--M-mcwf 1", command), trajectory_commands)
+    @test count(command -> occursin("--trajectory-index 1", command), trajectory_commands) == 1
+    @test count(command -> occursin("--trajectory-index 3", command), trajectory_commands) == 1
+    @test !any(command -> occursin("--trajectory-values", command), trajectory_commands)
+    trajectory_plan_text = sprint(io -> print_parallel_plan(trajectory_plan_cfg; io=io))
+    @test occursin("Trajectory jobs use --M-mcwf 1", trajectory_plan_text)
+
     paired_evolution_cfg = parse_args([
         "--Ns", "64",
         "--R-values", "2,5",
@@ -779,6 +811,46 @@ end
     @test_throws ErrorException parse_args(["--plan-blas-threads", "0"])
     @test_throws ErrorException parse_args(["--plan-julia-threads", "1"])
     @test_throws ErrorException parse_args(["--plan-blas-threads", "1"])
+    @test_throws ErrorException parse_args(["--trajectory-index", "0"])
+    @test_throws ErrorException parse_args(["--trajectory-index", "10000"])
+    @test_throws ErrorException parse_args([
+        "--methods", "mpo",
+        "--trajectory-index", "2",
+    ])
+    @test_throws ErrorException parse_args([
+        "--methods", "mcwf",
+        "--M-mcwf", "2",
+        "--trajectory-index", "2",
+    ])
+    @test_throws ErrorException parse_args(["--trajectory-values", "1,2"])
+    @test_throws ErrorException parse_args([
+        "--methods", "mpo",
+        "--trajectory-values", "1,2",
+        "--print-parallel-plan",
+    ])
+    @test_throws ErrorException parse_args([
+        "--methods", "mcwf",
+        "--trajectory-values", "1,1",
+        "--print-parallel-plan",
+    ])
+    @test_throws ErrorException parse_args([
+        "--methods", "mcwf",
+        "--M-mcwf", "2",
+        "--trajectory-values", "1,2",
+        "--print-parallel-plan",
+    ])
+    @test_throws ErrorException parse_args([
+        "--methods", "mcwf",
+        "--trajectory-index", "1",
+        "--trajectory-values", "2",
+        "--print-parallel-plan",
+    ])
+    @test_throws ErrorException parse_args([
+        "--methods", "mcwf",
+        "--trajectory-values", "1,2",
+        "--trajectory-index", "3",
+        "--print-parallel-plan",
+    ])
     @test_throws ErrorException parse_args([
         "--methods", "mcwf",
         "--M-mcwf", "2",
@@ -809,6 +881,7 @@ end
                 "final_bond_dims" => [4, 8],
                 "elapsed" => 1.25,
                 "seed" => largeN_trajectory_seed(20260617, 64, 2, 1),
+                "trajectory" => 1,
                 CoolingTNS.RESULT_REQUESTED_STEPS => 2,
                 CoolingTNS.RESULT_COMPLETED_STEPS => 2,
                 "stop_reason" => "",
@@ -823,6 +896,7 @@ end
                     CoolingTNS.RESULT_TE_LIST => [NaN, 0.25, 1.75],
                     "elapsed" => 1.5,
                     "seed" => largeN_trajectory_seed(20260617, 64, 2, 2),
+                    "trajectory" => 2,
                 )),
             ]
             write_run_group(
@@ -859,6 +933,7 @@ end
             @test read(g[LARGE_N_STOP_REASONS_KEY]) == [""]
             @test read(g["trajectory_seeds"]) ==
                   [largeN_trajectory_seed(20260617, 64, 2, 1)]
+            @test read(g["trajectory_indices"]) == [1]
             @test vec(read(g[LARGE_N_TDVP_SWEEP_MAX_BOND_KEY])) == [0, 6, 10]
             @test read(g[LARGE_N_TDVP_SWEEP_SATURATION_CYCLE_KEY]) == [2]
             @test read(g[CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS]) ==
@@ -873,6 +948,7 @@ end
             @test read(g_noncommon_te["trajectory_seeds"]) ==
                   [largeN_trajectory_seed(20260617, 64, 2, 1),
                    largeN_trajectory_seed(20260617, 64, 2, 2)]
+            @test read(g_noncommon_te["trajectory_indices"]) == [1, 2]
             @test isequal(read(g_noncommon_te["te_list_first_trajectory"]), [NaN, 1.0, 1.25])
             @test isequal(read(g_noncommon_te["te_lists"])[:, 2], [NaN, 0.25, 1.75])
 
@@ -911,6 +987,7 @@ end
             "final_bond_dims" => [4, 8],
             "elapsed" => 1.25,
             "seed" => 101,
+            "trajectory" => 1,
             CoolingTNS.RESULT_REQUESTED_STEPS => 2,
             CoolingTNS.RESULT_COMPLETED_STEPS => 2,
             "stop_reason" => "",
@@ -931,6 +1008,7 @@ end
                 CoolingTNS.RESULT_MODE_NK => mode_nk_2,
                 "elapsed" => 1.5,
                 "seed" => 102,
+                "trajectory" => 2,
             )),
         ]
 
@@ -954,6 +1032,7 @@ end
                 CoolingTNS.RESULT_MODE_NK => sparse_nk_2,
                 "elapsed" => 1.5,
                 "seed" => 102,
+                "trajectory" => 2,
             ))
             write_run_group(
                 f,
@@ -984,6 +1063,7 @@ end
             @test read(g[CoolingTNS.RESULT_MODE_GF]) == -1
             @test read(g[CoolingTNS.RESULT_MODE_GF_SOURCE]) == "state"
             @test read(g["trajectory_seeds"]) == [101, 102]
+            @test read(g["trajectory_indices"]) == [1, 2]
             @test size(read(g[CoolingTNS.RESULT_MODE_HK_TRAJECTORIES])) == (3, 2, 2)
             @test read(g[CoolingTNS.RESULT_MODE_HK_TRAJECTORIES])[:, :, 1] ≈ mode_hk_1
             @test read(g[CoolingTNS.RESULT_MODE_HK_TRAJECTORIES])[:, :, 2] ≈ mode_hk_2
@@ -999,6 +1079,7 @@ end
             single_nk_stderr = read(g_single[CoolingTNS.RESULT_MODE_NK_STDERR])
             @test read(g_single[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 2]
             @test read(g_single["trajectory_seeds"]) == [101]
+            @test read(g_single["trajectory_indices"]) == [1]
             @test all(isnan, single_hk[2, :])
             @test all(isnan, single_nk[2, :])
             @test all(isnan, single_hk_stderr[2, :])
@@ -1013,6 +1094,7 @@ end
             ensemble_nk_stderr = read(g_ensemble[CoolingTNS.RESULT_MODE_NK_STDERR])
             @test read(g_ensemble[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 2]
             @test read(g_ensemble["trajectory_seeds"]) == [101, 102]
+            @test read(g_ensemble["trajectory_indices"]) == [1, 2]
             @test all(isnan, ensemble_hk[2, :])
             @test all(isnan, ensemble_nk[2, :])
             @test all(isnan, ensemble_hk_stderr[2, :])
@@ -1238,6 +1320,7 @@ end
             "--init-state", "theta",
             "--theta", "0.0",
             "--measure-modes",
+            "--trajectory-index", "3",
             "--outdir", dir,
             "--output", output,
         ])
@@ -1289,7 +1372,8 @@ end
             @test read(g[CoolingTNS.RESULT_MODE_GF]) == -1
             @test read(g[CoolingTNS.RESULT_MODE_GF_SOURCE]) == "state"
             @test read(g["trajectory_seeds"]) ==
-                  [largeN_trajectory_seed(20260617, 2, 1, 1)]
+                  [largeN_trajectory_seed(20260617, 2, 1, 3)]
+            @test read(g["trajectory_indices"]) == [3]
             @test read(g[CoolingTNS.RESULT_MODE_K_INDICES]) == Float64.([-1//2, 1//2])
             @test length(read(g[CoolingTNS.RESULT_MODE_ENERGIES])) == 2
             @test all(isfinite, read(g[CoolingTNS.RESULT_MODE_ENERGIES]))
