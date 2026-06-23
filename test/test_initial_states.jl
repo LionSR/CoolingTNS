@@ -36,6 +36,7 @@ using LinearAlgebra
                 @test state.state isa MPS
                 @test length(state.state) == N
                 @test abs(inner(problem.ϕ₀, state.state)) ≈ 1.0 atol=1e-10
+                @test state.state !== problem.ϕ₀
             end
             
             @testset "Identity State Rejected" begin
