@@ -70,7 +70,7 @@ function run_cooling(problem::CoolingProblem{B}, state::QuantumState{B,S,E},
         
         # Process bath and update system state
         state_and_bath_info = process_bath_and_update(problem, evolved_state, state, sim_params)
-        if isa(state_and_bath_info, Tuple)
+        if state_and_bath_info isa Tuple
             state, bath_info = state_and_bath_info
         else
             state = state_and_bath_info
@@ -227,7 +227,7 @@ function run_cooling_multi_freq(
 
         # Process bath and update system state
         state_and_bath_info = process_bath_and_update(problem, evolved_state, state, sim_params)
-        if isa(state_and_bath_info, Tuple)
+        if state_and_bath_info isa Tuple
             state, bath_info = state_and_bath_info
         else
             state = state_and_bath_info
@@ -717,7 +717,7 @@ end
 
 function _measurement_ham_params(problem::CoolingProblem, ham_params)
     ham_params !== nothing && return ham_params
-    return haskey(problem.extra, :ham_params) ? problem.extra.ham_params : nothing
+    return get(problem.extra, :ham_params, nothing)
 end
 
 function _add_ising_mode_measurement_slots!(measurements, ::CoolingProblem,

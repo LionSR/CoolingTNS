@@ -233,9 +233,7 @@ of `nothing`, zero, a non-number, or a detuning array whose length is not one
 denotes the absence of a single resonant bath line.
 """
 function bath_detuning_energy(delta)
-    if delta === nothing
-        return nothing
-    end
+    delta === nothing && return nothing
     δ = if delta isa AbstractArray
         length(delta) == 1 || return nothing
         only(delta)
@@ -256,9 +254,7 @@ nearest mode is unique.
 """
 function nearest_bath_resonance_indices(εk_values, delta; atol=1e-12)
     δ_abs = bath_detuning_energy(delta)
-    if δ_abs === nothing
-        return Int[]
-    end
+    δ_abs === nothing && return Int[]
     return _nearest_energy_resonance_indices(εk_values, δ_abs; atol=atol)
 end
 
@@ -607,9 +603,7 @@ formula.
 function bogoliubov_angle(k, θ, N)
     wk = w_k_coefficient(k, θ, N)
     rk = r_k_coefficient(k, θ, N)
-    if !is_generic_mode(k, N)
-        return 0.0
-    end
+    !is_generic_mode(k, N) && return 0.0
     return atan(rk, wk) / 2
 end
 
@@ -802,7 +796,13 @@ that maps ``σ_z → σ_x``, hence ``P_z = ∏ σ_z → ∏ σ_x = P_x``.
 """
 function fermionic_bc(spin_bc::Symbol, parity::Int)
     @assert parity == 1 || parity == -1 "parity must be +1 or -1"
-    gI = spin_bc == :periodic ? 1 : (spin_bc == :antiperiodic ? -1 : error("Unknown BC: $spin_bc"))
+    gI = if spin_bc == :periodic
+        1
+    elseif spin_bc == :antiperiodic
+        -1
+    else
+        error("Unknown BC: $spin_bc")
+    end
     return -gI * parity
 end
 

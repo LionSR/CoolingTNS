@@ -97,9 +97,7 @@ function _pauli_string_mpo(sites::Vector{<:Index}, ops::Vector{Symbol})
         "Pauli string length $(length(ops)) does not match site count $(length(sites))"
     ))
 
-    if all(==(:I), ops)
-        return MPO(sites, "Id")
-    end
+    all(==(:I), ops) && return MPO(sites, "Id")
 
     term = Any[1.0]
     for (i, op) in pairs(ops)

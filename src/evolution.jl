@@ -125,7 +125,7 @@ function evolve_state(::HamiltonianParameters, sim_params::UnifiedSimulationPara
                      tdvp_sweep_observer! = nothing,
                      kwargs...)
     if !isempty(kwargs)
-        unknown = join(string.(keys(kwargs)), ", ")
+        unknown = join(keys(kwargs), ", ")
         throw(ArgumentError("Unsupported MCWF+TDVP evolution keyword(s): $unknown."))
     end
     Dmax, cutoff, tau = sim_params.Dmax, sim_params.cutoff, sim_params.tau

@@ -364,16 +364,13 @@ const MAX_EVOLUTION_OP_CACHE_SIZE = 64
 const EVOLUTION_OP_CACHE = Dict{Tuple{UInt64, Float64}, Matrix{ComplexF64}}()
 
 function _get_eigendecomp(H::AbstractMatrix)
-    H_hash = hash(H)
-    if haskey(EVOLUTION_EIG_CACHE, H_hash)
-        return EVOLUTION_EIG_CACHE[H_hash]
+    return get!(EVOLUTION_EIG_CACHE, hash(H)) do
+        @assert ishermitian(H) "H must be Hermitian for eigendecomposition"
+        F = eigen(Hermitian(Matrix(H)))
+        vals = Vector{Float64}(F.values)
+        vecs = Matrix{ComplexF64}(F.vectors)
+        (vals, vecs)
     end
-
-    @assert ishermitian(H) "H must be Hermitian for eigendecomposition"
-    F = eigen(Hermitian(Matrix(H)))
-    vals = Vector{Float64}(F.values)
-    vecs = Matrix{ComplexF64}(F.vectors)
-    return EVOLUTION_EIG_CACHE[H_hash] = (vals, vecs)
 end
 
 """

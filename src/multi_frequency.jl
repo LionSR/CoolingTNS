@@ -193,7 +193,7 @@ function compute_excitation_gaps(
     ψ_guess = random_mps(sites, linkdims=init_linkdims)
 
     gaps = Vector{Float64}(undef, num_excitations)
-    for n in 1:num_excitations
+    for n in eachindex(gaps)
         En, ϕn = dmrg(H_sys, prev_states, ψ_guess, sweeps1; outputlevel=0, weight=weight)
         gaps[n] = En - E0
         push!(prev_states, ϕn)
