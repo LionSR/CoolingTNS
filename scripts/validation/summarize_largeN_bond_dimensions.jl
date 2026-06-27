@@ -83,6 +83,14 @@ format_integer_or_na(value::Integer) = string(value)
 format_integer_or_na(::Missing) = "n/a"
 format_float_or_na(value::Real, digits::Int=2) = format_float(value, digits)
 format_float_or_na(::Missing, digits::Int=2) = "n/a"
+function format_error_float(value::Real, digits::Int=3)
+    !isfinite(value) && return "NaN"
+    value == 0 && return format_float(value, digits)
+    abs(value) < 10.0^(-digits) && return @sprintf("%.*e", max(digits - 1, 0), value)
+    return format_float(value, digits)
+end
+format_error_float_or_na(value::Real, digits::Int=3) = format_error_float(value, digits)
+format_error_float_or_na(::Missing, digits::Int=3) = "n/a"
 format_string_or_na(value) = string(value)
 format_string_or_na(::Missing) = "n/a"
 
@@ -1177,8 +1185,8 @@ function print_markdown(rows)
             "$(format_string_or_na(row.mode_gF)) | $(format_string_or_na(row.mode_gF_source)) | " *
             "$(format_string_or_na(row.mode_measured_rows)) | " *
             "$(format_float_or_na(row.mode_last_measured_e_over_n, 8)) | " *
-            "$(format_float_or_na(row.mode_last_measured_abs_err_over_n, 3)) | " *
-            "$(format_float_or_na(row.mode_max_abs_err_over_n, 3)) | " *
+            "$(format_error_float_or_na(row.mode_last_measured_abs_err_over_n, 3)) | " *
+            "$(format_error_float_or_na(row.mode_max_abs_err_over_n, 3)) | " *
             "$(row.final_system_max) | $(format_float(row.final_system_mean, 2)) | " *
             "$(row.peak_evolved_max) | $(format_float(row.peak_evolved_mean, 2)) | " *
             "$(format_integer_or_na(row.peak_tdvp_sweep_max)) | " *
@@ -1208,7 +1216,7 @@ function print_compact_markdown(rows)
             "$(format_float(row.initial_overlap, 5)) | " *
             "$(format_float(row.final_e_over_n, 8)) | " *
             "$(format_float(row.best_e_over_n, 8)) | " *
-            "$(format_float_or_na(row.mode_max_abs_err_over_n, 3)) | $(row.threshold) | " *
+            "$(format_error_float_or_na(row.mode_max_abs_err_over_n, 3)) | $(row.threshold) | " *
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
             "$(row.tdvp_sweep_effective_bond) | $(row.bond_status) | " *
             "$(row.truncation_error_history_status) | " *
