@@ -217,7 +217,9 @@ julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
   --model ising --bc periodic --Ns 64 --R-values 1,2,5,10 \
   --methods mcwf --evolution-method continuous --steps 40 --Dmax 80 \
   --h -1.05 --init-state theta --theta 0.0 --measure-modes \
-  --delta-min 0.5051167496264384 --delta-max 3.0307004977586303
+  --delta-min 0.5051167496264384 --delta-max 3.0307004977586303 \
+  --progress-csv .worktree/mode_largeN_N64_ising_periodic/tdvp_progress_modes.csv \
+  --tdvp-sweep-progress
 ```
 
 When `--measure-modes` is supplied, the driver fails early unless the requested
@@ -229,6 +231,10 @@ trajectory-resolved arrays
 the positive quasiparticle gaps `mode_ek_values`, and the parity-selected
 fermionic boundary condition metadata.  This keeps the occupation-number
 diagnostics tied to the same convention as the ED and TN observable tests.
+For practical large-`N` runs, the progress CSV should be enabled from the
+start: a mode-resolved TDVP cycle can be much slower than the preceding cycle,
+and without the CSV an interrupted trajectory may leave only an incomplete HDF5
+file rather than a recoverable energy and bond-dimension trace.
 
 The large-N HDF5 summary also audits this convention directly.  When a run
 contains `mode_hk` and `mode_nk`,

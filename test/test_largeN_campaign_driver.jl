@@ -713,6 +713,20 @@ end
         "--progress-csv", mode_progress_base,
         "--print-parallel-plan",
     ])
+    mode_no_progress_plan_cfg = parse_args([
+        "--model", "ising",
+        "--bc", "periodic",
+        "--Ns", "64",
+        "--R-values", "1,2",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--steps", "10",
+        "--Dmax", "32",
+        "--h", "-0.75",
+        "--measure-modes",
+        "--outdir", tempdir(),
+        "--print-parallel-plan",
+    ])
     stride_plan_cfg = parse_args([
         "--model", "ising",
         "--bc", "periodic",
@@ -729,6 +743,21 @@ end
         "--progress-csv", mode_progress_base,
         "--print-parallel-plan",
     ])
+    @test mode_progress_csv_recommended(mode_no_progress_plan_cfg)
+    @test !mode_progress_csv_recommended(mode_plan_cfg)
+    @test_logs (:warn, r"--measure-modes with continuous TDVP has no --progress-csv path") begin
+        @test warn_if_mode_progress_csv_recommended(mode_no_progress_plan_cfg)
+    end
+    @test !warn_if_mode_progress_csv_recommended(mode_plan_cfg)
+    no_progress_plan_text = sprint() do io
+        print_parallel_plan(mode_no_progress_plan_cfg; io=io)
+    end
+    @test occursin("Mode-resolved continuous TDVP runs", no_progress_plan_text)
+    @test occursin("pass --progress-csv", no_progress_plan_text)
+    progress_plan_text = sprint() do io
+        print_parallel_plan(mode_plan_cfg; io=io)
+    end
+    @test !occursin("Mode-resolved continuous TDVP runs", progress_plan_text)
     mode_job = first(parallel_plan_configs(mode_plan_cfg))
     stride_job = first(parallel_plan_configs(stride_plan_cfg))
     @test mode_job["progress_csv"] != stride_job["progress_csv"]
