@@ -753,9 +753,11 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         ) :
         "n/a"
     truncation_error_status = truncation_error_history_status(run_group)
-    bond_status = bond_cap_status(
-        system_saturation_cycle, evolved_saturation_cycle,
-        tdvp_sweep_saturation_cycle_for_status,
+    bond_status = require_largeN_bond_status_label(
+        bond_cap_status(
+            system_saturation_cycle, evolved_saturation_cycle,
+            tdvp_sweep_saturation_cycle_for_status,
+        )
     )
 
     link_dims = final_link_dimensions(run_group)
@@ -1087,10 +1089,12 @@ function combine_trajectory_bucket(rows)
             truncation_error_history_status=combined_string_status(
                 String[row.truncation_error_history_status for row in rows]
             ),
-            bond_status=bond_cap_status(
-                system_saturation_cycle,
-                evolved_saturation_cycle,
-                tdvp_sweep_saturation_cycle_for_status,
+            bond_status=require_largeN_bond_status_label(
+                bond_cap_status(
+                    system_saturation_cycle,
+                    evolved_saturation_cycle,
+                    tdvp_sweep_saturation_cycle_for_status,
+                )
             ),
             final_system_max=final_system_max,
             final_system_mean=weighted_row_mean(rows, :final_system_mean),

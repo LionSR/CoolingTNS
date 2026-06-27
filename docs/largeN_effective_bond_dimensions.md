@@ -140,7 +140,10 @@ untruncated trajectory.  In that case the summary script writes a label such as
 `>=640`.  Otherwise it writes the largest observed link dimension.
 
 The summary script also reports a machine-readable `bond_status` column.  The
-status is only a bond-dimension diagnostic:
+legal labels are centralized in
+`scripts/validation/largeN_scaling_helpers.jl`, and the HDF5 and progress-CSV
+summaries validate against that same vocabulary.  The status is only a
+bond-dimension diagnostic:
 
 - `no_cap_hit`: neither the retained system state nor the evolved
   system-bath state nor the recorded TDVP sweep history reached the cap during
