@@ -348,6 +348,65 @@ reconstruction is a fixed-reference diagnostic rather than an exact sector
 energy decomposition.  On the capped final rows the discrepancy is about
 `0.001` for `R = 1` and about `0.010` for `R = 2,5,10`.
 
+### Dmax=16 Theta-State Mode Control
+
+A matched parity-definite control was then run with the same `N = 64`,
+`h = -0.75`, `te = 0.5`, `Dmax = 16`, and analytic periodic-Ising detuning
+reference, but with the initial state changed to `theta=0`:
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 1,2,5,10 --methods mcwf \
+  --evolution-method continuous --steps 5 --Dmax 16 \
+  --cutoff 1e-7 --tau 0.2 --model ising --bc periodic --h -0.75 \
+  --measure-modes --mode-measurement-stride 1 \
+  --schedule descending --init-state theta --theta 0.0 \
+  --stop-on-bond-cap --te 0.5 \
+  --progress-csv .worktree/mode_probe_N64_ising_periodic_theta_D16_te0.5_20260627/tdvp_progress_modes.csv \
+  --tdvp-sweep-progress \
+  --outdir .worktree/mode_probe_N64_ising_periodic_theta_D16_te0.5_20260627 \
+  --verbose
+```
+
+The stored direct ground-state reference is again
+`E0/N = -1.1463581992`, and the automatic detuning reference is
+`detuning_reference_gap_source = "ising_mode_pair_reference"` with
+`detuning_reference_gap = 1.01435154`.  The compact HDF5 summary is:
+
+| R | completed/requested | detuning coverage | initial E/N | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | mode source | mode max abs dE/N |
+|---:|---:|---|---:|---:|---:|---:|---:|---:|---|---|---:|
+| 1 | 2/5 | single_detuning | -0.75000000 | -0.71810720 | -0.75000000 | 15 | >=16 | >=16 | not_converged_evolved_and_tdvp_sweep_cap | state | 1.30e-14 |
+| 2 | 2/5 | full_grid_observed | -0.75000000 | -0.76352020 | -0.76352020 | 14 | >=16 | >=16 | not_converged_evolved_and_tdvp_sweep_cap | state | 1.30e-14 |
+| 5 | 2/5 | stopped_partial_grid | -0.75000000 | -0.76214886 | -0.76214886 | 14 | >=16 | >=16 | not_converged_evolved_and_tdvp_sweep_cap | state | 1.30e-14 |
+| 10 | 2/5 | requested_partial_grid | -0.75000000 | -0.76569923 | -0.76569923 | 14 | >=16 | >=16 | not_converged_evolved_and_tdvp_sweep_cap | state | 1.30e-14 |
+
+The progress CSV records the following completed-cycle energies:
+
+| R | cycle 1 E/N | cycle 2 E/N | system max bond at stop | evolved max bond at stop |
+|---:|---:|---:|---:|---:|
+| 1 | -0.74080740 | -0.71810720 | 15 | 16 |
+| 2 | -0.76037236 | -0.76352020 | 14 | 16 |
+| 5 | -0.75647516 | -0.76214886 | 14 | 16 |
+| 10 | -0.76037302 | -0.76569923 | 14 | 16 |
+
+This control separates the notation and parity-sector question from the cooling
+question.  Every row records `mode_gF = -1` and
+`mode_gF_source = "state"`, the measured mode rows are exactly
+`0, 1, 2`, and the direct energy agrees with the mode reconstruction to at most
+`1.30e-14` per site.  The stored occupations are finite and physically bounded:
+`mode_nk` lies in `[0.00019670, 0.99055075]` across all measured rows.
+Thus the `1/64` initial-row offset seen in the product-state probe is not a
+formula error in the mode reconstruction; it is the expected consequence of
+using a reference fermion sector for a mixed-parity product state.
+
+The physics conclusion remains negative.  The `R = 10` short prefix is the
+lowest-energy row in this matched theta-state control, but it is still far from
+the finite-chain ground-state reference and the trajectory is already
+evolved-state and TDVP-sweep cap-limited by cycle 2.  This run is therefore a
+parity-sector and mode-observable consistency check, not a scalable cooling
+result.
+
 ### First Parity-Definite N=64 Mode Scan
 
 After exposing the initial-state controls, the first nontrivial large-chain

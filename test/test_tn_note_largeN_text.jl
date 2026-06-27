@@ -380,6 +380,17 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("mode_nk` is finite and lies in `[0.71657563, 0.99207860]`", evidence_flat)
     @test occursin("0.015625 = 1/64", evidence_flat)
     @test occursin("fixed-reference diagnostic rather than an exact sector energy decomposition", evidence_flat)
+    @test occursin("Dmax=16 Theta-State Mode Control", evidence_flat)
+    @test occursin(
+        "| 10 | 2/5 | requested_partial_grid | -0.75000000 | -0.76569923 | " *
+        "-0.76569923 | 14 | >=16 | >=16 | " *
+        "not_converged_evolved_and_tdvp_sweep_cap | state | 1.30e-14 |",
+        evidence_flat,
+    )
+    @test occursin("Every row records `mode_gF = -1` and `mode_gF_source = \"state\"`", evidence_flat)
+    @test occursin("`mode_nk` lies in `[0.00019670, 0.99055075]`", evidence_flat)
+    @test occursin("the `1/64` initial-row offset seen in the product-state probe is not a formula error", evidence_flat)
+    @test occursin("cap-limited by cycle 2", evidence_flat)
     @test occursin("First Parity-Definite N=64 Mode Scan", evidence_flat)
     @test occursin("| 10 | 10/10 | -1.050000000002 | -1.050000000002 | 0.19542960 | 1 | 1 | 1 | state | 1.208e-12 |", evidence_flat)
     @test occursin("selected grid was half-integer (`mode_gF = -1`), so it contained no special modes", evidence_flat)
