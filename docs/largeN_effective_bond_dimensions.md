@@ -59,13 +59,14 @@ stored initial-state protocol (`product`, `ground`, `identity`, or
 `theta=<value>`).  When those split trajectory-axis files are summarized
 together,
 `summarize_largeN_bond_dimensions.jl --combine-trajectories` groups compatible
-rows by the physical protocol, including the initial state, `te`, and whether
-the cycle times are fixed or randomized, rejects duplicate trajectory labels,
-and reports one ensemble-level row.  Thus product-state cooling files,
-ground-state controls, and explicit theta-state files are not combined as if
-they were the same physical experiment, and a fixed-time trajectory file and a
-randomized-time trajectory file with the same mean `te` are likewise kept
-separate.  For stop-on-cap files with unequal completed prefixes, the energy
+rows by the physical protocol, including the coupling strength `g`, the
+initial state, `te`, and whether the cycle times are fixed or randomized,
+rejects duplicate trajectory labels, and reports one ensemble-level row.  Thus
+different-coupling scans, product-state cooling files, ground-state controls,
+and explicit theta-state files are not combined as if they were the same
+physical experiment, and a fixed-time trajectory file and a randomized-time
+trajectory file with the same mean `te` are likewise kept separate.  For
+stop-on-cap files with unequal completed prefixes, the energy
 columns in that combined row are statistics of the individual trajectory
 summaries, not a reconstructed cycle-aligned ensemble time series.  If some
 member files do not contain detuning histories, the combined `visited

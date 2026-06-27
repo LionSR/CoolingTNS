@@ -75,6 +75,7 @@ function write_split_trajectory_summary_file(
     write_stop_reason::Bool=true,
     write_delta_history::Bool=true,
     te::Real=1.0,
+    g::Real=0.3,
     randomize_times::Bool=false,
     init_state::AbstractString="product",
     theta::Real=0.0,
@@ -87,6 +88,7 @@ function write_split_trajectory_summary_file(
         write(f, "Dmax", 8)
         write(f, "steps", 4)
         write(f, CoolingTNS.RESULT_TE, Float64(te))
+        write(f, "g", Float64(g))
         write(f, CoolingTNS.RESULT_RANDOMIZE_TIMES, randomize_times)
         write(f, CoolingTNS.RESULT_INIT_STATE, String(init_state))
         write(f, CoolingTNS.RESULT_INIT_THETA, Float64(theta))
@@ -253,6 +255,7 @@ end
         h5open(path, "w") do f
             write(f, "Dmax", 12)
             write(f, CoolingTNS.RESULT_TE, 1.25)
+            write(f, "g", 0.3)
             write(f, CoolingTNS.RESULT_RANDOMIZE_TIMES, false)
             write(f, CoolingTNS.RESULT_INIT_STATE, "product")
             write(f, CoolingTNS.RESULT_INIT_THETA, 0.0)
@@ -302,6 +305,7 @@ end
         @test row.method == "mcwf"
         @test row.evolution == "continuous"
         @test row.te == 1.25
+        @test row.g == 0.3
         @test row.randomize_times == false
         @test row.time_protocol == "fixed"
         @test row.init_state == "product"
@@ -362,7 +366,7 @@ end
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | te | time protocol | init | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap |",
+            "| file | N | method | evolution | te | g | time protocol | init | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap |",
             output,
         )
         @test length(unique(markdown_column_counts(output))) == 1
@@ -370,7 +374,7 @@ end
         @test occursin("| initial E/N | initial relE | initial overlap | final E/N |", output)
         @test occursin("| final E/N | relE | best E/N | best relE | tail E/N |", output)
         @test occursin(
-            "| $(basename(path)) | 4 | mcwf | continuous | 1.250 | fixed | product | 2 | 2 | " *
+            "| $(basename(path)) | 4 | mcwf | continuous | 1.250 | 0.3 | fixed | product | 2 | 2 | " *
             "descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | 25.5 | 564.71 | bond_capx1/2 | fixed_range | " *
             "[0.50000000,3.00000000] | n/a | 12 | >=12 | >=14 | >=14 | " *
             "$(LARGE_N_BOND_STATUS_SYSTEM_AND_EVOLVED_AND_TDVP_SWEEP_CAP) | " *
@@ -392,14 +396,14 @@ end
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | te | time protocol | init | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | initial E/N | initial overlap | final E/N | best E/N | mode max abs dE/N | Dcap |",
+            "| file | N | method | evolution | te | g | time protocol | init | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | initial E/N | initial overlap | final E/N | best E/N | mode max abs dE/N | Dcap |",
             compact_output,
         )
         @test length(unique(markdown_column_counts(compact_output))) == 1
         @test occursin("| bond_status | truncation errors | elapsed_total |", compact_output)
         @test occursin("| elapsed_total | traj cycles/hour | stop_reason |", compact_output)
         @test occursin(
-            "| $(basename(path)) | 4 | mcwf | continuous | 1.250 | fixed | product | 2 | 2 | " *
+            "| $(basename(path)) | 4 | mcwf | continuous | 1.250 | 0.3 | fixed | product | 2 | 2 | " *
             "descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | -0.25000000 | 0.75000 | 1.00000000 | -0.25000000 | n/a | 12 | >=12 | >=14 | >=14 | " *
             "$(LARGE_N_BOND_STATUS_SYSTEM_AND_EVOLVED_AND_TDVP_SWEEP_CAP) | not_recorded | 25.5 | 564.71 | bond_capx1/2 |",
             compact_output,
@@ -454,6 +458,7 @@ end
     legacy_e0_path2 = tempname() * ".h5"
     duplicate_path = tempname() * ".h5"
     te_mismatch_path = tempname() * ".h5"
+    g_mismatch_path = tempname() * ".h5"
     randomized_time_path = tempname() * ".h5"
     ground_init_path = tempname() * ".h5"
     theta_init_path1 = tempname() * ".h5"
@@ -545,6 +550,17 @@ end
             te=0.5,
         )
         write_split_trajectory_summary_file(
+            g_mismatch_path;
+            trajectory=1,
+            energy_values=[-1.0, -1.5],
+            system_max=[1, 4],
+            evolved_max=[0, 4],
+            completed_steps=1,
+            stop_reason="",
+            elapsed_seconds=5.0,
+            g=0.05,
+        )
+        write_split_trajectory_summary_file(
             randomized_time_path;
             trajectory=1,
             energy_values=[-1.0, -1.5],
@@ -601,6 +617,7 @@ end
         row = only(combined)
         @test row.file == "trajectory_ensemble(traj=1,3)"
         @test row.te == 1.0
+        @test row.g == 0.3
         @test row.time_protocol == "fixed"
         @test row.init_protocol == "product"
         @test row.source_files == (basename(path1), basename(path3))
@@ -647,7 +664,7 @@ end
             read(output_path, String)
         end
         @test occursin("trajectory_ensemble(traj=1,3)", compact_output)
-        @test occursin("| 4 | mcwf | continuous | 1.000 | fixed | product | 2 | 2 | descending | 2-3/4 |", compact_output)
+        @test occursin("| 4 | mcwf | continuous | 1.000 | 0.3 | fixed | product | 2 | 2 | descending | 2-3/4 |", compact_output)
         @test occursin(
             "| full_grid_observed | -0.25000000 | 0.50000 | -0.43750000 | " *
             "-0.56250000 | n/a | 8 | >=8 | >=8 | n/a | " *
@@ -665,6 +682,12 @@ end
         ))
         @test length(split_by_te_rows) == 2
         @test sort([row.te for row in split_by_te_rows]) == [0.5, 1.0]
+        split_by_g_rows = combine_trajectory_rows(vcat(
+            summarize_file(path1),
+            summarize_file(g_mismatch_path),
+        ))
+        @test length(split_by_g_rows) == 2
+        @test sort([row.g for row in split_by_g_rows]) == [0.05, 0.3]
         split_by_time_protocol_rows = combine_trajectory_rows(vcat(
             summarize_file(path1),
             summarize_file(randomized_time_path),
@@ -718,6 +741,7 @@ end
         rm(legacy_e0_path2; force=true)
         rm(duplicate_path; force=true)
         rm(te_mismatch_path; force=true)
+        rm(g_mismatch_path; force=true)
         rm(randomized_time_path; force=true)
         rm(ground_init_path; force=true)
         rm(theta_init_path1; force=true)
@@ -851,7 +875,7 @@ end
             read(output_path, String)
         end
         @test occursin(
-            "| $(basename(path)) | 2 | mcwf | unknown | NaN | fixed | unknown | 1 | 1 | " *
+            "| $(basename(path)) | 2 | mcwf | unknown | NaN | NaN | fixed | unknown | 1 | 1 | " *
             "unknown | 1/1 | n/a | n/a | n/a | NaN | NaN | none | unknown | " *
             "unknown | unknown | 4 | 2 | >=4 | n/a | $(LARGE_N_BOND_STATUS_EVOLVED_CAP) | legacy_missing |",
             output,

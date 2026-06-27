@@ -6,7 +6,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
 
 function tdvp_progress_line(; timestamp="2026-06-19T00:00:00",
                             method="mcwf", evolution="continuous",
-                            R="2", Dmax="6", stage, step, cycle,
+                            R="2", Dmax="6", g="0.3", stage, step, cycle,
                             delta="0.5", te="2.0", energy_per_site="NaN",
                             relative_energy="NaN", overlap="NaN",
                             system_max_bond="1", system_mean_bond="1.0",
@@ -23,6 +23,7 @@ function tdvp_progress_line(; timestamp="2026-06-19T00:00:00",
         "seed" => "123",
         "Dmax" => Dmax,
         "cutoff" => "1.0e-6",
+        "g" => g,
         "tau" => "0.2",
         "stage" => stage,
         "step" => string(step),
@@ -75,6 +76,7 @@ end
         "seed",
         "Dmax",
         "cutoff",
+        "g",
         "tau",
     )
     fixed_identity_a = Dict(
@@ -86,15 +88,21 @@ end
         "seed" => "84310618",
         "Dmax" => "96",
         "cutoff" => "1.0e-6",
+        "g" => "0.05",
         "tau" => "0.2",
         "te" => "0.34",
     )
     fixed_identity_b = merge(fixed_identity_a, Dict("te" => "1.86"))
     @test TDVPProgressCSVSummary.group_key(fixed_identity_a) ==
           TDVPProgressCSVSummary.group_key(fixed_identity_b)
-    @test TDVPProgressCSVSummary.group_label(
+    fixed_identity_c = merge(fixed_identity_a, Dict("g" => "0.1"))
+    @test TDVPProgressCSVSummary.group_key(fixed_identity_a) !=
+          TDVPProgressCSVSummary.group_key(fixed_identity_c)
+    fixed_label = TDVPProgressCSVSummary.group_label(
         TDVPProgressCSVSummary.group_key(fixed_identity_a)
-    ).R == "5"
+    )
+    @test fixed_label.R == "5"
+    @test fixed_label.g == "0.05"
     err = try
         TDVPProgressCSVSummary.default_progress_cap("ed", 7)
         nothing
@@ -201,6 +209,7 @@ end
         row = only(filter(row -> row.method == "mcwf", rows))
         @test row.N == 4
         @test row.R == 2
+        @test row.g == "0.3"
         @test row.threshold == 6
         @test row.completed_cycles == 2
         @test row.final_energy == 0.25
@@ -225,6 +234,7 @@ end
         mpo_row = only(filter(row -> row.method == "mpo", rows))
         @test mpo_row.evolution == "trotter"
         @test mpo_row.R == 3
+        @test mpo_row.g == "0.3"
         @test mpo_row.threshold == 24
         @test mpo_row.completed_cycles == 2
         @test mpo_row.final_energy == 0.5
@@ -252,7 +262,7 @@ end
             end
             read(output_path, String)
         end
-        @test occursin("| file | N | method | evolution | R | traj |", output)
+        @test occursin("| file | N | method | evolution | R | g | traj |", output)
         @test occursin("| sys cap | evolved cap | tdvp sweep cap | first transient cap |", output)
         @test occursin("| last step | last cycle | last stage |", output)
         @test occursin(
@@ -263,7 +273,8 @@ end
             TDVPProgressCSVSummary.LARGE_N_BOND_STATUS_SYSTEM_AND_EVOLVED_CAP,
             output,
         )
-        @test occursin("| 2 | 1 | 2 | 0.50000000 | 0.25000000 | 6 | 7 | 16.0 |", output)
+        @test occursin("| R | g | traj | cycle | delta | E/N |", output)
+        @test occursin("| 2 | 0.3 | 1 | 2 | 0.50000000 | 0.25000000 | 6 | 7 | 16.0 |", output)
         @test occursin("| 4 | 3 | tdvp_sweep |", output)
     finally
         rm(path; force=true)

@@ -176,6 +176,7 @@ const LARGE_N_PROGRESS_CSV_COLUMNS = (
     "seed",
     "Dmax",
     "cutoff",
+    "g",
     "tau",
     "stage",
     "step",
@@ -226,9 +227,11 @@ function require_largeN_progress_stage_label(stage)
 end
 
 # Progress rows are grouped by the job identity columns when recovering an
-# interrupted run from CSV.  The per-row `te` value is intentionally not part
-# of this key: randomized-time runs draw a different `te` per cycle, and fixed
-# `--te-values` scans are emitted as separate planned jobs with distinct paths.
+# interrupted run from CSV.  The coupling strength `g` is part of this identity
+# because serial `--g-values` scans may share one progress CSV path.  The per-row
+# `te` value is intentionally not part of this key: randomized-time runs draw a
+# different `te` per cycle, and fixed `--te-values` scans are emitted as separate
+# planned jobs with distinct paths.
 const LARGE_N_PROGRESS_GROUP_COLUMNS = (
     "N",
     "method",
@@ -238,6 +241,7 @@ const LARGE_N_PROGRESS_GROUP_COLUMNS = (
     "seed",
     "Dmax",
     "cutoff",
+    "g",
     "tau",
 )
 
