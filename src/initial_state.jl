@@ -201,8 +201,7 @@ function setup_initial_state(problem::CoolingProblem{TNBackend}, sim_params::Uni
     sites_sys = siteinds(ϕ₀)
 
     if init_type == "identity"
-        ρ_s = MPO(sites_sys, "Id")
-        ρ_s = ρ_s / (2.0^length(sites_sys))
+        ρ_s = MPO(sites_sys, "Id") / (2.0^length(sites_sys))
     elseif init_type == "ground"
         ψ_s = deepcopy(problem.ϕ₀)
         ρ_s = outer(ψ_s', ψ_s)

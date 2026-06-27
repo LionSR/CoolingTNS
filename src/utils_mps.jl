@@ -54,7 +54,7 @@ function appendzeros_MPS(ψ::MPS, sites::Vector{<:Index}, coupling::String="XX")
 
     # Helper function to create bath tensor with correct ground state
     function make_bath_tensor(s_bath, left_link, right_link=nothing)
-        if right_link === nothing
+        if isnothing(right_link)
             # End tensor: only left link
             T = ITensor(ComplexF64, s_bath, left_link)
             for (state_idx, amp) in enumerate(bath_amps)

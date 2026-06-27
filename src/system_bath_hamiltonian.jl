@@ -75,7 +75,7 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     
     # Add bath terms (at resonance with system gap if not specified).
     # Δ > 0, so the bath ground state is the eigenvalue -1 state of bath_op.
-    Δ = coupling_params.delta !== nothing ? coupling_params.delta : compute_gap_ed(H_sys)
+    Δ = @something coupling_params.delta compute_gap_ed(H_sys)
     
     # Bath qubits are at positions: 2, 4, 6, ..., 2N.
     # get_bath_operator is the source of truth for the one-Pauli and mixed
@@ -128,7 +128,7 @@ Embeds H_sys ⊗ I_bath by looping over all bath basis states.
 function add_system_hamiltonian_ed!(H_sb, H_sys, N, N_total)
     N_bath = N
     for bath_state in 0:(2^N_bath - 1)
-        for i in 1:2^N, j in 1:2^N
+        for i in axes(H_sys, 1), j in axes(H_sys, 2)
             val = H_sys[i,j]
             if val != 0
                 full_i = map_system_bath_to_full_basis_ed(i-1, bath_state, N)

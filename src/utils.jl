@@ -135,25 +135,21 @@ Top-level HDF5 group containing the canonical parsed command-line arguments.
 const HDF5_PARSED_ARGS_GROUP = "parsed_args"
 
 function _write_hdf5_dataset_unless_present(parent, key::AbstractString, value)
-    if key in keys(parent)
-        return false
-    end
+    key in keys(parent) && return false
     write(parent, key, value)
     return true
 end
 
 function _create_hdf5_group_or_error(file, group_name::AbstractString)
-    if group_name in keys(file)
+    group_name in keys(file) &&
         error("Cannot write parsed command-line metadata group '$group_name'; a result dataset already uses that top-level name.")
-    end
     return create_group(file, group_name)
 end
 
 function _assert_hdf5_result_keys_available(result)
     for key in keys(result)
-        if string(key) == HDF5_PARSED_ARGS_GROUP
+        string(key) == HDF5_PARSED_ARGS_GROUP &&
             error("Cannot write result dataset '$(HDF5_PARSED_ARGS_GROUP)'; that top-level HDF5 name is reserved for parsed command-line metadata.")
-        end
     end
     return nothing
 end

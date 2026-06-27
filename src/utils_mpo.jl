@@ -19,7 +19,7 @@ function appendzeros_MPO(ρ::MPO, sites::Vector{<:Index}, coupling::String="XX")
     data_ρ = ITensors.data(ρ)
     dataρ_appended = ITensors.data(ρ_appended)
 
-    for i = 1:N
+    for i in 1:N
         # Create bath density matrix |ψ₀⟩⟨ψ₀| from amplitudes
         s = sites[interleaved_bath_site(i)]
         ψ0 = ITensor(ComplexF64, s)
