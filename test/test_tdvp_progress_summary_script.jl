@@ -206,7 +206,8 @@ end
         @test row.final_energy == 0.25
         @test row.system_effective_bond == ">=6"
         @test row.evolved_effective_bond == ">=7"
-        @test row.bond_status == "not_converged_system_and_tdvp_sweep_cap"
+        @test row.bond_status ==
+              TDVPProgressCSVSummary.LARGE_N_BOND_STATUS_SYSTEM_AND_TDVP_SWEEP_CAP
         @test row.system_cap_cycle == 2
         @test row.evolved_cap_cycle == 0
         @test row.tdvp_sweep_cap_cycle == 1
@@ -229,7 +230,8 @@ end
         @test mpo_row.final_energy == 0.5
         @test mpo_row.system_effective_bond == ">=24"
         @test mpo_row.evolved_effective_bond == ">=24"
-        @test mpo_row.bond_status == "not_converged_system_and_evolved_cap"
+        @test mpo_row.bond_status ==
+              TDVPProgressCSVSummary.LARGE_N_BOND_STATUS_SYSTEM_AND_EVOLVED_CAP
         @test mpo_row.system_cap_cycle == 2
         @test mpo_row.evolved_cap_cycle == 2
         @test mpo_row.tdvp_sweep_cap_cycle == 0
@@ -253,8 +255,14 @@ end
         @test occursin("| file | N | method | evolution | R | traj |", output)
         @test occursin("| sys cap | evolved cap | tdvp sweep cap | first transient cap |", output)
         @test occursin("| last step | last cycle | last stage |", output)
-        @test occursin("not_converged_system_and_tdvp_sweep_cap", output)
-        @test occursin("not_converged_system_and_evolved_cap", output)
+        @test occursin(
+            TDVPProgressCSVSummary.LARGE_N_BOND_STATUS_SYSTEM_AND_TDVP_SWEEP_CAP,
+            output,
+        )
+        @test occursin(
+            TDVPProgressCSVSummary.LARGE_N_BOND_STATUS_SYSTEM_AND_EVOLVED_CAP,
+            output,
+        )
         @test occursin("| 2 | 1 | 2 | 0.50000000 | 0.25000000 | 6 | 7 | 16.0 |", output)
         @test occursin("| 4 | 3 | tdvp_sweep |", output)
     finally
@@ -306,7 +314,8 @@ end
         tdvp_only_row = only(TDVPProgressCSVSummary.summarize_progress_file(tdvp_only_path))
         @test tdvp_only_row.system_effective_bond == "5"
         @test tdvp_only_row.evolved_effective_bond == ">=6"
-        @test tdvp_only_row.bond_status == "not_converged_tdvp_sweep_cap"
+        @test tdvp_only_row.bond_status ==
+              TDVPProgressCSVSummary.LARGE_N_BOND_STATUS_TDVP_SWEEP_CAP
         @test tdvp_only_row.system_cap_cycle == 0
         @test tdvp_only_row.evolved_cap_cycle == 0
         @test tdvp_only_row.tdvp_sweep_cap_cycle == 1
@@ -395,7 +404,8 @@ end
         @test length(both_caps_rows) == 2
 
         tie_row = only(filter(row -> row.R == 4, both_caps_rows))
-        @test tie_row.bond_status == "not_converged_evolved_and_tdvp_sweep_cap"
+        @test tie_row.bond_status ==
+              TDVPProgressCSVSummary.LARGE_N_BOND_STATUS_EVOLVED_AND_TDVP_SWEEP_CAP
         @test tie_row.system_cap_cycle == 0
         @test tie_row.evolved_cap_cycle == 1
         @test tie_row.tdvp_sweep_cap_cycle == 1
@@ -405,7 +415,7 @@ end
 
         evolved_first_row = only(filter(row -> row.R == 5, both_caps_rows))
         @test evolved_first_row.bond_status ==
-              "not_converged_evolved_and_tdvp_sweep_cap"
+              TDVPProgressCSVSummary.LARGE_N_BOND_STATUS_EVOLVED_AND_TDVP_SWEEP_CAP
         @test evolved_first_row.system_cap_cycle == 0
         @test evolved_first_row.evolved_cap_cycle == 1
         @test evolved_first_row.tdvp_sweep_cap_cycle == 2

@@ -142,7 +142,9 @@ untruncated trajectory.  In that case the summary script writes a label such as
 The summary script also reports a machine-readable `bond_status` column.  The
 legal labels are centralized in
 `scripts/validation/largeN_scaling_helpers.jl`, and the HDF5 and progress-CSV
-summaries validate against that same vocabulary.  The status is only a
+summaries validate against that same vocabulary.  The helper also names each
+legal label explicitly, so tests of generated rows and readers need not repeat
+the wire-format strings.  The status is only a
 bond-dimension diagnostic:
 
 - `no_cap_hit`: neither the retained system state nor the evolved

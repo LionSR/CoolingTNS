@@ -329,7 +329,7 @@ end
         @test row.truncation_error_history_status ==
               CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED
         @test row.bond_status ==
-              "not_converged_system_and_evolved_and_tdvp_sweep_cap"
+              LARGE_N_BOND_STATUS_SYSTEM_AND_EVOLVED_AND_TDVP_SWEEP_CAP
         @test row.final_system_max == 12
         @test row.final_system_mean == 6.5
         @test row.peak_evolved_max == 14
@@ -366,7 +366,7 @@ end
             "| $(basename(path)) | 4 | mcwf | continuous | 1.250 | fixed | product | 2 | 2 | " *
             "descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | 25.5 | 564.71 | bond_capx1/2 | fixed_range | " *
             "[0.50000000,3.00000000] | n/a | 12 | >=12 | >=14 | >=14 | " *
-            "not_converged_system_and_evolved_and_tdvp_sweep_cap | " *
+            "$(LARGE_N_BOND_STATUS_SYSTEM_AND_EVOLVED_AND_TDVP_SWEEP_CAP) | " *
             "not_recorded | " *
             "-0.25000000 | 0.00000 | 0.75000 | " *
             "1.00000000 | 2.00000 | " *
@@ -394,7 +394,7 @@ end
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 1.250 | fixed | product | 2 | 2 | " *
             "descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | -0.25000000 | 0.75000 | 1.00000000 | -0.25000000 | n/a | 12 | >=12 | >=14 | >=14 | " *
-            "not_converged_system_and_evolved_and_tdvp_sweep_cap | not_recorded | 25.5 | 564.71 | bond_capx1/2 |",
+            "$(LARGE_N_BOND_STATUS_SYSTEM_AND_EVOLVED_AND_TDVP_SWEEP_CAP) | not_recorded | 25.5 | 564.71 | bond_capx1/2 |",
             compact_output,
         )
         @test parse_args(["--compact", path]).compact
@@ -618,7 +618,7 @@ end
         @test row.tail_count == "3-4"
         @test row.system_effective_bond == ">=8"
         @test row.evolved_effective_bond == ">=8"
-        @test row.bond_status == "not_converged_system_and_evolved_cap"
+        @test row.bond_status == LARGE_N_BOND_STATUS_SYSTEM_AND_EVOLVED_CAP
         @test row.final_system_max == 8
         @test row.peak_evolved_max == 8
         @test row.system_saturation_cycle == 2
@@ -641,7 +641,13 @@ end
         end
         @test occursin("trajectory_ensemble(traj=1,3)", compact_output)
         @test occursin("| 4 | mcwf | continuous | 1.000 | fixed | product | 2 | 2 | descending | 2-3/4 |", compact_output)
-        @test occursin("| full_grid_observed | -0.25000000 | 0.50000 | -0.43750000 | -0.56250000 | n/a | 8 | >=8 | >=8 | n/a | not_converged_system_and_evolved_cap | not_recorded | 30.0 | 600.00 | bond_capx1/2 |", compact_output)
+        @test occursin(
+            "| full_grid_observed | -0.25000000 | 0.50000 | -0.43750000 | " *
+            "-0.56250000 | n/a | 8 | >=8 | >=8 | n/a | " *
+            "$(LARGE_N_BOND_STATUS_SYSTEM_AND_EVOLVED_CAP) | not_recorded | " *
+            "30.0 | 600.00 | bond_capx1/2 |",
+            compact_output,
+        )
 
         @test_throws ErrorException combine_trajectory_rows(
             vcat(rows, summarize_file(duplicate_path))
@@ -826,7 +832,7 @@ end
         @test ismissing(row.tdvp_sweep_saturation_cycle)
         @test row.truncation_error_history_status ==
               CoolingTNS.TRUNCATION_ERROR_HISTORY_LEGACY_MISSING
-        @test row.bond_status == "not_converged_evolved_cap"
+        @test row.bond_status == LARGE_N_BOND_STATUS_EVOLVED_CAP
 
         output = mktemp() do output_path, io
             close(io)
@@ -840,7 +846,7 @@ end
         @test occursin(
             "| $(basename(path)) | 2 | mcwf | unknown | NaN | fixed | unknown | 1 | 1 | " *
             "unknown | 1/1 | n/a | n/a | n/a | NaN | NaN | none | unknown | " *
-            "unknown | unknown | 4 | 2 | >=4 | n/a | not_converged_evolved_cap | legacy_missing |",
+            "unknown | unknown | 4 | 2 | >=4 | n/a | $(LARGE_N_BOND_STATUS_EVOLVED_CAP) | legacy_missing |",
             output,
         )
         @test occursin("| 1 | 1 | unknown | 1/1 | n/a | n/a | n/a | NaN | NaN | none | unknown |", output)
@@ -883,7 +889,7 @@ end
             end
             read(output_path, String)
         end
-        @test occursin("| no_cap_hit | measured |", compact_output)
+        @test occursin("| $(LARGE_N_BOND_STATUS_NO_CAP_HIT) | measured |", compact_output)
     finally
         rm(path; force=true)
     end
@@ -940,8 +946,11 @@ end
             end
             read(output_path, String)
         end
-        @test occursin("| no_cap_hit | empty |", compact_output)
-        @test occursin("| no_cap_hit | not_recorded |", compact_output)
+        @test occursin("| $(LARGE_N_BOND_STATUS_NO_CAP_HIT) | empty |", compact_output)
+        @test occursin(
+            "| $(LARGE_N_BOND_STATUS_NO_CAP_HIT) | not_recorded |",
+            compact_output,
+        )
     finally
         rm(path; force=true)
     end
@@ -1407,7 +1416,7 @@ end
         @test row.tdvp_sweep_effective_bond == "n/a"
         @test ismissing(row.peak_tdvp_sweep_max)
         @test ismissing(row.tdvp_sweep_saturation_cycle)
-        @test row.bond_status == "not_converged_evolved_cap"
+        @test row.bond_status == LARGE_N_BOND_STATUS_EVOLVED_CAP
     finally
         rm(path; force=true)
     end
