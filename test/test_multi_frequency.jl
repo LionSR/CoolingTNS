@@ -1,6 +1,11 @@
 using Test
 using CoolingTNS
+using LinearAlgebra
 using Random
+
+# Keep this file directly runnable, matching the other cross-backend tests that
+# use the shared dense MPO converter outside `test/runtests.jl`.
+@isdefined(test_mpo_to_matrix) || include("test_helpers.jl")
 
 @testset "Multi-frequency Cooling" begin
     backend = CoolingTNS.EDBackend()
@@ -588,5 +593,109 @@ using Random
 
         @test haskey(results_tn, CoolingTNS.RESULT_ENERGY)
         @test sweeps == [1]
+    end
+
+    @testset "dynamic density-channel detunings match ED and TN" begin
+        # Setting J=0 leaves only disjoint local system-bath pairs.  The ED and
+        # TN Trotter channels should then agree to roundoff; nonzero J would
+        # introduce ordinary Trotter-splitting error, which is not this test's
+        # target.
+        ham_match = CoolingTNS.NiIsingParameters(2, 0.0, -0.7, 0.3)
+        mf_match = CoolingTNS.MultiFrequencyCouplingParameters(
+            "XZ",
+            0.23,
+            2,
+            0.4,
+            [0.4, 0.9];
+            randomize_times=false,
+            schedule=:descending,
+        )
+        sim_ed_match = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.DensityMatrix(),
+            CoolingTNS.TrotterEvolution();
+            tau=0.4,
+            pe=0.0,
+        )
+        sim_tn_match = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.DensityMatrix(),
+            CoolingTNS.TrotterEvolution();
+            Dmax=64,
+            cutoff=1e-14,
+            tau=0.4,
+            pe=0.0,
+        )
+
+        problem_ed_match = CoolingTNS.setup_problem(
+            CoolingTNS.EDBackend(),
+            ham_match,
+            mf_match,
+            sim_ed_match,
+        )
+        problem_tn_match = CoolingTNS.setup_problem(
+            CoolingTNS.TNBackend(),
+            ham_match,
+            mf_match,
+            sim_tn_match,
+        )
+        @test problem_ed_match.e₀ ≈ problem_tn_match.e₀ atol=1e-12
+
+        final_ed_state = Ref{Any}(nothing)
+        final_tn_state = Ref{Any}(nothing)
+        capture_ed = info -> begin
+            info.stage == :updated && (final_ed_state[] = info.state.state)
+            return nothing
+        end
+        capture_tn = info -> begin
+            info.stage == :updated && (final_tn_state[] = info.state.state)
+            return nothing
+        end
+
+        results_ed_match = redirect_stdout(devnull) do
+            redirect_stderr(devnull) do
+                CoolingTNS.run_cooling(
+                    problem_ed_match,
+                    CoolingTNS.setup_initial_state(problem_ed_match, sim_ed_match, "theta", -0.2),
+                    mf_match,
+                    sim_ed_match,
+                    ham_match;
+                    step_observer=capture_ed,
+                )
+            end
+        end
+        results_tn_match = redirect_stdout(devnull) do
+            redirect_stderr(devnull) do
+                CoolingTNS.run_cooling(
+                    problem_tn_match,
+                    CoolingTNS.setup_initial_state(problem_tn_match, sim_tn_match, "theta", -0.2),
+                    mf_match,
+                    sim_tn_match,
+                    ham_match;
+                    step_observer=capture_tn,
+                )
+            end
+        end
+
+        @test isequal(
+            results_ed_match[CoolingTNS.RESULT_DELTA_LIST],
+            [NaN, 0.9, 0.4],
+        )
+        @test isequal(
+            results_tn_match[CoolingTNS.RESULT_DELTA_LIST],
+            results_ed_match[CoolingTNS.RESULT_DELTA_LIST],
+        )
+        @test isapprox(
+            results_tn_match[CoolingTNS.RESULT_ENERGY],
+            results_ed_match[CoolingTNS.RESULT_ENERGY];
+            atol=1e-12,
+            rtol=1e-12,
+        )
+
+        @test final_ed_state[] !== nothing
+        @test final_tn_state[] !== nothing
+        ρ_ed = final_ed_state[].data
+        ρ_tn = test_mpo_to_matrix(final_tn_state[])
+        @test ρ_tn ≈ ρ_ed atol=1e-12
+        @test tr(ρ_ed) ≈ 1.0 + 0.0im atol=1e-12
+        @test tr(ρ_tn) ≈ 1.0 + 0.0im atol=1e-12
     end
 end
