@@ -25,8 +25,16 @@ end
     @test default_cfg["Ns"] == [64]
     @test default_cfg["methods"] == ["mcwf"]
     @test basename(default_output_filename(default_cfg)) ==
-          "largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_trotter_steps40_Dmax40_te2_tau0.2_seed20260617.h5"
+          "largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_trotter_steps40_Dmax40_g0.3_te2_tau0.2_seed20260617.h5"
     @test occursin("_mcwf_trotter_steps", output_path(default_cfg))
+    @test occursin("_g0.3_te2_", output_path(default_cfg))
+    weak_coupling_cfg = parse_args([
+        "--g", "0.1",
+        "--outdir", tempdir(),
+    ])
+    @test occursin("_g0.1_te2_", output_path(weak_coupling_cfg))
+    @test basename(default_output_filename(weak_coupling_cfg)) !=
+          basename(default_output_filename(default_cfg))
     default_command = join(command_args_for_config(default_cfg), " ")
     @test occursin("--methods mcwf", default_command)
     @test !occursin("--methods mpo,mcwf", default_command)
