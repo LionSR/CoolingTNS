@@ -54,6 +54,13 @@ function write_minimal_mode_summary_file(path::AbstractString, mode_hk, mode_nk;
     return nothing
 end
 
+@testset "Large-N summary formats mode residuals" begin
+    @test format_error_float(0.0, 3) == "0.000"
+    @test format_error_float(0.016, 3) == "0.016"
+    @test format_error_float(1.298960938811e-14, 3) == "1.30e-14"
+    @test format_error_float_or_na(missing, 3) == "n/a"
+end
+
 function write_split_trajectory_summary_file(
     path::AbstractString;
     trajectory::Integer,
@@ -1034,7 +1041,7 @@ end
             read(output_path, String)
         end
         @test occursin("| mode max abs dE/N |", compact_output)
-        @test occursin("| $(format_float(final_energy_offset / N, 3)) | 8 |", compact_output)
+        @test occursin("| $(format_error_float(final_energy_offset / N, 3)) | 8 |", compact_output)
     finally
         rm(path; force=true)
     end
