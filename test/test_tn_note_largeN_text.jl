@@ -369,6 +369,17 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("--init-state theta --theta 0.0 --measure-modes", evidence_flat)
     @test occursin("mode_gF_source = \"reference\"", evidence_flat)
     @test occursin("mixed-parity state for the periodic Ising chain in the code basis", evidence_flat)
+    @test occursin("Dmax=16 Product-State Mode Probe", evidence_flat)
+    @test occursin("detuning_reference_gap_source = \"ising_mode_pair_reference\"", evidence_flat)
+    @test occursin(
+        "| 10 | 3/5 | requested_partial_grid | 0.74932134 | 0.74932134 | " *
+        "13 | >=16 | >=16 | not_converged_evolved_and_tdvp_sweep_cap | " *
+        "reference | 0.016 |",
+        evidence_flat,
+    )
+    @test occursin("mode_nk` is finite and lies in `[0.71657563, 0.99207860]`", evidence_flat)
+    @test occursin("0.015625 = 1/64", evidence_flat)
+    @test occursin("fixed-reference diagnostic rather than an exact sector energy decomposition", evidence_flat)
     @test occursin("First Parity-Definite N=64 Mode Scan", evidence_flat)
     @test occursin("| 10 | 10/10 | -1.050000000002 | -1.050000000002 | 0.19542960 | 1 | 1 | 1 | state | 1.208e-12 |", evidence_flat)
     @test occursin("selected grid was half-integer (`mode_gF = -1`), so it contained no special modes", evidence_flat)
