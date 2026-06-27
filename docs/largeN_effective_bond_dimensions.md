@@ -1707,6 +1707,88 @@ It does not improve the cooling prefix: the stopped energy density is
 `0.84528025`.  At this fixed descending schedule, smaller `te` is therefore a
 cap-delay mechanism rather than a route to the ground state.
 
+### Weak-Coupling ED and N=64 Probe
+
+The fixed descending channel also depends strongly on the coupling strength
+`g`.  Before launching another large-`N` trajectory, an exact `N = 4`
+density-matrix ED scan was run as a channel diagnostic.  The scan used the same
+nonintegrable open-chain Hamiltonian, `R = 10`, ten descending cycles, and the
+ED finite-size interval `[Delta, 6 Delta]` with
+`Delta = 0.8484306542`.  It compared two initial states: the exact ground-state
+density matrix and the product state.  The table reports the final ground-state
+energy drift per site and the product-state energy reduction over the same
+ten-cycle prefix:
+
+| g | te | ground drift/N | ground overlap | product initial E/N | product final E/N | product best E/N | product cooling/N |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0.05 | 0.2 | 1.130e-03 | 0.99899815 | 1.25000000 | 1.24768857 | 1.24768857 | 2.311e-03 |
+| 0.05 | 0.5 | 2.064e-03 | 0.99780366 | 1.25000000 | 1.23669081 | 1.23669081 | 1.331e-02 |
+| 0.05 | 1.0 | 1.257e-03 | 0.99847658 | 1.25000000 | 1.20974816 | 1.20974816 | 4.025e-02 |
+| 0.10 | 0.2 | 4.515e-03 | 0.99599826 | 1.25000000 | 1.24078037 | 1.24078037 | 9.220e-03 |
+| 0.10 | 0.5 | 8.259e-03 | 0.99123828 | 1.25000000 | 1.19747893 | 1.19747893 | 5.252e-02 |
+| 0.10 | 1.0 | 4.992e-03 | 0.99393667 | 1.25000000 | 1.09428205 | 1.09428205 | 1.557e-01 |
+| 0.20 | 0.2 | 1.800e-02 | 0.98408397 | 1.25000000 | 1.21353489 | 1.21353489 | 3.647e-02 |
+| 0.20 | 0.5 | 3.307e-02 | 0.96533187 | 1.25000000 | 1.05087550 | 1.05087550 | 1.991e-01 |
+| 0.20 | 1.0 | 1.971e-02 | 0.97597631 | 1.25000000 | 0.70120498 | 0.70120498 | 5.488e-01 |
+| 0.30 | 0.2 | 4.029e-02 | 0.96453115 | 1.25000000 | 1.16947300 | 1.16947300 | 8.053e-02 |
+| 0.30 | 0.5 | 7.435e-02 | 0.92342255 | 1.25000000 | 0.83934986 | 0.83934986 | 4.107e-01 |
+| 0.30 | 1.0 | 4.507e-02 | 0.94535349 | 1.25000000 | 0.22980770 | 0.22980770 | 1.020e+00 |
+
+Thus the exact small-system channel already shows the expected tradeoff:
+weaker coupling is closer to a ground-state fixed point, but it cools the
+product state more slowly.  This is a channel-level diagnostic, not a
+large-`N` convergence result.
+
+The corresponding large-`N` diagnostic tested the more ground-preserving
+choice `g = 0.1` at the same `N = 64`, `R = 10`, `Dmax = 64`, `te = 1.0`
+descending setup used in the stop-on-cap scans:
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 10 --methods mcwf \
+  --evolution-method continuous --steps 20 --Dmax 64 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open \
+  --g 0.1 --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending \
+  --progress-csv .worktree/gscan_N64_R10_g0.1_D64_te1_steps20_20260627/progress.csv \
+  --outdir .worktree/gscan_N64_R10_g0.1_D64_te1_steps20_20260627 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The run wrote
+
+```text
+.worktree/gscan_N64_R10_g0.1_D64_te1_steps20_20260627/largeN_multifrequency_tn_N64_R10_mcwf_continuous_stopcap_scheddesc_steps20_Dmax64_te1_tau0.2_seed20260617.h5
+.worktree/gscan_N64_R10_g0.1_D64_te1_steps20_20260627/progress.csv
+```
+
+The compact HDF5 summary is
+
+| R | g | Dcap | completed/requested cycles | completed/requested periods | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|
+| 10 | 0.1 | 64 | 5/20 | 0.50/2.00 | 1.33598052 | 1.33380878 | >=64 | >=64 | >=64 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 470.5 s |
+
+The completed-cycle prefix is
+
+| cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 3.03070050 | 1.43159181 | 4 | 6 | 36.3 s |
+| 2 | 2.75008008 | 1.43023698 | 10 | 13 | 54.6 s |
+| 3 | 2.46945966 | 1.33380878 | 22 | 27 | 87.9 s |
+| 4 | 2.18883925 | 1.33518504 | 46 | 55 | 190.8 s |
+| 5 | 1.90821883 | 1.33598052 | 64 | 64 | 470.5 s |
+
+The weaker coupling reduces early bond growth and gives a smoother first
+three-cycle prefix, but it still reaches the retained-system, evolved
+system-bath, and TDVP-sweep caps by the fifth completed cycle.  It also remains
+far above the DMRG ground-state energy density `E0/N = -1.3246328892` and does
+not complete even one full ten-frequency period.  Thus `g = 0.1` is useful as a
+coupling-strength diagnostic, not as evidence for scalable large-`N`
+ground-state cooling at `Dmax = 64`.
+
 ## Near-Ground Initial-State Control
 
 The large-`N` driver also supports a near-ground control through
