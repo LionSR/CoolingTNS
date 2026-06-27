@@ -300,6 +300,54 @@ the HDF5 metadata records `mode_gF_source = "reference"`, and the mode arrays
 should be read as a fixed-reference diagnostic rather than as a state-sector
 energy decomposition.
 
+### Dmax=16 Product-State Mode Probe
+
+After adding the progress-CSV recommendation for mode-resolved continuous TDVP
+runs, a bounded `N = 64` periodic-Ising probe was run on 2026-06-27 from the
+default product state:
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 1,2,5,10 --methods mcwf \
+  --evolution-method continuous --steps 5 --Dmax 16 \
+  --cutoff 1e-7 --tau 0.2 --model ising --bc periodic --h -0.75 \
+  --measure-modes --mode-measurement-stride 1 \
+  --schedule descending --stop-on-bond-cap --te 0.5 \
+  --progress-csv .worktree/mode_probe_N64_ising_periodic_D16_te0.5_20260627/tdvp_progress_modes.csv \
+  --tdvp-sweep-progress \
+  --outdir .worktree/mode_probe_N64_ising_periodic_D16_te0.5_20260627 \
+  --verbose
+```
+
+The run used the analytic periodic-Ising pair reference
+`detuning_reference_gap_source = "ising_mode_pair_reference"` with
+`detuning_reference_gap = 1.01435154`.  The direct ground-state reference stored
+in the file is `E0/N = -1.1463581992`.  The HDF5 and progress-CSV summaries
+agree:
+
+| R | completed/requested | detuning coverage | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | mode source | mode max abs dE/N |
+|---:|---:|---|---:|---:|---:|---:|---:|---|---|---:|
+| 1 | 3/5 | single_detuning | 0.82770229 | 0.82770229 | 13 | >=16 | >=16 | not_converged_evolved_and_tdvp_sweep_cap | reference | 0.016 |
+| 2 | 3/5 | full_grid_observed | 0.82329220 | 0.82329220 | 12 | >=16 | >=16 | not_converged_evolved_and_tdvp_sweep_cap | reference | 0.016 |
+| 5 | 3/5 | stopped_partial_grid | 0.89088421 | 0.89088421 | 13 | >=16 | >=16 | not_converged_evolved_and_tdvp_sweep_cap | reference | 0.016 |
+| 10 | 3/5 | requested_partial_grid | 0.74932134 | 0.74932134 | 13 | >=16 | >=16 | not_converged_evolved_and_tdvp_sweep_cap | reference | 0.016 |
+
+The progress CSV records that all four trajectories first reach the evolved
+system-bath and TDVP-sweep caps at cycle 3.  The final-cycle ordering is
+`R = 10 < R = 2 < R = 1 < R = 5`, where lower energy is better, but every row
+is still far above the ground-state reference and cap-limited.  Thus this is an
+occupation-diagnostic and logging check, not evidence of converged cooling.
+
+The stored occupations are physically bounded in this run: `mode_nk` is finite
+and lies in `[0.71657563, 0.99207860]` across all measured rows.  The largest
+mode-energy discrepancy, `0.015625 = 1/64` per site, occurs on the initial
+product-state row.  This is consistent with `mode_gF_source = "reference"`: the
+product state is not in a definite fermion-parity sector, so the mode
+reconstruction is a fixed-reference diagnostic rather than an exact sector
+energy decomposition.  On the capped final rows the discrepancy is about
+`0.001` for `R = 1` and about `0.010` for `R = 2,5,10`.
+
 ### First Parity-Definite N=64 Mode Scan
 
 After exposing the initial-state controls, the first nontrivial large-chain
