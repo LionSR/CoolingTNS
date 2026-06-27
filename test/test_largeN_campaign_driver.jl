@@ -1289,6 +1289,7 @@ end
 
     @test row["method"] == "mcwf"
     @test row["evolution"] == "continuous"
+    @test row["stage"] == LARGE_N_PROGRESS_STAGE_UPDATED
     @test row["cycle"] == 1
     @test row["energy_per_site"] == -0.25
     @test row["relative_energy"] == relative_energy(-1.0, -4.0)
@@ -1306,6 +1307,7 @@ end
         0.1,
     )
     @test initial_row["cycle"] == 0
+    @test initial_row["stage"] == LARGE_N_PROGRESS_STAGE_INITIAL
     @test initial_row["energy_per_site"] == -1.0
     @test isnan(initial_row["delta"])
     @test isnan(initial_row[LARGE_N_EVOLVED_MAX_BOND_KEY])
@@ -1321,6 +1323,7 @@ end
         2.0,
     )
     @test prepared_row["cycle"] == 1
+    @test prepared_row["stage"] == LARGE_N_PROGRESS_STAGE_PREPARED
     @test isnan(prepared_row["energy_per_site"])
     @test isnan(prepared_row["relative_energy"])
     @test isnan(prepared_row["overlap"])
@@ -1338,6 +1341,7 @@ end
         2.5,
     )
     @test evolved_row["cycle"] == 1
+    @test evolved_row["stage"] == LARGE_N_PROGRESS_STAGE_EVOLVED
     @test isnan(evolved_row["energy_per_site"])
     @test isnan(evolved_row["relative_energy"])
     @test isnan(evolved_row["overlap"])
@@ -1356,7 +1360,7 @@ end
         (max=21, mean=14.5),
         4.5,
     )
-    @test sweep_row["stage"] == "tdvp_sweep"
+    @test sweep_row["stage"] == LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
     @test sweep_row["cycle"] == 1
     @test isnan(sweep_row["energy_per_site"])
     @test sweep_row[LARGE_N_SYSTEM_MAX_BOND_KEY] == 8
@@ -1369,7 +1373,7 @@ end
         append_progress_csv_row(path, row)
         append_progress_csv_row(path, merge(row, Dict{String,Any}(
             "timestamp" => "contains,comma",
-            "stage" => "evolved",
+            "stage" => LARGE_N_PROGRESS_STAGE_EVOLVED,
         )))
         lines = readlines(path)
         @test lines[1] == join(LARGE_N_PROGRESS_CSV_COLUMNS, ",")
@@ -1380,6 +1384,16 @@ end
         rm(path; force=true)
     end
 
+    bad_stage_append_path = tempname() * ".csv"
+    try
+        @test_throws ArgumentError append_progress_csv_row(
+            bad_stage_append_path,
+            merge(row, Dict{String,Any}("stage" => "renormalized")),
+        )
+    finally
+        rm(bad_stage_append_path; force=true)
+    end
+
     stale_path = tempname() * ".csv"
     try
         write(stale_path, "timestamp,N\nold,4\n")
@@ -1387,6 +1401,32 @@ end
     finally
         rm(stale_path; force=true)
     end
+
+    bad_info = merge(info, (stage=:renormalized,))
+    @test_throws ArgumentError progress_row(
+        context,
+        bad_info,
+        ham_params,
+        -4.0,
+        (max=8, mean=6.5),
+        (max=13, mean=9.25),
+        3.5,
+    )
+    @test_throws ArgumentError progress_base_row(
+        context,
+        ham_params;
+        stage="renormalized",
+        step=2,
+        cycle=1,
+        delta=0.5,
+        te=2.0,
+        energy_per_site=NaN,
+        relative_energy_value=NaN,
+        overlap=NaN,
+        sys_bs=(max=8, mean=6.5),
+        evolved_bs=(max=13, mean=9.25),
+        elapsed=3.5,
+    )
 end
 
 @testset "Large-N campaign mode measurement smoke run" begin

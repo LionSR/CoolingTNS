@@ -57,6 +57,15 @@ end
           tn_method_maxdim(MonteCarloWavefunction(), 7)
     @test TDVPProgressCSVSummary.default_progress_cap("mpo", 7) ==
           tn_method_maxdim(DensityMatrix(), 7)
+    @test TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGES == (
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_INITIAL,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_PREPARED,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_EVOLVED,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_UPDATED,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_TDVP_SWEEP,
+    )
+    @test TDVPProgressCSVSummary.largeN_progress_stage(:updated) ==
+          TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_UPDATED
     @test TDVPProgressCSVSummary.LARGE_N_PROGRESS_GROUP_COLUMNS == (
         "N",
         "method",
@@ -209,7 +218,7 @@ end
         @test row.max_sweep == 2
         @test row.last_step == 4
         @test row.last_cycle == 3
-        @test row.last_stage == "tdvp_sweep"
+        @test row.last_stage == TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
         @test length(row.updates) == 2
 
         mpo_row = only(filter(row -> row.method == "mpo", rows))
@@ -230,7 +239,7 @@ end
         @test mpo_row.max_sweep_cycle == 0
         @test mpo_row.last_step == 3
         @test mpo_row.last_cycle == 2
-        @test mpo_row.last_stage == "updated"
+        @test mpo_row.last_stage == TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_UPDATED
 
         output = mktemp() do output_path, io
             close(io)
@@ -250,6 +259,23 @@ end
         @test occursin("| 4 | 3 | tdvp_sweep |", output)
     finally
         rm(path; force=true)
+    end
+
+    for bad_stage in ("renormalized", "")
+        bad_stage_path = tempname() * ".csv"
+        try
+            open(bad_stage_path, "w") do io
+                println(io, join(TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS, ","))
+                println(io, tdvp_progress_line(
+                    stage=bad_stage, step=1, cycle=0, delta="NaN", te="NaN",
+                    energy_per_site="1.0", relative_energy="2.0", overlap="0.0",
+                    system_max_bond="1", evolved_max_bond="NaN", elapsed_seconds=0.5,
+                ))
+            end
+            @test_throws ArgumentError TDVPProgressCSVSummary.read_progress_csv(bad_stage_path)
+        finally
+            rm(bad_stage_path; force=true)
+        end
     end
 
     tdvp_only_path = tempname() * ".csv"

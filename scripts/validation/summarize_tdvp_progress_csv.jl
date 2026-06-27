@@ -71,7 +71,12 @@ function read_progress_csv(path::AbstractString)
             "row $(line_number + 1) in $path has $(length(values)) fields, " *
             "but the header has $(length(header))"
         ))
-        push!(rows, Dict(zip(header, values)))
+        row = Dict(zip(header, values))
+        haskey(row, "stage") || throw(ArgumentError(
+            "progress CSV header in $path is missing the required stage column"
+        ))
+        require_largeN_progress_stage_label(row["stage"])
+        push!(rows, row)
     end
     return header, rows
 end
@@ -145,7 +150,10 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
     threshold = cap === nothing ?
         default_progress_cap(label.method, parse(Int, label.Dmax)) :
         Int(cap)
-    updates = [row for row in rows if progress_cell(row, "stage") == "updated"]
+    updates = [
+        row for row in rows
+        if progress_cell(row, "stage") == LARGE_N_PROGRESS_STAGE_UPDATED
+    ]
 
     system_cap_cycle = 0
     for row in updates
@@ -162,9 +170,10 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
         stage = progress_cell(row, "stage")
         # Evolved rows describe the post-evolution system-bath MPS; TDVP-sweep
         # rows describe the integrator observer history.
-        stage in ("tdvp_sweep", "evolved") || continue
+        stage in (LARGE_N_PROGRESS_STAGE_TDVP_SWEEP, LARGE_N_PROGRESS_STAGE_EVOLVED) ||
+            continue
         if progress_float(row, LARGE_N_EVOLVED_MAX_BOND_KEY) >= threshold
-            if stage == "tdvp_sweep"
+            if stage == LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
                 if tdvp_sweep_cap_cycle == 0
                     tdvp_sweep_cap_cycle = progress_int(row, "cycle")
                     tdvp_sweep_cap_sweep = progress_int(row, "tdvp_sweep")
@@ -184,9 +193,10 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
         stage = progress_cell(row, "stage")
         cycle = progress_int(row, "cycle")
         elapsed = progress_float(row, LARGE_N_ELAPSED_SECONDS_KEY)
-        if stage == "prepared"
+        if stage == LARGE_N_PROGRESS_STAGE_PREPARED
             prepared_or_sweep_elapsed[cycle] = elapsed
-        elseif stage == "tdvp_sweep" && haskey(prepared_or_sweep_elapsed, cycle)
+        elseif stage == LARGE_N_PROGRESS_STAGE_TDVP_SWEEP &&
+               haskey(prepared_or_sweep_elapsed, cycle)
             increment = elapsed - prepared_or_sweep_elapsed[cycle]
             prepared_or_sweep_elapsed[cycle] = elapsed
             if !isfinite(max_sweep_increment) || increment > max_sweep_increment

@@ -856,6 +856,10 @@ end
 function append_progress_csv_row(path::AbstractString, row)
     mkpath(dirname(path))
     expected_header = join(LARGE_N_PROGRESS_CSV_COLUMNS, ",")
+    haskey(row, "stage") || throw(ArgumentError(
+        "progress CSV row is missing the required stage column"
+    ))
+    progress_stage = require_largeN_progress_stage_label(row["stage"])
     needs_header = !isfile(path) || filesize(path) == 0
     if !needs_header
         existing_header = open(readline, path)
@@ -870,7 +874,13 @@ function append_progress_csv_row(path::AbstractString, row)
         needs_header && println(io, expected_header)
         println(
             io,
-            join((csv_cell(get(row, col, "")) for col in LARGE_N_PROGRESS_CSV_COLUMNS), ","),
+            join(
+                (
+                    csv_cell(col == "stage" ? progress_stage : get(row, col, ""))
+                    for col in LARGE_N_PROGRESS_CSV_COLUMNS
+                ),
+                ",",
+            ),
         )
         flush(io)
     end
@@ -901,7 +911,7 @@ function progress_base_row(context, ham_params; stage, step, cycle, delta, te,
         "Dmax" => context.Dmax,
         "cutoff" => context.cutoff,
         "tau" => context.tau,
-        "stage" => stage,
+        "stage" => require_largeN_progress_stage_label(stage),
         "step" => step,
         "cycle" => cycle,
         "delta" => delta,
@@ -925,7 +935,7 @@ function progress_row(context, info, ham_params, E0, sys_bs, evolved_bs, elapsed
     overlap = has_energy ? info.measurements[RESULT_GROUND_STATE_OVERLAP][info.step] : NaN
     return progress_base_row(
         context, ham_params;
-        stage=string(info.stage),
+        stage=largeN_progress_stage(info.stage),
         step=info.step,
         cycle=info.step - 1,
         delta=info.delta,
@@ -946,7 +956,7 @@ function tdvp_sweep_progress_row(context, tdvp_context, sweep, current_time,
                                  ham_params, evolved_bs, elapsed)
     return progress_base_row(
         context, ham_params;
-        stage="tdvp_sweep",
+        stage=LARGE_N_PROGRESS_STAGE_TDVP_SWEEP,
         step=tdvp_context.step,
         cycle=tdvp_context.step - 1,
         delta=tdvp_context.delta,
