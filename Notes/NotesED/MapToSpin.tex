@@ -470,6 +470,21 @@ these \(h_k\)'s, with the special-mode signs kept in
 energy. The separate density-matrix cooling-channel convention is recorded in
 the tensor-network note; it does not change the Jordan--Wigner formulas above.
 
+The energy reconstruction in \cref{eq:code_energy_from_hk} is a sector
+identity only after the state is in a fixed Ising-parity sector, so that the
+measured state itself selects \(g_F\).  Numerical output records
+\texttt{mode\_gF\_source = state} when the measured parity selects a sector
+within the implementation tolerance.  For an actual parity eigenstate this
+reconstructs the direct energy to numerical precision; the metadata alone does
+not prove exact absence of opposite-sector weight.  If the state is not selected
+as parity definite, the code may still evaluate the same operators on a fixed
+reference grid, recorded as \texttt{mode\_gF\_source = reference}.  In that case
+the arrays \texttt{mode\_hk} and \texttt{mode\_nk} are useful diagnostics on a
+specified fermionic grid, but \cref{eq:code_energy_from_hk} should not be read
+as an exact sector decomposition of the mixed-parity state.  This is precisely
+the distinction tested by the matched product-state and \(\theta=0\)
+large-\(N\) mode probes.
+
 \subsection{Going back to the spin operators}
 
 To track the cooling of specific modes in the spin model, the ED and tensor-network diagnostics measure the expectation value of the individual mode operators $h_k$ in \cref{eq:hk_individual_def}. Our goal is to express these operators in terms of the original Pauli operators, which involves tracing back through the sequence of transformations (Bogoliubov, Fourier, JW).

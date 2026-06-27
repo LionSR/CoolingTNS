@@ -354,6 +354,20 @@ $n_q^{\mathrm{Bog}}=1$.  This is a physical sector statement, not a change of
 the observable definition; the ED and tensor-network tests compare such APBC
 integer-grid cases through \cref{eq:TNModeEnergyReconstruction}.
 
+In the HDF5 diagnostics, \texttt{mode\_gF\_source} records whether this
+fermionic grid was selected by the measured state or by a reference convention.
+The value \texttt{state} means that the measured parity selected a sector
+within the implementation tolerance.  For an actual parity eigenstate,
+\cref{eq:TNModeEnergyReconstruction} then reconstructs the direct Ising energy
+up to numerical error, but the metadata alone should not be read as a proof of
+zero opposite-sector weight.  The value \texttt{reference} means that the same
+\(h_k\) and \(n_k^{\mathrm{Bog}}\) observables were evaluated on a chosen
+reference grid for a state without selected parity; this is a well-defined
+diagnostic, but it is not an exact sector decomposition of that mixed-parity
+state.  The \(N=64\) product-state and \(\theta=0\) mode probes make this
+distinction explicit: the former has a finite reference-grid offset, whereas
+the latter reconstructs the energy to roundoff.
+
 The same distinction enters the bath-detuning convention.  The HDF5 dataset
 \texttt{mode\_ek\_values} stores the positive single-quasiparticle energies
 $\Lambda\epsilon_k$ used to label the measured modes.  For the default
