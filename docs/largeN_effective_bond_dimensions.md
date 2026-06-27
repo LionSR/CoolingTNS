@@ -1766,11 +1766,15 @@ The run wrote
 .worktree/gscan_N64_R10_g0.1_D64_te1_steps20_20260627/progress.csv
 ```
 
+The HDF5 stem above is the historical output name from before the default
+filename added the `_g<value>` token.  The file metadata stores `g = 0.1`, and
+current reproductions of the same command write `_g0.1_` in the stem.
+
 The compact HDF5 summary is
 
-| R | g | Dcap | completed/requested cycles | completed/requested periods | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total |
-|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|
-| 10 | 0.1 | 64 | 5/20 | 0.50/2.00 | 1.33598052 | 1.33380878 | >=64 | >=64 | >=64 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 470.5 s |
+| R | g | Dcap | completed/requested cycles | completed/requested periods | visited detunings | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|
+| 10 | 0.1 | 64 | 5/20 | 0.50/2.00 | 5/10 | 1.33598052 | 1.33380878 | >=64 | >=64 | >=64 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 470.5 s |
 
 The completed-cycle prefix is
 
@@ -1789,6 +1793,53 @@ far above the DMRG ground-state energy density `E0/N = -1.3246328892` and does
 not complete even one full ten-frequency period.  Thus `g = 0.1` is useful as a
 coupling-strength diagnostic, not as evidence for scalable large-`N`
 ground-state cooling at `Dmax = 64`.
+
+The same diagnostic was then pushed to the weaker value `g = 0.05` for all
+four frequency counts `R = 1,2,5,10`, keeping `N = 64`, `Dmax = 64`,
+`te = 1.0`, the fixed descending detuning interval, and the same stop-on-cap
+rule:
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. --startup-file=no scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 1,2,5,10 --methods mcwf \
+  --evolution-method continuous --steps 10 --Dmax 64 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open \
+  --g 0.05 --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending \
+  --progress-csv .worktree/gscan_N64_R1-2-5-10_g0.05_D64_te1_steps10_20260627/progress.csv \
+  --outdir .worktree/gscan_N64_R1-2-5-10_g0.05_D64_te1_steps10_20260627 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The run wrote
+
+```text
+.worktree/gscan_N64_R1-2-5-10_g0.05_D64_te1_steps10_20260627/largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_continuous_stopcap_scheddesc_steps10_Dmax64_g0.05_te1_tau0.2_seed20260617.h5
+.worktree/gscan_N64_R1-2-5-10_g0.05_D64_te1_steps10_20260627/progress.csv
+```
+
+The compact HDF5 summary is
+
+| R | g | Dcap | completed/requested cycles | completed/requested periods | visited detunings | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|
+| 1 | 0.05 | 64 | 5/10 | 5.00/10.00 | 1/1 | 1.48957680 | 1.48437500 | 61 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | 373.5 s |
+| 2 | 0.05 | 64 | 5/10 | 2.50/5.00 | 2/2 | 1.48653745 | 1.48437500 | 63 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | 362.7 s |
+| 5 | 0.05 | 64 | 5/10 | 1.00/2.00 | 5/5 | 1.48689280 | 1.48437500 | 61 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | 349.1 s |
+| 10 | 0.05 | 64 | 5/10 | 0.50/1.00 | 5/10 | 1.48521913 | 1.48422035 | 63 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | 360.8 s |
+
+The initial product-state energy density in every row is `1.48437500`.  Thus
+only `R = 10` reaches a best-prefix energy below the initial product-state
+energy, and the improvement is only `1.55e-4` per site before the trajectory
+heats to `1.48521913` at the cap.  The other three frequency counts do not cool
+even transiently within the recorded prefix.  All four rows reach the evolved
+system-bath and TDVP-sweep caps by the fifth completed cycle, with retained
+system bond dimensions already in the range `61--63`.  Therefore lowering the
+coupling from `g = 0.1` to `g = 0.05` makes the channel too weak to produce
+scalable large-`N` cooling before the same effective bond-dimension bottleneck
+is encountered.
 
 ## Near-Ground Initial-State Control
 
