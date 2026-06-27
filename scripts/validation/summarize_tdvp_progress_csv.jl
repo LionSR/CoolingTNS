@@ -218,7 +218,9 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
     last_stage = last_row === nothing ? "none" : progress_cell(last_row, "stage")
     last_step = last_row === nothing ? 0 : progress_int(last_row, "step")
     last_cycle = last_row === nothing ? 0 : progress_int(last_row, "cycle")
-    status = bond_cap_status(system_cap_cycle, evolved_cap_cycle, tdvp_sweep_cap_cycle)
+    status = require_largeN_bond_status_label(
+        bond_cap_status(system_cap_cycle, evolved_cap_cycle, tdvp_sweep_cap_cycle)
+    )
     transient_cap_cycle, transient_cap_sweep = if evolved_cap_cycle == 0
         (tdvp_sweep_cap_cycle, tdvp_sweep_cap_sweep)
     elseif tdvp_sweep_cap_cycle == 0

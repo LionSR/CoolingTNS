@@ -58,6 +58,81 @@ const LARGE_N_ROW_EVOLVED_MAX_BOND_KEY = "evolved_maxbond"
 const LARGE_N_ROW_EVOLVED_MEAN_BOND_KEY = "evolved_meanbond"
 const LARGE_N_ROW_TDVP_SWEEP_MAX_BOND_KEY = "tdvp_sweep_maxbond"
 
+# Bond-cap status labels.  These strings are reader-facing evidence labels in
+# the large-N HDF5 and progress-CSV summaries; keep their construction
+# centralized so cap-limited runs cannot be mislabeled by one reader.
+const LARGE_N_BOND_CAP_SOURCE_SYSTEM = "system"
+const LARGE_N_BOND_CAP_SOURCE_EVOLVED = "evolved"
+const LARGE_N_BOND_CAP_SOURCE_TDVP_SWEEP = "tdvp_sweep"
+const LARGE_N_BOND_CAP_SOURCES = (
+    LARGE_N_BOND_CAP_SOURCE_SYSTEM,
+    LARGE_N_BOND_CAP_SOURCE_EVOLVED,
+    LARGE_N_BOND_CAP_SOURCE_TDVP_SWEEP,
+)
+const LARGE_N_BOND_STATUS_NO_CAP_HIT = "no_cap_hit"
+const LARGE_N_BOND_STATUS_PREFIX = "not_converged"
+const LARGE_N_BOND_STATUS_SUFFIX = "cap"
+
+function _largeN_bond_status_label(hit_sources)
+    sources = String.(collect(hit_sources))
+    isempty(sources) && return LARGE_N_BOND_STATUS_NO_CAP_HIT
+    length(unique(sources)) == length(sources) || throw(ArgumentError(
+        "large-N bond-cap sources must be unique; got $(join(sources, ", "))"
+    ))
+    unknown = [source for source in sources if !(source in LARGE_N_BOND_CAP_SOURCES)]
+    isempty(unknown) || throw(ArgumentError(
+        "unknown large-N bond-cap source(s): $(join(unknown, ", ")); expected one of " *
+        join(LARGE_N_BOND_CAP_SOURCES, ", ")
+    ))
+    ordered = [
+        source for source in LARGE_N_BOND_CAP_SOURCES
+        if source in sources
+    ]
+    return "$(LARGE_N_BOND_STATUS_PREFIX)_$(join(ordered, "_and_"))_$(LARGE_N_BOND_STATUS_SUFFIX)"
+end
+
+const LARGE_N_BOND_STATUSES = (
+    LARGE_N_BOND_STATUS_NO_CAP_HIT,
+    _largeN_bond_status_label((LARGE_N_BOND_CAP_SOURCE_SYSTEM,)),
+    _largeN_bond_status_label((LARGE_N_BOND_CAP_SOURCE_EVOLVED,)),
+    _largeN_bond_status_label((LARGE_N_BOND_CAP_SOURCE_TDVP_SWEEP,)),
+    _largeN_bond_status_label((
+        LARGE_N_BOND_CAP_SOURCE_SYSTEM,
+        LARGE_N_BOND_CAP_SOURCE_EVOLVED,
+    )),
+    _largeN_bond_status_label((
+        LARGE_N_BOND_CAP_SOURCE_SYSTEM,
+        LARGE_N_BOND_CAP_SOURCE_TDVP_SWEEP,
+    )),
+    _largeN_bond_status_label((
+        LARGE_N_BOND_CAP_SOURCE_EVOLVED,
+        LARGE_N_BOND_CAP_SOURCE_TDVP_SWEEP,
+    )),
+    _largeN_bond_status_label((
+        LARGE_N_BOND_CAP_SOURCE_SYSTEM,
+        LARGE_N_BOND_CAP_SOURCE_EVOLVED,
+        LARGE_N_BOND_CAP_SOURCE_TDVP_SWEEP,
+    )),
+)
+
+"""
+    require_largeN_bond_status_label(status) -> String
+
+Validate a machine-readable large-N bond-cap status label.
+
+The status is not a cooling-success metric.  It records only which effective
+bond-dimension histories reached the method-specific cap, so malformed labels
+should be rejected before a summary table is used as physical evidence.
+"""
+function require_largeN_bond_status_label(status)
+    label = String(status)
+    label in LARGE_N_BOND_STATUSES && return label
+    throw(ArgumentError(
+        "unknown large-N bond status '$label'; expected one of " *
+        join(LARGE_N_BOND_STATUSES, ", ")
+    ))
+end
+
 # Progress CSV stage labels.  These labels define the physical meaning of a
 # flushed observer row, and are shared by the campaign writer and recovery
 # summarizer.
@@ -327,11 +402,11 @@ function bond_cap_status(system_saturation_cycle::Integer,
                          evolved_saturation_cycle::Integer,
                          tdvp_sweep_saturation_cycle::Integer=0)
     hit_sources = String[]
-    system_saturation_cycle > 0 && push!(hit_sources, "system")
-    evolved_saturation_cycle > 0 && push!(hit_sources, "evolved")
-    tdvp_sweep_saturation_cycle > 0 && push!(hit_sources, "tdvp_sweep")
-    isempty(hit_sources) && return "no_cap_hit"
-    return "not_converged_$(join(hit_sources, "_and_"))_cap"
+    system_saturation_cycle > 0 && push!(hit_sources, LARGE_N_BOND_CAP_SOURCE_SYSTEM)
+    evolved_saturation_cycle > 0 && push!(hit_sources, LARGE_N_BOND_CAP_SOURCE_EVOLVED)
+    tdvp_sweep_saturation_cycle > 0 &&
+        push!(hit_sources, LARGE_N_BOND_CAP_SOURCE_TDVP_SWEEP)
+    return _largeN_bond_status_label(hit_sources)
 end
 
 """

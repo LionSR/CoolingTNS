@@ -48,6 +48,23 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test LARGE_N_ROW_EVOLVED_MAX_BOND_KEY == "evolved_maxbond"
     @test LARGE_N_ROW_EVOLVED_MEAN_BOND_KEY == "evolved_meanbond"
     @test LARGE_N_ROW_TDVP_SWEEP_MAX_BOND_KEY == "tdvp_sweep_maxbond"
+    @test LARGE_N_BOND_CAP_SOURCE_SYSTEM == "system"
+    @test LARGE_N_BOND_CAP_SOURCE_EVOLVED == "evolved"
+    @test LARGE_N_BOND_CAP_SOURCE_TDVP_SWEEP == "tdvp_sweep"
+    @test LARGE_N_BOND_CAP_SOURCES == ("system", "evolved", "tdvp_sweep")
+    @test LARGE_N_BOND_STATUS_NO_CAP_HIT == "no_cap_hit"
+    @test LARGE_N_BOND_STATUS_PREFIX == "not_converged"
+    @test LARGE_N_BOND_STATUS_SUFFIX == "cap"
+    @test LARGE_N_BOND_STATUSES == (
+        "no_cap_hit",
+        "not_converged_system_cap",
+        "not_converged_evolved_cap",
+        "not_converged_tdvp_sweep_cap",
+        "not_converged_system_and_evolved_cap",
+        "not_converged_system_and_tdvp_sweep_cap",
+        "not_converged_evolved_and_tdvp_sweep_cap",
+        "not_converged_system_and_evolved_and_tdvp_sweep_cap",
+    )
     @test LARGE_N_PROGRESS_STAGE_INITIAL == "initial"
     @test LARGE_N_PROGRESS_STAGE_PREPARED == "prepared"
     @test LARGE_N_PROGRESS_STAGE_EVOLVED == "evolved"
@@ -170,7 +187,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test saturation_cycle_label(0) == "none"
     @test saturation_cycle_label(4) == "4"
     @test saturation_cycle_label(missing) == "n/a"
-    @test bond_cap_status(0, 0) == "no_cap_hit"
+    @test bond_cap_status(0, 0) == LARGE_N_BOND_STATUS_NO_CAP_HIT
     @test bond_cap_status(3, 0) == "not_converged_system_cap"
     @test bond_cap_status(0, 2) == "not_converged_evolved_cap"
     @test bond_cap_status(3, 2) == "not_converged_system_and_evolved_cap"
@@ -179,6 +196,16 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test bond_cap_status(0, 2, 4) == "not_converged_evolved_and_tdvp_sweep_cap"
     @test bond_cap_status(3, 2, 4) ==
           "not_converged_system_and_evolved_and_tdvp_sweep_cap"
+    @test require_largeN_bond_status_label(LARGE_N_BOND_STATUS_NO_CAP_HIT) ==
+          LARGE_N_BOND_STATUS_NO_CAP_HIT
+    @test require_largeN_bond_status_label("not_converged_evolved_and_tdvp_sweep_cap") ==
+          "not_converged_evolved_and_tdvp_sweep_cap"
+    @test _largeN_bond_status_label(("tdvp_sweep", "system")) ==
+          "not_converged_system_and_tdvp_sweep_cap"
+    @test_throws ArgumentError require_largeN_bond_status_label("")
+    @test_throws ArgumentError require_largeN_bond_status_label("not_converged_bath_cap")
+    @test_throws ArgumentError _largeN_bond_status_label(("system", "system"))
+    @test_throws ArgumentError _largeN_bond_status_label(("bath",))
     @test effective_bond_dimension_label(48, 0, 64) == "48"
     @test effective_bond_dimension_label(64, 2, 64) == ">=64"
     @test effective_bond_dimension_label(72, 2, 64) == ">=72"
