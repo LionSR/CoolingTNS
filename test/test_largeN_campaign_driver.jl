@@ -1384,6 +1384,16 @@ end
         rm(path; force=true)
     end
 
+    bad_stage_append_path = tempname() * ".csv"
+    try
+        @test_throws ArgumentError append_progress_csv_row(
+            bad_stage_append_path,
+            merge(row, Dict{String,Any}("stage" => "renormalized")),
+        )
+    finally
+        rm(bad_stage_append_path; force=true)
+    end
+
     stale_path = tempname() * ".csv"
     try
         write(stale_path, "timestamp,N\nold,4\n")

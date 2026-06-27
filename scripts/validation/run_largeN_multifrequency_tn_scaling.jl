@@ -856,6 +856,10 @@ end
 function append_progress_csv_row(path::AbstractString, row)
     mkpath(dirname(path))
     expected_header = join(LARGE_N_PROGRESS_CSV_COLUMNS, ",")
+    haskey(row, "stage") || throw(ArgumentError(
+        "progress CSV row is missing the required stage column"
+    ))
+    progress_stage = require_largeN_progress_stage_label(row["stage"])
     needs_header = !isfile(path) || filesize(path) == 0
     if !needs_header
         existing_header = open(readline, path)
@@ -870,7 +874,13 @@ function append_progress_csv_row(path::AbstractString, row)
         needs_header && println(io, expected_header)
         println(
             io,
-            join((csv_cell(get(row, col, "")) for col in LARGE_N_PROGRESS_CSV_COLUMNS), ","),
+            join(
+                (
+                    csv_cell(col == "stage" ? progress_stage : get(row, col, ""))
+                    for col in LARGE_N_PROGRESS_CSV_COLUMNS
+                ),
+                ",",
+            ),
         )
         flush(io)
     end
