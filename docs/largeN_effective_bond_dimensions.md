@@ -39,8 +39,9 @@ The code source of truth for these quantities is
 `scripts/validation/summarize_largeN_bond_dimensions.jl`.
 Some historical filenames cited below predate the current default naming
 convention, which includes the canonical evolution-method token (`trotter` or
-`continuous`), the evolution time `te`, mode-measurement suffixes, and suffixes
-for non-default detuning schedules and randomized evolution times.  Generated
+`continuous`), the bath coupling `g`, the evolution time `te`,
+mode-measurement suffixes, and suffixes for non-default detuning schedules and
+randomized evolution times.  Generated
 per-job progress CSV filenames in a parallel plan reuse the same HDF5 protocol
 stem, with the user-supplied CSV stem kept as a prefix.  Plans with
 `--te-values` generate one child command per requested evolution time and rely

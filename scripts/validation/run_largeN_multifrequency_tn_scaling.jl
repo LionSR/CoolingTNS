@@ -1248,10 +1248,10 @@ function default_output_filename(cfg)
     end
     trajectory_suffix = cfg["trajectory_index"] === nothing ? "" :
         "_traj$(cfg["trajectory_index"])"
-    # `te` is a scanned physical protocol parameter, so keep more digits than
-    # the legacy `tau` token to avoid collisions between nearby evolution times.
+    # `g` and `te` are scanned physical protocol parameters, so keep more digits
+    # than the legacy `tau` token to avoid collisions between nearby protocols.
     return @sprintf(
-        "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s%s%s%s%s_steps%d_Dmax%d_te%.12g_tau%.3g_seed%d.h5",
+        "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s%s%s%s%s_steps%d_Dmax%d_g%.12g_te%.12g_tau%.3g_seed%d.h5",
         Ns,
         Rs,
         methods,
@@ -1264,6 +1264,7 @@ function default_output_filename(cfg)
         trajectory_suffix,
         cfg["steps"],
         cfg["Dmax"],
+        cfg["g"],
         cfg["te"],
         cfg["tau"],
         cfg["seed"],
