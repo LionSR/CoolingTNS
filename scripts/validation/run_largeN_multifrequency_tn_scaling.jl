@@ -768,6 +768,18 @@ end
 parallel_plan_commands(cfg) =
     [parallel_plan_command(run_cfg) for run_cfg in parallel_plan_configs(cfg)]
 
+mode_progress_csv_recommended(cfg) =
+    cfg["measure_modes"] && cfg["progress_csv"] === nothing &&
+    any(==("continuous"), campaign_evolution_method_values(cfg))
+
+function warn_if_mode_progress_csv_recommended(cfg)
+    mode_progress_csv_recommended(cfg) || return false
+    @warn "--measure-modes with continuous TDVP has no --progress-csv path. " *
+          "Long TDVP cycles may leave only a partial HDF5 file if interrupted; " *
+          "pass --progress-csv to preserve partial energy and bond diagnostics."
+    return true
+end
+
 function print_parallel_plan(cfg; io=stdout)
     commands = parallel_plan_commands(cfg)
     println(io, "# large-N campaign parallel job plan")
@@ -786,6 +798,13 @@ function print_parallel_plan(cfg; io=stdout)
     end
     if cfg["progress_csv"] === nothing
         println(io, "# No progress CSV path requested.")
+        if mode_progress_csv_recommended(cfg)
+            println(
+                io,
+                "# Mode-resolved continuous TDVP runs can spend long intervals inside one " *
+                "cycle; pass --progress-csv so partial energy and bond diagnostics survive interruption.",
+            )
+        end
     elseif length(commands) > 1
         println(io, "# With a base --progress-csv, generated CSV paths keep the requested CSV stem and append the HDF5 protocol stem.")
     else
@@ -1647,6 +1666,7 @@ function run_largeN_multifrequency_tn_scaling_main()
         print_parallel_plan(cfg)
         return nothing
     end
+    warn_if_mode_progress_csv_recommended(cfg)
     Dmax_values = campaign_dmax_values(cfg)
     te_values = campaign_te_values(cfg)
     @printf("large-N multi-frequency TN campaign\n")
