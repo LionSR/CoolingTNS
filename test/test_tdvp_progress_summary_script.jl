@@ -261,19 +261,21 @@ end
         rm(path; force=true)
     end
 
-    bad_stage_path = tempname() * ".csv"
-    try
-        open(bad_stage_path, "w") do io
-            println(io, join(TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS, ","))
-            println(io, tdvp_progress_line(
-                stage="renormalized", step=1, cycle=0, delta="NaN", te="NaN",
-                energy_per_site="1.0", relative_energy="2.0", overlap="0.0",
-                system_max_bond="1", evolved_max_bond="NaN", elapsed_seconds=0.5,
-            ))
+    for bad_stage in ("renormalized", "")
+        bad_stage_path = tempname() * ".csv"
+        try
+            open(bad_stage_path, "w") do io
+                println(io, join(TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS, ","))
+                println(io, tdvp_progress_line(
+                    stage=bad_stage, step=1, cycle=0, delta="NaN", te="NaN",
+                    energy_per_site="1.0", relative_energy="2.0", overlap="0.0",
+                    system_max_bond="1", evolved_max_bond="NaN", elapsed_seconds=0.5,
+                ))
+            end
+            @test_throws ArgumentError TDVPProgressCSVSummary.read_progress_csv(bad_stage_path)
+        finally
+            rm(bad_stage_path; force=true)
         end
-        @test_throws ArgumentError TDVPProgressCSVSummary.read_progress_csv(bad_stage_path)
-    finally
-        rm(bad_stage_path; force=true)
     end
 
     tdvp_only_path = tempname() * ".csv"
