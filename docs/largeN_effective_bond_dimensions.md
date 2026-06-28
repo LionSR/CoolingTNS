@@ -346,18 +346,18 @@ The summary row is
 
 The raw mode payload satisfies the strided stopped-row contract:
 
-```text
-mode_measurement_cycles = [0, 2]
-mode_hk shape = (3, 64)
-measured rows = [1, 3]
-finite measured hk = true
-finite measured nk = true
-unmeasured row-2 finite count = 0
-measured nk bounds = [1.4333325864557267e-4, 0.34677786108923314]
-direct E/N rows = [-1.05000000, -1.0832813940248238]
-mode E/N rows   = [-1.05000000, -1.0832813939709762]
-abs dE/N        = [1.78e-15, 5.38e-11]
-```
+| quantity | value |
+|---|---:|
+| `mode_measurement_cycles` | `[0, 2]` |
+| `mode_hk` shape | `(3, 64)` |
+| measured rows | `[1, 3]` |
+| finite measured `mode_hk` | `true` |
+| finite measured `mode_nk` | `true` |
+| unmeasured row-2 finite count | `0` |
+| measured `mode_nk` bounds | `[1.4333325864557267e-4, 0.34677786108923314]` |
+| direct E/N rows | `[-1.05000000, -1.0832813940248238]` |
+| mode E/N rows | `[-1.05000000, -1.0832813939709762]` |
+| abs dE/N | `[1.78e-15, 5.38e-11]` |
 
 Thus the final off-stride stopped cycle is now present as a finite measured
 mode row, while the skipped cycle remains explicitly unmeasured.

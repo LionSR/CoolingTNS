@@ -89,7 +89,7 @@ function _expect_pauli_string(ψ::MPS, coeff::ComplexF64, ops::Vector{Symbol})
     for i in eachindex(ops)
         A = ψ[i]
         s = sites[i]
-        O = ops[i] == :I ? op("I", s) : op(_PAULI_LABELS_TN[ops[i]], s)
+        O = _code_pauli_itensor(s, ops[i])
         contraction *= dag(prime(A)) * O * A
     end
 
@@ -116,16 +116,18 @@ function _mps_single_site_value(left_env::ITensor, ψ::MPS, sites, site::Int, op
     if N == 1
         value = dag(prime(ψ[site])) * O * ψ[site]
         return scalar(value)
-    elseif site < N
+    end
+
+    block = left_env * ψ[site]
+    if site < N
         right_link = commonind(ψ[site], ψ[site + 1])
-        block = left_env * ψ[site]
-        value = (block * O) * prime(dag(ψ[site]), !right_link)
-        return scalar(value)
+        bra = prime(dag(ψ[site]), !right_link)
     else
         left_link = commonind(ψ[site], ψ[site - 1])
-        value = (left_env * (O * ψ[site])) * prime(dag(ψ[site]), (sites[site], left_link))
-        return scalar(value)
+        bra = prime(dag(ψ[site]), (sites[site], left_link))
     end
+    value = (block * O) * bra
+    return scalar(value)
 end
 
 function _pauli_string_mpo(sites::Vector{<:Index}, ops::Vector{Symbol})
@@ -271,6 +273,9 @@ end
 
 function _split_string_correlators(ψ::MPS)
     ψs = ITensorMPS.orthogonalize(ψ, 1)
+    # The four matrices share the same canonicalized state. They are kept as
+    # separate ordered sweeps so the endpoint Pauli order remains easy to audit
+    # against the notes and the direct oracle.
     Cxx = _split_string_correlator_matrix_mps(ψs, :X, :X)
     Cyy = _split_string_correlator_matrix_mps(ψs, :Y, :Y)
     Cyx = _split_string_correlator_matrix_mps(ψs, :Y, :X)
