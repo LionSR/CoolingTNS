@@ -350,7 +350,7 @@ end
             for name in (:Cxx, :Cyy, :Cyx, :Cxy)
                 @test getproperty(fused, name) ≈ getproperty(direct, name) atol=1e-12
                 @test getproperty(fused, name) ≈ getproperty(four_sweep, name) atol=1e-12
-                @test getproperty(dispatch, name) ≈ getproperty(fused, name) atol=0
+                @test getproperty(dispatch, name) ≈ getproperty(fused, name) atol=1e-12
             end
         end
     end

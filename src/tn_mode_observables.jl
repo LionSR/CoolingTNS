@@ -236,7 +236,7 @@ function _mps_apply_string_transfer_all!(envs_by_op, ψ::MPS, sites, site::Int)
         envs_by_op.envs[idx] =
             _mps_apply_string_transfer(envs_by_op.envs[idx], ψ, sites, site, :X)
     end
-    return envs_by_op
+    return nothing
 end
 
 function _split_string_correlators_four_sweep(ψ::MPS)
