@@ -313,54 +313,62 @@ rows.
 ### N=64 Stopped Final Mode-Row Verification
 
 After replacing the MPS split-string contractions by cached Jordan-Wigner
-interval sweeps, the stopped-row contract was checked on 2026-06-28 with the
-same `N = 64`, `R = 2`, `Dmax = 80` MCWF/continuous-TDVP run that previously
-reached the cycle-2 update but spent more than 20 minutes in the final mode
-measurement:
+interval sweeps and then fusing the four MPS correlator sweeps, the stopped-row
+contract was checked on 2026-06-28 with the full `N = 64`, `R = 1,2,5,10`,
+`Dmax = 80` MCWF/continuous-TDVP mode-resolved run.  This is the same physical
+protocol as the earlier `R = 2` stopped-row check that previously reached the
+cycle-2 update but spent more than 20 minutes in the final mode measurement:
 
 ```bash
 julia --project=. --startup-file=no \
   scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
-  --model ising --bc periodic --Ns 64 --R-values 2 --methods mcwf \
+  --model ising --bc periodic --Ns 64 --R-values 1,2,5,10 --methods mcwf \
   --evolution-method continuous --steps 40 --Dmax 80 --h -1.05 \
   --init-state theta --theta 0.0 \
   --measure-modes --mode-measurement-stride 5 \
   --delta-min 0.5051167496264384 \
   --delta-max 3.0307004977586303 \
   --stop-on-bond-cap --tdvp-sweep-progress \
-  --progress-csv .worktree/N64_R2_stopcap_after_correlator_sweep/progress.csv \
-  --outdir .worktree/N64_R2_stopcap_after_correlator_sweep
+  --progress-csv .worktree/post_fused_mode_N64_R1-2-5-10_D80_20260628/progress.csv \
+  --outdir .worktree/post_fused_mode_N64_R1-2-5-10_D80_20260628
 ```
 
-The run stopped after two completed cycles at the bond cap and wrote
+The run stopped after two completed cycles for every frequency count and wrote
 
 ```text
-.worktree/N64_R2_stopcap_after_correlator_sweep/largeN_multifrequency_tn_N64_R2_mcwf_continuous_ising_bcperiodic_stopcap_modestride5_inittheta_theta0_steps40_Dmax80_g0.3_te2_tau0.2_seed20260617.h5
+.worktree/post_fused_mode_N64_R1-2-5-10_D80_20260628/largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_continuous_ising_bcperiodic_stopcap_modestride5_inittheta_theta0_steps40_Dmax80_g0.3_te2_tau0.2_seed20260617.h5
 ```
 
-The summary row is
+The compact HDF5 summary is:
 
-| R | completed/requested | stop reason | final E/N | relE | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | elapsed | mode rows | mode max abs dE/N |
+| R | completed/requested | detuning coverage | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | elapsed | mode rows | mode max abs dE/N |
 |---:|---:|---|---:|---:|---:|---:|---:|---:|---|---:|
-| 2 | 2/40 | bond_cap | -1.08328139 | 0.169927 | >=80 | >=80 | >=80 | 737.8 s | 2/3 | 5.38e-11 |
+| 1 | 2/40 | single_detuning | -1.01728376 | -1.05000000 | >=80 | >=80 | >=80 | 813.8 s | 2/3 | 1.62e-10 |
+| 2 | 2/40 | full_grid_observed | -1.08328139 | -1.08328139 | >=80 | >=80 | >=80 | 833.2 s | 2/3 | 5.38e-11 |
+| 5 | 2/40 | stopped_partial_grid | -1.03401120 | -1.05000000 | >=80 | >=80 | >=80 | 798.6 s | 2/3 | 2.76e-11 |
+| 10 | 2/40 | stopped_partial_grid | -1.04986697 | -1.05000000 | >=80 | >=80 | >=80 | 908.5 s | 2/3 | 5.64e-10 |
 
-The raw mode payload satisfies the strided stopped-row contract:
+All four raw mode payloads satisfy the strided stopped-row contract:
 
-| quantity | value |
-|---|---:|
-| `mode_measurement_cycles` | `[0, 2]` |
-| `mode_hk` shape | `(3, 64)` |
-| measured rows | `[1, 3]` |
-| finite measured `mode_hk` | `true` |
-| finite measured `mode_nk` | `true` |
-| unmeasured row-2 finite count | `0` |
-| measured `mode_nk` bounds | `[1.4333325864557267e-4, 0.34677786108923314]` |
-| direct E/N rows | `[-1.05000000, -1.0832813940248238]` |
-| mode E/N rows | `[-1.05000000, -1.0832813939709762]` |
-| abs dE/N | `[1.78e-15, 5.38e-11]` |
+| R | `mode_measurement_cycles` | measured rows | finite measured `mode_hk` | finite measured `mode_nk` | skipped row finite count | measured `mode_nk` range | final mode E/N |
+|---:|---|---|---|---|---:|---|---:|
+| 1 | `[0, 2]` | `[1, 3]` | true | true | 0 | `[1.4333e-4, 0.4288]` | -1.0172837582 |
+| 2 | `[0, 2]` | `[1, 3]` | true | true | 0 | `[1.4333e-4, 0.3468]` | -1.0832813940 |
+| 5 | `[0, 2]` | `[1, 3]` | true | true | 0 | `[1.4333e-4, 0.4266]` | -1.0340112040 |
+| 10 | `[0, 2]` | `[1, 3]` | true | true | 0 | `[1.4333e-4, 0.3807]` | -1.0498669711 |
 
 Thus the final off-stride stopped cycle is now present as a finite measured
-mode row, while the skipped cycle remains explicitly unmeasured.
+mode row for every frequency count, while the skipped cycle remains explicitly
+unmeasured.  The mode reconstruction uses `mode_gF = -1` with
+`mode_gF_source = "state"` in every row, and reconstructs the direct Ising
+energy on the measured rows to at worst `5.64e-10` per spin.
+
+The physical interpretation is still negative.  `R = 2` gives the lowest
+two-cycle stopped prefix in this run, but all four schedules hit the system,
+transient system-bath, and TDVP-sweep effective caps by cycle 2.  The data
+therefore verify the large-`N` mode-observable convention under realistic
+stopped-row load; they do not demonstrate converged cooling or approach to the
+ground state.
 
 For mode-energy reconstruction checks, the simulated state should have a
 definite Ising parity so that the fermionic momentum grid is selected by the
