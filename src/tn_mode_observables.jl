@@ -114,7 +114,7 @@ function _mps_single_site_value(left_env::ITensor, ψ::MPS, sites, site::Int, op
     O = _code_pauli_itensor(sites[site], op_label)
 
     if N == 1
-        value = (ψ[site] * O) * prime(dag(ψ[site]), sites[site])
+        value = dag(prime(ψ[site])) * O * ψ[site]
         return scalar(value)
     elseif site < N
         right_link = commonind(ψ[site], ψ[site + 1])
@@ -178,10 +178,17 @@ function _split_string_correlators_direct(state::Union{MPS,MPO})
     return (Cxx=Cxx, Cyy=Cyy, Cyx=Cyx, Cxy=Cxy)
 end
 
-function _split_string_correlator_matrix_mps(ψ::MPS, α::Symbol, β::Symbol)
-    N = length(ψ)
-    sites = siteinds(ψ)
-    ψs = ITensorMPS.orthogonalize(ψ, 1)
+"""
+    _split_string_correlator_matrix_mps(ψs, α, β)
+
+Build one ordered split-string correlator matrix from an MPS that has already
+been orthogonalized at site 1. The left environments are built explicitly; the
+right tail is contracted using the right-orthogonality of sites beyond the
+current sweep center.
+"""
+function _split_string_correlator_matrix_mps(ψs::MPS, α::Symbol, β::Symbol)
+    N = length(ψs)
+    sites = siteinds(ψs)
 
     coeff_α, A = _notes_pauli_to_code(α)
     coeff_β, B = _notes_pauli_to_code(β)
@@ -263,10 +270,11 @@ function _split_string_correlator_matrix_mps(ψ::MPS, α::Symbol, β::Symbol)
 end
 
 function _split_string_correlators(ψ::MPS)
-    Cxx = _split_string_correlator_matrix_mps(ψ, :X, :X)
-    Cyy = _split_string_correlator_matrix_mps(ψ, :Y, :Y)
-    Cyx = _split_string_correlator_matrix_mps(ψ, :Y, :X)
-    Cxy = _split_string_correlator_matrix_mps(ψ, :X, :Y)
+    ψs = ITensorMPS.orthogonalize(ψ, 1)
+    Cxx = _split_string_correlator_matrix_mps(ψs, :X, :X)
+    Cyy = _split_string_correlator_matrix_mps(ψs, :Y, :Y)
+    Cyx = _split_string_correlator_matrix_mps(ψs, :Y, :X)
+    Cxy = _split_string_correlator_matrix_mps(ψs, :X, :Y)
     return (Cxx=Cxx, Cyy=Cyy, Cyx=Cyx, Cxy=Cxy)
 end
 
