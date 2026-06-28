@@ -103,6 +103,39 @@ function validate_mode_nk_matches_hk(mode_nk, mode_hk; atol=1e-12, rtol=1e-12)
     return nothing
 end
 
+"""
+    mode_occupation_from_results(results; require_hk=false)
+
+Return the Bogoliubov occupation matrix from a result dictionary.
+
+New result dictionaries store `RESULT_MODE_NK` directly; when `RESULT_MODE_HK`
+is also present, the stored occupations are accepted only after validation
+against `mode_occupation_from_hk`.  Legacy dictionaries without
+`RESULT_MODE_NK` are converted from `RESULT_MODE_HK`.
+
+Set `require_hk=true` for callers, such as fresh diagnostics, which require
+the source observable `h_k` to be present even when stored occupations are
+available.
+"""
+function mode_occupation_from_results(results::AbstractDict; require_hk::Bool=false)
+    has_mode_hk = haskey(results, RESULT_MODE_HK)
+    if require_hk && !has_mode_hk
+        throw(KeyError(RESULT_MODE_HK))
+    end
+
+    if haskey(results, RESULT_MODE_NK)
+        mode_nk = Float64.(results[RESULT_MODE_NK])
+        if has_mode_hk
+            validate_mode_nk_matches_hk(mode_nk, results[RESULT_MODE_HK])
+        end
+        return mode_nk
+    elseif has_mode_hk
+        return Float64.(mode_occupation_from_hk(results[RESULT_MODE_HK]))
+    end
+
+    error("Expected result key \"$RESULT_MODE_NK\" or legacy result key \"$RESULT_MODE_HK\"")
+end
+
 const _ISING_FOURIER_SPIN_BCS = (:periodic, :antiperiodic)
 
 """
