@@ -130,8 +130,10 @@ randomness in the backend, such as MCWF bath measurements.
 
 When `measure_modes=true`, `mode_measurement_stride=s` records Bogoliubov mode
 rows only at cooling cycles `0, s, 2s, ...` and at the requested final cycle.
-The full mode arrays are retained, with unmeasured rows left as `NaN`; the
-measured cycles are stored in `RESULT_MODE_MEASUREMENT_CYCLES`.
+If an early stop occurs on an off-stride cycle, that completed final cycle is
+also recorded before truncation.  The full mode arrays are retained, with
+unmeasured rows left as `NaN`; the measured cycles are stored in
+`RESULT_MODE_MEASUREMENT_CYCLES`.
 
 If `stop_condition` is supplied, it is evaluated after an `:updated` observer
 event, when the system measurement for that cycle has already been recorded.
@@ -262,6 +264,12 @@ function run_cooling_multi_freq(
     end
 
     if completed_step_index < steps + 1
+        _record_final_stopped_mode_measurements!(
+            measurements,
+            completed_step_index,
+            state,
+            ham_params,
+        )
         measurements = truncate_measurements_to_step(measurements, completed_step_index)
         println("Cooling stopped after $(completed_step_index - 1) of $steps cycles: $stop_reason")
     elseif stop_reason != ""
@@ -782,6 +790,40 @@ function _record_ising_mode_measurements!(measurements, step::Int, state, ham_pa
     measurements[RESULT_MODE_HK][step, :] .= hk_values
     measurements[RESULT_MODE_NK][step, :] .= mode_occupation_from_hk(hk_values)
     return true
+end
+
+function _insert_mode_measurement_cycle!(measurements, cycle::Integer)
+    haskey(measurements, RESULT_MODE_MEASUREMENT_CYCLES) || return false
+    cycles = Int.(vec(measurements[RESULT_MODE_MEASUREMENT_CYCLES]))
+    cycle_int = Int(cycle)
+    cycle_int in cycles && return true
+    push!(cycles, cycle_int)
+    sort!(cycles)
+    measurements[RESULT_MODE_MEASUREMENT_CYCLES] = cycles
+    return true
+end
+
+function _record_final_stopped_mode_measurements!(
+    measurements,
+    completed_step_index::Integer,
+    state::QuantumState,
+    ham_params,
+)
+    haskey(measurements, RESULT_MODE_HK) || return false
+    energy = get(measurements, RESULT_ENERGY, nothing)
+    if energy isa AbstractVector
+        (1 <= completed_step_index <= length(energy)) || return false
+        isfinite(energy[completed_step_index]) || return false
+    end
+
+    cycle = completed_step_index - 1
+    _insert_mode_measurement_cycle!(measurements, cycle) || return false
+    return _record_ising_mode_measurements!(
+        measurements,
+        Int(completed_step_index),
+        state.state,
+        ham_params,
+    )
 end
 
 function _mark_failed_ising_mode_measurements!(measurements, step::Int)

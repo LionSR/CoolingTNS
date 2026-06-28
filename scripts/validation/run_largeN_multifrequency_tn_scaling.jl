@@ -100,8 +100,10 @@ stored `gap` and `detuning_reference_gap` fields record this analytic reference
 even when an explicit fixed detuning interval is supplied.
 For long large-`N` mode diagnostics, `--mode-measurement-stride s` measures
 the Bogoliubov mode rows only at cooling cycles `0, s, 2s, ...` and at the
-requested final cycle; unmeasured rows in `mode_hk` and `mode_nk` are stored as
-`NaN`, with the measured cycles recorded in `mode_measurement_cycles`.
+requested final cycle.  If an early stop occurs off this stride, the completed
+final cycle is also measured before truncation.  Unmeasured rows in `mode_hk`
+and `mode_nk` are stored as `NaN`, with the measured cycles recorded in
+`mode_measurement_cycles`.
 
 Long TDVP runs can also write a per-observer-event CSV trace. The trace includes
 the `initial`, `prepared`, `evolved`, and `updated` stages, so partial energy
