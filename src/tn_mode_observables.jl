@@ -26,6 +26,10 @@ const _MPS_SPLIT_STRING_CHANNELS = (
     (name=:Cyx, α=:Y, β=:X),
     (name=:Cxy, α=:X, β=:Y),
 )
+const _SPLIT_STRING_CHANNEL_NAMES = map(channel -> channel.name, _MPS_SPLIT_STRING_CHANNELS)
+
+_split_string_result(matrices) = NamedTuple{_SPLIT_STRING_CHANNEL_NAMES}(matrices)
+_split_string_result_from_channels(channels) = _split_string_result(map(channel -> channel.C, channels))
 
 function _code_pauli_itensor(s::Index, op_label::Symbol)
     op_label == :I && return op("I", s)
@@ -171,19 +175,17 @@ end
 
 function _split_string_correlators_direct(state::Union{MPS,MPO})
     N = length(state)
-    Cxx = Matrix{ComplexF64}(undef, N, N)
-    Cyy = Matrix{ComplexF64}(undef, N, N)
-    Cyx = Matrix{ComplexF64}(undef, N, N)
-    Cxy = Matrix{ComplexF64}(undef, N, N)
+    matrices = ntuple(_ -> Matrix{ComplexF64}(undef, N, N), length(_MPS_SPLIT_STRING_CHANNELS))
 
-    for n in 1:N, m in 1:N
-        Cxx[n, m] = _split_string_correlator(state, n, m, :X, :X)
-        Cyy[n, m] = _split_string_correlator(state, n, m, :Y, :Y)
-        Cyx[n, m] = _split_string_correlator(state, n, m, :Y, :X)
-        Cxy[n, m] = _split_string_correlator(state, n, m, :X, :Y)
+    for idx in eachindex(_MPS_SPLIT_STRING_CHANNELS)
+        channel = _MPS_SPLIT_STRING_CHANNELS[idx]
+        C = matrices[idx]
+        for n in 1:N, m in 1:N
+            C[n, m] = _split_string_correlator(state, n, m, channel.α, channel.β)
+        end
     end
 
-    return (Cxx=Cxx, Cyy=Cyy, Cyx=Cyx, Cxy=Cxy)
+    return _split_string_result(matrices)
 end
 
 function _split_string_channel_data(channel, N::Int)
@@ -241,11 +243,13 @@ end
 
 function _split_string_correlators_four_sweep(ψ::MPS)
     ψs = ITensorMPS.orthogonalize(ψ, 1)
-    Cxx = _split_string_correlator_matrix_mps(ψs, :X, :X)
-    Cyy = _split_string_correlator_matrix_mps(ψs, :Y, :Y)
-    Cyx = _split_string_correlator_matrix_mps(ψs, :Y, :X)
-    Cxy = _split_string_correlator_matrix_mps(ψs, :X, :Y)
-    return (Cxx=Cxx, Cyy=Cyy, Cyx=Cyx, Cxy=Cxy)
+    matrices = ntuple(
+        i -> _split_string_correlator_matrix_mps(
+            ψs, _MPS_SPLIT_STRING_CHANNELS[i].α, _MPS_SPLIT_STRING_CHANNELS[i].β
+        ),
+        length(_MPS_SPLIT_STRING_CHANNELS),
+    )
+    return _split_string_result(matrices)
 end
 
 """
@@ -364,7 +368,7 @@ function _split_string_correlators_fused_mps(ψ::MPS)
             channel.C[1, 1] = channel.diag_coeff *
                 _mps_single_site_value(left_env, ψs, sites, 1, channel.diag_op)
         end
-        return (Cxx=channels[1].C, Cyy=channels[2].C, Cyx=channels[3].C, Cxy=channels[4].C)
+        return _split_string_result_from_channels(channels)
     end
 
     for i in 1:N-1
@@ -409,7 +413,7 @@ function _split_string_correlators_fused_mps(ψ::MPS)
             _mps_single_site_value(left_env, ψs, sites, N, channel.diag_op)
     end
 
-    return (Cxx=channels[1].C, Cyy=channels[2].C, Cyx=channels[3].C, Cxy=channels[4].C)
+    return _split_string_result_from_channels(channels)
 end
 
 _split_string_correlators(ψ::MPS) = _split_string_correlators_fused_mps(ψ)
