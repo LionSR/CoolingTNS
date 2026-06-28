@@ -264,6 +264,9 @@ function run_cooling_multi_freq(
     end
 
     if completed_step_index < steps + 1
+        # The helper may add the stopped cycle to the mutable cycle list; the
+        # subsequent truncation then removes any requested-final cycle beyond the
+        # completed prefix.
         _record_final_stopped_mode_measurements!(
             measurements,
             completed_step_index,
