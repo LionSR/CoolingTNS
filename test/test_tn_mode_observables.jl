@@ -342,13 +342,15 @@ end
                 normalize!(ψ)
             end
 
-            fused = CoolingTNS._split_string_correlators(ψ)
+            fused = CoolingTNS._split_string_correlators_fused_mps(ψ)
+            dispatch = CoolingTNS._split_string_correlators(ψ)
             four_sweep = CoolingTNS._split_string_correlators_four_sweep(ψ)
             direct = CoolingTNS._split_string_correlators_direct(ψ)
 
             for name in (:Cxx, :Cyy, :Cyx, :Cxy)
                 @test getproperty(fused, name) ≈ getproperty(direct, name) atol=1e-12
                 @test getproperty(fused, name) ≈ getproperty(four_sweep, name) atol=1e-12
+                @test getproperty(dispatch, name) ≈ getproperty(fused, name) atol=0
             end
         end
     end

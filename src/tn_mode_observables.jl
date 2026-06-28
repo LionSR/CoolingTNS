@@ -209,23 +209,34 @@ function _split_string_channel_data(channel, N::Int)
     )
 end
 
-function _mps_string_envs_by_left_op(channels, ψ::MPS, sites, site::Int, left_block::ITensor,
-                                     op_field::Symbol)
-    envs = Dict{Symbol,ITensor}()
+_upper_left_op(channel) = channel.upper_left_op
+_lower_left_op(channel) = channel.lower_left_op
+
+function _mps_string_envs_by_left_op(op_selector, channels, ψ::MPS, sites, site::Int,
+                                     left_block::ITensor)
+    ops = Symbol[]
+    envs = ITensor[]
     for channel in channels
-        op_label = getproperty(channel, op_field)
-        haskey(envs, op_label) && continue
-        envs[op_label] = (dag(ψ[site])' * _code_pauli_itensor(sites[site], op_label)) *
-            left_block
+        op_label = op_selector(channel)
+        op_label in ops && continue
+        push!(ops, op_label)
+        push!(envs, (dag(ψ[site])' * _code_pauli_itensor(sites[site], op_label)) * left_block)
     end
-    return envs
+    return (ops=ops, envs=envs)
 end
 
-function _mps_apply_string_transfer_all!(envs::Dict{Symbol,ITensor}, ψ::MPS, sites, site::Int)
-    for op_label in collect(keys(envs))
-        envs[op_label] = _mps_apply_string_transfer(envs[op_label], ψ, sites, site, :X)
+function _mps_env_for_op(envs_by_op, op_label::Symbol)
+    idx = findfirst(==(op_label), envs_by_op.ops)
+    idx === nothing && throw(ArgumentError("missing MPS string environment for $op_label"))
+    return envs_by_op.envs[idx]
+end
+
+function _mps_apply_string_transfer_all!(envs_by_op, ψ::MPS, sites, site::Int)
+    for idx in eachindex(envs_by_op.envs)
+        envs_by_op.envs[idx] =
+            _mps_apply_string_transfer(envs_by_op.envs[idx], ψ, sites, site, :X)
     end
-    return envs
+    return envs_by_op
 end
 
 function _split_string_correlators_four_sweep(ψ::MPS)
@@ -328,6 +339,15 @@ function _split_string_correlator_matrix_mps(ψs::MPS, α::Symbol, β::Symbol)
     return C
 end
 
+"""
+    _split_string_correlators_fused_mps(ψ)
+
+Evaluate the four MPS split-string correlator matrices in one coordinated
+sweep. The channels share the orthogonalized state and left environment; upper
+and lower Jordan-Wigner string environments are deduplicated by their left
+endpoint Pauli operator, since the right endpoint is applied only when the
+scalar matrix element is read.
+"""
 function _split_string_correlators_fused_mps(ψ::MPS)
     ψs = ITensorMPS.orthogonalize(ψ, 1)
     N = length(ψs)
@@ -358,16 +378,20 @@ function _split_string_correlators_fused_mps(ψ::MPS)
         # For i < j, S_i α_i S_j β_j reduces to
         # (α_i Z_i)(Z_{i+1} ... Z_{j-1})β_j in notes coordinates. The lower
         # triangle has Z_i β_i at the left endpoint and α_j at the right.
-        upper_envs = _mps_string_envs_by_left_op(channels, ψs, sites, i, left_block, :upper_left_op)
-        lower_envs = _mps_string_envs_by_left_op(channels, ψs, sites, i, left_block, :lower_left_op)
+        upper_envs = _mps_string_envs_by_left_op(_upper_left_op, channels, ψs, sites, i, left_block)
+        lower_envs = _mps_string_envs_by_left_op(_lower_left_op, channels, ψs, sites, i, left_block)
 
         for j in i+1:N
             for idx in eachindex(channels)
                 channel = channels[idx]
                 channel.C[i, j] = channel.upper_coeff *
-                    _mps_right_endpoint_value(upper_envs[channel.upper_left_op], ψs, sites, j, channel.B)
+                    _mps_right_endpoint_value(
+                        _mps_env_for_op(upper_envs, channel.upper_left_op), ψs, sites, j, channel.B
+                    )
                 channel.C[j, i] = channel.lower_coeff *
-                    _mps_right_endpoint_value(lower_envs[channel.lower_left_op], ψs, sites, j, channel.A)
+                    _mps_right_endpoint_value(
+                        _mps_env_for_op(lower_envs, channel.lower_left_op), ψs, sites, j, channel.A
+                    )
             end
 
             if j < N
