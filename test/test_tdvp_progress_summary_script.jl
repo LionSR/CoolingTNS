@@ -67,6 +67,16 @@ end
     )
     @test TDVPProgressCSVSummary.largeN_progress_stage(:updated) ==
           TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_UPDATED
+    @test TDVPProgressCSVSummary.progress_detuning_coverage_status(0, 5, 0) ==
+          TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_NO_COMPLETED_CYCLES
+    @test TDVPProgressCSVSummary.progress_detuning_coverage_status(0, 5, 2) ==
+          TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_MISSING_DETUNING_VALUES
+    @test TDVPProgressCSVSummary.progress_detuning_coverage_status(1, 1, 1) ==
+          TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_SINGLE_DETUNING
+    @test TDVPProgressCSVSummary.progress_detuning_coverage_status(2, 5, 2) ==
+          TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_PARTIAL_GRID_OBSERVED
+    @test TDVPProgressCSVSummary.progress_detuning_coverage_status(5, 5, 5) ==
+          TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_FULL_GRID
     @test TDVPProgressCSVSummary.LARGE_N_PROGRESS_GROUP_COLUMNS == (
         "N",
         "method",
@@ -152,6 +162,7 @@ end
             ))
             println(io, tdvp_progress_line(
                 stage="updated", step=3, cycle=2,
+                delta="0.7",
                 energy_per_site="0.25", relative_energy="1.25", overlap="0.2",
                 system_max_bond="6", evolved_max_bond="7", elapsed_seconds=16.0,
             ))
@@ -199,6 +210,7 @@ end
             println(io, tdvp_progress_line(
                 method="mpo", evolution="trotter", R="3", Dmax="6",
                 stage="updated", step=3, cycle=2,
+                delta="0.8",
                 energy_per_site="0.5", relative_energy="1.5", overlap="0.2",
                 system_max_bond="24", evolved_max_bond="24", elapsed_seconds=22.0,
             ))
@@ -212,6 +224,9 @@ end
         @test row.g == "0.3"
         @test row.threshold == 6
         @test row.completed_cycles == 2
+        @test row.visited_detunings == "2/2"
+        @test row.detuning_coverage ==
+              TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_FULL_GRID
         @test row.final_energy == 0.25
         @test row.system_effective_bond == ">=6"
         @test row.evolved_effective_bond == ">=7"
@@ -237,6 +252,9 @@ end
         @test mpo_row.g == "0.3"
         @test mpo_row.threshold == 24
         @test mpo_row.completed_cycles == 2
+        @test mpo_row.visited_detunings == "2/3"
+        @test mpo_row.detuning_coverage ==
+              TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_PARTIAL_GRID_OBSERVED
         @test mpo_row.final_energy == 0.5
         @test mpo_row.system_effective_bond == ">=24"
         @test mpo_row.evolved_effective_bond == ">=24"
@@ -262,7 +280,11 @@ end
             end
             read(output_path, String)
         end
+        summary_lines = split(chomp(output), "\n")
+        @test count(==('|'), summary_lines[1]) == count(==('|'), summary_lines[2])
+        @test count(==('|'), summary_lines[1]) - 1 == 25
         @test occursin("| file | N | method | evolution | R | g | traj |", output)
+        @test occursin("| completed cycles | visited detunings | detuning coverage |", output)
         @test occursin("| sys cap | evolved cap | tdvp sweep cap | first transient cap |", output)
         @test occursin("| last step | last cycle | last stage |", output)
         @test occursin(
@@ -274,10 +296,40 @@ end
             output,
         )
         @test occursin("| R | g | traj | cycle | delta | E/N |", output)
-        @test occursin("| 2 | 0.3 | 1 | 2 | 0.50000000 | 0.25000000 | 6 | 7 | 16.0 |", output)
+        @test occursin(
+            "| 2 | 0.3 | 1 | 2 | 0.70000000 | 0.25000000 | 6 | 7 | 16.0 |",
+            output,
+        )
         @test occursin("| 4 | 3 | tdvp_sweep |", output)
     finally
         rm(path; force=true)
+    end
+
+    missing_delta_path = tempname() * ".csv"
+    try
+        open(missing_delta_path, "w") do io
+            println(io, join(TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS, ","))
+            println(io, tdvp_progress_line(
+                R="5", stage="initial", step=1, cycle=0, delta="NaN", te="NaN",
+                energy_per_site="1.0", relative_energy="2.0", overlap="0.0",
+                system_max_bond="1", evolved_max_bond="NaN", elapsed_seconds=0.5,
+            ))
+            println(io, tdvp_progress_line(
+                R="5", stage="updated", step=2, cycle=1, delta="NaN",
+                energy_per_site="0.9", relative_energy="1.9", overlap="0.1",
+                system_max_bond="2", evolved_max_bond="3", elapsed_seconds=1.5,
+            ))
+        end
+
+        missing_delta_row = only(TDVPProgressCSVSummary.summarize_progress_file(
+            missing_delta_path
+        ))
+        @test missing_delta_row.completed_cycles == 1
+        @test missing_delta_row.visited_detunings == "0/5"
+        @test missing_delta_row.detuning_coverage ==
+              TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_MISSING_DETUNING_VALUES
+    finally
+        rm(missing_delta_path; force=true)
     end
 
     for bad_stage in ("renormalized", "")

@@ -5,7 +5,7 @@ Summarize large-N progress CSV files written by
 
 This script is meant for interrupted MCWF+TDVP runs where the HDF5 summary may
 not have been written.  It reads the flushed progress CSV and reports the
-energy trace, cap onset, and per-sweep TDVP timing.
+energy trace, detuning-grid coverage, cap onset, and per-sweep TDVP timing.
 
 Example:
 
@@ -145,6 +145,20 @@ function peak_evolved_bond(rows)
     return peak
 end
 
+"""
+    completed_update_detuning_count(updates) -> Int
+
+Count distinct finite detuning values among completed `updated` progress rows.
+"""
+function completed_update_detuning_count(updates)
+    detunings = Set{Float64}()
+    for row in updates
+        delta = progress_float(row, "delta")
+        isfinite(delta) && push!(detunings, delta)
+    end
+    return length(detunings)
+end
+
 function summarize_progress_group(file_name::AbstractString, key, rows; cap=nothing)
     label = group_label(key)
     threshold = cap === nothing ?
@@ -207,7 +221,9 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
         end
     end
 
+    R = parse(Int, label.R)
     completed_cycles = isempty(updates) ? 0 : maximum(progress_int(row, "cycle") for row in updates)
+    visited_detuning_count = completed_update_detuning_count(updates)
     final_update = isempty(updates) ? nothing : updates[end]
     final_energy = final_update === nothing ? NaN : progress_float(final_update, "energy_per_site")
     final_system_max = final_update === nothing ?
@@ -236,12 +252,16 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
         N=parse(Int, label.N),
         method=label.method,
         evolution=label.evolution,
-        R=parse(Int, label.R),
+        R=R,
         g=label.g,
         trajectory=parse(Int, label.trajectory),
         seed=parse(Int, label.seed),
         threshold=threshold,
         completed_cycles=completed_cycles,
+        visited_detunings="$(visited_detuning_count)/$(R)",
+        detuning_coverage=progress_detuning_coverage_status(
+            visited_detuning_count, R, completed_cycles
+        ),
         final_energy=final_energy,
         system_effective_bond=effective_bond_dimension_label(
             max(final_system_max, 0), system_cap_cycle, threshold,
@@ -297,14 +317,15 @@ function summarize_progress_files(paths::AbstractVector{<:AbstractString}; cap=n
 end
 
 function print_summary_table(rows)
-    println("| file | N | method | evolution | R | g | traj | seed | Dcap | completed cycles | final E/N | Dsys_eff | Dsb_eff | bond_status | sys cap | evolved cap | tdvp sweep cap | first transient cap | max sweep dt | max sweep at | last step | last cycle | last stage |")
-    println("|---|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---|---:|---|---:|---:|---|")
+    println("| file | N | method | evolution | R | g | traj | seed | Dcap | completed cycles | visited detunings | detuning coverage | final E/N | Dsys_eff | Dsb_eff | bond_status | sys cap | evolved cap | tdvp sweep cap | first transient cap | max sweep dt | max sweep at | last step | last cycle | last stage |")
+    println("|---|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---|---|---|---|---|---:|---|---:|---:|---|")
     for row in rows
         max_sweep_label = row.max_sweep_cycle == 0 ? "none" : "$(row.max_sweep_cycle):$(row.max_sweep)"
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | " *
             "$(row.R) | $(row.g) | $(row.trajectory) | $(row.seed) | $(row.threshold) | " *
-            "$(row.completed_cycles) | $(format_float(row.final_energy, 8)) | " *
+            "$(row.completed_cycles) | $(row.visited_detunings) | " *
+            "$(row.detuning_coverage) | $(format_float(row.final_energy, 8)) | " *
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
             "$(row.bond_status) | $(saturation_cycle_label(row.system_cap_cycle)) | " *
             "$(saturation_cycle_label(row.evolved_cap_cycle)) | " *
