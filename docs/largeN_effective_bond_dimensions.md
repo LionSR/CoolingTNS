@@ -1808,6 +1808,61 @@ not complete even one full ten-frequency period.  Thus `g = 0.1` is useful as a
 coupling-strength diagnostic, not as evidence for scalable large-`N`
 ground-state cooling at `Dmax = 64`.
 
+The intermediate value `g = 0.2` was then run at the same `N = 64`, `R = 10`,
+`Dmax = 64`, `te = 1.0` descending setup.  The run used the current coupling
+axis, so the HDF5 stem and progress CSV both record the coupling explicitly:
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. --startup-file=no scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 10 --methods mcwf \
+  --evolution-method continuous --steps 20 --Dmax 64 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open \
+  --g-values 0.2 --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending \
+  --progress-csv .worktree/gscan_N64_R10_g0.2_D64_te1_steps20_20260628/progress.csv \
+  --outdir .worktree/gscan_N64_R10_g0.2_D64_te1_steps20_20260628 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The run wrote
+
+```text
+.worktree/gscan_N64_R10_g0.2_D64_te1_steps20_20260628/largeN_multifrequency_tn_N64_R10_mcwf_continuous_stopcap_scheddesc_steps20_Dmax64_g0.2_te1_tau0.2_seed20260617.h5
+.worktree/gscan_N64_R10_g0.2_D64_te1_steps20_20260628/progress.csv
+```
+
+The compact HDF5 summary is
+
+| R | g | Dcap | completed/requested cycles | completed/requested periods | visited detunings | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|
+| 10 | 0.2 | 64 | 4/20 | 0.40/2.00 | 4/10 | 1.12969883 | 1.12680143 | 52 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | 208.7 s |
+
+The completed-cycle prefix is
+
+| cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 3.03070050 | 1.37983852 | 4 | 6 | 34.6 s |
+| 2 | 2.75008008 | 1.27270149 | 10 | 14 | 51.7 s |
+| 3 | 2.46945966 | 1.12680143 | 24 | 31 | 87.1 s |
+| 4 | 2.18883925 | 1.12969883 | 52 | 64 | 208.7 s |
+
+Thus increasing the coupling from `g = 0.1` to `g = 0.2` makes the early
+cooling substantially stronger: the best recorded prefix falls from
+`1.33380878` to `1.12680143`.  This improvement is bought by faster
+system-bath bond growth.  The evolved system-bath and TDVP-sweep caps appear
+on the fourth completed cycle, one cycle earlier than in the historical
+`g = 0.1` trajectory.  The `g = 0.2` run is therefore an intermediate-coupling
+diagnostic: it confirms that stronger coupling can cool faster at the start of
+the descending schedule, but its best prefix remains far above the same DMRG
+ground-state reference `E0/N = -1.3246328892`.  It is still not evidence for
+scalable large-`N` ground-state cooling at `Dmax = 64`.
+Moreover, the comparison between `g = 0.1` and `g = 0.2` is a fixed-seed,
+single-trajectory MCWF comparison; ensemble averages are needed before the
+size of this early-cooling gain can be assigned a stable coupling dependence.
+
 The same diagnostic was then pushed to the weaker value `g = 0.05` for all
 four frequency counts `R = 1,2,5,10`, keeping `N = 64`, `Dmax = 64`,
 `te = 1.0`, the fixed descending detuning interval, and the same stop-on-cap
