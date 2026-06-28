@@ -1850,7 +1850,10 @@ The completed-cycle prefix is
 | 4 | 2.18883925 | 1.12969883 | 52 | 64 | 208.7 s |
 
 The remaining frequency counts were then run at the same coupling and cap,
-using the same fixed detuning interval:
+using the same fixed detuning interval.  This command also uses the coupling
+axis `--g-values 0.2`, so the whole `g = 0.2` frequency-count scan is
+described with one reproduction convention; with one entry this is equivalent
+to the scalar `--g 0.2` option.
 
 ```bash
 JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
@@ -1858,7 +1861,7 @@ julia --project=. --startup-file=no scripts/validation/run_largeN_multifrequency
   --Ns 64 --R-values 1,2,5 --methods mcwf \
   --evolution-method continuous --steps 20 --Dmax 64 \
   --cutoff 1e-7 --tau 0.2 --model niising --bc open \
-  --g 0.2 --te 1.0 \
+  --g-values 0.2 --te 1.0 \
   --delta-min 0.5051167496264384 \
   --delta-max 3.0307004977586303 \
   --schedule descending \
