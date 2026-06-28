@@ -352,8 +352,8 @@ function completed_requested_periods_label(
     R::Integer,
     schedule::AbstractString,
 )
-    is_deterministic_schedule(schedule) || return "n/a"
-    R > 0 || return "n/a"
+    is_deterministic_schedule(schedule) || return LARGE_N_DETUNING_COVERAGE_NA
+    R > 0 || return LARGE_N_DETUNING_COVERAGE_NA
     completed_periods = Float64.(completed_steps) ./ R
     requested_periods = Float64.(requested_steps) ./ R
     return "$(range_float_label(completed_periods))/$(range_float_label(requested_periods))"
@@ -365,15 +365,17 @@ function detuning_coverage_status(
     R::Integer,
     schedule::AbstractString,
 )
-    is_deterministic_schedule(schedule) || return "n/a"
-    R > 0 || return "n/a"
-    (isempty(completed_steps) || isempty(requested_steps)) && return "n/a"
-    R == 1 && return "single_detuning"
-    minimum(completed_steps) >= R && return "full_grid_observed"
+    is_deterministic_schedule(schedule) || return LARGE_N_DETUNING_COVERAGE_NA
+    R > 0 || return LARGE_N_DETUNING_COVERAGE_NA
+    (isempty(completed_steps) || isempty(requested_steps)) &&
+        return LARGE_N_DETUNING_COVERAGE_NA
+    R == 1 && return LARGE_N_DETUNING_COVERAGE_SINGLE_DETUNING
+    minimum(completed_steps) >= R && return LARGE_N_DETUNING_COVERAGE_FULL_GRID
     # This is a run-level status: if any trajectory was requested for a full
     # period, an under-one-period completed prefix is treated as stopped short.
-    maximum(requested_steps) < R && return "requested_partial_grid"
-    return "stopped_partial_grid"
+    maximum(requested_steps) < R &&
+        return LARGE_N_DETUNING_COVERAGE_REQUESTED_PARTIAL_GRID
+    return LARGE_N_DETUNING_COVERAGE_STOPPED_PARTIAL_GRID
 end
 
 function delta_history_matrix(run_group)

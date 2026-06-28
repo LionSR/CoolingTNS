@@ -43,6 +43,19 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test LARGE_N_TE_LIST_IS_COMMON_KEY == "te_list_is_common"
     @test LARGE_N_FINAL_BOND_DIMS_GROUP == "final_bond_dims"
     @test LARGE_N_FINAL_BOND_DIMS_TRAJECTORY_PREFIX == "trajectory_"
+    @test LARGE_N_DETUNING_COVERAGE_NA == "n/a"
+    @test LARGE_N_DETUNING_COVERAGE_SINGLE_DETUNING == "single_detuning"
+    @test LARGE_N_DETUNING_COVERAGE_FULL_GRID == "full_grid_observed"
+    @test LARGE_N_DETUNING_COVERAGE_REQUESTED_PARTIAL_GRID ==
+          "requested_partial_grid"
+    @test LARGE_N_DETUNING_COVERAGE_STOPPED_PARTIAL_GRID ==
+          "stopped_partial_grid"
+    @test LARGE_N_DETUNING_COVERAGE_PARTIAL_GRID_OBSERVED ==
+          "partial_grid_observed"
+    @test LARGE_N_DETUNING_COVERAGE_NO_COMPLETED_CYCLES ==
+          "no_completed_cycles"
+    @test LARGE_N_DETUNING_COVERAGE_MISSING_DETUNING_VALUES ==
+          "missing_detuning_values"
     @test LARGE_N_ROW_SYSTEM_MAX_BOND_KEY == "sys_maxbond"
     @test LARGE_N_ROW_SYSTEM_MEAN_BOND_KEY == "sys_meanbond"
     @test LARGE_N_ROW_EVOLVED_MAX_BOND_KEY == "evolved_maxbond"
@@ -137,6 +150,17 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test require_largeN_progress_stage_label(LARGE_N_PROGRESS_STAGE_TDVP_SWEEP) ==
           LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
     @test_throws ArgumentError require_largeN_progress_stage_label("renormalized")
+    @test progress_detuning_coverage_status(0, 5, 0) ==
+          LARGE_N_DETUNING_COVERAGE_NO_COMPLETED_CYCLES
+    @test progress_detuning_coverage_status(0, 5, 2) ==
+          LARGE_N_DETUNING_COVERAGE_MISSING_DETUNING_VALUES
+    @test progress_detuning_coverage_status(1, 1, 1) ==
+          LARGE_N_DETUNING_COVERAGE_SINGLE_DETUNING
+    @test progress_detuning_coverage_status(2, 5, 2) ==
+          LARGE_N_DETUNING_COVERAGE_PARTIAL_GRID_OBSERVED
+    @test progress_detuning_coverage_status(5, 5, 5) ==
+          LARGE_N_DETUNING_COVERAGE_FULL_GRID
+    @test progress_detuning_coverage_status(5, 0, 5) == LARGE_N_DETUNING_COVERAGE_NA
     @test largeN_trajectory_seed(20260617, 64, 10, 1) == 84360618
     @test largeN_trajectory_seed(7, 2, 1, 3) == 2010010
     @test_throws ArgumentError largeN_trajectory_seed(7, 2, 0, 1)

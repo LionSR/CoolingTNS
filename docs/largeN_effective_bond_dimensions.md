@@ -91,7 +91,15 @@ same distinction as a status label: deterministic `round_robin` and
 completed at least one full detuning-grid period.  Prefixes shorter than one
 period are marked as `requested_partial_grid` or `stopped_partial_grid`;
 single-detuning runs report `single_detuning`; random schedules report this
-label as `n/a`.  The `elapsed_total` column sums
+label as `n/a`.  The interrupted-run progress CSV summarizer reports the same
+basic prefix evidence as `visited detunings` and `detuning coverage`, computed
+from completed `updated` rows only; because the CSV does not store the
+originally requested number of cycles, a nonzero prefix shorter than one full
+grid is labelled `partial_grid_observed`, while completed rows with no finite
+detuning values are labelled `missing_detuning_values`.  These CSV labels are
+therefore observation-based for the finite detunings present in the progress
+file; unlike the HDF5 summary, they are not gated by stored schedule metadata.
+The `elapsed_total` column sums
 per-trajectory elapsed times, matching the sequential large-N campaign driver,
 and `traj cycles/hour` is computed as
 $$
