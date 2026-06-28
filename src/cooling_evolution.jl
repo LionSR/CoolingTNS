@@ -792,6 +792,11 @@ function _record_ising_mode_measurements!(measurements, step::Int, state, ham_pa
     return true
 end
 
+"""
+    _insert_mode_measurement_cycle!(measurements, cycle) -> Bool
+
+Insert a zero-based measured mode cycle while preserving sorted uniqueness.
+"""
 function _insert_mode_measurement_cycle!(measurements, cycle::Integer)
     haskey(measurements, RESULT_MODE_MEASUREMENT_CYCLES) || return false
     cycles = Int.(vec(measurements[RESULT_MODE_MEASUREMENT_CYCLES]))
@@ -803,9 +808,11 @@ function _insert_mode_measurement_cycle!(measurements, cycle::Integer)
     return true
 end
 
-# A stopped strided run has a different physical final cycle from the requested
-# final cycle, so record that completed final cycle unless the main loop already
-# recorded it on the original stride grid.
+"""
+    _record_final_stopped_mode_measurements!(measurements, completed_step_index, state, ham_params) -> Bool
+
+Record the completed final cycle of an early-stopped strided mode run.
+"""
 function _record_final_stopped_mode_measurements!(
     measurements,
     completed_step_index::Integer,
@@ -819,17 +826,26 @@ function _record_final_stopped_mode_measurements!(
         isfinite(energy[completed_step_index]) || return false
     end
 
+    haskey(measurements, RESULT_MODE_MEASUREMENT_CYCLES) || return false
+    old_cycles = Int.(vec(measurements[RESULT_MODE_MEASUREMENT_CYCLES]))
     cycle = completed_step_index - 1
     _insert_mode_measurement_cycle!(measurements, cycle) || return false
     _mode_measurement_row_is_finite(measurements, completed_step_index) && return true
-    return _record_ising_mode_measurements!(
+    recorded = _record_ising_mode_measurements!(
         measurements,
         Int(completed_step_index),
         state.state,
         ham_params,
     )
+    recorded || (measurements[RESULT_MODE_MEASUREMENT_CYCLES] = old_cycles)
+    return recorded
 end
 
+"""
+    _mode_measurement_row_is_finite(measurements, step) -> Bool
+
+Return whether both stored mode-observable arrays have a finite one-based row.
+"""
 function _mode_measurement_row_is_finite(measurements, step::Integer)
     hk = get(measurements, RESULT_MODE_HK, nothing)
     nk = get(measurements, RESULT_MODE_NK, nothing)
