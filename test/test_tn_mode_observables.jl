@@ -326,6 +326,28 @@ end
         end
     end
 
+    @testset "MPS split-string sweep agrees with direct contractions" begin
+        N = 5
+        sites = siteinds("S=1/2", N)
+
+        ψ = MPS(sites, "Up")
+        gates = [
+            exp(-0.19im * op("X", sites[1]) * op("Z", sites[2])),
+            exp(0.23im * op("Z", sites[2]) * op("X", sites[3])),
+            exp(-0.31im * op("X", sites[3]) * op("X", sites[4])),
+            exp(0.17im * op("Z", sites[4]) * op("X", sites[5])),
+        ]
+        ψ = apply(gates, ψ; cutoff=1e-14, maxdim=20, move_sites_back=true)
+        normalize!(ψ)
+
+        sweep = CoolingTNS._split_string_correlators(ψ)
+        direct = CoolingTNS._split_string_correlators_direct(ψ)
+
+        for name in (:Cxx, :Cyy, :Cyx, :Cxy)
+            @test getproperty(sweep, name) ≈ getproperty(direct, name) atol=1e-10
+        end
+    end
+
     @testset "MPS mode observables reject open spin boundaries" begin
         N = 4
         ham_params = IsingParameters(N, 1.0, 0.5, :open)

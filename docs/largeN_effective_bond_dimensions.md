@@ -288,10 +288,13 @@ The mode-energy plotting path applies the same positive-gap check: if
 `N`, `J`, and `h`, the file is rejected rather than repaired by recomputing
 coefficients from the root metadata.
 
-The full TN mode measurement currently evaluates the split-string correlator
-formula for all Fourier modes, and is much more expensive than the scalar
-energy and bond diagnostics.  Long large-`N` runs may therefore use
-`--mode-measurement-stride s` together with `--measure-modes`.  In that case
+The full TN mode measurement evaluates the split-string correlator formula for
+all Fourier modes, and is much more expensive than the scalar energy and bond
+diagnostics.  The MPS path constructs these correlators by sweeping cached
+environments through the Jordan-Wigner string intervals; the MPO density-matrix
+path still contracts the corresponding Pauli-string MPOs directly.  Long
+large-`N` runs may therefore use `--mode-measurement-stride s` together with
+`--measure-modes`.  In that case
 `mode_hk` and `mode_nk` retain the ordinary step-by-mode shape, but only cycles
 `0, s, 2s, ...` and the requested final cycle are evaluated.  If an early stop
 occurs on an off-stride cycle, the completed final cycle is also evaluated
@@ -306,6 +309,58 @@ measured `mode_hk`, `mode_nk`, or energy rows.  The large-N writer, summary
 script, and plotting utilities all use these conventions so that deliberately
 unmeasured `NaN` rows are distinguished from malformed or non-finite measured
 rows.
+
+### N=64 Stopped Final Mode-Row Verification
+
+After replacing the MPS split-string contractions by cached Jordan-Wigner
+interval sweeps, the stopped-row contract was checked on 2026-06-28 with the
+same `N = 64`, `R = 2`, `Dmax = 80` MCWF/continuous-TDVP run that previously
+reached the cycle-2 update but spent more than 20 minutes in the final mode
+measurement:
+
+```bash
+julia --project=. --startup-file=no \
+  scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --model ising --bc periodic --Ns 64 --R-values 2 --methods mcwf \
+  --evolution-method continuous --steps 40 --Dmax 80 --h -1.05 \
+  --init-state theta --theta 0.0 \
+  --measure-modes --mode-measurement-stride 5 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --stop-on-bond-cap --tdvp-sweep-progress \
+  --progress-csv .worktree/N64_R2_stopcap_after_correlator_sweep/progress.csv \
+  --outdir .worktree/N64_R2_stopcap_after_correlator_sweep
+```
+
+The run stopped after two completed cycles at the bond cap and wrote
+
+```text
+.worktree/N64_R2_stopcap_after_correlator_sweep/largeN_multifrequency_tn_N64_R2_mcwf_continuous_ising_bcperiodic_stopcap_modestride5_inittheta_theta0_steps40_Dmax80_g0.3_te2_tau0.2_seed20260617.h5
+```
+
+The summary row is
+
+| R | completed/requested | stop reason | final E/N | relE | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | elapsed | mode rows | mode max abs dE/N |
+|---:|---:|---|---:|---:|---:|---:|---:|---:|---|---:|
+| 2 | 2/40 | bond_cap | -1.08328139 | 0.169927 | >=80 | >=80 | >=80 | 737.8 s | 2/3 | 5.38e-11 |
+
+The raw mode payload satisfies the strided stopped-row contract:
+
+```text
+mode_measurement_cycles = [0, 2]
+mode_hk shape = (3, 64)
+measured rows = [1, 3]
+finite measured hk = true
+finite measured nk = true
+unmeasured row-2 finite count = 0
+measured nk bounds = [1.4333325864557267e-4, 0.34677786108923314]
+direct E/N rows = [-1.05000000, -1.0832813940248238]
+mode E/N rows   = [-1.05000000, -1.0832813939709762]
+abs dE/N        = [1.78e-15, 5.38e-11]
+```
+
+Thus the final off-stride stopped cycle is now present as a finite measured
+mode row, while the skipped cycle remains explicitly unmeasured.
 
 For mode-energy reconstruction checks, the simulated state should have a
 definite Ising parity so that the fermionic momentum grid is selected by the
