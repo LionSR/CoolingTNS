@@ -293,9 +293,10 @@ formula for all Fourier modes, and is much more expensive than the scalar
 energy and bond diagnostics.  Long large-`N` runs may therefore use
 `--mode-measurement-stride s` together with `--measure-modes`.  In that case
 `mode_hk` and `mode_nk` retain the ordinary step-by-mode shape, but only cycles
-`0, s, 2s, ...` and the requested final cycle are evaluated; unmeasured rows
-are stored as `NaN`, and the measured cooling cycles are listed in
-`mode_measurement_cycles`.  The library routine
+`0, s, 2s, ...` and the requested final cycle are evaluated.  If an early stop
+occurs on an off-stride cycle, the completed final cycle is also evaluated
+before truncation.  Unmeasured rows are stored as `NaN`, and the measured
+cooling cycles are listed in `mode_measurement_cycles`.  The library routine
 `mode_measurement_cycle_rows` is the shared source of truth for the cycle-list
 contract: it requires the measured cycles to be nonempty, sorted, unique, and
 in range, and maps them to the one-based rows used by Julia arrays.  The

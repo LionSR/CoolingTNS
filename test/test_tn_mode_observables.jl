@@ -644,6 +644,118 @@ end
         @test all(isnan, nk[2, :])
     end
 
+    @testset "TN MCWF early stop records final off-stride mode row" begin
+        N = 4
+        ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
+        coupling_params = CoolingTNS.MultiFrequencyCouplingParameters(
+            "XX",
+            0.0,
+            3,
+            0.0,
+            [0.5];
+            randomize_times=false,
+            schedule=:round_robin,
+        )
+        sim_params = UnifiedSimulationParameters(
+            MonteCarloWavefunction(),
+            ContinuousEvolution();
+            maxiter=20,
+            cutoff=1e-12,
+            Dmax=64,
+        )
+
+        problem = setup_problem(TNBackend(), ham_params, coupling_params, sim_params)
+        state = setup_initial_state(problem, sim_params, "theta", 0.0)
+        results = redirect_stdout(devnull) do
+            run_cooling(
+                problem,
+                state,
+                coupling_params,
+                sim_params,
+                ham_params;
+                measure_modes=true,
+                mode_measurement_stride=3,
+                stop_condition=info -> info.step == 3 ? "unit_test_stop" : nothing,
+            )
+        end
+
+        @test results[CoolingTNS.RESULT_REQUESTED_STEPS] == 3
+        @test results[CoolingTNS.RESULT_COMPLETED_STEPS] == 2
+        @test results[CoolingTNS.RESULT_STOP_REASON] == "unit_test_stop"
+        @test results[RESULT_MODE_MEASUREMENT_CYCLES] == [0, 2]
+
+        hk = results[RESULT_MODE_HK]
+        nk = results[RESULT_MODE_NK]
+        @test size(hk) == (3, N)
+        @test size(nk) == (3, N)
+        @test all(isfinite, hk[[1, 3], :])
+        @test all(isfinite, nk[[1, 3], :])
+        @test all(isnan, hk[2, :])
+        @test all(isnan, nk[2, :])
+
+        measured = validate_mode_measurement_rows(
+            hk,
+            nk,
+            results[RESULT_MODE_MEASUREMENT_CYCLES];
+            energy=results[RESULT_ENERGY],
+        )
+        @test measured.cycles == [0, 2]
+        @test measured.rows == [1, 3]
+    end
+
+    @testset "ED density-matrix early stop records final off-stride mode row" begin
+        N = 4
+        ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
+        coupling_params = CoolingTNS.MultiFrequencyCouplingParameters(
+            "XX",
+            0.0,
+            3,
+            0.0,
+            [0.5];
+            randomize_times=false,
+            schedule=:round_robin,
+        )
+        sim_params = UnifiedSimulationParameters(DensityMatrix(), ContinuousEvolution())
+
+        problem = setup_problem(EDBackend(), ham_params, coupling_params, sim_params)
+        state = setup_initial_state(problem, sim_params, "theta", 0.0)
+        results = redirect_stdout(devnull) do
+            run_cooling(
+                problem,
+                state,
+                coupling_params,
+                sim_params,
+                ham_params;
+                measure_modes=true,
+                mode_measurement_stride=3,
+                stop_condition=info -> info.step == 3 ? "unit_test_stop" : nothing,
+            )
+        end
+
+        @test results[CoolingTNS.RESULT_REQUESTED_STEPS] == 3
+        @test results[CoolingTNS.RESULT_COMPLETED_STEPS] == 2
+        @test results[CoolingTNS.RESULT_STOP_REASON] == "unit_test_stop"
+        @test results[RESULT_MODE_MEASUREMENT_CYCLES] == [0, 2]
+
+        hk = results[RESULT_MODE_HK]
+        nk = results[RESULT_MODE_NK]
+        @test size(hk) == (3, N)
+        @test size(nk) == (3, N)
+        @test all(isfinite, hk[[1, 3], :])
+        @test all(isfinite, nk[[1, 3], :])
+        @test all(isnan, hk[2, :])
+        @test all(isnan, nk[2, :])
+
+        measured = validate_mode_measurement_rows(
+            hk,
+            nk,
+            results[RESULT_MODE_MEASUREMENT_CYCLES];
+            energy=results[RESULT_ENERGY],
+        )
+        @test measured.cycles == [0, 2]
+        @test measured.rows == [1, 3]
+    end
+
     @testset "TN density-matrix zero-step cooling records MPO Fourier modes" begin
         N = 4
         ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
