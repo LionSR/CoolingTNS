@@ -11,15 +11,21 @@ operators back to code Pauli strings:
 `Z_notes → X_code`, `X_notes → -Z_code`, and `Y_notes → Y_code`.
 
 For MPS states the O(N^2) split-string correlators are evaluated by sweeping
-cached environments through the Jordan-Wigner string intervals. For density
-matrices the same Pauli strings are converted to MPOs and contracted as
-`Tr(ρ O)`.
+cached environments through the Jordan-Wigner string intervals, filling the
+four endpoint channels in one coordinated pass. For density matrices the same
+Pauli strings are converted to MPOs and contracted as `Tr(ρ O)`.
 """
 
 using ITensors
 using ITensorMPS
 
 const _PAULI_LABELS_TN = Dict(:X => "X", :Y => "Y", :Z => "Z")
+const _MPS_SPLIT_STRING_CHANNELS = (
+    (name=:Cxx, α=:X, β=:X),
+    (name=:Cyy, α=:Y, β=:Y),
+    (name=:Cyx, α=:Y, β=:X),
+    (name=:Cxy, α=:X, β=:Y),
+)
 
 function _code_pauli_itensor(s::Index, op_label::Symbol)
     op_label == :I && return op("I", s)
@@ -180,6 +186,57 @@ function _split_string_correlators_direct(state::Union{MPS,MPO})
     return (Cxx=Cxx, Cyy=Cyy, Cyx=Cyx, Cxy=Cxy)
 end
 
+function _split_string_channel_data(channel, N::Int)
+    α, β = channel.α, channel.β
+    coeff_α, A = _notes_pauli_to_code(α)
+    coeff_β, B = _notes_pauli_to_code(β)
+    endpoint_coeff = ComplexF64(coeff_α * coeff_β)
+
+    diag_local_coeff, diag_op = _pauli_product(A, B)
+    upper_local_coeff, upper_left_op = _pauli_product(A, :X)
+    lower_local_coeff, lower_left_op = _pauli_product(:X, B)
+
+    return (
+        C=Matrix{ComplexF64}(undef, N, N),
+        A=A,
+        B=B,
+        diag_op=diag_op,
+        diag_coeff=endpoint_coeff * diag_local_coeff,
+        upper_left_op=upper_left_op,
+        upper_coeff=endpoint_coeff * upper_local_coeff,
+        lower_left_op=lower_left_op,
+        lower_coeff=endpoint_coeff * lower_local_coeff,
+    )
+end
+
+function _mps_string_envs_by_left_op(channels, ψ::MPS, sites, site::Int, left_block::ITensor,
+                                     op_field::Symbol)
+    envs = Dict{Symbol,ITensor}()
+    for channel in channels
+        op_label = getproperty(channel, op_field)
+        haskey(envs, op_label) && continue
+        envs[op_label] = (dag(ψ[site])' * _code_pauli_itensor(sites[site], op_label)) *
+            left_block
+    end
+    return envs
+end
+
+function _mps_apply_string_transfer_all!(envs::Dict{Symbol,ITensor}, ψ::MPS, sites, site::Int)
+    for op_label in collect(keys(envs))
+        envs[op_label] = _mps_apply_string_transfer(envs[op_label], ψ, sites, site, :X)
+    end
+    return envs
+end
+
+function _split_string_correlators_four_sweep(ψ::MPS)
+    ψs = ITensorMPS.orthogonalize(ψ, 1)
+    Cxx = _split_string_correlator_matrix_mps(ψs, :X, :X)
+    Cyy = _split_string_correlator_matrix_mps(ψs, :Y, :Y)
+    Cyx = _split_string_correlator_matrix_mps(ψs, :Y, :X)
+    Cxy = _split_string_correlator_matrix_mps(ψs, :X, :Y)
+    return (Cxx=Cxx, Cyy=Cyy, Cyx=Cyx, Cxy=Cxy)
+end
+
 """
     _split_string_correlator_matrix_mps(ψs, α, β)
 
@@ -271,18 +328,67 @@ function _split_string_correlator_matrix_mps(ψs::MPS, α::Symbol, β::Symbol)
     return C
 end
 
-function _split_string_correlators(ψ::MPS)
+function _split_string_correlators_fused_mps(ψ::MPS)
     ψs = ITensorMPS.orthogonalize(ψ, 1)
-    # The four matrices share the same canonicalized state. They are kept as
-    # separate ordered sweeps so the endpoint Pauli order remains easy to audit
-    # against the notes and the direct oracle.
-    Cxx = _split_string_correlator_matrix_mps(ψs, :X, :X)
-    Cyy = _split_string_correlator_matrix_mps(ψs, :Y, :Y)
-    Cyx = _split_string_correlator_matrix_mps(ψs, :Y, :X)
-    Cxy = _split_string_correlator_matrix_mps(ψs, :X, :Y)
-    return (Cxx=Cxx, Cyy=Cyy, Cyx=Cyx, Cxy=Cxy)
+    N = length(ψs)
+    sites = siteinds(ψs)
+    channels = ntuple(
+        i -> _split_string_channel_data(_MPS_SPLIT_STRING_CHANNELS[i], N),
+        length(_MPS_SPLIT_STRING_CHANNELS),
+    )
+
+    left_env = ITensor(1.0)
+
+    if N == 1
+        for channel in channels
+            channel.C[1, 1] = channel.diag_coeff *
+                _mps_single_site_value(left_env, ψs, sites, 1, channel.diag_op)
+        end
+        return (Cxx=channels[1].C, Cyy=channels[2].C, Cyx=channels[3].C, Cxy=channels[4].C)
+    end
+
+    for i in 1:N-1
+        left_block = left_env * ψs[i]
+
+        for channel in channels
+            channel.C[i, i] = channel.diag_coeff *
+                _mps_single_site_value(left_env, ψs, sites, i, channel.diag_op)
+        end
+
+        # For i < j, S_i α_i S_j β_j reduces to
+        # (α_i Z_i)(Z_{i+1} ... Z_{j-1})β_j in notes coordinates. The lower
+        # triangle has Z_i β_i at the left endpoint and α_j at the right.
+        upper_envs = _mps_string_envs_by_left_op(channels, ψs, sites, i, left_block, :upper_left_op)
+        lower_envs = _mps_string_envs_by_left_op(channels, ψs, sites, i, left_block, :lower_left_op)
+
+        for j in i+1:N
+            for idx in eachindex(channels)
+                channel = channels[idx]
+                channel.C[i, j] = channel.upper_coeff *
+                    _mps_right_endpoint_value(upper_envs[channel.upper_left_op], ψs, sites, j, channel.B)
+                channel.C[j, i] = channel.lower_coeff *
+                    _mps_right_endpoint_value(lower_envs[channel.lower_left_op], ψs, sites, j, channel.A)
+            end
+
+            if j < N
+                _mps_apply_string_transfer_all!(upper_envs, ψs, sites, j)
+                _mps_apply_string_transfer_all!(lower_envs, ψs, sites, j)
+            end
+        end
+
+        s = sites[i]
+        left_env = left_block * prime(dag(ψs[i]), !s)
+    end
+
+    for channel in channels
+        channel.C[N, N] = channel.diag_coeff *
+            _mps_single_site_value(left_env, ψs, sites, N, channel.diag_op)
+    end
+
+    return (Cxx=channels[1].C, Cyy=channels[2].C, Cyx=channels[3].C, Cxy=channels[4].C)
 end
 
+_split_string_correlators(ψ::MPS) = _split_string_correlators_fused_mps(ψ)
 _split_string_correlators(ρ::MPO) = _split_string_correlators_direct(ρ)
 
 function _validate_tn_mode_state_length(state::Union{MPS,MPO}, N::Int)
