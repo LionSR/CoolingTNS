@@ -39,6 +39,7 @@ end
         include("test_measure_hk.jl")
         include("test_tn_mode_observables.jl")
         include("test_plot_mode_cooling.jl")
+        include("test_mode_cooling_diagnostic.jl")
         include("test_plot_ek_evolution.jl")
         include("test_dispersion_detuning_markers.jl")
         include("test_plot_momentum_distribution.jl")
