@@ -803,6 +803,9 @@ function _insert_mode_measurement_cycle!(measurements, cycle::Integer)
     return true
 end
 
+# A stopped strided run has a different physical final cycle from the requested
+# final cycle, so record that completed final cycle unless the main loop already
+# recorded it on the original stride grid.
 function _record_final_stopped_mode_measurements!(
     measurements,
     completed_step_index::Integer,
@@ -818,12 +821,21 @@ function _record_final_stopped_mode_measurements!(
 
     cycle = completed_step_index - 1
     _insert_mode_measurement_cycle!(measurements, cycle) || return false
+    _mode_measurement_row_is_finite(measurements, completed_step_index) && return true
     return _record_ising_mode_measurements!(
         measurements,
         Int(completed_step_index),
         state.state,
         ham_params,
     )
+end
+
+function _mode_measurement_row_is_finite(measurements, step::Integer)
+    hk = get(measurements, RESULT_MODE_HK, nothing)
+    nk = get(measurements, RESULT_MODE_NK, nothing)
+    (hk isa AbstractMatrix && nk isa AbstractMatrix) || return false
+    (1 <= step <= size(hk, 1) && 1 <= step <= size(nk, 1)) || return false
+    return all(isfinite, view(hk, step, :)) && all(isfinite, view(nk, step, :))
 end
 
 function _mark_failed_ising_mode_measurements!(measurements, step::Int)
