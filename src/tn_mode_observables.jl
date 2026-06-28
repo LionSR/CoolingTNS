@@ -10,17 +10,21 @@ measurements we leave the state in the code basis and pull notes-basis Pauli
 operators back to code Pauli strings:
 `Z_notes → X_code`, `X_notes → -Z_code`, and `Y_notes → Y_code`.
 
-For MPS states the O(N^2) split-string correlators are evaluated by direct
-network contraction. For density matrices the same Pauli strings are converted
-to MPOs and contracted as `Tr(ρ O)`. These paths are convention-correct; a later
-production implementation can still cache environments across correlators for
-large scans.
+For MPS states the O(N^2) split-string correlators are evaluated by sweeping
+cached environments through the Jordan-Wigner string intervals. For density
+matrices the same Pauli strings are converted to MPOs and contracted as
+`Tr(ρ O)`.
 """
 
 using ITensors
 using ITensorMPS
 
 const _PAULI_LABELS_TN = Dict(:X => "X", :Y => "Y", :Z => "Z")
+
+function _code_pauli_itensor(s::Index, op_label::Symbol)
+    op_label == :I && return op("I", s)
+    return op(_PAULI_LABELS_TN[op_label], s)
+end
 
 function _pauli_product(a::Symbol, b::Symbol)
     a == :I && return (1.0 + 0.0im, b)
@@ -85,11 +89,45 @@ function _expect_pauli_string(ψ::MPS, coeff::ComplexF64, ops::Vector{Symbol})
     for i in eachindex(ops)
         A = ψ[i]
         s = sites[i]
-        O = ops[i] == :I ? op("I", s) : op(_PAULI_LABELS_TN[ops[i]], s)
+        O = _code_pauli_itensor(s, ops[i])
         contraction *= dag(prime(A)) * O * A
     end
 
     return coeff * scalar(contraction)
+end
+
+function _mps_apply_string_transfer(env::ITensor, ψ::MPS, sites, site::Int, op_label::Symbol)
+    O = _code_pauli_itensor(sites[site], op_label)
+    return (env * (O * dag(ψ[site])')) * ψ[site]
+end
+
+function _mps_right_endpoint_value(env::ITensor, ψ::MPS, sites, site::Int, op_label::Symbol)
+    lind = commonind(ψ[site], env)
+    O = _code_pauli_itensor(sites[site], op_label)
+    block = env * ψ[site]
+    value = (block * O) * prime(dag(ψ[site]), (sites[site], lind))
+    return scalar(value)
+end
+
+function _mps_single_site_value(left_env::ITensor, ψ::MPS, sites, site::Int, op_label::Symbol)
+    N = length(ψ)
+    O = _code_pauli_itensor(sites[site], op_label)
+
+    if N == 1
+        value = dag(prime(ψ[site])) * O * ψ[site]
+        return scalar(value)
+    end
+
+    block = left_env * ψ[site]
+    if site < N
+        right_link = commonind(ψ[site], ψ[site + 1])
+        bra = prime(dag(ψ[site]), !right_link)
+    else
+        left_link = commonind(ψ[site], ψ[site - 1])
+        bra = prime(dag(ψ[site]), (sites[site], left_link))
+    end
+    value = (block * O) * bra
+    return scalar(value)
 end
 
 function _pauli_string_mpo(sites::Vector{<:Index}, ops::Vector{Symbol})
@@ -125,7 +163,7 @@ function _split_string_correlator(state::Union{MPS,MPO}, n::Int, m::Int, α::Sym
     return _expect_pauli_string(state, ComplexF64(coeff), ops)
 end
 
-function _split_string_correlators(state::Union{MPS,MPO})
+function _split_string_correlators_direct(state::Union{MPS,MPO})
     N = length(state)
     Cxx = Matrix{ComplexF64}(undef, N, N)
     Cyy = Matrix{ComplexF64}(undef, N, N)
@@ -141,6 +179,111 @@ function _split_string_correlators(state::Union{MPS,MPO})
 
     return (Cxx=Cxx, Cyy=Cyy, Cyx=Cyx, Cxy=Cxy)
 end
+
+"""
+    _split_string_correlator_matrix_mps(ψs, α, β)
+
+Build one ordered split-string correlator matrix from an MPS that has already
+been orthogonalized at site 1. The left environments are built explicitly; the
+right tail is contracted using the right-orthogonality of sites beyond the
+current sweep center.
+"""
+function _split_string_correlator_matrix_mps(ψs::MPS, α::Symbol, β::Symbol)
+    N = length(ψs)
+    sites = siteinds(ψs)
+
+    coeff_α, A = _notes_pauli_to_code(α)
+    coeff_β, B = _notes_pauli_to_code(β)
+    endpoint_coeff = ComplexF64(coeff_α * coeff_β)
+
+    diag_local_coeff, diag_op = _pauli_product(A, B)
+    diag_coeff = endpoint_coeff * diag_local_coeff
+
+    C = Matrix{ComplexF64}(undef, N, N)
+
+    left_env = ITensor(1.0)
+    p_left = 0
+
+    if N == 1
+        C[1, 1] = diag_coeff * _mps_single_site_value(left_env, ψs, sites, 1, diag_op)
+        return C
+    end
+
+    for i in 1:N-1
+        while p_left < i - 1
+            p_left += 1
+            s = sites[p_left]
+            left_env = (left_env * ψs[p_left]) * prime(dag(ψs[p_left]), !s)
+        end
+
+        left_block = left_env * ψs[i]
+        C[i, i] = diag_coeff * _mps_single_site_value(left_env, ψs, sites, i, diag_op)
+
+        # For i < j, S_i α_i S_j β_j reduces to
+        # (α_i Z_i)(Z_{i+1} ... Z_{j-1})β_j in notes coordinates.
+        upper_local_coeff, upper_left_op = _pauli_product(A, :X)
+        upper_coeff = endpoint_coeff * upper_local_coeff
+        upper_env = (dag(ψs[i])' * _code_pauli_itensor(sites[i], upper_left_op)) * left_block
+        p_upper = i
+
+        for j in i+1:N
+            while p_upper < j - 1
+                p_upper += 1
+                upper_env = _mps_apply_string_transfer(upper_env, ψs, sites, p_upper, :X)
+            end
+
+            C[i, j] = upper_coeff * _mps_right_endpoint_value(upper_env, ψs, sites, j, B)
+
+            if j < N
+                p_upper = j
+                upper_env = _mps_apply_string_transfer(upper_env, ψs, sites, j, :X)
+            end
+        end
+
+        # For i < j, the lower-triangular entry C[j,i] has β at the left
+        # endpoint and α at the right endpoint; the local order at i is Z_i β_i.
+        lower_local_coeff, lower_left_op = _pauli_product(:X, B)
+        lower_coeff = endpoint_coeff * lower_local_coeff
+        lower_env = (dag(ψs[i])' * _code_pauli_itensor(sites[i], lower_left_op)) * left_block
+        p_lower = i
+
+        for j in i+1:N
+            while p_lower < j - 1
+                p_lower += 1
+                lower_env = _mps_apply_string_transfer(lower_env, ψs, sites, p_lower, :X)
+            end
+
+            C[j, i] = lower_coeff * _mps_right_endpoint_value(lower_env, ψs, sites, j, A)
+
+            if j < N
+                p_lower = j
+                lower_env = _mps_apply_string_transfer(lower_env, ψs, sites, j, :X)
+            end
+        end
+
+        p_left += 1
+        s = sites[i]
+        left_env = left_block * prime(dag(ψs[i]), !s)
+    end
+
+    C[N, N] = diag_coeff * _mps_single_site_value(left_env, ψs, sites, N, diag_op)
+
+    return C
+end
+
+function _split_string_correlators(ψ::MPS)
+    ψs = ITensorMPS.orthogonalize(ψ, 1)
+    # The four matrices share the same canonicalized state. They are kept as
+    # separate ordered sweeps so the endpoint Pauli order remains easy to audit
+    # against the notes and the direct oracle.
+    Cxx = _split_string_correlator_matrix_mps(ψs, :X, :X)
+    Cyy = _split_string_correlator_matrix_mps(ψs, :Y, :Y)
+    Cyx = _split_string_correlator_matrix_mps(ψs, :Y, :X)
+    Cxy = _split_string_correlator_matrix_mps(ψs, :X, :Y)
+    return (Cxx=Cxx, Cyy=Cyy, Cyx=Cyx, Cxy=Cxy)
+end
+
+_split_string_correlators(ρ::MPO) = _split_string_correlators_direct(ρ)
 
 function _validate_tn_mode_state_length(state::Union{MPS,MPO}, N::Int)
     state_label = state isa MPS ? "MPS" : "MPO"
