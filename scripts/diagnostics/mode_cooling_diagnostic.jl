@@ -35,6 +35,16 @@ const INIT_THETA_CODE =
 
 _mode_index_label(k) = k isa Rational ? "$(numerator(k))/$(denominator(k))" : "$(k)"
 
+function _mode_occupation_from_diagnostic_results(results)
+    mode_hk = results[CoolingTNS.RESULT_MODE_HK]
+    if haskey(results, CoolingTNS.RESULT_MODE_NK)
+        mode_nk = Float64.(results[CoolingTNS.RESULT_MODE_NK])
+        CoolingTNS.validate_mode_nk_matches_hk(mode_nk, mode_hk)
+        return mode_nk
+    end
+    return CoolingTNS.mode_occupation_from_hk(mode_hk)
+end
+
 # ============================================================================
 # Setup
 # ============================================================================
@@ -120,7 +130,7 @@ function run_diagnostic(; do_plot::Bool=false)
     # ========================================================================
 
     mode_hk = results[CoolingTNS.RESULT_MODE_HK]
-    mode_nk = CoolingTNS.mode_occupation_from_hk(mode_hk)
+    mode_nk = _mode_occupation_from_diagnostic_results(results)
     k_indices = results[CoolingTNS.RESULT_MODE_K_INDICES]
     εk_values = results[CoolingTNS.RESULT_MODE_ENERGIES]
     E_list = results[CoolingTNS.RESULT_ENERGY]
@@ -263,5 +273,7 @@ end
 # Main
 # ============================================================================
 
-do_plot = "--plot" in ARGS || "-p" in ARGS
-run_diagnostic(; do_plot=do_plot)
+if abspath(PROGRAM_FILE) == @__FILE__
+    do_plot = "--plot" in ARGS || "-p" in ARGS
+    run_diagnostic(; do_plot=do_plot)
+end
