@@ -15,10 +15,11 @@ Example:
         --compact --combine-trajectories /tmp/largeN_*_traj*.h5
 
 The output is a Markdown table.  When present, the stored detuning protocol,
-initial-state protocol, bath-evolution time `te`, and time protocol are shown
-next to the bond-dimension diagnostics, so initial-state controls,
-fixed-detuning cutoff, time-ladder, and randomized-time sweeps can be audited
-from the summary alone.  The `delta_range` column is the stored protocol
+coupling strength `g`, initial-state protocol, bath-evolution time `te`, and
+time protocol are shown next to the bond-dimension diagnostics, so
+initial-state controls, fixed-detuning cutoff, coupling-strength scans,
+time-ladder, and randomized-time sweeps can be audited from the summary alone.
+The `delta_range` column is the stored protocol
 interval; for `R=1`, the campaign samples only the lower endpoint.  For
 multi-trajectory data, final-link quantiles and threshold fractions are computed
 per trajectory and then averaged over trajectories.  Stop-on-cap provenance is
@@ -26,10 +27,10 @@ read directly from the HDF5 fields `requested_steps`, `completed_steps`,
 `stop_reasons`, and `elapsed_seconds` when available.  The elapsed column is a
 sum over trajectory elapsed times, matching the sequential campaign driver.
 With `--combine-trajectories`, compatible split trajectory-axis files are grouped
-by their physical protocol, including the initial state, `te`, and whether cycle
-times are fixed or randomized, and summarized as one row after verifying that
-their stored trajectory labels are non-overlapping.  For stopped prefixes with
-unequal completed cycle counts, the energy columns are statistics of the
+by their physical protocol, including `g`, the initial state, `te`, and whether
+cycle times are fixed or randomized, and summarized as one row after verifying
+that their stored trajectory labels are non-overlapping.  For stopped prefixes
+with unequal completed cycle counts, the energy columns are statistics of the
 individual trajectory summaries rather than a reconstructed cycle-aligned
 ensemble history.  Protocol buckets containing only one file are left unchanged,
 since there is no independent trajectory file to combine with it.
@@ -582,6 +583,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         read_group_value(method_group, root, LARGE_N_EVOLUTION_METHOD_KEY, "unknown")
     )
     te = Float64(read_first_group_value(RESULT_TE, NaN, run_group, method_group, root))
+    g = Float64(read_first_group_value("g", NaN, run_group, method_group, root))
     randomize_times = randomize_times_flag(root, method_group, run_group)
     time_protocol = time_protocol_label(randomize_times)
     init_state, theta = initial_state_metadata(root, method_group, run_group)
@@ -801,6 +803,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         method=method_name,
         evolution=evolution,
         te=te,
+        g=g,
         randomize_times=randomize_times,
         time_protocol=time_protocol,
         init_state=init_state,
@@ -891,6 +894,7 @@ function trajectory_ensemble_key(row)
         row.method,
         row.evolution,
         isfinite(row.te) ? row.te : missing,
+        isfinite(row.g) ? row.g : missing,
         row.randomize_times,
         initial_state_group_key(row),
         row.R,
@@ -1150,6 +1154,7 @@ function sorted_rows(rows)
             row.method,
             row.evolution,
             isfinite(row.te) ? row.te : Inf,
+            isfinite(row.g) ? row.g : Inf,
             row.randomize_times,
             initial_state_sort_key(row),
             row.R,
@@ -1159,12 +1164,13 @@ function sorted_rows(rows)
 end
 
 function print_markdown(rows)
-    println("| file | N | method | evolution | te | time protocol | init | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | truncation errors | initial E/N | initial relE | initial overlap | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
-    println("|---|---:|---|---|---:|---|---|---:|---:|---|---|---:|---:|---|---:|---:|---|---|---|---|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
+    println("| file | N | method | evolution | te | g | time protocol | init | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | truncation errors | initial E/N | initial relE | initial overlap | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---|---|---:|---:|---|---:|---:|---|---|---|---|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | " *
-            "$(format_float(row.te, 3)) | $(row.time_protocol) | $(row.init_protocol) | " *
+            "$(format_float(row.te, 3)) | $(format_float(row.g, 12)) | " *
+            "$(row.time_protocol) | $(row.init_protocol) | " *
             "$(row.R) | $(row.M) | " *
             "$(row.schedule) | $(row.completed_requested) | $(row.completed_requested_periods) | " *
             "$(row.visited_detunings) | $(row.detuning_coverage) | " *
@@ -1202,12 +1208,13 @@ function print_markdown(rows)
 end
 
 function print_compact_markdown(rows)
-    println("| file | N | method | evolution | te | time protocol | init | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | initial E/N | initial overlap | final E/N | best E/N | mode max abs dE/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | truncation errors | elapsed_total | traj cycles/hour | stop_reason |")
-    println("|---|---:|---|---|---:|---|---|---:|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---|")
+    println("| file | N | method | evolution | te | g | time protocol | init | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | initial E/N | initial overlap | final E/N | best E/N | mode max abs dE/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | truncation errors | elapsed_total | traj cycles/hour | stop_reason |")
+    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---|")
     for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | " *
-            "$(format_float(row.te, 3)) | $(row.time_protocol) | $(row.init_protocol) | " *
+            "$(format_float(row.te, 3)) | $(format_float(row.g, 12)) | " *
+            "$(row.time_protocol) | $(row.init_protocol) | " *
             "$(row.R) | $(row.M) | " *
             "$(row.schedule) | $(row.completed_requested) | " *
             "$(row.completed_requested_periods) | $(row.visited_detunings) | " *

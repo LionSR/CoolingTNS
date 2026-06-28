@@ -98,6 +98,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
         "seed",
         "Dmax",
         "cutoff",
+        "g",
         "tau",
         "stage",
         "step",
@@ -124,6 +125,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
         "seed",
         "Dmax",
         "cutoff",
+        "g",
         "tau",
     )
     @test largeN_progress_stage(:initial) == LARGE_N_PROGRESS_STAGE_INITIAL

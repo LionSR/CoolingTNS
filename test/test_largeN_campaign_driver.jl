@@ -121,6 +121,28 @@ end
     @test occursin("_te1_", output_path(te_cfgs[2]))
     @test campaign_te_values(parse_args(["--te", "0.25"])) == [0.25]
 
+    g_ladder_cfg = parse_args([
+        "--Ns", "64",
+        "--R-values", "10",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--steps", "20",
+        "--Dmax", "64",
+        "--te", "1.0",
+        "--g-values", "0.05,0.1",
+        "--delta-min", "0.5051167496264384",
+        "--delta-max", "3.0307004977586303",
+        "--outdir", tempdir(),
+    ])
+    @test campaign_g_values(g_ladder_cfg) == [0.05, 0.1]
+    g_cfgs = campaign_ladder_configs(g_ladder_cfg)
+    @test [c["g"] for c in g_cfgs] == [0.05, 0.1]
+    @test all(c -> c["Dmax"] == 64, g_cfgs)
+    @test length(unique(output_path.(g_cfgs))) == 2
+    @test occursin("_g0.05_te1_", output_path(g_cfgs[1]))
+    @test occursin("_g0.1_te1_", output_path(g_cfgs[2]))
+    @test campaign_g_values(parse_args(["--g", "0.2"])) == [0.2]
+
     default_init_cfg = parse_args(["--outdir", tempdir()])
     @test default_init_cfg["init_state"] == "product"
     @test default_init_cfg["theta"] == 0.0
@@ -328,6 +350,36 @@ end
     @test !any(command -> occursin("--te-values", command), te_commands)
     te_plan_text = sprint(io -> print_parallel_plan(te_plan_cfg; io=io))
     @test occursin("fixed-protocol te ladder", te_plan_text)
+
+    g_plan_cfg = parse_args([
+        "--Ns", "64",
+        "--R-values", "10",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--steps", "20",
+        "--Dmax", "64",
+        "--te", "1.0",
+        "--g-values", "0.05,0.1",
+        "--delta-min", "0.5051167496264384",
+        "--delta-max", "3.0307004977586303",
+        "--outdir", tempdir(),
+        "--progress-csv", joinpath(tempdir(), "g_progress.csv"),
+        "--print-parallel-plan",
+    ])
+    g_jobs = parallel_plan_configs(g_plan_cfg)
+    @test length(g_jobs) == 2
+    @test [job["g"] for job in g_jobs] == [0.05, 0.1]
+    @test all(job -> job["g_values"] === nothing, g_jobs)
+    @test length(unique(output_path.(g_jobs))) == 2
+    @test length(unique(job["progress_csv"] for job in g_jobs)) == 2
+    @test occursin("_g0.05_te1_", output_path(g_jobs[1]))
+    @test occursin("_g0.1_te1_", output_path(g_jobs[2]))
+    g_commands = parallel_plan_commands(g_plan_cfg)
+    @test count(command -> occursin("--g 0.05", command), g_commands) == 1
+    @test count(command -> occursin("--g 0.1", command), g_commands) == 1
+    @test !any(command -> occursin("--g-values", command), g_commands)
+    g_plan_text = sprint(io -> print_parallel_plan(g_plan_cfg; io=io))
+    @test occursin("fixed-protocol g ladder", g_plan_text)
 
     trajectory_plan_cfg = parse_args([
         "--Ns", "64",
@@ -928,6 +980,28 @@ end
     ])
     @test_throws ErrorException parse_args(["--te-values", "1.0,1.0"])
     @test_throws ErrorException parse_args(["--te-values", "1.0,-0.5"])
+    @test_throws ErrorException parse_args(["--g-values", "0.05,0.1"])
+    @test_throws ErrorException parse_args([
+        "--g-values", "0.05,0.1",
+        "--output", joinpath(tempdir(), "single_g.h5"),
+        "--delta-min", "0.5",
+        "--delta-max", "1.0",
+    ])
+    @test_throws ErrorException parse_args([
+        "--g-values", "0.1,0.1",
+        "--delta-min", "0.5",
+        "--delta-max", "1.0",
+    ])
+    @test_throws ErrorException parse_args([
+        "--g-values", "0.1,NaN",
+        "--delta-min", "0.5",
+        "--delta-max", "1.0",
+    ])
+    @test_throws ErrorException parse_args([
+        "--g-values", "0.12345678901234,0.12345678901235",
+        "--delta-min", "0.5",
+        "--delta-max", "1.0",
+    ])
     @test_throws ErrorException parse_args(["--Ns", "64,64"])
     @test_throws ErrorException parse_args(["--R-values", "2,2"])
     @test_throws ErrorException parse_args(["--methods", "mcwf,mcwf"])
@@ -1300,6 +1374,7 @@ end
         seed=123,
         Dmax=24,
         cutoff=1e-6,
+        g=0.05,
         tau=0.2,
     )
     ham_params = CoolingTNS.NiIsingParameters(4, 1.0, -1.05, 0.5)
@@ -1328,6 +1403,7 @@ end
     @test row["evolution"] == "continuous"
     @test row["stage"] == LARGE_N_PROGRESS_STAGE_UPDATED
     @test row["cycle"] == 1
+    @test row["g"] == 0.05
     @test row["energy_per_site"] == -0.25
     @test row["relative_energy"] == relative_energy(-1.0, -4.0)
     @test row[LARGE_N_SYSTEM_MAX_BOND_KEY] == 8

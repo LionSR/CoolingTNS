@@ -300,14 +300,15 @@ events may occur at different cycles should be launched as independent jobs.
 When no explicit `--output` path is supplied, the generated HDF5 filename
 receives a `_stopcap` suffix so these partial diagnostic outputs do not
 overwrite full benchmark files with the same physical parameters.
-When several `R` values, `Dmax` values, bath-evolution times, or MCWF/MPS
-evolution methods are to be run on a many-core machine, the validation driver
-should first be invoked with `--print-parallel-plan`.  This prints one
-independent command for each
-`(N, method, evolution method, R, Dmax, te, trajectory index)` tuple and assigns
-distinct HDF5 paths.  The `--te-values` axis requires an explicit
-`--delta-min/--delta-max` interval, just like `--Dmax-values`, so the detuning
-protocol is held fixed while the physical per-cycle evolution time is varied.
+When several `R` values, `Dmax` values, coupling strengths, bath-evolution
+times, or MCWF/MPS evolution methods are to be run on a many-core machine, the
+validation driver should first be invoked with `--print-parallel-plan`.  This
+prints one independent command for each
+`(N, method, evolution method, R, Dmax, g, te, trajectory index)` tuple and
+assigns distinct HDF5 paths.  The `--g-values` and `--te-values` axes require an
+explicit `--delta-min/--delta-max` interval, just like `--Dmax-values`, so the
+detuning protocol is held fixed while the coupling strength or physical
+per-cycle evolution time is varied.
 The trajectory axis is explicit: adding
 `--trajectory-values 1,2,3` is supported for MCWF jobs and emits one
 single-trajectory command per requested index, each carrying `--M-mcwf 1` and a
