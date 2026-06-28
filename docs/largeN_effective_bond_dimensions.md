@@ -99,6 +99,11 @@ grid is labelled `partial_grid_observed`, while completed rows with no finite
 detuning values are labelled `missing_detuning_values`.  These CSV labels are
 therefore observation-based for the finite detunings present in the progress
 file; unlike the HDF5 summary, they are not gated by stored schedule metadata.
+Progress CSV files written before the coupling-strength scan axis do not
+contain a `g` column; the progress summarizer displays those entries as
+`legacy_missing` rather than leaving a blank coupling-strength cell.  If a
+file contains the `g` column but an individual field is empty, the summarizer
+uses the neutral label `missing`.
 The `elapsed_total` column sums
 per-trajectory elapsed times, matching the sequential large-N campaign driver,
 and `traj cycles/hour` is computed as

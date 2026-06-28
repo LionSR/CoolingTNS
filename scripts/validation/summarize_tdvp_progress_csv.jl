@@ -6,6 +6,9 @@ Summarize large-N progress CSV files written by
 This script is meant for interrupted MCWF+TDVP runs where the HDF5 summary may
 not have been written.  It reads the flushed progress CSV and reports the
 energy trace, detuning-grid coverage, cap onset, and per-sweep TDVP timing.
+Legacy progress CSV files that predate the `g` column are displayed with
+`legacy_missing` in the coupling column rather than with a blank cell.  Files
+with a present but empty `g` field are displayed as `missing`.
 
 Example:
 
@@ -82,6 +85,10 @@ function read_progress_csv(path::AbstractString)
 end
 
 progress_cell(row, name::AbstractString) = get(row, name, "")
+function progress_coupling_label(g::AbstractString; column_present::Bool=true)
+    !isempty(g) && return g
+    return column_present ? "missing" : "legacy_missing"
+end
 
 function progress_float(row, name::AbstractString)
     value = progress_cell(row, name)
@@ -159,7 +166,8 @@ function completed_update_detuning_count(updates)
     return length(detunings)
 end
 
-function summarize_progress_group(file_name::AbstractString, key, rows; cap=nothing)
+function summarize_progress_group(file_name::AbstractString, key, rows;
+                                  cap=nothing, has_g_column::Bool=true)
     label = group_label(key)
     threshold = cap === nothing ?
         default_progress_cap(label.method, parse(Int, label.Dmax)) :
@@ -254,6 +262,7 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
         evolution=label.evolution,
         R=R,
         g=label.g,
+        has_g_column=has_g_column,
         trajectory=parse(Int, label.trajectory),
         seed=parse(Int, label.seed),
         threshold=threshold,
@@ -287,13 +296,14 @@ function summarize_progress_group(file_name::AbstractString, key, rows; cap=noth
 end
 
 function summarize_progress_file(path::AbstractString; cap=nothing)
-    _, rows = read_progress_csv(path)
+    header, rows = read_progress_csv(path)
+    has_g_column = "g" in header
     groups = Dict{Any,Vector{Dict{String,String}}}()
     for row in rows
         push!(get!(groups, group_key(row), Vector{Dict{String,String}}()), row)
     end
     return [
-        summarize_progress_group(path, key, group_rows; cap=cap)
+        summarize_progress_group(path, key, group_rows; cap=cap, has_g_column=has_g_column)
         for (key, group_rows) in sort(
             collect(groups);
             by=pair -> (
@@ -318,12 +328,13 @@ end
 
 function print_summary_table(rows)
     println("| file | N | method | evolution | R | g | traj | seed | Dcap | completed cycles | visited detunings | detuning coverage | final E/N | Dsys_eff | Dsb_eff | bond_status | sys cap | evolved cap | tdvp sweep cap | first transient cap | max sweep dt | max sweep at | last step | last cycle | last stage |")
-    println("|---|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---|---|---|---|---|---:|---|---:|---:|---|")
+    println("|---|---:|---|---|---:|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---|---|---|---|---|---:|---|---:|---:|---|")
     for row in rows
         max_sweep_label = row.max_sweep_cycle == 0 ? "none" : "$(row.max_sweep_cycle):$(row.max_sweep)"
+        g_label = progress_coupling_label(row.g; column_present=row.has_g_column)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | " *
-            "$(row.R) | $(row.g) | $(row.trajectory) | $(row.seed) | $(row.threshold) | " *
+            "$(row.R) | $(g_label) | $(row.trajectory) | $(row.seed) | $(row.threshold) | " *
             "$(row.completed_cycles) | $(row.visited_detunings) | " *
             "$(row.detuning_coverage) | $(format_float(row.final_energy, 8)) | " *
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
@@ -340,11 +351,12 @@ end
 function print_energy_trace(rows)
     println()
     println("| R | g | traj | cycle | delta | E/N | system max bond | evolved max bond | elapsed |")
-    println("|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    println("|---:|---|---:|---:|---:|---:|---:|---:|---:|")
     for row in rows
+        g_label = progress_coupling_label(row.g; column_present=row.has_g_column)
         for update in row.updates
             println(
-                "| $(row.R) | $(row.g) | $(row.trajectory) | " *
+                "| $(row.R) | $(g_label) | $(row.trajectory) | " *
                 "$(progress_cell(update, "cycle")) | " *
                 "$(format_float(progress_float(update, "delta"), 8)) | " *
                 "$(format_float(progress_float(update, "energy_per_site"), 8)) | " *
