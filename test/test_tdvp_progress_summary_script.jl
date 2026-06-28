@@ -12,7 +12,8 @@ function tdvp_progress_line(; timestamp="2026-06-19T00:00:00",
                             system_max_bond="1", system_mean_bond="1.0",
                             evolved_max_bond="NaN", evolved_mean_bond="NaN",
                             tdvp_sweep="NaN", tdvp_time="NaN",
-                            elapsed_seconds)
+                            elapsed_seconds,
+                            columns=TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS)
     row = Dict(
         "timestamp" => timestamp,
         "N" => "4",
@@ -42,7 +43,7 @@ function tdvp_progress_line(; timestamp="2026-06-19T00:00:00",
         TDVPProgressCSVSummary.LARGE_N_ELAPSED_SECONDS_KEY => string(elapsed_seconds),
     )
     return join(
-        (row[col] for col in TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS),
+        (row[col] for col in columns),
         ",",
     )
 end
@@ -303,6 +304,92 @@ end
         @test occursin("| 4 | 3 | tdvp_sweep |", output)
     finally
         rm(path; force=true)
+    end
+
+    legacy_g_path = tempname() * ".csv"
+    try
+        legacy_columns = filter(
+            col -> col != "g",
+            TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS,
+        )
+        open(legacy_g_path, "w") do io
+            println(io, join(legacy_columns, ","))
+            println(io, tdvp_progress_line(
+                columns=legacy_columns,
+                stage="initial", step=1, cycle=0, delta="NaN", te="NaN",
+                energy_per_site="1.0", relative_energy="2.0", overlap="0.0",
+                system_max_bond="1", evolved_max_bond="NaN", elapsed_seconds=0.5,
+            ))
+            println(io, tdvp_progress_line(
+                columns=legacy_columns,
+                stage="updated", step=2, cycle=1,
+                energy_per_site="0.5", relative_energy="1.5", overlap="0.1",
+                system_max_bond="5", evolved_max_bond="6", elapsed_seconds=3.0,
+            ))
+        end
+
+        legacy_g_rows = TDVPProgressCSVSummary.summarize_progress_file(legacy_g_path)
+        legacy_g_row = only(legacy_g_rows)
+        @test legacy_g_row.g == ""
+        @test legacy_g_row.has_g_column == false
+
+        legacy_g_output = mktemp() do output_path, io
+            close(io)
+            open(output_path, "w") do out
+                redirect_stdout(out) do
+                    TDVPProgressCSVSummary.print_markdown(legacy_g_rows)
+                end
+            end
+            read(output_path, String)
+        end
+        @test occursin("| 2 | legacy_missing | 1 | 123 |", legacy_g_output)
+        @test occursin(
+            "| 2 | legacy_missing | 1 | 1 | 0.50000000 | 0.50000000 | 5 | 6 | 3.0 |",
+            legacy_g_output,
+        )
+    finally
+        rm(legacy_g_path; force=true)
+    end
+
+    empty_g_path = tempname() * ".csv"
+    try
+        open(empty_g_path, "w") do io
+            println(io, join(TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS, ","))
+            println(io, tdvp_progress_line(
+                g="",
+                stage="initial", step=1, cycle=0, delta="NaN", te="NaN",
+                energy_per_site="1.0", relative_energy="2.0", overlap="0.0",
+                system_max_bond="1", evolved_max_bond="NaN", elapsed_seconds=0.5,
+            ))
+            println(io, tdvp_progress_line(
+                g="",
+                stage="updated", step=2, cycle=1,
+                energy_per_site="0.5", relative_energy="1.5", overlap="0.1",
+                system_max_bond="5", evolved_max_bond="6", elapsed_seconds=3.0,
+            ))
+        end
+
+        empty_g_rows = TDVPProgressCSVSummary.summarize_progress_file(empty_g_path)
+        empty_g_row = only(empty_g_rows)
+        @test empty_g_row.g == ""
+        @test empty_g_row.has_g_column == true
+
+        empty_g_output = mktemp() do output_path, io
+            close(io)
+            open(output_path, "w") do out
+                redirect_stdout(out) do
+                    TDVPProgressCSVSummary.print_markdown(empty_g_rows)
+                end
+            end
+            read(output_path, String)
+        end
+        @test occursin("| 2 | missing | 1 | 123 |", empty_g_output)
+        @test occursin(
+            "| 2 | missing | 1 | 1 | 0.50000000 | 0.50000000 | 5 | 6 | 3.0 |",
+            empty_g_output,
+        )
+    finally
+        rm(empty_g_path; force=true)
     end
 
     missing_delta_path = tempname() * ".csv"
