@@ -342,11 +342,35 @@ end
                 normalize!(ψ)
             end
 
-            sweep = CoolingTNS._split_string_correlators(ψ)
+            fused = CoolingTNS._split_string_correlators_fused_mps(ψ)
+            dispatch = CoolingTNS._split_string_correlators(ψ)
+            four_sweep = CoolingTNS._split_string_correlators_four_sweep(ψ)
             direct = CoolingTNS._split_string_correlators_direct(ψ)
 
             for name in (:Cxx, :Cyy, :Cyx, :Cxy)
-                @test getproperty(sweep, name) ≈ getproperty(direct, name) atol=1e-12
+                @test getproperty(fused, name) ≈ getproperty(direct, name) atol=1e-12
+                @test getproperty(fused, name) ≈ getproperty(four_sweep, name) atol=1e-12
+                @test getproperty(dispatch, name) ≈ getproperty(fused, name) atol=1e-12
+            end
+        end
+    end
+
+    @testset "MPS fused split-string sweep scales against four-sweep reference" begin
+        for N in (8, 12)
+            sites = siteinds("S=1/2", N)
+            ψ = MPS(sites, "Up")
+            gates = [
+                exp(-0.19im * op("X", sites[j]) * op(isodd(j) ? "Z" : "X", sites[j + 1]))
+                for j in 1:N-1
+            ]
+            ψ = apply(gates, ψ; cutoff=1e-14, maxdim=20, move_sites_back=true)
+            normalize!(ψ)
+
+            fused = CoolingTNS._split_string_correlators_fused_mps(ψ)
+            four_sweep = CoolingTNS._split_string_correlators_four_sweep(ψ)
+
+            for name in (:Cxx, :Cyy, :Cyx, :Cxy)
+                @test getproperty(fused, name) ≈ getproperty(four_sweep, name) atol=1e-12
             end
         end
     end
