@@ -1849,16 +1849,86 @@ The completed-cycle prefix is
 | 3 | 2.46945966 | 1.12680143 | 24 | 31 | 87.1 s |
 | 4 | 2.18883925 | 1.12969883 | 52 | 64 | 208.7 s |
 
-Thus increasing the coupling from `g = 0.1` to `g = 0.2` makes the early
-cooling substantially stronger: the best recorded prefix falls from
-`1.33380878` to `1.12680143`.  This improvement is bought by faster
-system-bath bond growth.  The evolved system-bath and TDVP-sweep caps appear
-on the fourth completed cycle, one cycle earlier than in the historical
-`g = 0.1` trajectory.  The `g = 0.2` run is therefore an intermediate-coupling
-diagnostic: it confirms that stronger coupling can cool faster at the start of
-the descending schedule, but its best prefix remains far above the same DMRG
-ground-state reference `E0/N = -1.3246328892`.  It is still not evidence for
-scalable large-`N` ground-state cooling at `Dmax = 64`.
+The remaining frequency counts were then run at the same coupling and cap,
+using the same fixed detuning interval:
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. --startup-file=no scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 1,2,5 --methods mcwf \
+  --evolution-method continuous --steps 20 --Dmax 64 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open \
+  --g 0.2 --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending \
+  --progress-csv .worktree/gscan_N64_R1-2-5_g0.2_D64_te1_steps20_20260628/progress.csv \
+  --outdir .worktree/gscan_N64_R1-2-5_g0.2_D64_te1_steps20_20260628 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The run wrote
+
+```text
+.worktree/gscan_N64_R1-2-5_g0.2_D64_te1_steps20_20260628/largeN_multifrequency_tn_N64_R1-2-5_mcwf_continuous_stopcap_scheddesc_steps20_Dmax64_g0.2_te1_tau0.2_seed20260617.h5
+.worktree/gscan_N64_R1-2-5_g0.2_D64_te1_steps20_20260628/progress.csv
+```
+
+Combining this file with the `R = 10` run gives the following table.  The
+`R = 10` row is repeated from the standalone summary above, now with the
+detuning-coverage label included, because the comparison mixes full-grid and
+partial-grid capped prefixes.
+
+| R | g | Dcap | completed/requested cycles | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total |
+|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---|---:|
+| 1 | 0.2 | 64 | 5/20 | 5.00/20.00 | 1/1 | single_detuning | 1.39267361 | 1.38151169 | >=64 | >=64 | >=64 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 445.2 s |
+| 2 | 0.2 | 64 | 4/20 | 2.00/10.00 | 2/2 | full_grid_observed | 1.35357219 | 1.32596718 | 52 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | 174.5 s |
+| 5 | 0.2 | 64 | 5/20 | 1.00/4.00 | 5/5 | full_grid_observed | 1.33834379 | 1.33834379 | >=64 | >=64 | >=64 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 435.0 s |
+| 10 | 0.2 | 64 | 4/20 | 0.40/2.00 | 4/10 | stopped_partial_grid | 1.12969883 | 1.12680143 | 52 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | 208.7 s |
+
+The completed-cycle prefixes for the new `R = 1,2,5` file are
+
+| R | cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 1 | 0.50511675 | 1.44881502 | 4 | 6 | 32.4 s |
+| 1 | 2 | 0.50511675 | 1.42277978 | 10 | 14 | 48.9 s |
+| 1 | 3 | 0.50511675 | 1.40602728 | 22 | 29 | 82.2 s |
+| 1 | 4 | 0.50511675 | 1.38151169 | 47 | 59 | 186.1 s |
+| 1 | 5 | 0.50511675 | 1.39267361 | 64 | 64 | 445.2 s |
+| 2 | 1 | 3.03070050 | 1.32596718 | 4 | 6 | 8.6 s |
+| 2 | 2 | 0.50511675 | 1.33913318 | 10 | 13 | 24.6 s |
+| 2 | 3 | 3.03070050 | 1.33766153 | 24 | 31 | 59.7 s |
+| 2 | 4 | 0.50511675 | 1.35357219 | 52 | 64 | 174.5 s |
+| 5 | 1 | 3.03070050 | 1.43370984 | 4 | 6 | 8.7 s |
+| 5 | 2 | 2.39930456 | 1.43203380 | 10 | 14 | 24.6 s |
+| 5 | 3 | 1.76790862 | 1.40744449 | 23 | 30 | 57.8 s |
+| 5 | 4 | 1.13651269 | 1.37652541 | 51 | 62 | 168.0 s |
+| 5 | 5 | 0.50511675 | 1.33834379 | 64 | 64 | 435.0 s |
+
+At this fixed root seed, `R = 10` remains the best intermediate-coupling
+prefix: its best recorded energy density is `1.12680143`, whereas the best
+prefixes for `R = 1,2,5` are `1.38151169`, `1.32596718`, and `1.33834379`,
+respectively.  In this convention `R = 1` is the single-detuning channel at
+`delta_min`, while `R >= 2` sweeps the displayed interval; this follows from
+the validation helper `largeN_delta_values`, which returns `[protocol.delta_min]`
+for `R = 1` before constructing the multi-detuning range.  The price is not
+avoided by using fewer frequencies.  The ranking is a best-before-cap
+comparison, not an equal-coverage comparison: `R = 10` stops after observing
+only `4/10` detunings, while `R = 1,2,5` observe their displayed grids.  All
+four frequency counts reach at least one effective bond cap by cycle 4 or 5,
+and none is close to the ground-state reference.
+
+Thus, for the `R = 10` trajectory, increasing the coupling from `g = 0.1` to
+`g = 0.2` makes the early cooling substantially stronger: the best recorded
+prefix falls from `1.33380878` to `1.12680143`.  This improvement is bought by
+faster system-bath bond growth.  The evolved system-bath and TDVP-sweep caps
+appear on the fourth completed cycle, one cycle earlier than in the historical
+`g = 0.1` trajectory.  The `g = 0.2` frequency-count scan is therefore an
+intermediate-coupling diagnostic: it confirms that stronger coupling can cool
+faster at the start of the descending `R = 10` schedule, but all recorded
+prefixes remain far above the same DMRG ground-state reference
+`E0/N = -1.3246328892`.  It is still not evidence for scalable large-`N`
+ground-state cooling at `Dmax = 64`.
 Moreover, the comparison between `g = 0.1` and `g = 0.2` is a fixed-seed,
 single-trajectory MCWF comparison; ensemble averages are needed before the
 size of this early-cooling gain can be assigned a stable coupling dependence.
