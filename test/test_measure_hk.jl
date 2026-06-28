@@ -762,6 +762,24 @@ end
         bad_mode_nk[1, 1] = 0.25
         @test_throws ArgumentError validate_mode_nk_matches_hk(bad_mode_nk, mode_hk)
 
+        stored_results = Dict{String,Any}(RESULT_MODE_HK => mode_hk, RESULT_MODE_NK => mode_nk)
+        @test isequal(mode_occupation_from_results(stored_results), Float64.(mode_nk))
+
+        legacy_results = Dict{String,Any}(RESULT_MODE_HK => mode_hk)
+        @test isequal(mode_occupation_from_results(legacy_results), Float64.(mode_nk))
+
+        nk_only_results = Dict{String,Any}(RESULT_MODE_NK => mode_nk)
+        @test isequal(mode_occupation_from_results(nk_only_results), Float64.(mode_nk))
+        @test_throws KeyError mode_occupation_from_results(nk_only_results; require_hk=true)
+
+        inconsistent_results = Dict{String,Any}(
+            RESULT_MODE_HK => mode_hk,
+            RESULT_MODE_NK => bad_mode_nk,
+        )
+        @test_throws ArgumentError mode_occupation_from_results(inconsistent_results)
+
+        @test_throws ErrorException mode_occupation_from_results(Dict{String,Any}())
+
         N = 4
         ham_params = IsingParameters(N, 1.0, 0.5, :periodic)
         coupling_params = BasicCouplingParameters("XX", 0.0, 0, 0.0, 0.5)

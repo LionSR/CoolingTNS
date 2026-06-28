@@ -36,13 +36,7 @@ const INIT_THETA_CODE =
 _mode_index_label(k) = k isa Rational ? "$(numerator(k))/$(denominator(k))" : "$(k)"
 
 function _mode_occupation_from_diagnostic_results(results)
-    mode_hk = results[CoolingTNS.RESULT_MODE_HK]
-    if haskey(results, CoolingTNS.RESULT_MODE_NK)
-        mode_nk = Float64.(results[CoolingTNS.RESULT_MODE_NK])
-        CoolingTNS.validate_mode_nk_matches_hk(mode_nk, mode_hk)
-        return mode_nk
-    end
-    return CoolingTNS.mode_occupation_from_hk(mode_hk)
+    return CoolingTNS.mode_occupation_from_results(results; require_hk=true)
 end
 
 # ============================================================================

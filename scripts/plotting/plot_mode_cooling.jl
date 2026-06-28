@@ -31,7 +31,7 @@ using CoolingTNS:
     RESULT_MODE_ENERGIES,
     RESULT_MODE_MEASUREMENT_CYCLES,
     mode_occupation_from_hk,
-    validate_mode_nk_matches_hk,
+    mode_occupation_from_results,
     bath_detuning_energy,
     nearest_bath_resonance_indices
 
@@ -42,21 +42,12 @@ Return the Bogoliubov quasiparticle occupation matrix for mode-cooling plots.
 
 New result files store `RESULT_MODE_NK` directly, but `RESULT_MODE_HK` remains
 the source observable.  When both datasets are present, the stored occupation is
-accepted only if it agrees with `CoolingTNS.mode_occupation_from_hk`.  Older
-files stored only `RESULT_MODE_HK`; those files are converted through the same
-routine.
+accepted only if it agrees with `CoolingTNS.mode_occupation_from_hk`. Older
+files stored only `RESULT_MODE_HK`; those files are converted by the same
+package helper.
 """
 function _mode_occupation_from_plot_data(data::AbstractDict)
-    if haskey(data, RESULT_MODE_NK)
-        mode_nk = Float64.(data[RESULT_MODE_NK])
-        if haskey(data, RESULT_MODE_HK)
-            validate_mode_nk_matches_hk(mode_nk, data[RESULT_MODE_HK])
-        end
-        return mode_nk
-    elseif haskey(data, RESULT_MODE_HK)
-        return Float64.(mode_occupation_from_hk(data[RESULT_MODE_HK]))
-    end
-    error("Expected HDF5 dataset \"$RESULT_MODE_NK\" or legacy dataset \"$RESULT_MODE_HK\"")
+    return mode_occupation_from_results(data)
 end
 
 function _occupation_ylim(mode_nk)
