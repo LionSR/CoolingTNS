@@ -1939,7 +1939,10 @@ size of this early-cooling gain can be assigned a stable coupling dependence.
 The same diagnostic was then pushed to the weaker value `g = 0.05` for all
 four frequency counts `R = 1,2,5,10`, keeping `N = 64`, `Dmax = 64`,
 `te = 1.0`, the fixed descending detuning interval, and the same stop-on-cap
-rule:
+rule.  The reproduction command again uses the coupling-axis spelling
+`--g-values 0.05`, matching the `g = 0.2` scan above; the earlier `g = 0.1`
+command at the top of this section is deliberately left in its historical
+scalar `--g 0.1` form to document the pre-`_g<value>` output name.
 
 ```bash
 JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
@@ -1947,7 +1950,7 @@ julia --project=. --startup-file=no scripts/validation/run_largeN_multifrequency
   --Ns 64 --R-values 1,2,5,10 --methods mcwf \
   --evolution-method continuous --steps 10 --Dmax 64 \
   --cutoff 1e-7 --tau 0.2 --model niising --bc open \
-  --g 0.05 --te 1.0 \
+  --g-values 0.05 --te 1.0 \
   --delta-min 0.5051167496264384 \
   --delta-max 3.0307004977586303 \
   --schedule descending \
