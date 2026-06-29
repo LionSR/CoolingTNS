@@ -1856,6 +1856,60 @@ the next effective transient dimension is at least `192`; it is still not a
 controlled cooling result.  The run observes only `6/10` detunings and remains
 far above the DMRG reference `E0/N = -1.3246328892`.
 
+### Dmax=256 Descending R=10 Follow-up
+
+The same `R = 10`, `g = 0.3`, `te = 1.0` trajectory was then repeated at
+`Dmax = 256`:
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. --startup-file=no scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 10 --methods mcwf \
+  --evolution-method continuous --steps 12 --Dmax 256 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open \
+  --g-values 0.3 --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending \
+  --progress-csv .worktree/gscan_N64_R10_g0.3_D256_te1_steps12_20260629/progress.csv \
+  --outdir .worktree/gscan_N64_R10_g0.3_D256_te1_steps12_20260629 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The run wrote
+
+```text
+.worktree/gscan_N64_R10_g0.3_D256_te1_steps12_20260629/largeN_multifrequency_tn_N64_R10_mcwf_continuous_stopcap_scheddesc_steps12_Dmax256_g0.3_te1_tau0.2_seed20260617.h5
+.worktree/gscan_N64_R10_g0.3_D256_te1_steps12_20260629/progress.csv
+```
+
+It uses the same stored trajectory seed `[84360618]`.  The compact HDF5 summary
+is
+
+| R | g | Dcap | completed/requested cycles | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total |
+|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---|---:|
+| 10 | 0.3 | 256 | 6/12 | 0.60/1.20 | 6/10 | stopped_partial_grid | 0.74860471 | 0.74860471 | 232 | >=256 | >=256 | not_converged_evolved_and_tdvp_sweep_cap | 3760.2 s |
+
+The completed-cycle prefix is
+
+| cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 3.03070050 | 1.30592953 | 4 | 6 | 30.1 s |
+| 2 | 2.75008008 | 1.13874047 | 11 | 15 | 46.7 s |
+| 3 | 2.46945966 | 0.95514768 | 24 | 33 | 81.3 s |
+| 4 | 2.18883925 | 0.87319255 | 57 | 73 | 205.4 s |
+| 5 | 1.90821883 | 0.84528144 | 118 | 155 | 783.0 s |
+| 6 | 1.62759842 | 0.74860471 | 232 | 256 | 3760.2 s |
+
+The `Dmax = 256` run still stops at cycle 6.  It changes the stopped-prefix
+energy only from `0.74866556` to `0.74860471` relative to the `Dmax = 192`
+run, while the retained system bond grows from `189` to `232` and the transient
+system-bath and TDVP-sweep diagnostics again reach the cap.  Thus the sixth
+cycle is becoming only weakly sensitive to this cap increase for this seed, but
+continuing the trajectory would require effective transient bond dimension
+above `256`.  This remains a bond-growth diagnostic, not scalable ground-state
+cooling.
+
 ### Dmax=128 Descending R=10 Probe at te=0.5
 
 The best `Dmax = 128` descending prefix above used `R = 10` and `te = 1.0`.
