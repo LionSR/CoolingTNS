@@ -225,6 +225,8 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("All four raw mode payloads satisfy the strided stopped-row contract", evidence_flat)
     @test occursin("reconstructs the direct Ising energy on the measured rows to at worst `5.64e-10` per spin", evidence_flat)
     @test occursin("they do not demonstrate converged cooling or approach to the ground state", evidence_flat)
+    # The numerical literals below are evidence anchors; update them together
+    # with the documented HDF5 provenance when a run is deliberately superseded.
     @test occursin("Reducing the bath-evolution time from `te = 2.0` to `te = 0.5` delays the first stopped prefix from cycle 2 to cycle 4", evidence_flat)
     @test occursin("all four schedules still stop after four completed cycles", evidence_flat)
     @test occursin("None of the four final rows improves on the initial `E/N = -1.05000000`", evidence_flat)
