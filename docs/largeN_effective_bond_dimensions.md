@@ -1958,11 +1958,13 @@ The completed-cycle prefix is
 Raising the cap from `256` to `320` allows one more descending-detuning step,
 but the gain remains modest: the stopped-prefix energy changes from
 `0.74860471` to `0.73765227`, while the elapsed time grows from `3760.2 s` to
-`14082.0 s`.  The progress CSV shows that the cycle-7 transient state already
-reaches the `320` cap on the first TDVP sweep, and the final retained system
-state has `Dsys_eff = 318`.  Thus this run records an effective transient bond
-dimension of at least `320` for the next detuning.  It still observes only
-`7/10` detunings and remains far above the DMRG reference
+`14082.0 s`.  At the common sixth cycle, the `Dmax = 320` trajectory gives
+`E/N = 0.74860558`, so this comparison is between the two stopped prefixes
+rather than between same-cycle values.  The progress CSV shows that the cycle-7
+transient state already reaches the `320` cap on the first TDVP sweep, and the
+final retained system state has `Dsys_eff = 318`.  Thus this run records an
+effective transient bond dimension of at least `320` for the next detuning.  It
+still observes only `7/10` detunings and remains far above the DMRG reference
 `E0/N = -1.3246328892`, so it is evidence for bond-dimension growth rather
 than scalable ground-state cooling.
 
