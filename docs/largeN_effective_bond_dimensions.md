@@ -1973,11 +1973,66 @@ The completed-cycle prefix is
 | 3 | 2.46945966 | 1.12680143 | 24 | 31 | 87.1 s |
 | 4 | 2.18883925 | 1.12969883 | 52 | 64 | 208.7 s |
 
-The remaining frequency counts were then run at the same coupling and cap,
-using the same fixed detuning interval.  This command also uses the coupling
-axis `--g-values 0.2`, so the whole `g = 0.2` frequency-count scan is
-described with one reproduction convention; with one entry this is equivalent
-to the scalar `--g 0.2` option.
+The same `R = 10`, `g = 0.2` trajectory was then repeated at `Dmax = 128`
+to determine whether the intermediate coupling was limited primarily by the
+`Dmax = 64` cap:
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. --startup-file=no scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 10 --methods mcwf \
+  --evolution-method continuous --steps 12 --Dmax 128 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open \
+  --g-values 0.2 --te 1.0 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending \
+  --progress-csv .worktree/gscan_N64_R10_g0.2_D128_te1_steps12_20260629/progress.csv \
+  --outdir .worktree/gscan_N64_R10_g0.2_D128_te1_steps12_20260629 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The run wrote
+
+```text
+.worktree/gscan_N64_R10_g0.2_D128_te1_steps12_20260629/largeN_multifrequency_tn_N64_R10_mcwf_continuous_stopcap_scheddesc_steps12_Dmax128_g0.2_te1_tau0.2_seed20260617.h5
+.worktree/gscan_N64_R10_g0.2_D128_te1_steps12_20260629/progress.csv
+```
+
+The compact HDF5 summary is
+
+| R | g | Dcap | completed/requested cycles | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total |
+|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---|---:|
+| 10 | 0.2 | 128 | 5/12 | 0.50/1.20 | 5/10 | stopped_partial_grid | 1.10035588 | 1.10035588 | 108 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | 655.9 s |
+
+The completed-cycle prefix is
+
+| cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 3.03070050 | 1.37983852 | 4 | 6 | 30.2 s |
+| 2 | 2.75008008 | 1.27270149 | 10 | 14 | 45.7 s |
+| 3 | 2.46945966 | 1.12680143 | 24 | 31 | 77.8 s |
+| 4 | 2.18883925 | 1.12969897 | 53 | 66 | 185.9 s |
+| 5 | 1.90821883 | 1.10035588 | 108 | 128 | 655.9 s |
+
+Thus increasing the cap from `64` to `128` allows the `g = 0.2`, `R = 10`
+trajectory to complete one additional descending-detuning step and lowers the
+stopped prefix from `E/N = 1.12969883` to `E/N = 1.10035588`.  This is a
+modest truncation-pressure improvement, not a scalable cooling result.  The run
+still observes only `5/10` detunings, reaches the evolved system-bath and
+TDVP-sweep caps at cycle 5, and remains far above the same DMRG reference
+`E0/N = -1.3246328892`.  It also remains above the `g = 0.3`, `Dmax = 128`,
+`R = 10` stopped prefix `E/N = 0.84528025`, so this point does not displace the
+stronger-coupling trajectory as the best capped prefix in the present
+descending schedule.
+
+For the original `Dmax = 64` campaign, the remaining frequency counts were then
+run at the same `g = 0.2` coupling and fixed detuning interval.  This command is
+therefore part of the `Dmax = 64` frequency-count comparison, not a continuation
+of the `Dmax = 128` diagnostic above.  It also uses the coupling axis
+`--g-values 0.2`, so the whole `g = 0.2` frequency-count scan is described with
+one reproduction convention; with one entry this is equivalent to the scalar
+`--g 0.2` option.
 
 ```bash
 JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
