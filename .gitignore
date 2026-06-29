@@ -46,7 +46,7 @@ scripts/validation/Data/
 scripts/validation/Figs/
 
 # LaTeX and slide build artifacts
-build/
+/build/
 Notes/*/build/
 slides/build/
 
