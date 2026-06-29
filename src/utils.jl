@@ -91,8 +91,8 @@ const LEGACY_OPTIMIZATION_METHOD_ALIASES = Dict{String, LegacyOptimizationAliasA
 
 Return canonical argument fields for an old optimization `method` token. The
 legacy `mps` and `mpo` aliases return `(backend, sim_method, evolution_method)`;
-ordinary backend tokens return `(backend,)` and leave explicit simulation and
-evolution fields to the usual canonicalization path.
+ordinary backend tokens return the one-field named tuple `(backend=...,)` and
+leave explicit simulation and evolution fields to the usual canonicalization path.
 """
 function legacy_optimization_method_args(method)
     token = canonical_method_token(method)
