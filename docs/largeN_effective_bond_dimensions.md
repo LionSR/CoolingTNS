@@ -2128,13 +2128,13 @@ The completed-cycle prefix is
 | 12 | 2.75008008 | 1.00494536 | 221 | 256 | 3703.6 s |
 
 Raising the cap from `192` to `256` at `te = 0.5` buys one additional
-second-pass detuning.  The stopped-prefix energy changes only from
-`1.00650854` to `1.00494536`, while the elapsed time grows from `1712.8 s` to
-`3703.6 s` and the retained system bond grows to `Dsys_eff = 221`.  The
-evolved system-bath and TDVP-sweep diagnostics again reach the cap, now at
-cycle 12.  Thus the `te = 0.5` ladder continues to show delayed saturation with
-weak energy improvement rather than scalable cooling toward the ground-state
-reference.
+second-pass detuning.  Relative to the `Dmax = 192` stopped point, the
+stopped-prefix energy changes only from `1.00650854` to `1.00494536`, while the
+elapsed time grows from `1712.8 s` to `3703.6 s` and the retained system bond
+grows to `Dsys_eff = 221`.  The evolved system-bath and TDVP-sweep diagnostics
+again reach the cap, now at cycle 12.  Thus the `te = 0.5` ladder continues to
+show delayed saturation with weak energy improvement rather than scalable
+cooling toward the ground-state reference.
 
 ### Weak-Coupling ED and N=64 Probe
 
