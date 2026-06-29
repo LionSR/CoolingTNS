@@ -1824,6 +1824,10 @@ The run wrote
 .worktree/gscan_N64_R10_g0.3_D192_te1_steps12_20260629/progress.csv
 ```
 
+The HDF5 file records the root seed `20260617`, the stored seed rule, and the
+trajectory seed `[84360618]`, matching the `Dmax = 128`, `R = 10` trajectory
+through the common prefix.
+
 The compact HDF5 summary is
 
 | R | g | Dcap | completed/requested cycles | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total |
