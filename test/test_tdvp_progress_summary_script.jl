@@ -125,6 +125,11 @@ end
         joinpath("D192", "progress.csv"),
         joinpath("D256", "progress.csv"),
     ]
+    same_progress_path = joinpath("D192", "progress.csv")
+    @test TDVPProgressCSVSummary.unique_progress_file_labels([
+        same_progress_path,
+        same_progress_path,
+    ]) == [same_progress_path, "$(same_progress_path)#2"]
     err = try
         TDVPProgressCSVSummary.default_progress_cap("ed", 7)
         nothing
