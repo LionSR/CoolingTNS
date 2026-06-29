@@ -1,7 +1,7 @@
 using Test
 
 @testset "Repository hygiene ignore rules" begin
-    gitignore_lines = Set(split(read(joinpath(@__DIR__, "..", ".gitignore"), String), '\n'))
+    gitignore_lines = Set(strip.(split(read(joinpath(@__DIR__, "..", ".gitignore"), String), '\n')))
 
     @test "build/" in gitignore_lines
     @test "Notes/*/build/" in gitignore_lines
