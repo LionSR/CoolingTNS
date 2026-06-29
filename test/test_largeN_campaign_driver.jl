@@ -60,6 +60,18 @@ end
     @test continuous_then_quick_cfg["tdvp_sweep_progress"] == false
     @test continuous_then_quick_cfg["tdvp_outputlevel"] == 0
 
+    paired_then_quick_cfg = parse_args([
+        "--evolution-method-values", "trotter,continuous",
+        "--print-parallel-plan",
+        "--tdvp-sweep-progress",
+        "--quick",
+        "--outdir", tempdir(),
+    ])
+    @test paired_then_quick_cfg["evolution_method"] == "trotter"
+    @test paired_then_quick_cfg["evolution_method_values"] === nothing
+    @test campaign_evolution_method_values(paired_then_quick_cfg) == ["trotter"]
+    @test paired_then_quick_cfg["tdvp_sweep_progress"] == false
+
     quick_then_mpo_cfg = parse_args([
         "--quick",
         "--methods", "mpo",
