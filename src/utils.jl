@@ -78,7 +78,10 @@ function create_sim_params_from_args(parsed_args)
     )
 end
 
-const LEGACY_OPTIMIZATION_METHOD_ALIASES = Dict(
+const LegacyOptimizationAliasArgs =
+    NamedTuple{(:backend, :sim_method, :evolution_method), Tuple{String, String, String}}
+
+const LEGACY_OPTIMIZATION_METHOD_ALIASES = Dict{String, LegacyOptimizationAliasArgs}(
     "mps" => (backend="TN", sim_method="monte_carlo", evolution_method="continuous"),
     "mpo" => (backend="TN", sim_method="density_matrix", evolution_method="trotter"),
 )
