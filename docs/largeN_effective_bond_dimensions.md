@@ -1960,9 +1960,9 @@ The run wrote
 
 The compact HDF5 summary is
 
-| R | g | Dcap | completed/requested cycles | completed/requested periods | visited detunings | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total |
-|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|
-| 10 | 0.2 | 64 | 4/20 | 0.40/2.00 | 4/10 | 1.12969883 | 1.12680143 | 52 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | 208.7 s |
+| R | g | Dcap | completed/requested cycles | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total |
+|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---|---:|
+| 10 | 0.2 | 64 | 4/20 | 0.40/2.00 | 4/10 | stopped_partial_grid | 1.12969883 | 1.12680143 | 52 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | 208.7 s |
 
 The completed-cycle prefix is
 
