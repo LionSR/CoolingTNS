@@ -28,12 +28,12 @@ For notational convenience, we will also use $H_S + H_B$ to denote $H_S \otimes 
 
 Let us denote the initial state of the system $S$ at the beginning of the $k$-th cycle by $\rho_k$. At the beginning of each cycle, we always bring in a fresh ancilla $B$, initialized at the ground state \(\ket{\Omega_B(c)}\) of the coupling-dependent bath Hamiltonian \(H_B(c,\Delta)\) defined below. The initial density matrix \(\rho(0)=\rho_k\otimes\ket{\Omega_B(c)}\bra{\Omega_B(c)}\) of the total system evolves according to the Schr\"{o}dinger equation
 \begin{equation}
-	\rho(t) = e^{-i(H_S + H_{B} + gV) t} \left(\rho_k \otimes \ket{\Omega_B(c)}\bra{\Omega_B(c)}\right)  e^{i(H_S + H_{B} + gV) t}.
+	\rho(t) = e^{-i(H_S + H_{B}(c,\Delta) + gV(c)) t} \left(\rho_k \otimes \ket{\Omega_B(c)}\bra{\Omega_B(c)}\right)  e^{i(H_S + H_{B}(c,\Delta) + gV(c)) t}.
 	\label{eq:rhot}
 \end{equation}
 After a joint evolution of time $t$, the bath $B$ is discarded and the state of the system $S$ becomes
 \begin{equation}
-	\rho_{k+1} = \tr_B\left\{ e^{-i(H_S + H_{B} + gV) t} \left(\rho_k \otimes \ket{\Omega_B(c)}\bra{\Omega_B(c)}\right)  e^{i(H_S + H_{B} + gV)t} \right\}.
+	\rho_{k+1} = \tr_B\left\{ e^{-i(H_S + H_{B}(c,\Delta) + gV(c)) t} \left(\rho_k \otimes \ket{\Omega_B(c)}\bra{\Omega_B(c)}\right)  e^{i(H_S + H_{B}(c,\Delta) + gV(c))t} \right\}.
 	\label{eq:rhokp1}
 \end{equation}
 where $\tr_B\{\cdot\}$ denotes the partial trace over the bath degrees of freedom.
