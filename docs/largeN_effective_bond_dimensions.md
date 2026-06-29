@@ -379,6 +379,65 @@ the HDF5 metadata records `mode_gF_source = "reference"`, and the mode arrays
 should be read as a fixed-reference diagnostic rather than as a state-sector
 energy decomposition.
 
+### N=64 te=0.5 Stopped Mode-Row Follow-Up
+
+To check whether the cycle-2 stop in the preceding run was only a consequence
+of the large bath-evolution time, the same parity-definite periodic-Ising mode
+campaign was repeated on 2026-06-29 with `te = 0.5` and a shorter requested
+window of 12 cooling cycles:
+
+```bash
+julia --project=. --startup-file=no \
+  scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --model ising --bc periodic --Ns 64 --R-values 1,2,5,10 --methods mcwf \
+  --evolution-method continuous --steps 12 --Dmax 80 --h -1.05 \
+  --init-state theta --theta 0.0 \
+  --measure-modes --mode-measurement-stride 5 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --te 0.5 \
+  --stop-on-bond-cap --tdvp-sweep-progress \
+  --progress-csv .worktree/mode_te05_N64_R1-2-5-10_D80_20260629/progress.csv \
+  --outdir .worktree/mode_te05_N64_R1-2-5-10_D80_20260629
+```
+
+The run wrote
+
+```text
+.worktree/mode_te05_N64_R1-2-5-10_D80_20260629/largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_continuous_ising_bcperiodic_stopcap_modestride5_inittheta_theta0_steps12_Dmax80_g0.3_te0.5_tau0.2_seed20260617.h5
+```
+
+Reducing the bath-evolution time from `te = 2.0` to `te = 0.5` delays the first
+stopped prefix from cycle 2 to cycle 4, but all four schedules still stop after
+four completed cycles.  None of the four final rows improves on the initial
+`E/N = -1.05000000`; the best row in every trace is the initial state.  The
+compact HDF5 summary is:
+
+| R | completed/requested | detuning coverage | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | elapsed | mode rows | mode max abs dE/N |
+|---:|---:|---|---:|---:|---:|---:|---:|---:|---|---:|
+| 1 | 4/12 | single_detuning | -0.97121423 | -1.05000000 | >=80 | >=80 | >=80 | 301.3 s | 2/5 | 1.78e-15 |
+| 2 | 4/12 | full_grid_observed | -1.03529914 | -1.05000000 | >=80 | >=80 | >=80 | 264.7 s | 2/5 | 3.55e-15 |
+| 5 | 4/12 | stopped_partial_grid | -1.00788552 | -1.05000000 | >=80 | >=80 | >=80 | 283.5 s | 2/5 | 1.78e-15 |
+| 10 | 4/12 | stopped_partial_grid | -0.95945491 | -1.05000000 | >=80 | >=80 | >=80 | 276.5 s | 2/5 | 2.66e-15 |
+
+All four raw mode payloads again satisfy the strided stopped-row contract:
+
+| R | `mode_measurement_cycles` | measured rows | finite measured `mode_hk` | finite measured `mode_nk` | skipped row finite count | measured `mode_nk` range | final mode E/N |
+|---:|---|---|---|---|---:|---|---:|
+| 1 | `[0, 4]` | `[1, 5]` | true | true | 0 | `[1.4333e-4, 0.3809]` | -0.9712142252 |
+| 2 | `[0, 4]` | `[1, 5]` | true | true | 0 | `[1.4333e-4, 0.3637]` | -1.0352991436 |
+| 5 | `[0, 4]` | `[1, 5]` | true | true | 0 | `[1.4333e-4, 0.3682]` | -1.0078855244 |
+| 10 | `[0, 4]` | `[1, 5]` | true | true | 0 | `[1.4333e-4, 0.3792]` | -0.9594549148 |
+
+The mode reconstruction uses `mode_gF = -1` with
+`mode_gF_source = "state"` in every row, and reconstructs the direct Ising
+energy on the measured rows to at worst `3.55e-15` per spin.  Among the final
+cycle-4 rows, `R = 2` gives the lowest energy, but it is still above the
+initial state and all retained-system, transient system-bath, and TDVP-sweep
+effective dimensions have reached the imposed `Dmax = 80` cap.  Thus the
+shorter-time follow-up is a useful stopped-row and bond-pressure diagnostic;
+it is not evidence of a converged cooling trajectory.
+
 ### Dmax=16 Product-State Mode Probe
 
 After adding the progress-CSV recommendation for mode-resolved continuous TDVP
