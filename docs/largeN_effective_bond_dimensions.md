@@ -2026,11 +2026,13 @@ TDVP-sweep caps at cycle 5, and remains far above the same DMRG reference
 stronger-coupling trajectory as the best capped prefix in the present
 descending schedule.
 
-The remaining frequency counts were then run at the same coupling and cap,
-using the same fixed detuning interval.  This command also uses the coupling
-axis `--g-values 0.2`, so the whole `g = 0.2` frequency-count scan is
-described with one reproduction convention; with one entry this is equivalent
-to the scalar `--g 0.2` option.
+For the original `Dmax = 64` campaign, the remaining frequency counts were then
+run at the same `g = 0.2` coupling and fixed detuning interval.  This command is
+therefore part of the `Dmax = 64` frequency-count comparison, not a continuation
+of the `Dmax = 128` diagnostic above.  It also uses the coupling axis
+`--g-values 0.2`, so the whole `g = 0.2` frequency-count scan is described with
+one reproduction convention; with one entry this is equivalent to the scalar
+`--g 0.2` option.
 
 ```bash
 JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
