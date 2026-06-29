@@ -42,9 +42,35 @@ end
     quick_cfg = parse_args(["--quick", "--outdir", tempdir()])
     @test quick_cfg["Ns"] == [8]
     @test quick_cfg["methods"] == ["mpo", "mcwf"]
+    @test quick_cfg["evolution_method"] == "trotter"
     @test occursin("_mpo-mcwf_trotter_steps", output_path(quick_cfg))
     quick_command = join(command_args_for_config(quick_cfg), " ")
     @test occursin("--methods mpo,mcwf", quick_command)
+
+    continuous_then_quick_cfg = parse_args([
+        "--evolution-method", "continuous",
+        "--tdvp-sweep-progress",
+        "--tdvp-outputlevel", "1",
+        "--quick",
+        "--outdir", tempdir(),
+    ])
+    @test continuous_then_quick_cfg["methods"] == ["mpo", "mcwf"]
+    @test continuous_then_quick_cfg["evolution_method"] == "trotter"
+    @test continuous_then_quick_cfg["evolution_method_values"] === nothing
+    @test continuous_then_quick_cfg["tdvp_sweep_progress"] == false
+    @test continuous_then_quick_cfg["tdvp_outputlevel"] == 0
+
+    paired_then_quick_cfg = parse_args([
+        "--evolution-method-values", "trotter,continuous",
+        "--print-parallel-plan",
+        "--tdvp-sweep-progress",
+        "--quick",
+        "--outdir", tempdir(),
+    ])
+    @test paired_then_quick_cfg["evolution_method"] == "trotter"
+    @test paired_then_quick_cfg["evolution_method_values"] === nothing
+    @test campaign_evolution_method_values(paired_then_quick_cfg) == ["trotter"]
+    @test paired_then_quick_cfg["tdvp_sweep_progress"] == false
 
     quick_then_mpo_cfg = parse_args([
         "--quick",
@@ -59,6 +85,19 @@ end
         "--outdir", tempdir(),
     ])
     @test mpo_then_quick_cfg["methods"] == ["mpo", "mcwf"]
+
+    quick_then_continuous_cfg = parse_args([
+        "--quick",
+        "--methods", "mcwf",
+        "--evolution-method", "continuous",
+        "--tdvp-sweep-progress",
+        "--tdvp-outputlevel", "1",
+        "--outdir", tempdir(),
+    ])
+    @test quick_then_continuous_cfg["methods"] == ["mcwf"]
+    @test quick_then_continuous_cfg["evolution_method"] == "continuous"
+    @test quick_then_continuous_cfg["tdvp_sweep_progress"] == true
+    @test quick_then_continuous_cfg["tdvp_outputlevel"] == 1
 
     explicit_mpo_cfg = parse_args(["--methods", "mpo", "--outdir", tempdir()])
     @test explicit_mpo_cfg["methods"] == ["mpo"]
