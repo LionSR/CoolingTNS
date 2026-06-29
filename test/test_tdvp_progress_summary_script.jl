@@ -114,6 +114,22 @@ end
     )
     @test fixed_label.R == "5"
     @test fixed_label.g == "0.05"
+    @test TDVPProgressCSVSummary.unique_progress_file_labels([
+        "run_a.csv",
+        "run_b.csv",
+    ]) == ["run_a.csv", "run_b.csv"]
+    @test TDVPProgressCSVSummary.unique_progress_file_labels([
+        joinpath("D192", "progress.csv"),
+        joinpath("D256", "progress.csv"),
+    ]) == [
+        joinpath("D192", "progress.csv"),
+        joinpath("D256", "progress.csv"),
+    ]
+    same_progress_path = joinpath("D192", "progress.csv")
+    @test TDVPProgressCSVSummary.unique_progress_file_labels([
+        same_progress_path,
+        same_progress_path,
+    ]) == [same_progress_path, "$(same_progress_path)#2"]
     err = try
         TDVPProgressCSVSummary.default_progress_cap("ed", 7)
         nothing
@@ -304,6 +320,51 @@ end
         @test occursin("| 4 | 3 | tdvp_sweep |", output)
     finally
         rm(path; force=true)
+    end
+
+    duplicate_root = mktempdir()
+    try
+        duplicate_paths = [
+            joinpath(duplicate_root, "D192", "progress.csv"),
+            joinpath(duplicate_root, "D256", "progress.csv"),
+        ]
+        for (csv_path, dmax, energy) in zip(duplicate_paths, ("192", "256"), ("0.8", "0.7"))
+            mkpath(dirname(csv_path))
+            open(csv_path, "w") do io
+                println(io, join(TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS, ","))
+                println(io, tdvp_progress_line(
+                    R="10", Dmax=dmax, stage="initial", step=1, cycle=0,
+                    delta="NaN", te="NaN", energy_per_site="1.0",
+                    relative_energy="2.0", overlap="0.0", system_max_bond="1",
+                    evolved_max_bond="NaN", elapsed_seconds=0.5,
+                ))
+                println(io, tdvp_progress_line(
+                    R="10", Dmax=dmax, stage="updated", step=2, cycle=1,
+                    energy_per_site=energy, relative_energy="1.5", overlap="0.1",
+                    system_max_bond="5", evolved_max_bond="6", elapsed_seconds=3.0,
+                ))
+            end
+        end
+
+        duplicate_rows = TDVPProgressCSVSummary.summarize_progress_files(duplicate_paths)
+        @test [row.file for row in duplicate_rows] == [
+            joinpath("D192", "progress.csv"),
+            joinpath("D256", "progress.csv"),
+        ]
+
+        duplicate_output = mktemp() do output_path, io
+            close(io)
+            open(output_path, "w") do out
+                redirect_stdout(out) do
+                    TDVPProgressCSVSummary.print_markdown(duplicate_rows)
+                end
+            end
+            read(output_path, String)
+        end
+        @test occursin("| $(joinpath("D192", "progress.csv")) |", duplicate_output)
+        @test occursin("| $(joinpath("D256", "progress.csv")) |", duplicate_output)
+    finally
+        rm(duplicate_root; force=true, recursive=true)
     end
 
     legacy_g_path = tempname() * ".csv"
