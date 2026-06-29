@@ -58,6 +58,7 @@ end
         include("test_density_trace_convention_text.jl")
         include("test_validation_script_text.jl")
         include("test_gaussianpaper_bibliography_text.jl")
+        include("test_repo_hygiene_text.jl")
     end
 
     if RUN_FULL_TESTS
