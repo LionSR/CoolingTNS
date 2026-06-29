@@ -95,17 +95,31 @@ using HDF5
             "--init-state", "identity",
         ])
 
-        legacy_mps = Dict{String, Any}("method" => "MPS")
+        legacy_mps = Dict{String, Any}("method" => " mps ")
         CoolingTNS.normalize_optimization_args!(legacy_mps)
         @test legacy_mps["backend"] == "TN"
         @test legacy_mps["sim_method"] == "monte_carlo"
         @test legacy_mps["evolution_method"] == "continuous"
 
-        legacy_mpo = Dict{String, Any}("method" => "MPO")
+        legacy_mpo = Dict{String, Any}("method" => "mpo")
         CoolingTNS.normalize_optimization_args!(legacy_mpo)
         @test legacy_mpo["backend"] == "TN"
         @test legacy_mpo["sim_method"] == "density_matrix"
         @test legacy_mpo["evolution_method"] == "trotter"
+
+        legacy_backend = Dict{String, Any}(
+            "method" => " ed ",
+            "sim_method" => " Density_Matrix ",
+            "evolution_method" => " TROTTER ",
+        )
+        CoolingTNS.normalize_optimization_args!(legacy_backend)
+        @test legacy_backend["backend"] == "ED"
+        @test legacy_backend["sim_method"] == "density_matrix"
+        @test legacy_backend["evolution_method"] == "trotter"
+
+        @test_throws ErrorException CoolingTNS.normalize_optimization_args!(
+            Dict{String, Any}("method" => "bad")
+        )
 
         explicit = Dict{String, Any}(
             "backend" => "ED",
