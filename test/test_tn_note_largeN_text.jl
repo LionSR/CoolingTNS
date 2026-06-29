@@ -1,26 +1,8 @@
 using Test
 
+@isdefined(require_phrase) || include("test_helpers.jl")
+
 normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
-
-function require_phrase(text::AbstractString, phrase::AbstractString)
-    @test occursin(phrase, text)
-end
-
-function require_phrases(text::AbstractString, phrases)
-    for phrase in phrases
-        require_phrase(text, phrase)
-    end
-end
-
-function forbid_phrase(text::AbstractString, phrase::AbstractString)
-    @test !occursin(phrase, text)
-end
-
-function forbid_phrases(text::AbstractString, phrases)
-    for phrase in phrases
-        forbid_phrase(text, phrase)
-    end
-end
 
 @testset "TN note large-N cooling qualifications" begin
     note_path = joinpath(@__DIR__, "..", "Notes", "NotesTN", "CoolingAlgTN.tex")
