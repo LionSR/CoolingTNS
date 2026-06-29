@@ -2077,6 +2077,65 @@ the evolved system-bath and TDVP-sweep diagnostics reach the `192` cap.  Thus
 worse than the `te = 1.0` prefixes and remains far above
 `E0/N = -1.3246328892`.
 
+### Dmax=256 Descending R=10 Probe at te=0.5
+
+The same `te = 0.5` trajectory was then repeated at `Dmax = 256`:
+
+```bash
+JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
+julia --project=. --startup-file=no scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 10 --methods mcwf \
+  --evolution-method continuous --steps 20 --Dmax 256 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open \
+  --g-values 0.3 --te 0.5 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending \
+  --progress-csv .worktree/descending_te05_dmax256_R10_20260629/progress.csv \
+  --outdir .worktree/descending_te05_dmax256_R10_20260629 \
+  --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The run wrote
+
+```text
+.worktree/descending_te05_dmax256_R10_20260629/largeN_multifrequency_tn_N64_R10_mcwf_continuous_stopcap_scheddesc_steps20_Dmax256_g0.3_te0.5_tau0.2_seed20260617.h5
+.worktree/descending_te05_dmax256_R10_20260629/progress.csv
+```
+
+It again uses the stored trajectory seed `[84360618]`.  The compact HDF5
+summary is
+
+| R | te | Dcap | completed/requested cycles | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | stop_reason |
+|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---|---:|---|
+| 10 | 0.5 | 256 | 12/20 | 1.20/2.00 | 10/10 | full_grid_observed | 1.00494536 | 1.00494536 | 221 | >=256 | >=256 | not_converged_evolved_and_tdvp_sweep_cap | 3703.6 s | bond_cap |
+
+The completed-cycle prefix is
+
+| cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 3.03070050 | 1.36556055 | 3 | 4 | 24.8 s |
+| 2 | 2.75008008 | 1.27175621 | 4 | 6 | 32.0 s |
+| 3 | 2.46945966 | 1.18301786 | 8 | 9 | 40.1 s |
+| 4 | 2.18883925 | 1.18241961 | 10 | 14 | 50.7 s |
+| 5 | 1.90821883 | 1.18369439 | 16 | 21 | 65.6 s |
+| 6 | 1.62759842 | 1.13684288 | 25 | 32 | 91.4 s |
+| 7 | 1.34697800 | 1.11629039 | 34 | 48 | 142.1 s |
+| 8 | 1.06635758 | 1.05446449 | 55 | 68 | 239.7 s |
+| 9 | 0.78573717 | 1.04273212 | 73 | 101 | 439.0 s |
+| 10 | 0.50511675 | 1.00873678 | 113 | 143 | 853.7 s |
+| 11 | 3.03070050 | 1.00650866 | 155 | 204 | 1787.7 s |
+| 12 | 2.75008008 | 1.00494536 | 221 | 256 | 3703.6 s |
+
+Raising the cap from `192` to `256` at `te = 0.5` buys one additional
+second-pass detuning.  The stopped-prefix energy changes only from
+`1.00650854` to `1.00494536`, while the elapsed time grows from `1712.8 s` to
+`3703.6 s` and the retained system bond grows to `Dsys_eff = 221`.  The
+evolved system-bath and TDVP-sweep diagnostics again reach the cap, now at
+cycle 12.  Thus the `te = 0.5` ladder continues to show delayed saturation with
+weak energy improvement rather than scalable cooling toward the ground-state
+reference.
+
 ### Weak-Coupling ED and N=64 Probe
 
 The fixed descending channel also depends strongly on the coupling strength
