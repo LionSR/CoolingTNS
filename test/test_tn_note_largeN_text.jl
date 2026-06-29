@@ -2,6 +2,26 @@ using Test
 
 normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
 
+function require_phrase(text::AbstractString, phrase::AbstractString)
+    @test occursin(phrase, text)
+end
+
+function require_phrases(text::AbstractString, phrases)
+    for phrase in phrases
+        require_phrase(text, phrase)
+    end
+end
+
+function forbid_phrase(text::AbstractString, phrase::AbstractString)
+    @test !occursin(phrase, text)
+end
+
+function forbid_phrases(text::AbstractString, phrases)
+    for phrase in phrases
+        forbid_phrase(text, phrase)
+    end
+end
+
 @testset "TN note large-N cooling qualifications" begin
     note_path = joinpath(@__DIR__, "..", "Notes", "NotesTN", "CoolingAlgTN.tex")
     map_path = joinpath(@__DIR__, "..", "Notes", "NotesED", "MapToSpin.tex")
@@ -28,41 +48,47 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
 
     # These anchors intentionally couple the note to the source documents.
     # Update them together when the notation or bond-dimension evidence changes.
-    @test occursin("We study a repeated bath-reset cooling map whose intended fixed point", note_flat)
-    @test occursin("Whether a given implementation prepares the ground state is a dynamical and numerical question", note_flat)
-    @test occursin("A favorable resonant transfer can then excite the ancillary system", note_flat)
-    @test occursin("whether it actually produces a lower system energy depends on the coupling, detuning, cycle time, and numerical approximation", note_flat)
-    @test occursin(raw"\Delta E_{\mathrm{fp}}", note_flat)
-    @test occursin("Ground-state preservation is the special case", note_flat)
-    @test occursin("not a formal consequence of appending a fresh bath ground state", note_flat)
-    @test occursin("compare the trajectory with the available ground-state reference", note_flat)
-    @test occursin("stable when the trajectory sampling, averaging window, and bond-dimension cap are varied", note_flat)
-    @test occursin("This low-entanglement assumption is part of the numerical validation problem", note_flat)
-    @test occursin("when the evolved system-bath MPS, the retained system MPS, or the TDVP sweep observer reaches the imposed bond cap", note_flat)
-    @test occursin("not as a final demonstration of ground-state preparation", note_flat)
-    @test occursin("Two cooling cycles are not physically meaningful", note_flat)
-    @test occursin("driver now treats MCWF/MPS as the default production-sized tensor-network path", note_flat)
-    @test occursin("the preferred initial-state selector is \\texttt{--init-state}; the stored HDF5 protocol field is \\texttt{init\\_state}", note_flat)
-    @test occursin("The legacy spelling \\texttt{--init\\_state} is accepted as a command-line compatibility alias", note_flat)
-    @test occursin("historically named \\texttt{init\\_type}; this is not the public protocol key", note_flat)
-    @test occursin("For the public protocol value \\texttt{init\\_state=\"theta\"}", note_flat)
-    @test occursin("entered as \\texttt{--init-state theta}", note_flat)
-    @test occursin("they do not establish scalable cooling to the ground state", note_flat)
-    @test occursin("historical bond-cap/truncation-pressure diagnostics", note_flat)
-    @test occursin("do not store measured truncation-error histories", note_flat)
-    @test occursin("finite-window noise-response diagnostics", note_flat)
-    @test occursin("historical noisy MPO panels as finite-window diagnostics of the truncated channel response to the applied noise model", note_flat)
-    @test occursin("a robustness claim requires the same bond-dimension, positivity, and trajectory-convergence checks", note_flat)
-    @test occursin("archived pilot outputs use truncation caps up to \\(D\\leq 100\\)", note_flat)
-    @test occursin("individual plotted panels below state their own fixed bond caps", note_flat)
-    @test occursin("The displayed fixed-bond MPO panels use system sizes \\(N=50,100\\), bond dimension \\(D\\leq 20\\)", note_flat)
-    @test occursin("archived pilot outputs use trajectory caps up to \\(D\\leq 40\\)", note_flat)
-    @test occursin("individual plotted panels below state their own fixed trajectory bond caps", note_flat)
-    @test occursin("Each trajectory starts from the same pure product state, and stochastic Pauli errors are sampled after each cooling step. The bond dimension is \$D \\leq 20\$", note_flat)
-    @test occursin("D_{\\mathrm{sb}}^{\\mathrm{eff}}=394, 862, 518, 737", note_flat)
-    @test occursin("the TDVP sweep observer reaches the cap during cycle 3 sweep 4", note_flat)
-    @test occursin(raw"\texttt{not\_converged\_system\_and\_evolved\_and}", note_flat)
-    @test occursin(raw"\texttt{\_tdvp\_sweep\_cap}", note_flat)
+    @testset "TN note cooling and large-N qualification anchors" begin
+        require_phrases(note_flat, [
+            "We study a repeated bath-reset cooling map whose intended fixed point",
+            "Whether a given implementation prepares the ground state is a dynamical and numerical question",
+            "A favorable resonant transfer can then excite the ancillary system",
+            "whether it actually produces a lower system energy depends on the coupling, detuning, cycle time, and numerical approximation",
+            raw"\Delta E_{\mathrm{fp}}",
+            "Ground-state preservation is the special case",
+            "not a formal consequence of appending a fresh bath ground state",
+            "compare the trajectory with the available ground-state reference",
+            "stable when the trajectory sampling, averaging window, and bond-dimension cap are varied",
+            "This low-entanglement assumption is part of the numerical validation problem",
+            "when the evolved system-bath MPS, the retained system MPS, or the TDVP sweep observer reaches the imposed bond cap",
+            "not as a final demonstration of ground-state preparation",
+            "Two cooling cycles are not physically meaningful",
+            "driver now treats MCWF/MPS as the default production-sized tensor-network path",
+            "the preferred initial-state selector is \\texttt{--init-state}; the stored HDF5 protocol field is \\texttt{init\\_state}",
+            "The legacy spelling \\texttt{--init\\_state} is accepted as a command-line compatibility alias",
+            "historically named \\texttt{init\\_type}; this is not the public protocol key",
+            "For the public protocol value \\texttt{init\\_state=\"theta\"}",
+            "entered as \\texttt{--init-state theta}",
+            "they do not establish scalable cooling to the ground state",
+            "historical bond-cap/truncation-pressure diagnostics",
+            "do not store measured truncation-error histories",
+            "finite-window noise-response diagnostics",
+            "historical noisy MPO panels as finite-window diagnostics of the truncated channel response to the applied noise model",
+            "a robustness claim requires the same bond-dimension, positivity, and trajectory-convergence checks",
+            "archived pilot outputs use truncation caps up to \\(D\\leq 100\\)",
+            "individual plotted panels below state their own fixed bond caps",
+            "The displayed fixed-bond MPO panels use system sizes \\(N=50,100\\), bond dimension \\(D\\leq 20\\)",
+            "archived pilot outputs use trajectory caps up to \\(D\\leq 40\\)",
+            "individual plotted panels below state their own fixed trajectory bond caps",
+            "Each trajectory starts from the same pure product state, and stochastic Pauli errors are sampled after each cooling step. The bond dimension is \$D \\leq 20\$",
+            "D_{\\mathrm{sb}}^{\\mathrm{eff}}=394, 862, 518, 737",
+            "the TDVP sweep observer reaches the cap during cycle 3 sweep 4",
+            raw"\texttt{not\_converged\_system\_and\_evolved\_and}",
+            raw"\texttt{\_tdvp\_sweep\_cap}",
+        ])
+    end
+
+    @testset "Large-N evidence metadata anchors" begin
     @test occursin("R = 1: Dsys_eff = 309, Dsb_eff = 394", evidence_flat)
     @test occursin("R = 2: Dsys_eff = 637, Dsb_eff = 862", evidence_flat)
     @test occursin("R = 5: Dsys_eff = 399, Dsb_eff = 518", evidence_flat)
@@ -89,6 +115,9 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("the realized detuning coverage before the cap, not the intended full grid", evidence_flat)
     @test occursin("`traj cycles/hour` is computed as", evidence_flat)
     @test occursin("It is therefore a throughput diagnostic, not a cooling-performance metric", evidence_flat)
+    end
+
+    @testset "Validation plan setup and detuning anchors" begin
     @test occursin("single-run throughput from the stored HDF5 provenance", plan_flat)
     @test occursin("test and study whether these strategies carry over", plan_flat)
     @test occursin("computes the generic setup reference Δ = E₁ − E₀ if delta=nothing", plan_flat)
@@ -104,12 +133,18 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("the detuning reference is setup-grid provenance, not a reconstruction from `mode_ek_values`", plan_flat)
     @test occursin("The stored `mode_ek_values` remain positive single-quasiparticle gaps used to label modes and resonance plots", plan_flat)
     @test occursin("they are not by themselves the automatic bath-detuning reference for the parity-preserving Ising cooling channel", plan_flat)
+    end
+
+    @testset "Driver and evidence setup-grid provenance anchors" begin
     @test occursin("on the deterministic `parity=+1` setup grid selected before any trajectory-specific state parity is measured", driver_flat)
     @test occursin("Later `mode_gF` metadata remains the source of truth for the measured mode-observable grid", driver_flat)
     @test !occursin("on the same Fourier grid as the mode observables", driver_flat)
     @test occursin("on the deterministic `parity=+1` setup grid selected before any trajectory-specific state parity is measured", evidence_flat)
     @test occursin("The measured `mode_gF` and `mode_gF_source` metadata remain the source of truth for the stored `mode_hk` rows", evidence_flat)
     @test !occursin("on the same parity-aware Fourier grid as `mode_hk`", evidence_flat)
+    end
+
+    @testset "ED and TN k-space convention anchors" begin
     @test occursin(raw"\texttt{ising\_mode\_detuning\_preserves\_px}", map_flat)
     @test occursin("The Fourier/Bogoliubov diagnostics below are closed-chain transverse-field Ising diagnostics", map_flat)
     @test occursin("For \$g_I=0\$, translational invariance is absent and the open-chain BdG construction of \\texttt{OBC.tex} must be used instead", map_flat)
@@ -127,6 +162,9 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test !occursin("Split-Operator Trotter Method", map_flat)
     @test !occursin(raw"A Trotter step of $\delta t = 0.1$ is typically accurate enough", map_flat)
     @test !occursin(raw"\texttt{campaign\_mode\_detuning\_preserves\_px}", map_flat)
+    end
+
+    @testset "Large-N planning and command-generation anchors" begin
     @test occursin("the automatic endpoint source is `ising_mode_detuning_reference`", plan_flat)
     @test occursin("A single MCWF trajectory and a late-time average are diagnostic quantities only", plan_flat)
     @test occursin("requires independent trajectories, stability under the averaging window, and convergence in the retained-system, evolved system-bath, and TDVP sweep-observer bond dimensions", plan_flat)
@@ -183,6 +221,9 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("`legacy_missing` rather than leaving a blank coupling-strength cell", evidence_flat)
     @test occursin("If a file contains the `g` column but an individual field is empty, the summarizer uses the neutral label `missing`", evidence_flat)
     @test occursin("only the generated TDVP commands carry the TDVP-only observer options", evidence_flat)
+    end
+
+    @testset "Paired Trotter and TDVP evidence anchors" begin
     @test occursin("Dmax=64 Paired Trotter/TDVP Descending Comparison", evidence_flat)
     @test occursin("For this finite prefix and cap, TDVP gives lower energies than the Trotter-gate route at every tested `R`", evidence_flat)
     @test occursin("the evolved system-bath effective bond dimension is only lower bounded by `64` for all `R`", evidence_flat)
@@ -211,6 +252,9 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("serial, one driver process | 1 | 16 | `R=2` then `R=5` | 284.34 s | 50.64", plan_flat)
     @test occursin("two independent processes | 1 | 1 | `R=2` and `R=5` concurrently | 179.28 s | 80.32", plan_flat)
     @test occursin("The throughput column counts four completed trajectory-cycles: two completed cycles for the `R=2` job and two completed cycles for the `R=5` job", plan_flat)
+    end
+
+    @testset "Mode payload and energy-reconstruction evidence anchors" begin
     @test occursin("first verifies `mode_nk = mode_occupation_from_hk(mode_hk)`", evidence_flat)
     @test occursin("paired `NaN` entries accepted only for deliberately unmeasured strided rows", evidence_flat)
     @test occursin("It also verifies `mode_ek_values = mode_energies_Jh(mode_k_indices,J,h,N)`", evidence_flat)
@@ -257,6 +301,9 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("| 1 | 32 | 5 | 1.44660215 | 2.09208 | >=32 | >=32 | not_converged_system_and_evolved_and_tdvp_sweep_cap | 2 | 2 | 2:7 | 2:7 | 48.7 s | 2:8 | 714.6 s |", evidence_flat)
     @test occursin("the retained system MPS and the evolved system-bath MPS first reach `Dmax = 32` in cycle 2", evidence_flat)
     @test occursin("while the TDVP sweep observer first reaches the cap in cycle 2 sweep 7", evidence_flat)
+    end
+
+    @testset "Large-N bond-dimension campaign anchors" begin
     @test occursin("validation driver defaults to the MCWF/MPS method for large-system campaigns", evidence_flat)
     @test occursin("MPO density-matrix method remains an explicit small-system validation option", evidence_flat)
     @test occursin("peak tdvp sweep max", evidence_flat)
@@ -399,6 +446,9 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("| 10 | 0.05 | 64 | 5/10 | 0.50/1.00 | 5/10 | 1.48521913 | 1.48422035 | 63 | >=64 | >=64 | not_converged_evolved_and_tdvp_sweep_cap | 360.8 s |", evidence_flat)
     @test occursin("only `R = 10` reaches a best-prefix energy below the initial product-state energy", evidence_flat)
     @test occursin("lowering the coupling from `g = 0.1` to `g = 0.05` makes the channel too weak to produce scalable large-`N` cooling", evidence_flat)
+    end
+
+    @testset "Near-ground control anchors" begin
     @test occursin("Near-Ground Initial-State Control", evidence_flat)
     @test occursin("`initial E/N`, `initial relE`, and `initial overlap`", evidence_flat)
     @test occursin("make `--init-state ground` controls auditable from the same table", evidence_flat)
@@ -453,6 +503,9 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin(raw"fixed descending channel is not an exact ground-state fixed point at \(D_{\max}=128\)", note_flat)
     @test occursin("1.37238762", note_flat)
     @test occursin("calculation is still cap-limited", note_flat)
+    end
+
+    @testset "Mode-probe and parity-source anchors" begin
     @test occursin("--init-state theta --theta 0.0 --measure-modes", evidence_flat)
     @test occursin("mode_gF_source = \"reference\"", evidence_flat)
     @test occursin("mixed-parity state for the periodic Ising chain in the code basis", evidence_flat)
@@ -504,7 +557,9 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("where \$J\$ is the coupling strength between neighboring spins, \$h_x\$ is the transverse field, \$h_z\$ is the longitudinal field", note_flat)
     @test occursin("limits \$h_z = 0\$ (transverse-field Ising model) and \$h_x = 0\$ (classical diagonal Ising model)", note_flat)
     @test occursin("`H = J sum_i Z_i Z_{i+1} + hx sum_i X_i + hz sum_i Z_i`, where `hx` is the transverse field and `hz` is the longitudinal field", params_flat)
+    end
 
+    @testset "Forbidden stale claim anchors" begin
     forbidden = [
         "allows for the preparation of the ground state",
         "the energy of the system is reduced via its interaction",
@@ -529,7 +584,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         "\$h_z = 0\$ (classical) and \$h_x = 0\$ (transverse field ising model)",
         "check whether the ground state is reached",
     ]
-    @test all(!occursin(phrase, note_lower) for phrase in forbidden)
+    forbid_phrases(note_lower, forbidden)
 
     stale_plan_phrases = [
         "time-averaging the steady state",
@@ -543,7 +598,8 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         "bond dimension d ≤ 40 for a pure state",
         "bond dimension d <= 40 for a pure state",
     ]
-    @test all(!occursin(phrase, plan_lower) for phrase in stale_plan_phrases)
-    @test !occursin("historical truncation diagnostics", note_flat)
-    @test !occursin("record truncation and saturation diagnostics", evidence_flat)
+    forbid_phrases(plan_lower, stale_plan_phrases)
+    forbid_phrase(note_flat, "historical truncation diagnostics")
+    forbid_phrase(evidence_flat, "record truncation and saturation diagnostics")
+    end
 end
