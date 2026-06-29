@@ -199,9 +199,12 @@ Fast path check, using the explicit small-N MPO/MCWF validation path:
     julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl --quick
 
 The `--quick` flag is an argument-stream preset: it sets `N=8`, `R=1,2`,
-`steps=2`, `Dmax=12`, and `methods=mpo,mcwf` when it is encountered.  Explicit
-flags written after `--quick` may override those preset values; flags written
-before `--quick` are overwritten by the preset.
+`steps=2`, `Dmax=12`, `methods=mpo,mcwf`, and
+`evolution-method=trotter` when it is encountered.  It also clears the paired
+evolution-method planning axis and TDVP-only sweep diagnostics, so the quick
+MPO/MCWF check remains a valid Trotter-channel comparison.  Explicit flags
+written after `--quick` may override those preset values; flags written before
+`--quick` are overwritten by the preset.
 """
 
 using CoolingTNS
@@ -321,10 +324,14 @@ function parse_args(args)
             cfg["Ns"] = [8]
             cfg["R_values"] = [1, 2]
             cfg["methods"] = ["mpo", "mcwf"]
+            cfg["evolution_method"] = "trotter"
+            cfg["evolution_method_values"] = nothing
             cfg["steps"] = 2
             cfg["Dmax"] = 12
             cfg["M_mcwf"] = 1
             cfg["M_mpo"] = 1
+            cfg["tdvp_outputlevel"] = 0
+            cfg["tdvp_sweep_progress"] = false
             i += 1
         elseif a == "--Ns"
             cfg["Ns"] = parse_int_list(args[i + 1]); i += 2
