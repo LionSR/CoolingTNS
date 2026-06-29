@@ -26,14 +26,14 @@ where $H_S$ and $H_B$ are the Hamiltonians of the system and the bath, respectiv
 Without loss of generality, we assume $V = \sum_k V_S^k \otimes V_B^k$ with $V_S^k$ acting on the system and $V_B^k$ acting on the bath.
 For notational convenience, we will also use $H_S + H_B$ to denote $H_S \otimes \Id_B + \Id_S \otimes H_B$, and similarly for $H_S + H_B + gV$, etc.
 
-Let us denote the initial state of the system $S$ at the beginning of the $k$-th cycle by $\rho_k$. At the beginning of each cycle, we always bring in a fresh ancilla $B$, initialized at the ground state of its Hamiltonian $H_B$, denoted by $\ket{\Omega_B}$. The initial density matrix $\rho(0) = \rho_k \otimes \ket{\Omega_B}\bra{\Omega_B}$ of the total system evolves according to the Schr\"{o}dinger equation
+Let us denote the initial state of the system $S$ at the beginning of the $k$-th cycle by $\rho_k$. At the beginning of each cycle, we always bring in a fresh ancilla $B$, initialized at the ground state \(\ket{\Omega_B(c)}\) of the coupling-dependent bath Hamiltonian \(H_B(c,\Delta)\) defined below. The initial density matrix \(\rho(0)=\rho_k\otimes\ket{\Omega_B(c)}\bra{\Omega_B(c)}\) of the total system evolves according to the Schr\"{o}dinger equation
 \begin{equation}
-	\rho(t) = e^{-i(H_S + H_{B} + gV) t} \left(\rho_k \otimes \ket{\Omega_B}\bra{\Omega_B}\right)  e^{i(H_S + H_{B} + gV) t}.
+	\rho(t) = e^{-i(H_S + H_{B} + gV) t} \left(\rho_k \otimes \ket{\Omega_B(c)}\bra{\Omega_B(c)}\right)  e^{i(H_S + H_{B} + gV) t}.
 	\label{eq:rhot}
 \end{equation}
 After a joint evolution of time $t$, the bath $B$ is discarded and the state of the system $S$ becomes
 \begin{equation}
-	\rho_{k+1} = \tr_B\left\{ e^{-i(H_S + H_{B} + gV) t} \left(\rho_k \otimes \ket{\Omega_B}\bra{\Omega_B}\right)  e^{i(H_S + H_{B} + gV)t} \right\}.
+	\rho_{k+1} = \tr_B\left\{ e^{-i(H_S + H_{B} + gV) t} \left(\rho_k \otimes \ket{\Omega_B(c)}\bra{\Omega_B(c)}\right)  e^{i(H_S + H_{B} + gV)t} \right\}.
 	\label{eq:rhokp1}
 \end{equation}
 where $\tr_B\{\cdot\}$ denotes the partial trace over the bath degrees of freedom.
@@ -453,12 +453,12 @@ above.  Thus one noiseless cooling cycle is
 \begin{equation}
 	\mathcal C(\rho_S)=
 	\tr_B\!\left[
-	U_t\left(\rho_S\otimes\ket{\Omega_B}\bra{\Omega_B}\right)U_t^\dagger
+	U_t\left(\rho_S\otimes\ket{\Omega_B(c)}\bra{\Omega_B(c)}\right)U_t^\dagger
 	\right],
 	\qquad U_t=(U_{\delta t})^M .
 	\label{eq:tn_density_cycle}
 \end{equation}
-Here \(\ket{\Omega_B}\) is the coupling-dependent ground state of the bath
+Here \(\ket{\Omega_B(c)}\) is the coupling-dependent ground state of the bath
 Hamiltonian, for example the negative-eigenvalue state of the selected bath
 Pauli operator.
 For a system ground state \(\ket{\phi_0}\), the relevant fixed-point defect is
