@@ -390,7 +390,8 @@ window of 12 cooling cycles:
 julia --project=. --startup-file=no \
   scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
   --model ising --bc periodic --Ns 64 --R-values 1,2,5,10 --methods mcwf \
-  --evolution-method continuous --steps 12 --Dmax 80 --h -1.05 \
+  --evolution-method continuous --steps 12 --Dmax 80 \
+  --J 1.0 --h -1.05 --g 0.3 --tau 0.2 --seed 20260617 \
   --init-state theta --theta 0.0 \
   --measure-modes --mode-measurement-stride 5 \
   --delta-min 0.5051167496264384 \
