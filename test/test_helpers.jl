@@ -12,6 +12,7 @@ Set, for example:
     COOLINGTNS_FULL_TESTS=1 julia --project=. -e 'using Pkg; Pkg.test()'
 """
 
+using Test
 using CoolingTNS
 using ITensors
 using ITensorMPS
@@ -39,6 +40,30 @@ full_tests_enabled() = env_bool("COOLINGTNS_FULL_TESTS"; default=false)
 
 """Whether tests should print verbose simulation output."""
 test_verbose() = env_bool("COOLINGTNS_TEST_VERBOSE"; default=false)
+
+"""Assert that a required phrase occurs in flattened text."""
+function require_phrase(text::AbstractString, phrase::AbstractString)
+    @test occursin(phrase, text)
+end
+
+"""Assert that every required phrase occurs in flattened text."""
+function require_phrases(text::AbstractString, phrases)
+    for phrase in phrases
+        require_phrase(text, phrase)
+    end
+end
+
+"""Assert that a stale or forbidden phrase does not occur in flattened text."""
+function forbid_phrase(text::AbstractString, phrase::AbstractString)
+    @test !occursin(phrase, text)
+end
+
+"""Assert that no stale or forbidden phrase occurs in flattened text."""
+function forbid_phrases(text::AbstractString, phrases)
+    for phrase in phrases
+        forbid_phrase(text, phrase)
+    end
+end
 
 """Convert an ITensor MPO to a dense matrix in the ED bit ordering.
 
