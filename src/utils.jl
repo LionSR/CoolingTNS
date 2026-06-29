@@ -83,6 +83,14 @@ const LEGACY_OPTIMIZATION_METHOD_ALIASES = Dict(
     "mpo" => (backend="TN", sim_method="density_matrix", evolution_method="trotter"),
 )
 
+"""
+    legacy_optimization_method_args(method)
+
+Return canonical argument fields for an old optimization `method` token. The
+legacy `mps` and `mpo` aliases return `(backend, sim_method, evolution_method)`;
+ordinary backend tokens return `(backend,)` and leave explicit simulation and
+evolution fields to the usual canonicalization path.
+"""
 function legacy_optimization_method_args(method)
     token = canonical_method_token(method)
     haskey(LEGACY_OPTIMIZATION_METHOD_ALIASES, token) &&
@@ -298,7 +306,7 @@ end
 # Backward compatibility for legacy plotting scripts that pass Dicts instead of typed parameters.
 function _legacy_filename_backend(method)
     token = canonical_method_token(method)
-    token in ("mps", "mpo") && return TNBackend()
+    haskey(LEGACY_OPTIMIZATION_METHOD_ALIASES, token) && return TNBackend()
     return get_backend(method)
 end
 
