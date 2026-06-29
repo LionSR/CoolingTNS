@@ -78,29 +78,41 @@ function create_sim_params_from_args(parsed_args)
     )
 end
 
+const LEGACY_OPTIMIZATION_METHOD_ALIASES = Dict(
+    "mps" => (backend="TN", sim_method="monte_carlo", evolution_method="continuous"),
+    "mpo" => (backend="TN", sim_method="density_matrix", evolution_method="trotter"),
+)
+
+function legacy_optimization_method_args(method)
+    token = canonical_method_token(method)
+    haskey(LEGACY_OPTIMIZATION_METHOD_ALIASES, token) &&
+        return LEGACY_OPTIMIZATION_METHOD_ALIASES[token]
+    return (backend=canonical_backend_name(method),)
+end
+
 """
     normalize_optimization_args!(parsed_args)
 
 Normalize optimization command-line arguments in place.
 
 The current parser uses the explicit fields `backend`, `sim_method`, and
-`evolution_method`. Older optimization scripts may instead pass a `method`
-field. In that legacy convention, `MPS` denotes TN Monte Carlo wavefunction
-evolution and `MPO` denotes TN density-matrix Trotter evolution. If an
-`init_state` field is present, it is canonicalized to the same token used by
-the command-line parser.
+`evolution_method`. Older optimization workflows may instead pass a `method`
+field. In that compatibility convention, `MPS` denotes TN Monte Carlo
+wavefunction evolution and `MPO` denotes TN density-matrix Trotter evolution;
+the aliases are canonicalized with the same token rules as the main parser
+before entering typed dispatch. If an `init_state` field is present, it is
+canonicalized to the same token used by the command-line parser.
 """
 function normalize_optimization_args!(parsed_args)
     parsed_args["backend"] = get(parsed_args, "backend", "TN")
 
     if haskey(parsed_args, "method")
-        if parsed_args["method"] == "MPS"
-            parsed_args["sim_method"] = "monte_carlo"
-            parsed_args["evolution_method"] = "continuous"
-        elseif parsed_args["method"] == "MPO"
-            parsed_args["sim_method"] = "density_matrix"
-            parsed_args["evolution_method"] = "trotter"
-        end
+        legacy_args = legacy_optimization_method_args(parsed_args["method"])
+        parsed_args["backend"] = legacy_args.backend
+        hasproperty(legacy_args, :sim_method) &&
+            (parsed_args["sim_method"] = legacy_args.sim_method)
+        hasproperty(legacy_args, :evolution_method) &&
+            (parsed_args["evolution_method"] = legacy_args.evolution_method)
     end
 
     return normalize_initial_state_args!(normalize_method_token_args!(parsed_args))

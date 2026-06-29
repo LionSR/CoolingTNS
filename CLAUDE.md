@@ -291,7 +291,6 @@ struct EDBackend <: CoolingBackend end
 ## Known Issues and TODOs
 
 - **Monte Carlo trajectories**: Cooling is stochastic; energy need not decrease trajectory-by-trajectory (TN and ED). Validate using ensemble averages (see `scripts/diagnostics/physics_investigation_report.jl`).
-- **optCooling.jl**: Still uses old string-based method selection, needs dispatch refactoring  
 - **TN Backend Measurements**: Missing measurement functions for some TN method combinations
 - **Precompilation**: Long precompilation times due to ITensors/Yao dependencies eating tokens during debugging
 
@@ -314,6 +313,7 @@ struct EDBackend <: CoolingBackend end
 - **Unified File Structure**: Eliminated all duplicate `*_ed.jl` files - everything now in single unified files
 - **Clean ED Backend**: Complex matrix support for proper quantum mechanics
 - **Type-Based Routing**: All method selection uses types, no string comparisons
+- **Optimization Driver**: `optCooling.jl` uses the typed backend and simulation-parameter interface; `MPS` and `MPO` are accepted only as backward-compatible input aliases before typed dispatch.
 
 **Backend Implementations:**
 - **TNBackend**: Full tensor network support with ITensors.jl
