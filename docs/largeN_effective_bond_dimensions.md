@@ -1992,9 +1992,9 @@ julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
 The HDF5 output again records trajectory seed `[84360618]`.  The HDF5 summary,
 with the fixed `te` shown for comparison, is
 
-| R | te | Dcap | completed/requested cycles | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | stop_reason |
-|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---|
-| 10 | 0.5 | 128 | 10/20 | 1.00873665 | 1.00873665 | 113 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | 831.9 s | bond_cap |
+| R | te | Dcap | completed/requested cycles | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | stop_reason |
+|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---|---:|---|
+| 10 | 0.5 | 128 | 10/20 | 1.00/2.00 | 10/10 | full_grid_observed | 1.00873665 | 1.00873665 | 113 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | 831.9 s | bond_cap |
 
 The completed-cycle prefix is
 
