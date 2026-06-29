@@ -1095,11 +1095,12 @@ end
         @test gF_even == 1
         @test gF_odd == -1
 
-        # For APBC: gF=+1 is in the even (Px=+1) sector, which has special modes.
-        # The vacuum (Nf=0, even) lives in Px=+1 sector, but gF=+1 has special modes
-        # and the vacuum energy formula may or may not match depending on whether
-        # the vacuum parity matches.
-        # Actually: For gF=+1, vacuum has Nf=0 → even → matches Px=+1. So vacuum IS the GS.
+        # For spin APBC, the even (Px=+1) sector uses gF=+1 and therefore
+        # contains the special modes. The chosen-operator vacuum has even
+        # fermion number and is allowed in this sector. For the parameters
+        # below, occupying only the negative-w0 special mode would violate
+        # parity, while occupying both special modes raises the energy; hence
+        # the sector ground state is the chosen-operator vacuum.
         E_gs_even, _ = _test_gs_in_sector(H_code, Px, 1)
         E_vac_even = vacuum_energy_Jh(N, J, h, gF_even)
         @test E_gs_even ≈ E_vac_even atol=1e-10
