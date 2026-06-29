@@ -110,6 +110,33 @@ function group_label(key)
     return NamedTuple{Tuple(Symbol.(LARGE_N_PROGRESS_GROUP_COLUMNS))}(key)
 end
 
+function trailing_progress_file_label(path::AbstractString, depth::Integer)
+    components = splitpath(normpath(path))
+    ncomponents = min(depth, length(components))
+    return joinpath(components[(end - ncomponents + 1):end]...)
+end
+
+function unique_progress_file_labels(paths::AbstractVector{<:AbstractString})
+    isempty(paths) && return String[]
+    normalized_paths = [normpath(String(path)) for path in paths]
+    max_depth = maximum(length(splitpath(path)) for path in normalized_paths)
+    for depth in 1:max_depth
+        labels = [
+            trailing_progress_file_label(path, depth) for path in normalized_paths
+        ]
+        allunique(labels) && return labels
+    end
+
+    seen = Dict{String,Int}()
+    labels = String[]
+    for path in normalized_paths
+        count = get(seen, path, 0) + 1
+        seen[path] = count
+        push!(labels, count == 1 ? path : "$(path)#$(count)")
+    end
+    return labels
+end
+
 function format_float(value::Real, digits::Int=2)
     !isfinite(value) && return "NaN"
     digits == 1 && return @sprintf("%.1f", value)
@@ -166,7 +193,7 @@ function completed_update_detuning_count(updates)
     return length(detunings)
 end
 
-function summarize_progress_group(file_name::AbstractString, key, rows;
+function summarize_progress_group(file_label::AbstractString, key, rows;
                                   cap=nothing, has_g_column::Bool=true)
     label = group_label(key)
     threshold = cap === nothing ?
@@ -256,7 +283,7 @@ function summarize_progress_group(file_name::AbstractString, key, rows;
     end
 
     return (
-        file=basename(file_name),
+        file=file_label,
         N=parse(Int, label.N),
         method=label.method,
         evolution=label.evolution,
@@ -295,7 +322,7 @@ function summarize_progress_group(file_name::AbstractString, key, rows;
     )
 end
 
-function summarize_progress_file(path::AbstractString; cap=nothing)
+function summarize_progress_file(path::AbstractString; cap=nothing, file_label=basename(path))
     header, rows = read_progress_csv(path)
     has_g_column = "g" in header
     groups = Dict{Any,Vector{Dict{String,String}}}()
@@ -303,7 +330,9 @@ function summarize_progress_file(path::AbstractString; cap=nothing)
         push!(get!(groups, group_key(row), Vector{Dict{String,String}}()), row)
     end
     return [
-        summarize_progress_group(path, key, group_rows; cap=cap, has_g_column=has_g_column)
+        summarize_progress_group(
+            file_label, key, group_rows; cap=cap, has_g_column=has_g_column
+        )
         for (key, group_rows) in sort(
             collect(groups);
             by=pair -> (
@@ -320,8 +349,8 @@ end
 
 function summarize_progress_files(paths::AbstractVector{<:AbstractString}; cap=nothing)
     rows = NamedTuple[]
-    for path in paths
-        append!(rows, summarize_progress_file(path; cap=cap))
+    for (path, file_label) in zip(paths, unique_progress_file_labels(paths))
+        append!(rows, summarize_progress_file(path; cap=cap, file_label=file_label))
     end
     return rows
 end
