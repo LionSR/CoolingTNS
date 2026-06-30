@@ -28,8 +28,46 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     driver_flat = normalize_ws(read(driver_path, String))
     summary_flat = normalize_ws(read(summary_path, String))
 
+    te05_cap_ladder_rows = (
+        (Dcap="128", cycles="10/20", periods="1.00/2.00",
+         final_energy="1.00873665", Dsys="113", Dsb=">=128",
+         Dtdvp=">=128", elapsed="831.9 s"),
+        (Dcap="192", cycles="11/20", periods="1.10/2.00",
+         final_energy="1.00650854", Dsys="154", Dsb=">=192",
+         Dtdvp=">=192", elapsed="1712.8 s"),
+        (Dcap="256", cycles="12/20", periods="1.20/2.00",
+         final_energy="1.00494536", Dsys="221", Dsb=">=256",
+         Dtdvp=">=256", elapsed="3703.6 s"),
+        (Dcap="320", cycles="13/20", periods="1.30/2.00",
+         final_energy="1.00365324", Dsys="299", Dsb=">=320",
+         Dtdvp=">=320", elapsed="8055.7 s"),
+    )
+    cap_ladder_markdown_row(row) =
+        "| $(row.Dcap) | $(row.cycles) | $(row.periods) | " *
+        "$(row.final_energy) | $(row.Dsys) | $(row.Dsb) | $(row.Dtdvp) |"
+    cap_ladder_evidence_row(row) =
+        "| 10 | 0.5 | $(row.Dcap) | $(row.cycles) | $(row.periods) | " *
+        "10/10 | full_grid_observed | $(row.final_energy) | " *
+        "$(row.final_energy) | $(row.Dsys) | $(row.Dsb) | $(row.Dtdvp) | " *
+        "not_converged_evolved_and_tdvp_sweep_cap | $(row.elapsed) | bond_cap |"
+    cap_ladder_latex_value(value) =
+        startswith(value, ">=") ? "\\geq " * value[3:end] : value
+    cap_ladder_latex_row(row) =
+        "$(row.Dcap) & $(row.cycles) & $(row.periods) & " *
+        "$(row.final_energy) & $(row.Dsys) & " *
+        "$(cap_ladder_latex_value(row.Dsb)) & " *
+        "$(cap_ladder_latex_value(row.Dtdvp))"
+
     # These anchors intentionally couple the note to the source documents.
     # Update them together when the notation or bond-dimension evidence changes.
+    @testset "Shared te=0.5 cap-ladder row anchors" begin
+        for row in te05_cap_ladder_rows
+            @test occursin(cap_ladder_evidence_row(row), evidence_flat)
+            @test occursin(cap_ladder_markdown_row(row), plan_flat)
+            @test occursin(cap_ladder_latex_row(row), note_flat)
+        end
+    end
+
     @testset "TN note cooling and large-N qualification anchors" begin
         require_phrases(note_flat, [
             "We study a repeated bath-reset cooling map whose intended fixed point",
