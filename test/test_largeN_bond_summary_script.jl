@@ -15,7 +15,7 @@ function write_minimal_mode_summary_file(path::AbstractString, mode_hk, mode_nk;
                                          mode_ek_values=nothing,
                                          mode_measurement_cycles=[0],
                                          energy_values=nothing,
-                                         energy_dataset_name="E_mean")
+                                         energy_dataset_name=LARGE_N_LEGACY_ENERGY_MEAN_KEY)
     N = 4
     J, h = 1.0, 0.5
     k_indices = CoolingTNS.allowed_k_indices(N, -1)
@@ -28,12 +28,12 @@ function write_minimal_mode_summary_file(path::AbstractString, mode_hk, mode_nk;
         write(f, LARGE_N_ROOT_BC_KEY, "periodic")
         write(f, LARGE_N_ROOT_J_KEY, J)
         write(f, LARGE_N_ROOT_H_KEY, h)
-        gn = create_group(f, "N4")
-        write(gn, "N", N)
+        gn = create_group(f, largeN_n_group_name(4))
+        write(gn, LARGE_N_SYSTEM_SIZE_KEY, N)
         gm = create_group(gn, "mcwf")
-        gr = create_group(gm, "R1")
+        gr = create_group(gm, largeN_r_group_name(1))
 
-        write(gr, "M", 1)
+        write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 1)
         write(gr, energy_dataset_name, energy)
         write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, zeros(Float64, n_rows))
         write(gr, LARGE_N_SYSTEM_MAX_BOND_KEY, ones(Int, n_rows))
@@ -94,16 +94,16 @@ function write_split_trajectory_summary_file(
         write(f, CoolingTNS.RESULT_INIT_THETA, Float64(theta))
         write(f, LARGE_N_EVOLUTION_METHOD_KEY, "continuous")
         write(f, CoolingTNS.RESULT_SCHEDULE, "descending")
-        gn = create_group(f, "N4")
-        write(gn, "N", N)
+        gn = create_group(f, largeN_n_group_name(4))
+        write(gn, LARGE_N_SYSTEM_SIZE_KEY, N)
         gm = create_group(gn, "mcwf")
-        write_e0 && write(gm, "E0", E0)
+        write_e0 && write(gm, LARGE_N_GROUND_ENERGY_KEY, E0)
         write(gm, LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY,
               LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE)
         write(gm, LARGE_N_DETUNING_DELTA_MIN_KEY, 0.5)
         write(gm, LARGE_N_DETUNING_DELTA_MAX_KEY, 3.0)
         write(gm, LARGE_N_DETUNING_DELTA_MAX_FACTOR_KEY, NaN)
-        gr = create_group(gm, "R2")
+        gr = create_group(gm, largeN_r_group_name(2))
 
         energy = Float64.(energy_values)
         overlap = overlap_values === nothing ?
@@ -111,7 +111,7 @@ function write_split_trajectory_summary_file(
             Float64.(overlap_values)
         length(overlap) == length(energy) ||
             error("split trajectory test data must have matching overlap and energy lengths")
-        write(gr, "M", 1)
+        write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 1)
         write(gr, CoolingTNS.RESULT_ENERGY, energy)
         write(gr, CoolingTNS.RESULT_ENERGY_TRAJECTORIES, reshape(energy, :, 1))
         write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY,
@@ -221,12 +221,12 @@ end
         h5open(path, "w") do f
             write(f, LARGE_N_ROOT_DMAX_KEY, 8)
             write(f, CoolingTNS.RESULT_SCHEDULE, "descending")
-            gn = create_group(f, "N4")
-            write(gn, "N", 4)
+            gn = create_group(f, largeN_n_group_name(4))
+            write(gn, LARGE_N_SYSTEM_SIZE_KEY, 4)
             gm = create_group(gn, "mcwf")
-            gr = create_group(gm, "R5")
+            gr = create_group(gm, largeN_r_group_name(5))
 
-            write(gr, "M", 1)
+            write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 1)
             write(gr, CoolingTNS.RESULT_ENERGY, [-1.0, 0.0, 1.0])
             write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 1.0, 2.0])
             write(gr, LARGE_N_SYSTEM_MAX_BOND_KEY, [1, 2, 3])
@@ -261,17 +261,17 @@ end
             write(f, CoolingTNS.RESULT_INIT_THETA, 0.0)
             write(f, LARGE_N_EVOLUTION_METHOD_KEY, "continuous")
             write(f, CoolingTNS.RESULT_SCHEDULE, "descending")
-            gn = create_group(f, "N4")
-            write(gn, "N", 4)
+            gn = create_group(f, largeN_n_group_name(4))
+            write(gn, LARGE_N_SYSTEM_SIZE_KEY, 4)
             gm = create_group(gn, "mcwf")
             write(gm, LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY,
                   LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE)
             write(gm, LARGE_N_DETUNING_DELTA_MIN_KEY, 0.5)
             write(gm, LARGE_N_DETUNING_DELTA_MAX_KEY, 3.0)
             write(gm, LARGE_N_DETUNING_DELTA_MAX_FACTOR_KEY, NaN)
-            gr = create_group(gm, "R2")
+            gr = create_group(gm, largeN_r_group_name(2))
 
-            write(gr, "M", 2)
+            write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 2)
             write(gr, CoolingTNS.RESULT_ENERGY, [-1.0, 2.0, 4.0])
             write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 1.0, 2.0])
             write(gr, CoolingTNS.RESULT_GROUND_STATE_OVERLAP, [0.75, 0.50, 0.15])
@@ -756,12 +756,12 @@ end
         h5open(path, "w") do f
             write(f, LARGE_N_ROOT_DMAX_KEY, 4)
             write(f, LARGE_N_ROOT_STEPS_KEY, 1)
-            gn = create_group(f, "N2")
-            write(gn, "N", 2)
+            gn = create_group(f, largeN_n_group_name(2))
+            write(gn, LARGE_N_SYSTEM_SIZE_KEY, 2)
             gm = create_group(gn, "mcwf")
-            gr = create_group(gm, "R1")
+            gr = create_group(gm, largeN_r_group_name(1))
 
-            write(gr, "M", 2)
+            write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 2)
             write(gr, CoolingTNS.RESULT_ENERGY, [-2.0, -1.0])
             write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 0.5])
             write(gr, LARGE_N_SYSTEM_MAX_BOND_KEY, [1 1; 2 3])
@@ -828,13 +828,13 @@ end
     try
         h5open(path, "w") do f
             write(f, LARGE_N_ROOT_DMAX_KEY, 4)
-            gn = create_group(f, "N2")
-            write(gn, "N", 2)
+            gn = create_group(f, largeN_n_group_name(2))
+            write(gn, LARGE_N_SYSTEM_SIZE_KEY, 2)
             gm = create_group(gn, "mcwf")
-            gr = create_group(gm, "R1")
+            gr = create_group(gm, largeN_r_group_name(1))
 
-            write(gr, "M", 1)
-            write(gr, "E_mean", [-1.0, 0.0])
+            write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 1)
+            write(gr, LARGE_N_LEGACY_ENERGY_MEAN_KEY, [-1.0, 0.0])
             write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 1.0])
             write(gr, LARGE_N_SYSTEM_MAX_BOND_KEY, [1, 2])
             write(gr, LARGE_N_SYSTEM_MEAN_BOND_KEY, [1.0, 2.0])
@@ -892,12 +892,12 @@ end
     try
         h5open(path, "w") do f
             write(f, LARGE_N_ROOT_DMAX_KEY, 8)
-            gn = create_group(f, "N2")
-            write(gn, "N", 2)
+            gn = create_group(f, largeN_n_group_name(2))
+            write(gn, LARGE_N_SYSTEM_SIZE_KEY, 2)
             gm = create_group(gn, "mcwf")
-            gr = create_group(gm, "R1")
+            gr = create_group(gm, largeN_r_group_name(1))
 
-            write(gr, "M", 1)
+            write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 1)
             write(gr, CoolingTNS.RESULT_ENERGY, [-1.0, -0.5])
             write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 0.5])
             write(gr, LARGE_N_SYSTEM_MAX_BOND_KEY, [1, 2])
@@ -931,12 +931,12 @@ end
     try
         h5open(path, "w") do f
             write(f, LARGE_N_ROOT_DMAX_KEY, 8)
-            gn = create_group(f, "N2")
-            write(gn, "N", 2)
+            gn = create_group(f, largeN_n_group_name(2))
+            write(gn, LARGE_N_SYSTEM_SIZE_KEY, 2)
             gm = create_group(gn, "mcwf")
 
-            gr_empty = create_group(gm, "R1")
-            write(gr_empty, "M", 1)
+            gr_empty = create_group(gm, largeN_r_group_name(1))
+            write(gr_empty, LARGE_N_TRAJECTORY_COUNT_KEY, 1)
             write(gr_empty, CoolingTNS.RESULT_ENERGY, [-1.0, -0.5])
             write(gr_empty, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 0.5])
             write(gr_empty, LARGE_N_SYSTEM_MAX_BOND_KEY, [1, 2])
@@ -945,8 +945,8 @@ end
             write(gr_empty, LARGE_N_EVOLVED_MEAN_BOND_KEY, [NaN, 3.0])
             write(gr_empty, CoolingTNS.RESULT_TRUNCATION_ERRORS, Float64[])
 
-            gr_explicit = create_group(gm, "R2")
-            write(gr_explicit, "M", 1)
+            gr_explicit = create_group(gm, largeN_r_group_name(2))
+            write(gr_explicit, LARGE_N_TRAJECTORY_COUNT_KEY, 1)
             write(gr_explicit, CoolingTNS.RESULT_ENERGY, [-1.0, -0.25])
             write(gr_explicit, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 0.75])
             write(gr_explicit, LARGE_N_SYSTEM_MAX_BOND_KEY, [1, 2])
@@ -1010,13 +1010,13 @@ end
             write(f, LARGE_N_ROOT_J_KEY, J)
             write(f, LARGE_N_ROOT_H_KEY, h)
             write(f, LARGE_N_EVOLUTION_METHOD_KEY, "continuous")
-            gn = create_group(f, "N4")
-            write(gn, "N", N)
+            gn = create_group(f, largeN_n_group_name(4))
+            write(gn, LARGE_N_SYSTEM_SIZE_KEY, N)
             gm = create_group(gn, "mcwf")
-            gr = create_group(gm, "R1")
+            gr = create_group(gm, largeN_r_group_name(1))
 
-            write(gr, "M", 1)
-            write(gr, "E_mean", [mode_energy[1], 100.0, mode_energy[2] + final_energy_offset])
+            write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 1)
+            write(gr, LARGE_N_LEGACY_ENERGY_MEAN_KEY, [mode_energy[1], 100.0, mode_energy[2] + final_energy_offset])
             write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 1.0, 2.0])
             write(gr, LARGE_N_SYSTEM_MAX_BOND_KEY, [1, 2, 3])
             write(gr, LARGE_N_SYSTEM_MEAN_BOND_KEY, [1.0, 2.0, 3.0])
@@ -1236,7 +1236,7 @@ end
         end
         @test err isa ArgumentError
         message = sprint(showerror, err)
-        @test occursin("E_mean", message)
+        @test occursin(LARGE_N_LEGACY_ENERGY_MEAN_KEY, message)
         @test occursin("non-finite", message)
     finally
         rm(energy_path; force=true)
@@ -1262,7 +1262,7 @@ end
         @test err isa ArgumentError
         message = sprint(showerror, err)
         @test occursin(CoolingTNS.RESULT_ENERGY, message)
-        @test !occursin("E_mean", message)
+        @test !occursin(LARGE_N_LEGACY_ENERGY_MEAN_KEY, message)
         @test occursin("non-finite", message)
     finally
         rm(canonical_energy_path; force=true)
@@ -1341,13 +1341,13 @@ end
             write(f, LARGE_N_ROOT_BC_KEY, "periodic")
             write(f, LARGE_N_ROOT_J_KEY, 1.0)
             write(f, LARGE_N_ROOT_H_KEY, 0.5)
-            gn = create_group(f, "N4")
-            write(gn, "N", 4)
+            gn = create_group(f, largeN_n_group_name(4))
+            write(gn, LARGE_N_SYSTEM_SIZE_KEY, 4)
             gm = create_group(gn, "mcwf")
-            gr = create_group(gm, "R1")
+            gr = create_group(gm, largeN_r_group_name(1))
 
-            write(gr, "M", 1)
-            write(gr, "E_mean", [0.0])
+            write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 1)
+            write(gr, LARGE_N_LEGACY_ENERGY_MEAN_KEY, [0.0])
             write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0])
             write(gr, LARGE_N_SYSTEM_MAX_BOND_KEY, [1])
             write(gr, LARGE_N_SYSTEM_MEAN_BOND_KEY, [1.0])
@@ -1382,13 +1382,13 @@ end
             write(f, LARGE_N_ROOT_BC_KEY, "open")
             write(f, LARGE_N_ROOT_J_KEY, 1.0)
             write(f, LARGE_N_ROOT_H_KEY, NaN)
-            gn = create_group(f, "N4")
-            write(gn, "N", 4)
+            gn = create_group(f, largeN_n_group_name(4))
+            write(gn, LARGE_N_SYSTEM_SIZE_KEY, 4)
             gm = create_group(gn, "mcwf")
-            gr = create_group(gm, "R1")
+            gr = create_group(gm, largeN_r_group_name(1))
 
-            write(gr, "M", 1)
-            write(gr, "E_mean", [0.0])
+            write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 1)
+            write(gr, LARGE_N_LEGACY_ENERGY_MEAN_KEY, [0.0])
             write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0])
             write(gr, LARGE_N_SYSTEM_MAX_BOND_KEY, [1])
             write(gr, LARGE_N_SYSTEM_MEAN_BOND_KEY, [1.0])
@@ -1427,13 +1427,13 @@ end
         h5open(path, "w") do f
             write(f, LARGE_N_ROOT_DMAX_KEY, 4)
             write(f, LARGE_N_EVOLUTION_METHOD_KEY, "continuous")
-            gn = create_group(f, "N2")
-            write(gn, "N", 2)
+            gn = create_group(f, largeN_n_group_name(2))
+            write(gn, LARGE_N_SYSTEM_SIZE_KEY, 2)
             gm = create_group(gn, "mcwf")
-            gr = create_group(gm, "R1")
+            gr = create_group(gm, largeN_r_group_name(1))
 
-            write(gr, "M", 1)
-            write(gr, "E_mean", [-1.0, 0.0])
+            write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 1)
+            write(gr, LARGE_N_LEGACY_ENERGY_MEAN_KEY, [-1.0, 0.0])
             write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 1.0])
             write(gr, LARGE_N_SYSTEM_MAX_BOND_KEY, [1, 2])
             write(gr, LARGE_N_SYSTEM_MEAN_BOND_KEY, [1.0, 2.0])
@@ -1458,18 +1458,18 @@ end
     try
         h5open(path, "w") do f
             write(f, LARGE_N_ROOT_DMAX_KEY, 4)
-            gn = create_group(f, "N2")
-            write(gn, "N", 2)
+            gn = create_group(f, largeN_n_group_name(2))
+            write(gn, LARGE_N_SYSTEM_SIZE_KEY, 2)
             gm = create_group(gn, "mcwf")
             write(gm, LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY,
                   LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE)
             write(gm, LARGE_N_DETUNING_DELTA_MIN_KEY, 0.75)
             write(gm, LARGE_N_DETUNING_DELTA_MAX_KEY, 3.0)
             write(gm, LARGE_N_DETUNING_DELTA_MAX_FACTOR_KEY, 4.0)
-            gr = create_group(gm, "R1")
+            gr = create_group(gm, largeN_r_group_name(1))
 
-            write(gr, "M", 1)
-            write(gr, "E_mean", [-1.0, 0.0])
+            write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 1)
+            write(gr, LARGE_N_LEGACY_ENERGY_MEAN_KEY, [-1.0, 0.0])
             write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 1.0])
             write(gr, LARGE_N_SYSTEM_MAX_BOND_KEY, [1, 2])
             write(gr, LARGE_N_SYSTEM_MEAN_BOND_KEY, [1.0, 2.0])

@@ -23,6 +23,25 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test LARGE_N_LABEL_NONE == "none"
     @test LARGE_N_LABEL_MISSING == "missing"
     @test LARGE_N_LABEL_LEGACY_MISSING == "legacy_missing"
+    @test LARGE_N_N_GROUP_PREFIX == "N"
+    @test LARGE_N_R_GROUP_PREFIX == "R"
+    @test LARGE_N_SYSTEM_SIZE_KEY == "N"
+    @test LARGE_N_TRAJECTORY_COUNT_KEY == "M"
+    @test LARGE_N_GROUND_ENERGY_KEY == "E0"
+    @test LARGE_N_REFERENCE_GAP_KEY == "gap"
+    @test LARGE_N_ENERGY_STDERR_KEY == "E_stderr"
+    @test LARGE_N_PURITY_TRAJECTORIES_KEY == "purity_trajectories"
+    @test LARGE_N_LEGACY_ENERGY_MEAN_KEY == "E_mean"
+    @test LARGE_N_LEGACY_GROUND_STATE_OVERLAP_KEY == "GS_overlap_mean"
+    @test LARGE_N_LEGACY_GROUND_STATE_OVERLAP_TRAJECTORIES_KEY ==
+          "GS_overlap_trajectories"
+    @test largeN_n_group_name(64) == "N64"
+    @test largeN_r_group_name(10) == "R10"
+    @test is_largeN_n_group_name("N64")
+    @test !is_largeN_n_group_name("R10")
+    @test is_largeN_r_group_name("R10")
+    @test !is_largeN_r_group_name("N64")
+    @test largeN_r_from_group_name("R10") == 10
     @test LARGE_N_EVOLUTION_METHOD_KEY == "evolution_method"
     @test LARGE_N_SYSTEM_SOLVE_REUSED_ACROSS_R_KEY == "system_solve_reused_across_R"
     @test LARGE_N_BOND_SATURATION_THRESHOLD_KEY == "bond_saturation_threshold"

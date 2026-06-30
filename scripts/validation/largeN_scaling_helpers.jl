@@ -59,6 +59,26 @@ const LARGE_N_ROOT_DELTA_MAX_OVERRIDE_KEY = "delta_max_override"
 const LARGE_N_ROOT_STOP_ON_BOND_CAP_KEY = "stop_on_bond_cap"
 const LARGE_N_ROOT_SEED_KEY = "seed"
 
+# Persisted run-group HDF5 keys and group-name conventions.
+const LARGE_N_N_GROUP_PREFIX = "N"
+const LARGE_N_R_GROUP_PREFIX = "R"
+const LARGE_N_SYSTEM_SIZE_KEY = "N"
+const LARGE_N_TRAJECTORY_COUNT_KEY = "M"
+const LARGE_N_GROUND_ENERGY_KEY = "E0"
+const LARGE_N_REFERENCE_GAP_KEY = "gap"
+const LARGE_N_ENERGY_STDERR_KEY = "E_stderr"
+const LARGE_N_PURITY_TRAJECTORIES_KEY = "purity_trajectories"
+const LARGE_N_LEGACY_ENERGY_MEAN_KEY = "E_mean"
+const LARGE_N_LEGACY_GROUND_STATE_OVERLAP_KEY = "GS_overlap_mean"
+const LARGE_N_LEGACY_GROUND_STATE_OVERLAP_TRAJECTORIES_KEY = "GS_overlap_trajectories"
+
+largeN_n_group_name(N::Integer) = "$(LARGE_N_N_GROUP_PREFIX)$N"
+largeN_r_group_name(R::Integer) = "$(LARGE_N_R_GROUP_PREFIX)$R"
+is_largeN_n_group_name(name::AbstractString) = startswith(name, LARGE_N_N_GROUP_PREFIX)
+is_largeN_r_group_name(name::AbstractString) = startswith(name, LARGE_N_R_GROUP_PREFIX)
+largeN_r_from_group_name(name::AbstractString) =
+    parse(Int, name[(lastindex(LARGE_N_R_GROUP_PREFIX) + 1):end])
+
 # Persisted HDF5 evolution and bond-cap diagnostic keys for large-N campaigns.
 const LARGE_N_EVOLUTION_METHOD_KEY = "evolution_method"
 const LARGE_N_SYSTEM_SOLVE_REUSED_ACROSS_R_KEY = "system_solve_reused_across_R"
