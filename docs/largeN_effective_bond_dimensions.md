@@ -2010,6 +2010,80 @@ continuing the trajectory would require effective transient bond dimension
 above `256`.  This remains a bond-growth diagnostic, not scalable ground-state
 cooling.
 
+### Dmax=256 Descending Remaining Frequencies
+
+The remaining frequency counts were then repeated at the same `Dmax = 256`,
+`g = 0.3`, `te = 1.0`, fixed descending detuning interval, product initial
+state, stop-on-cap rule, and one-thread execution convention.  The `R = 10`
+file above is reused for the matched comparison.  The new files are
+
+```text
+.worktree/descending_te1_dmax256_R1_rerun_20260630/largeN_multifrequency_tn_N64_R1_mcwf_continuous_stopcap_scheddesc_steps12_Dmax256_g0.3_te1_tau0.2_seed20260617.h5
+.worktree/descending_te1_dmax256_R1_R2_R5_20260630/largeN_multifrequency_tn_N64_R2_mcwf_continuous_stopcap_scheddesc_steps12_Dmax256_g0.3_te1_tau0.2_seed20260617.h5
+.worktree/descending_te1_dmax256_R1_R2_R5_20260630/largeN_multifrequency_tn_N64_R5_mcwf_continuous_stopcap_scheddesc_steps12_Dmax256_g0.3_te1_tau0.2_seed20260617.h5
+```
+
+The `R = 1` artifact is a fresh rerun in its own output directory; an older
+interrupted file from the matched `R = 1,2,5` directory is not used as
+completed evidence.  The `R = 1,2,5,10` trajectory seeds are
+`[84270618, 84280618, 84310618, 84360618]`, respectively.  As before, the
+`R = 1` row is a fixed-minimum-detuning reference because its grid contains
+only `delta_min`.
+
+The matched HDF5 summary is
+
+| R | g | Dcap | completed/requested cycles | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | stop |
+|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---|---:|---|
+| 1 | 0.3 | 256 | 7/12 | 7.00/12.00 | 1/1 | single_detuning | 1.35823962 | 1.35823962 | 242 | >=256 | >=256 | not_converged_evolved_and_tdvp_sweep_cap | 5170.7 s | bond_cap |
+| 2 | 0.3 | 256 | 6/12 | 3.00/6.00 | 2/2 | full_grid_observed | 0.85012354 | 0.85012354 | 233 | >=256 | >=256 | not_converged_evolved_and_tdvp_sweep_cap | 4336.7 s | bond_cap |
+| 5 | 0.3 | 256 | 6/12 | 1.20/2.40 | 5/5 | full_grid_observed | 0.90017025 | 0.90017025 | 231 | >=256 | >=256 | not_converged_evolved_and_tdvp_sweep_cap | 3452.5 s | bond_cap |
+| 10 | 0.3 | 256 | 6/12 | 0.60/1.20 | 6/10 | stopped_partial_grid | 0.74860471 | 0.74860471 | 232 | >=256 | >=256 | not_converged_evolved_and_tdvp_sweep_cap | 3760.2 s | bond_cap |
+
+The new completed-cycle prefixes are
+
+| R | cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 1 | 0.50511675 | 1.47291896 | 4 | 6 | 30.6 s |
+| 1 | 2 | 0.50511675 | 1.42012553 | 11 | 15 | 46.0 s |
+| 1 | 3 | 0.50511675 | 1.41672905 | 23 | 31 | 78.3 s |
+| 1 | 4 | 0.50511675 | 1.37238762 | 48 | 62 | 188.4 s |
+| 1 | 5 | 0.50511675 | 1.39314083 | 92 | 123 | 577.2 s |
+| 1 | 6 | 0.50511675 | 1.38968903 | 167 | 219 | 1851.5 s |
+| 1 | 7 | 0.50511675 | 1.35823962 | 242 | 256 | 5170.8 s |
+| 2 | 1 | 3.03070050 | 1.05928265 | 4 | 6 | 31.9 s |
+| 2 | 2 | 0.50511675 | 1.01793111 | 11 | 15 | 49.8 s |
+| 2 | 3 | 3.03070050 | 1.00906275 | 25 | 33 | 94.4 s |
+| 2 | 4 | 0.50511675 | 1.03055230 | 57 | 72 | 230.0 s |
+| 2 | 5 | 3.03070050 | 0.88774113 | 118 | 156 | 885.1 s |
+| 2 | 6 | 0.50511675 | 0.85012354 | 233 | 256 | 4336.8 s |
+| 5 | 1 | 3.03070050 | 1.38240655 | 4 | 6 | 30.5 s |
+| 5 | 2 | 2.39930456 | 1.27834942 | 11 | 15 | 46.6 s |
+| 5 | 3 | 1.76790862 | 1.21579249 | 24 | 33 | 82.2 s |
+| 5 | 4 | 1.13651269 | 1.07479517 | 55 | 70 | 210.1 s |
+| 5 | 5 | 0.50511675 | 1.04315874 | 117 | 152 | 810.1 s |
+| 5 | 6 | 3.03070050 | 0.90017025 | 231 | 256 | 3452.4 s |
+
+The progress CSV saturation summary for the new rows is
+
+| R | first transient cap | TDVP-sweep cap | max sweep at | max sweep elapsed |
+|---:|---|---|---|---:|
+| 1 | 7:3 | 7:3 | 7:5 | 961.5 s |
+| 2 | 6:4 | 6:4 | 6:5 | 1185.4 s |
+| 5 | 6:4 | 6:4 | 6:5 | 901.4 s |
+
+At this fixed cap and seed, the stopped-prefix ordering remains
+`R = 10 < R = 2 < R = 5 < R = 1`.  This repeats the qualitative `Dmax = 192`
+ordering, but it is still not a converged frequency optimization: every row
+is stopped by the evolved system-bath and TDVP-sweep bond caps, and the best
+stopped prefix, `E/N = 0.74860471`, remains far above
+`E0/N = -1.3246328892`.  Increasing the cap from `192` to `256` changes the
+`R = 2`, `R = 5`, and `R = 10` stopped-prefix energies only at the
+`10^{-5}`--`10^{-4}` scale, while `R = 1` remains a poor fixed-detuning
+reference even though it reaches a seventh completed cycle.  Continuing these
+`te = 1.0` product-state trajectories therefore requires effective transient
+bond dimension above `256`; the present data are evidence for bond growth, not
+scalable ground-state cooling.
+
 ### Dmax=320 Descending R=10 Follow-up
 
 The same trajectory was next repeated at `Dmax = 320`:

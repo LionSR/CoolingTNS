@@ -300,6 +300,24 @@ frequencies, followed by `R = 2`, `R = 5`, and `R = 1`.  The comparison is
 still cap-limited rather than converged: every row reaches the evolved
 system-bath and TDVP-sweep caps by cycle 6, and the best prefix remains far
 above `E0/N = -1.3246328892`.
+The same product-state comparison has now been repeated at `Dmax = 256`, again
+with `g = 0.3`, `te = 1.0`, the fixed descending detuning interval, and the
+same trajectory seeds:
+
+| R | completed/requested cycles | completed/requested periods | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 7/12 | 7.00/12.00 | 1.35823962 | 1.35823962 | 242 | >=256 | >=256 |
+| 2 | 6/12 | 3.00/6.00 | 0.85012354 | 0.85012354 | 233 | >=256 | >=256 |
+| 5 | 6/12 | 1.20/2.40 | 0.90017025 | 0.90017025 | 231 | >=256 | >=256 |
+| 10 | 6/12 | 0.60/1.20 | 0.74860471 | 0.74860471 | 232 | >=256 | >=256 |
+
+The ordering remains `R = 10 < R = 2 < R = 5 < R = 1`, and all rows are still
+stopped by the evolved system-bath and TDVP-sweep caps.  Relative to
+`Dmax = 192`, the `R = 2`, `R = 5`, and `R = 10` stopped energies change only
+weakly, while `R = 1` remains a poor fixed-minimum-detuning reference.  This
+is evidence that continuing the `te = 1.0` product-state trajectories requires
+transient bond dimension above `256`; it is not evidence of scalable
+ground-state cooling.
 The latest fixed descending product-state `R = 10`, `g = 0.3` time-ladder
 control uses the shorter evolution time `te = 0.5` and raises the cap through
 `Dmax = 128,192,256,320`.  It completes progressively farther into the second
