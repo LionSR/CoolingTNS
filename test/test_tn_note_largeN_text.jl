@@ -88,6 +88,36 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         "$(row.final_energy) & $(row.Dsys) & " *
         "$(cap_ladder_latex_value(row.Dsb)) & " *
         "$(cap_ladder_latex_value(row.Dtdvp))"
+    te1_d192_frequency_rows = (
+        (R="1", cycles="6/12", periods="6.00/12.00",
+         visited="1/1", coverage="single_detuning",
+         final_energy="1.38968899", best_energy="1.37238762",
+         Dsys="165", Dsb=">=192", Dtdvp=">=192", elapsed="1937.0 s"),
+        (R="2", cycles="6/12", periods="3.00/6.00",
+         visited="2/2", coverage="full_grid_observed",
+         final_energy="0.85017412", best_energy="0.85017412",
+         Dsys="189", Dsb=">=192", Dtdvp=">=192", elapsed="3657.7 s"),
+        (R="5", cycles="6/12", periods="1.20/2.40",
+         visited="5/5", coverage="full_grid_observed",
+         final_energy="0.90017691", best_energy="0.90017691",
+         Dsys="189", Dsb=">=192", Dtdvp=">=192", elapsed="3132.9 s"),
+        (R="10", cycles="6/12", periods="0.60/1.20",
+         visited="6/10", coverage="stopped_partial_grid",
+         final_energy="0.74866556", best_energy="0.74866556",
+         Dsys="189", Dsb=">=192", Dtdvp=">=192", elapsed="3111.3 s"),
+    )
+    te1_d192_frequency_evidence_row(row) =
+        "| $(row.R) | 0.3 | 192 | $(row.cycles) | $(row.periods) | " *
+        "$(row.visited) | $(row.coverage) | $(row.final_energy) | " *
+        "$(row.best_energy) | $(row.Dsys) | $(row.Dsb) | $(row.Dtdvp) | " *
+        "not_converged_evolved_and_tdvp_sweep_cap | $(row.elapsed) | bond_cap |"
+    te1_d192_frequency_plan_row(row) =
+        "| $(row.R) | $(row.cycles) | $(row.periods) | " *
+        "$(row.final_energy) | $(row.best_energy) | $(row.Dsys) | " *
+        "$(row.Dsb) | $(row.Dtdvp) |"
+    te1_d192_frequency_latex_row(row) =
+        "$(row.R) & $(row.cycles) & $(row.final_energy) & " *
+        "$(row.best_energy) & $(row.Dsys)"
 
     # These anchors intentionally couple the note to the source documents.
     # Update them together when the notation or bond-dimension evidence changes.
@@ -110,6 +140,20 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         @test occursin("largeN_multifrequency_tn_N64_R5_mcwf_continuous_stopcap_scheddesc_steps20_Dmax128_g0.3_te0.5_tau0.2_seed20260617.h5", evidence_flat)
         @test occursin("At this fixed `Dmax = 128` and `te = 0.5`, the best stopped prefix is now `R = 5`", evidence_flat)
         @test occursin("For this particular \\(D_{\\max}=128\\), \\(t_e=0.5\\) comparison, the best stopped prefix is \\(R=5\\)", note_flat)
+    end
+
+    @testset "Shared te=1.0 Dmax=192 frequency-row anchors" begin
+        for row in te1_d192_frequency_rows
+            @test occursin(te1_d192_frequency_evidence_row(row), evidence_flat)
+            @test occursin(te1_d192_frequency_plan_row(row), plan_flat)
+            @test occursin(te1_d192_frequency_latex_row(row), note_flat)
+        end
+        @test occursin("largeN_multifrequency_tn_N64_R1_mcwf_continuous_stopcap_scheddesc_steps12_Dmax192_g0.3_te1_tau0.2_seed20260617.h5", evidence_flat)
+        @test occursin("largeN_multifrequency_tn_N64_R2_mcwf_continuous_stopcap_scheddesc_steps12_Dmax192_g0.3_te1_tau0.2_seed20260617.h5", evidence_flat)
+        @test occursin("largeN_multifrequency_tn_N64_R5_mcwf_continuous_stopcap_scheddesc_steps12_Dmax192_g0.3_te1_tau0.2_seed20260617.h5", evidence_flat)
+        @test occursin("At this fixed cap and seed, the stopped-prefix ordering is `R = 10 < R = 2 < R = 5 < R = 1`", evidence_flat)
+        @test occursin("For this fixed cap and seed, \\(R=10\\) gives the lowest stopped prefix", note_flat)
+        @test occursin("The completed/requested periods for \\(R=1,2,5,10\\) are \\(6.00/12.00\\), \\(3.00/6.00\\), \\(1.20/2.40\\), and \\(0.60/1.20\\)", note_flat)
     end
 
     @testset "TN note cooling and large-N qualification anchors" begin

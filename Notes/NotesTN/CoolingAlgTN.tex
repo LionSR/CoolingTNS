@@ -838,6 +838,42 @@ evolved system-bath or TDVP-sweep cap.  This confirms that the obstruction is
 bond growth, not merely the low value \(D_{\max}=64\) used in the preceding
 diagnostic.
 
+The same fixed descending product-state comparison was next made at
+\(D_{\max}=192\), \(g=0.3\), and \(t_e=1.0\), again reusing the stored
+\(R=10\) trajectory for the all-frequency table.  The trajectory seeds for
+\(R=1,2,5,10\) are
+\[
+	84270618,\quad 84280618,\quad 84310618,\quad 84360618 .
+\]
+All four rows complete six cooling cycles before the stop-on-cap rule applies:
+\[
+\begin{array}{c|c|c|c|c}
+R & \text{completed/requested} & E_{\mathrm{final}}/N
+  & \min(E/N) & D_{\mathrm{sys}}^{\mathrm{eff}}\\
+\hline
+1 & 6/12 & 1.38968899 & 1.37238762 & 165\\
+2 & 6/12 & 0.85017412 & 0.85017412 & 189\\
+5 & 6/12 & 0.90017691 & 0.90017691 & 189\\
+10 & 6/12 & 0.74866556 & 0.74866556 & 189
+\end{array}
+\]
+For all four rows,
+\[
+	D_{\mathrm{sb}}^{\mathrm{eff}}\geq 192,\qquad
+	D_{\mathrm{TDVP\ sweep}}^{\mathrm{eff}}\geq 192 .
+\]
+The completed/requested periods for \(R=1,2,5,10\) are
+\(6.00/12.00\), \(3.00/6.00\), \(1.20/2.40\), and \(0.60/1.20\),
+respectively.
+For this fixed cap and seed, \(R=10\) gives the lowest stopped prefix, followed
+by \(R=2\), \(R=5\), and \(R=1\).  This should not be read as a converged
+frequency optimization: all four trajectories stop because the evolved
+system-bath MPS and TDVP sweep observer reach the \(192\) cap, and even the best
+stopped prefix remains far above \(E_0/N=-1.3246328892\).  The useful inference
+is that the transient dimension needed to continue these \(t_e=1.0\)
+product-state trajectories is already at least \(192\) after six completed
+cycles.
+
 Finally, the same \(R=10\), \(D_{\max}=128\) descending trajectory was repeated
 with the shorter evolution time \(t_e=0.5\) and \(20\) requested cycles.  The
 run stops after \(10/20\) cycles with
