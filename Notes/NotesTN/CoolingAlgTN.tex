@@ -862,6 +862,33 @@ worsens the capped energy compared with the \(t_e=1.0\) value
 \(E/N=0.84528025\).  At this fixed descending schedule, a smaller evolution
 time is a cap-delay mechanism rather than evidence of ground-state cooling.
 
+The same \(t_e=0.5\) trajectory was then repeated at
+\(D_{\max}=192,256,320\), with the same fixed detuning interval and the same
+trajectory seed.  These runs complete progressively farther into the second
+detuning pass, but the improvement in energy remains small while the transient
+system-bath and TDVP-sweep diagnostics continue to reach the cap:
+\[
+\begin{array}{c|c|c|c|c|c|c}
+D_{\max} & \text{completed/requested} & \text{completed periods}
+  & E_{\mathrm{final}}/N & D_{\mathrm{sys}}^{\mathrm{eff}}
+  & D_{\mathrm{sb}}^{\mathrm{eff}}
+  & D_{\mathrm{TDVP\ sweep}}^{\mathrm{eff}}\\
+\hline
+128 & 10/20 & 1.00/2.00 & 1.00873665 & 113 & \geq 128 & \geq 128\\
+192 & 11/20 & 1.10/2.00 & 1.00650854 & 154 & \geq 192 & \geq 192\\
+256 & 12/20 & 1.20/2.00 & 1.00494536 & 221 & \geq 256 & \geq 256\\
+320 & 13/20 & 1.30/2.00 & 1.00365324 & 299 & \geq 320 & \geq 320
+\end{array}
+\]
+At common completed cycles the higher-cap trajectories agree with the lower-cap
+prefixes at the scale of the cap-dependent numerical path difference.  The
+additional decrease in the stopped energy comes from one more second-pass
+detuning before the next cap event.  Thus increasing \(D_{\max}\) in this
+\(t_e=0.5\) ladder postpones saturation, but it does not change the physical
+conclusion: the stopped prefixes remain far above
+\(E_0/N=-1.3246328892\) and are bond-growth diagnostics rather than controlled
+large-\(N\) cooling trajectories.
+
 \paragraph{Near-ground controls.}
 The same validation driver also admits \texttt{--init-state ground}.  This
 initial condition is not a restarted cooling trajectory: it reuses the
