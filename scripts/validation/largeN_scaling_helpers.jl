@@ -78,16 +78,17 @@ largeN_n_group_name(N::Integer) = "$(LARGE_N_N_GROUP_PREFIX)$N"
 largeN_r_group_name(R::Integer) = "$(LARGE_N_R_GROUP_PREFIX)$R"
 is_largeN_n_group_name(name::AbstractString) = startswith(name, LARGE_N_N_GROUP_PREFIX)
 is_largeN_r_group_name(name::AbstractString) = startswith(name, LARGE_N_R_GROUP_PREFIX)
+_invalid_largeN_r_group_name_error(name::AbstractString) = ArgumentError(
+    "large-N HDF5 R-group name must have canonical form " *
+    "$(LARGE_N_R_GROUP_PREFIX)<positive integer> without leading zeros, " *
+    "got $(repr(String(name)))"
+)
 function largeN_r_from_group_name(name::AbstractString)
-    startswith(name, LARGE_N_R_GROUP_PREFIX) || throw(ArgumentError(
-        "large-N HDF5 R-group name must have form " *
-        "$(LARGE_N_R_GROUP_PREFIX)<positive integer>, got $(repr(String(name)))"
-    ))
+    startswith(name, LARGE_N_R_GROUP_PREFIX) ||
+        throw(_invalid_largeN_r_group_name_error(name))
     suffix = name[(lastindex(LARGE_N_R_GROUP_PREFIX) + 1):end]
-    occursin(r"^[1-9][0-9]*$", suffix) || throw(ArgumentError(
-        "large-N HDF5 R-group name must have form " *
-        "$(LARGE_N_R_GROUP_PREFIX)<positive integer>, got $(repr(String(name)))"
-    ))
+    occursin(r"^[1-9][0-9]*$", suffix) ||
+        throw(_invalid_largeN_r_group_name_error(name))
     R = tryparse(Int, suffix)
     R === nothing && throw(ArgumentError(
         "large-N HDF5 R-group name is too large for Int: $(repr(String(name)))"

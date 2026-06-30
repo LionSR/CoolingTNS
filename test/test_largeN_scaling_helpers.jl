@@ -42,7 +42,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test is_largeN_r_group_name("R10")
     @test !is_largeN_r_group_name("N64")
     @test largeN_r_from_group_name("R10") == 10
-    for bad_name in ("", "N10", "R", "R0", "R-1", "Rbad")
+    for bad_name in ("", "N10", "R", "R0", "R01", "R-1", "Rbad")
         err = try
             largeN_r_from_group_name(bad_name)
             nothing
@@ -51,6 +51,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
         end
         @test err isa ArgumentError
         @test occursin("R<positive integer>", sprint(showerror, err))
+        @test occursin("without leading zeros", sprint(showerror, err))
         @test occursin(repr(bad_name), sprint(showerror, err))
     end
     @test LARGE_N_EVOLUTION_METHOD_KEY == "evolution_method"
