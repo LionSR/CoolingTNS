@@ -285,6 +285,24 @@ reference and stop by the evolved/TDVP cap: `R = 1` at cycle 8 with
 `R = 5` at cycle 8 with `E/N = -1.25381271`.  Across all four ground-state
 controls, the final energy ordering is `R = 10 < R = 5 < R = 2 < R = 1`, but
 none is an exact ground-state fixed point at `Dmax = 128`.
+The latest fixed descending product-state `R = 10`, `g = 0.3` time-ladder
+control uses the shorter evolution time `te = 0.5` and raises the cap through
+`Dmax = 128,192,256,320`.  It completes progressively farther into the second
+detuning pass, but remains far from the DMRG reference and still stops by the
+evolved system-bath and TDVP-sweep caps:
+
+| Dcap | completed/requested cycles | completed/requested periods | final E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff |
+|---:|---:|---:|---:|---:|---:|---:|
+| 128 | 10/20 | 1.00/2.00 | 1.00873665 | 113 | >=128 | >=128 |
+| 192 | 11/20 | 1.10/2.00 | 1.00650854 | 154 | >=192 | >=192 |
+| 256 | 12/20 | 1.20/2.00 | 1.00494536 | 221 | >=256 | >=256 |
+| 320 | 13/20 | 1.30/2.00 | 1.00365324 | 299 | >=320 | >=320 |
+
+Thus this `te = 0.5` ladder is useful for estimating the bond scale required
+to continue the deterministic descending schedule, but it is not a route to
+scalable ground-state cooling: larger caps buy one additional second-pass
+detuning at a time, while the stopped prefixes stay close to `E/N = 1.0`
+instead of approaching `E0/N = -1.3246328892`.
 If the purpose of a run is only to locate the first cap event, the validation
 driver can also be run with `--stop-on-bond-cap`.  This stops after the first
 completed cycle whose retained system state, evolved system-bath state, or,
