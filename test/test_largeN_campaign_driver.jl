@@ -104,6 +104,48 @@ end
     @test occursin("_mpo_trotter_steps", output_path(explicit_mpo_cfg))
 end
 
+@testset "Large-N campaign HDF5 output is atomic" begin
+    mktempdir() do dir
+        output = joinpath(dir, "atomic_campaign.h5")
+        temp_output = largeN_atomic_temp_output_path(output)
+        @test temp_output == output * ".tmp"
+        @test endswith(output, ".h5")
+        @test !endswith(temp_output, ".h5")
+
+        open(io -> print(io, "stale partial output"), temp_output, "w")
+        open(io -> print(io, "previous complete output"), output, "w")
+        cfg = parse_args([
+            "--Ns", "2",
+            "--R-values", "1",
+            "--methods", "mcwf",
+            "--steps", "1",
+            "--Dmax", "4",
+            "--cutoff", "1e-6",
+            "--tau", "0.2",
+            "--te", "0.0",
+            "--delta-min", "0.5",
+            "--delta-max", "0.5",
+            "--outdir", dir,
+            "--output", output,
+        ])
+
+        path, summaries = redirect_stdout(devnull) do
+            run_campaign(cfg)
+        end
+
+        @test path == output
+        @test length(summaries) == 1
+        @test isfile(output)
+        @test !isfile(temp_output)
+        @test filter(name -> endswith(name, ".h5"), readdir(dir)) == ["atomic_campaign.h5"]
+
+        h5open(output, "r") do f
+            @test read(f[LARGE_N_ROOT_NS_KEY]) == [2]
+            @test haskey(f, "N2")
+        end
+    end
+end
+
 @testset "Large-N campaign driver Dmax ladder" begin
     cfg = parse_args([
         "--Ns", "64",
