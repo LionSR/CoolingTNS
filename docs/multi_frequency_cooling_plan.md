@@ -285,6 +285,21 @@ reference and stop by the evolved/TDVP cap: `R = 1` at cycle 8 with
 `R = 5` at cycle 8 with `E/N = -1.25381271`.  Across all four ground-state
 controls, the final energy ordering is `R = 10 < R = 5 < R = 2 < R = 1`, but
 none is an exact ground-state fixed point at `Dmax = 128`.
+For the product-state `te = 1.0` descending schedule, the matched
+`Dmax = 192` comparison across frequency counts is also now available:
+
+| R | completed/requested cycles | completed/requested periods | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 6/12 | 6.00/12.00 | 1.38968899 | 1.37238762 | 165 | >=192 | >=192 |
+| 2 | 6/12 | 3.00/6.00 | 0.85017412 | 0.85017412 | 189 | >=192 | >=192 |
+| 5 | 6/12 | 1.20/2.40 | 0.90017691 | 0.90017691 | 189 | >=192 | >=192 |
+| 10 | 6/12 | 0.60/1.20 | 0.74866556 | 0.74866556 | 189 | >=192 | >=192 |
+
+At this cap, `R = 10` gives the lowest stopped prefix among the tested
+frequencies, followed by `R = 2`, `R = 5`, and `R = 1`.  The comparison is
+still cap-limited rather than converged: every row reaches the evolved
+system-bath and TDVP-sweep caps by cycle 6, and the best prefix remains far
+above `E0/N = -1.3246328892`.
 The latest fixed descending product-state `R = 10`, `g = 0.3` time-ladder
 control uses the shorter evolution time `te = 0.5` and raises the cap through
 `Dmax = 128,192,256,320`.  It completes progressively farther into the second

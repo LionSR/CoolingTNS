@@ -1885,6 +1885,69 @@ the next effective transient dimension is at least `192`; it is still not a
 controlled cooling result.  The run observes only `6/10` detunings and remains
 far above the DMRG reference `E0/N = -1.3246328892`.
 
+### Dmax=192 Descending Remaining Frequencies
+
+The remaining frequency counts were then run at the same `Dmax = 192`,
+`g = 0.3`, `te = 1.0`, fixed descending detuning interval, product initial
+state, stop-on-cap rule, and one-thread execution convention.  The previously
+recorded `R = 10` file above is reused for the matched comparison.  The new
+files are
+
+```text
+.worktree/descending_te1_dmax192_R1_R2_R5_20260630/largeN_multifrequency_tn_N64_R1_mcwf_continuous_stopcap_scheddesc_steps12_Dmax192_g0.3_te1_tau0.2_seed20260617.h5
+.worktree/descending_te1_dmax192_R1_R2_R5_20260630/largeN_multifrequency_tn_N64_R2_mcwf_continuous_stopcap_scheddesc_steps12_Dmax192_g0.3_te1_tau0.2_seed20260617.h5
+.worktree/descending_te1_dmax192_R1_R2_R5_20260630/largeN_multifrequency_tn_N64_R5_mcwf_continuous_stopcap_scheddesc_steps12_Dmax192_g0.3_te1_tau0.2_seed20260617.h5
+```
+
+The `R = 1,2,5,10` trajectory seeds are
+`[84270618, 84280618, 84310618, 84360618]`, respectively, following the stored
+root seed rule from `20260617`.  As in the `Dmax = 128` comparison, the
+`R = 1` row has only the single grid point `delta_min` and is therefore a
+fixed-minimum-detuning reference.
+
+The matched HDF5 summary is
+
+| R | g | Dcap | completed/requested cycles | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | stop |
+|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---|---:|---|
+| 1 | 0.3 | 192 | 6/12 | 6.00/12.00 | 1/1 | single_detuning | 1.38968899 | 1.37238762 | 165 | >=192 | >=192 | not_converged_evolved_and_tdvp_sweep_cap | 1937.0 s | bond_cap |
+| 2 | 0.3 | 192 | 6/12 | 3.00/6.00 | 2/2 | full_grid_observed | 0.85017412 | 0.85017412 | 189 | >=192 | >=192 | not_converged_evolved_and_tdvp_sweep_cap | 3657.7 s | bond_cap |
+| 5 | 0.3 | 192 | 6/12 | 1.20/2.40 | 5/5 | full_grid_observed | 0.90017691 | 0.90017691 | 189 | >=192 | >=192 | not_converged_evolved_and_tdvp_sweep_cap | 3132.9 s | bond_cap |
+| 10 | 0.3 | 192 | 6/12 | 0.60/1.20 | 6/10 | stopped_partial_grid | 0.74866556 | 0.74866556 | 189 | >=192 | >=192 | not_converged_evolved_and_tdvp_sweep_cap | 3111.3 s | bond_cap |
+
+The new completed-cycle prefixes are
+
+| R | cycle | delta | E/N | system max bond | evolved max bond | elapsed |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 1 | 0.50511675 | 1.47291896 | 4 | 6 | 33.8 s |
+| 1 | 2 | 0.50511675 | 1.42012553 | 11 | 15 | 51.6 s |
+| 1 | 3 | 0.50511675 | 1.41672905 | 23 | 31 | 88.2 s |
+| 1 | 4 | 0.50511675 | 1.37238762 | 48 | 62 | 201.3 s |
+| 1 | 5 | 0.50511675 | 1.39314083 | 92 | 123 | 604.5 s |
+| 1 | 6 | 0.50511675 | 1.38968899 | 165 | 192 | 1937.0 s |
+| 2 | 1 | 3.03070050 | 1.05928265 | 4 | 6 | 31.7 s |
+| 2 | 2 | 0.50511675 | 1.01793111 | 11 | 15 | 48.8 s |
+| 2 | 3 | 3.03070050 | 1.00906275 | 25 | 33 | 86.1 s |
+| 2 | 4 | 0.50511675 | 1.03055230 | 57 | 72 | 233.4 s |
+| 2 | 5 | 3.03070050 | 0.88774113 | 118 | 156 | 922.4 s |
+| 2 | 6 | 0.50511675 | 0.85017412 | 189 | 192 | 3657.7 s |
+| 5 | 1 | 3.03070050 | 1.38240655 | 4 | 6 | 31.1 s |
+| 5 | 2 | 2.39930456 | 1.27834942 | 11 | 15 | 47.4 s |
+| 5 | 3 | 1.76790862 | 1.21579249 | 24 | 33 | 84.2 s |
+| 5 | 4 | 1.13651269 | 1.07479517 | 55 | 70 | 213.2 s |
+| 5 | 5 | 0.50511675 | 1.04315874 | 117 | 152 | 792.9 s |
+| 5 | 6 | 3.03070050 | 0.90017691 | 189 | 192 | 3132.9 s |
+
+At this fixed cap and seed, the stopped-prefix ordering is
+`R = 10 < R = 2 < R = 5 < R = 1`.  This is not a converged frequency
+optimization: every row stops by the evolved system-bath and TDVP-sweep bond
+caps, and the best stopped prefix, `E/N = 0.74866556`, is still far above
+`E0/N = -1.3246328892`.  The useful conclusion is instead an effective-bond
+one.  For `R = 2` and `R = 5`, the progress CSV first observes the transient
+cap during cycle `6:2`, while the most expensive sweep occurs at cycle `6:5`;
+finishing a saturated cycle therefore dominates the elapsed time.  The
+transient dimension needed to continue these `te = 1.0` product-state
+trajectories is already at least `192` after six completed cycles.
+
 ### Dmax=256 Descending R=10 Follow-up
 
 The same `R = 10`, `g = 0.3`, `te = 1.0` trajectory was then repeated at
