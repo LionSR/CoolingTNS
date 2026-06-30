@@ -1044,7 +1044,7 @@ function tdvp_sweep_progress_row(context, tdvp_context, sweep, current_time,
                                  ham_params, evolved_bs, elapsed)
     return progress_base_row(
         context, ham_params;
-        stage=LARGE_N_PROGRESS_STAGE_TDVP_SWEEP,
+        stage=largeN_progress_stage(:tdvp_sweep),
         step=tdvp_context.step,
         cycle=tdvp_context.step - 1,
         delta=tdvp_context.delta,

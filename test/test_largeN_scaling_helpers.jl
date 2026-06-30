@@ -150,7 +150,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test largeN_progress_stage(:prepared) == LARGE_N_PROGRESS_STAGE_PREPARED
     @test largeN_progress_stage(:evolved) == LARGE_N_PROGRESS_STAGE_EVOLVED
     @test largeN_progress_stage(:updated) == LARGE_N_PROGRESS_STAGE_UPDATED
-    @test_throws ArgumentError largeN_progress_stage(:tdvp_sweep)
+    @test largeN_progress_stage(:tdvp_sweep) == LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
     @test require_largeN_progress_stage_label("initial") == LARGE_N_PROGRESS_STAGE_INITIAL
     @test require_largeN_progress_stage_label(LARGE_N_PROGRESS_STAGE_TDVP_SWEEP) ==
           LARGE_N_PROGRESS_STAGE_TDVP_SWEEP

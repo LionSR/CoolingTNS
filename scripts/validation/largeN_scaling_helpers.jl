@@ -228,6 +228,7 @@ function largeN_progress_stage(stage::Symbol)
     stage === :prepared && return LARGE_N_PROGRESS_STAGE_PREPARED
     stage === :evolved && return LARGE_N_PROGRESS_STAGE_EVOLVED
     stage === :updated && return LARGE_N_PROGRESS_STAGE_UPDATED
+    stage === :tdvp_sweep && return LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
     throw(ArgumentError("unknown large-N progress observer stage: $stage"))
 end
 
