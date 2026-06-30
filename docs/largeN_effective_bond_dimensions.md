@@ -2077,12 +2077,13 @@ ordering, but it is still not a converged frequency optimization: every row
 is stopped by the evolved system-bath and TDVP-sweep bond caps, and the best
 stopped prefix, `E/N = 0.74860471`, remains far above
 `E0/N = -1.3246328892`.  Increasing the cap from `192` to `256` changes the
-`R = 2`, `R = 5`, and `R = 10` stopped-prefix energies only at the
-`10^{-5}`--`10^{-4}` scale, while `R = 1` remains a poor fixed-detuning
-reference even though it reaches a seventh completed cycle.  Continuing these
-`te = 1.0` product-state trajectories therefore requires effective transient
-bond dimension above `256`; the present data are evidence for bond growth, not
-scalable ground-state cooling.
+`R = 2`, `R = 5`, and `R = 10` stopped-prefix energies by less than `10^{-4}`;
+the `R = 2` and `R = 10` shifts are at the `10^{-5}` scale, and the `R = 5`
+shift is at the `10^{-6}` scale.  The `R = 1` trajectory remains a poor
+fixed-detuning reference even though it reaches a seventh completed cycle.
+Continuing these `te = 1.0` product-state trajectories therefore requires
+effective transient bond dimension above `256`; the present data are evidence
+for bond growth, not scalable ground-state cooling.
 
 ### Dmax=320 Descending R=10 Follow-up
 
