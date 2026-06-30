@@ -1128,7 +1128,9 @@ end
         ]
 
         h5open(path, "w") do f
-            write_run_group(f, "R2", traj_rows, -2.0, 8, protocol, [0.5, 3.0])
+            write_run_group(
+                f, largeN_r_group_name(2), traj_rows, -2.0, 8, protocol, [0.5, 3.0],
+            )
             traj_rows_noncommon_te = [
                 traj_rows[1],
                 merge(copy(traj_rows[1]), Dict{String,Any}(
@@ -1149,7 +1151,7 @@ end
             )
         end
         h5open(path, "r") do f
-            g = f["R2"]
+            g = f[largeN_r_group_name(2)]
             @test read(g[CoolingTNS.RESULT_DELTA_VALUES]) == [0.5, 3.0]
             @test read(g[CoolingTNS.RESULT_ENERGY]) == [-2.0, -1.5, -1.0]
             @test read(g[CoolingTNS.RESULT_RELATIVE_ENERGY]) == [0.0, 0.25, 0.5]
@@ -1157,9 +1159,9 @@ end
             @test read(g[CoolingTNS.RESULT_GROUND_STATE_OVERLAP]) == [0.1, 0.2, 0.3]
             @test vec(read(g[CoolingTNS.RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES])) ==
                   [0.1, 0.2, 0.3]
-            @test !haskey(g, "E_mean")
-            @test !haskey(g, "GS_overlap_mean")
-            @test !haskey(g, "GS_overlap_trajectories")
+            @test !haskey(g, LARGE_N_LEGACY_ENERGY_MEAN_KEY)
+            @test !haskey(g, LARGE_N_LEGACY_GROUND_STATE_OVERLAP_KEY)
+            @test !haskey(g, LARGE_N_LEGACY_GROUND_STATE_OVERLAP_TRAJECTORIES_KEY)
             @test read(g[LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY]) ==
                   LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE
             @test read(g[LARGE_N_DETUNING_REFERENCE_GAP_KEY]) == 0.75
@@ -1638,7 +1640,7 @@ end
             reference = CoolingTNS.ising_mode_detuning_reference(
                 CoolingTNS.IsingParameters(2, 1.0, 0.5, :periodic)
             )
-            @test read(gm["gap"]) ≈ reference
+            @test read(gm[LARGE_N_REFERENCE_GAP_KEY]) ≈ reference
             @test read(gm[LARGE_N_DETUNING_REFERENCE_GAP_SOURCE_KEY]) ==
                   LARGE_N_DETUNING_REFERENCE_ISING_MODE_PAIR
             @test read(gm[LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY]) ==

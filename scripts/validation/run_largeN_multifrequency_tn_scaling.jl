@@ -1454,14 +1454,14 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
         for row in traj_rows
     ]
 
-    write(g, "M", M)
+    write(g, LARGE_N_TRAJECTORY_COUNT_KEY, M)
     write(g, RESULT_ENERGY_TRAJECTORIES, E)
     write(g, RESULT_ENERGY, E_mean)
-    write(g, "E_stderr", E_stderr)
+    write(g, LARGE_N_ENERGY_STDERR_KEY, E_stderr)
     write(g, RESULT_RELATIVE_ENERGY, rel_mean)
     write(g, RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES, overlap)
     write(g, RESULT_GROUND_STATE_OVERLAP, vec(mean(overlap; dims=2)))
-    write(g, "purity_trajectories", purity)
+    write(g, LARGE_N_PURITY_TRAJECTORIES_KEY, purity)
     write(g, LARGE_N_SYSTEM_MAX_BOND_KEY, sys_maxbond)
     write(g, LARGE_N_SYSTEM_MEAN_BOND_KEY, sys_meanbond)
     write(g, LARGE_N_EVOLVED_MAX_BOND_KEY, evolved_maxbond)
@@ -1587,8 +1587,8 @@ function run_campaign(cfg)
                     "with periodic or antiperiodic spin boundary conditions"
                 )
             end
-            gn = create_group(f, "N$N")
-            write(gn, "N", N)
+            gn = create_group(f, largeN_n_group_name(N))
+            write(gn, LARGE_N_SYSTEM_SIZE_KEY, N)
 
             for method in cfg["methods"]
                 sim_params = sim_params_for(method, cfg)
@@ -1609,8 +1609,8 @@ function run_campaign(cfg)
                 )
 
                 gm = create_group(gn, method)
-                write(gm, "E0", E0)
-                write(gm, "gap", gap)
+                write(gm, LARGE_N_GROUND_ENERGY_KEY, E0)
+                write(gm, LARGE_N_REFERENCE_GAP_KEY, gap)
                 write(gm, LARGE_N_DETUNING_REFERENCE_GAP_SOURCE_KEY, base_detuning.source)
                 write(gm, LARGE_N_EVOLUTION_METHOD_KEY, cfg["evolution_method"])
                 write(gm, LARGE_N_SYSTEM_SOLVE_REUSED_ACROSS_R_KEY, true)
@@ -1678,7 +1678,7 @@ function run_campaign(cfg)
                     end
 
                     summary = write_run_group(
-                        gm, "R$R", traj_rows, E0, saturation_threshold,
+                        gm, largeN_r_group_name(R), traj_rows, E0, saturation_threshold,
                         detuning_protocol, delta_values
                     )
                     push!(summaries, (

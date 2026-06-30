@@ -548,10 +548,14 @@ validation errors identify the actual source dataset.
 function read_largeN_energy_mean_with_name(run_group)
     haskey(run_group, RESULT_ENERGY) &&
         return (values=read(run_group[RESULT_ENERGY]), name=RESULT_ENERGY)
-    haskey(run_group, "E_mean") &&
-        return (values=read(run_group["E_mean"]), name="E_mean")
+    haskey(run_group, LARGE_N_LEGACY_ENERGY_MEAN_KEY) &&
+        return (
+            values=read(run_group[LARGE_N_LEGACY_ENERGY_MEAN_KEY]),
+            name=LARGE_N_LEGACY_ENERGY_MEAN_KEY,
+        )
     error(
-        "large-N run group is missing both $RESULT_ENERGY and legacy E_mean " *
+        "large-N run group is missing both $RESULT_ENERGY and legacy " *
+        "$LARGE_N_LEGACY_ENERGY_MEAN_KEY " *
         "energy-mean datasets"
     )
 end
@@ -565,16 +569,23 @@ overlap history.  Files without overlap data are summarized with `NaN` entries
 so legacy bond-dimension tables remain readable.
 """
 function read_overlap_trajectory_matrix(run_group, nsteps::Integer, M::Integer)
-    if haskey(run_group, RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES)
-        values = read(run_group[RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES])
+    trajectory_key = if haskey(run_group, RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES)
+        RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES
+    elseif haskey(run_group, LARGE_N_LEGACY_GROUND_STATE_OVERLAP_TRAJECTORIES_KEY)
+        LARGE_N_LEGACY_GROUND_STATE_OVERLAP_TRAJECTORIES_KEY
+    else
+        nothing
+    end
+    if trajectory_key !== nothing
+        values = read(run_group[trajectory_key])
         values isa AbstractVector && return reshape(Float64.(values), :, 1)
         return Matrix{Float64}(values)
     end
 
     overlap_mean = if haskey(run_group, RESULT_GROUND_STATE_OVERLAP)
         Float64.(vec(read(run_group[RESULT_GROUND_STATE_OVERLAP])))
-    elseif haskey(run_group, "GS_overlap_mean")
-        Float64.(vec(read(run_group["GS_overlap_mean"])))
+    elseif haskey(run_group, LARGE_N_LEGACY_GROUND_STATE_OVERLAP_KEY)
+        Float64.(vec(read(run_group[LARGE_N_LEGACY_GROUND_STATE_OVERLAP_KEY])))
     else
         fill(NaN, nsteps)
     end
@@ -599,9 +610,9 @@ end
 function summarize_run(file_name::AbstractString, root, n_group_name::AbstractString,
                        method_name::AbstractString, method_group, r_group_name::AbstractString,
                        run_group)
-    N = Int(read(root[n_group_name]["N"]))
-    R = parse(Int, r_group_name[2:end])
-    M = Int(read(run_group["M"]))
+    N = Int(read(root[n_group_name][LARGE_N_SYSTEM_SIZE_KEY]))
+    R = largeN_r_from_group_name(r_group_name)
+    M = Int(read(run_group[LARGE_N_TRAJECTORY_COUNT_KEY]))
     evolution = String(
         read_group_value(method_group, root, LARGE_N_EVOLUTION_METHOD_KEY, LARGE_N_LABEL_UNKNOWN)
     )
@@ -618,7 +629,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
             "trajectory_indices length $(length(trajectory_indices)) does not match M=$M " *
             "in $(basename(file_name))/$n_group_name/$method_name/$r_group_name"
         )
-    E0 = Float64(read_group_value(method_group, root, "E0", NaN))
+    E0 = Float64(read_group_value(method_group, root, LARGE_N_GROUND_ENERGY_KEY, NaN))
 
     energy_dataset = read_largeN_energy_mean_with_name(run_group)
     energy_mean = vec(Float64.(energy_dataset.values))
@@ -889,15 +900,22 @@ function summarize_file(path::AbstractString)
     rows = NamedTuple[]
     h5open(path, "r") do root
         for n_group_name in sort(String.(keys(root)))
-            startswith(n_group_name, "N") || continue
+            is_largeN_n_group_name(n_group_name) || continue
             root[n_group_name] isa HDF5.Group || continue
-            haskey(root[n_group_name], "N") || continue
+            haskey(root[n_group_name], LARGE_N_SYSTEM_SIZE_KEY) || continue
             n_group = root[n_group_name]
             for method_name in sort(String.(keys(n_group)))
                 n_group[method_name] isa HDF5.Group || continue
                 method_group = n_group[method_name]
-                for r_group_name in sort(String.(keys(method_group)); by=name -> startswith(name, "R") ? parse(Int, name[2:end]) : typemax(Int))
-                    startswith(r_group_name, "R") || continue
+                for r_group_name in sort(
+                    String.(keys(method_group));
+                    by=name -> (
+                        is_largeN_r_group_name(name) ?
+                            largeN_r_from_group_name(name) :
+                            typemax(Int)
+                    ),
+                )
+                    is_largeN_r_group_name(r_group_name) || continue
                     method_group[r_group_name] isa HDF5.Group || continue
                     push!(
                         rows,
