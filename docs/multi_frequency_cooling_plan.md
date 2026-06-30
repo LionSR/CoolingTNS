@@ -356,6 +356,13 @@ launch the printed commands, because the driver can then keep output ownership,
 progress ordering, and deterministic seed assignment local to each independent
 Julia process.
 
+When a completed `.h5` output is promoted from a local run into the large-`N`
+evidence trail, audit the reader-facing provenance with
+`scripts/validation/check_largeN_artifact_provenance.jl`.  The audit is based on
+the HDF5 basename recorded as a filename token in the notes and evidence
+documents; the enclosing local directory is only execution provenance and need
+not be reproducible on another machine.
+
 A first runtime-only calibration of this mechanism was run on 2026-06-19.  This
 calibration used `N=64`, MCWF+TDVP, `R=2,5`, two cooling cycles, `Dmax=32`,
 `cutoff=10^{-6}`, and the fixed detuning interval

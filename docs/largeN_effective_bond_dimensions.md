@@ -37,6 +37,12 @@ These two protocols should not be conflated.
 The code source of truth for these quantities is
 `scripts/validation/run_largeN_multifrequency_tn_scaling.jl`, summarized by
 `scripts/validation/summarize_largeN_bond_dimensions.jl`.
+Before a new local `.h5` file is used as reader-facing large-`N` evidence, run
+`scripts/validation/check_largeN_artifact_provenance.jl` on the artifact.  This
+checker verifies that the HDF5 basename, not merely a machine-specific local
+path, appears as a filename token in the provenance documents.  Thus a
+`.worktree` path may move or disappear, while the recorded HDF5 basename remains
+the stable audit handle for the evidence table and notes.
 Some historical filenames cited below predate the current default naming
 convention, which includes the canonical evolution-method token (`trotter` or
 `continuous`), the bath coupling `g`, the evolution time `te`,
