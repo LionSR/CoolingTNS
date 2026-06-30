@@ -754,12 +754,14 @@ end
                                              energy_trajectories=nothing,
                                              stop_reasons=nothing,
                                              overlap_trajectories=nothing,
+                                             n_group_name=largeN_n_group_name(2),
+                                             stored_N=2,
                                              r_group_name=largeN_r_group_name(1))
         h5open(path, "w") do f
             write(f, LARGE_N_ROOT_DMAX_KEY, 4)
             write(f, LARGE_N_ROOT_STEPS_KEY, 1)
-            gn = create_group(f, largeN_n_group_name(2))
-            write(gn, LARGE_N_SYSTEM_SIZE_KEY, 2)
+            gn = create_group(f, n_group_name)
+            write(gn, LARGE_N_SYSTEM_SIZE_KEY, stored_N)
             gm = create_group(gn, "mcwf")
             gr = create_group(gm, r_group_name)
 
@@ -790,6 +792,8 @@ end
     legacy_overlap_path = tempname() * ".h5"
     bad_stop_reasons_path = tempname() * ".h5"
     bad_r_group_path = tempname() * ".h5"
+    bad_n_group_path = tempname() * ".h5"
+    mismatched_n_group_path = tempname() * ".h5"
     try
         write_legacy_split_metadata_file(fallback_path)
         fallback_row = only(summarize_file(fallback_path))
@@ -840,6 +844,31 @@ end
         @test err isa ArgumentError
         @test occursin("R<positive integer>", sprint(showerror, err))
         @test occursin("\"Rbad\"", sprint(showerror, err))
+
+        write_legacy_split_metadata_file(bad_n_group_path; n_group_name="Nbad")
+        err = try
+            summarize_file(bad_n_group_path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        @test occursin("N<positive integer>", sprint(showerror, err))
+        @test occursin("\"Nbad\"", sprint(showerror, err))
+
+        write_legacy_split_metadata_file(
+            mismatched_n_group_path; n_group_name=largeN_n_group_name(4),
+            stored_N=2,
+        )
+        err = try
+            summarize_file(mismatched_n_group_path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        @test occursin("stores N=2", sprint(showerror, err))
+        @test occursin("encodes N=4", sprint(showerror, err))
     finally
         rm(fallback_path; force=true)
         rm(bad_indices_path; force=true)
@@ -848,6 +877,8 @@ end
         rm(legacy_overlap_path; force=true)
         rm(bad_stop_reasons_path; force=true)
         rm(bad_r_group_path; force=true)
+        rm(bad_n_group_path; force=true)
+        rm(mismatched_n_group_path; force=true)
     end
 end
 

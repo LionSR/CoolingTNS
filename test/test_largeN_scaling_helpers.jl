@@ -41,6 +41,29 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test !is_largeN_n_group_name("R10")
     @test is_largeN_r_group_name("R10")
     @test !is_largeN_r_group_name("N64")
+    @test largeN_n_from_group_name("N64") == 64
+    for bad_name in ("", "R10", "N", "N0", "N01", "N-1", "Nbad")
+        err = try
+            largeN_n_from_group_name(bad_name)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        @test occursin("N<positive integer>", sprint(showerror, err))
+        @test occursin("without leading zeros", sprint(showerror, err))
+        @test occursin(repr(bad_name), sprint(showerror, err))
+    end
+    n_overflow_name = "N" * repeat("9", ndigits(typemax(Int)) + 1)
+    n_overflow_err = try
+        largeN_n_from_group_name(n_overflow_name)
+        nothing
+    catch err
+        err
+    end
+    @test n_overflow_err isa ArgumentError
+    @test occursin("too large for Int", sprint(showerror, n_overflow_err))
+    @test occursin(repr(n_overflow_name), sprint(showerror, n_overflow_err))
     @test largeN_r_from_group_name("R10") == 10
     for bad_name in ("", "N10", "R", "R0", "R01", "R-1", "Rbad")
         err = try
