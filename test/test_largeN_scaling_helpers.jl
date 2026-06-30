@@ -54,6 +54,16 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
         @test occursin("without leading zeros", sprint(showerror, err))
         @test occursin(repr(bad_name), sprint(showerror, err))
     end
+    overflow_name = "R" * repeat("9", ndigits(typemax(Int)) + 1)
+    overflow_err = try
+        largeN_r_from_group_name(overflow_name)
+        nothing
+    catch err
+        err
+    end
+    @test overflow_err isa ArgumentError
+    @test occursin("too large for Int", sprint(showerror, overflow_err))
+    @test occursin(repr(overflow_name), sprint(showerror, overflow_err))
     @test LARGE_N_EVOLUTION_METHOD_KEY == "evolution_method"
     @test LARGE_N_SYSTEM_SOLVE_REUSED_ACROSS_R_KEY == "system_solve_reused_across_R"
     @test LARGE_N_BOND_SATURATION_THRESHOLD_KEY == "bond_saturation_threshold"
