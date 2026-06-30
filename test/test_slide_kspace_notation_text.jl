@@ -32,11 +32,12 @@ _slide_normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     obsolete_ascii = "e_k = " * "epsilon_k n_k"
     obsolete_tex = "e_k = " * "\\epsilon_k n_k"
     obsolete_unicode = "e_k = " * "\u03b5_k n_k"
-    obsolete_title = "k-space diagnostics via Jordan-Wigner"
-    obsolete_momentum_occupation = "momentum occupations n_k"
     @test all(text -> !occursin(obsolete_ascii, text), checked_sources)
     @test all(text -> !occursin(obsolete_tex, text), checked_sources)
     @test all(text -> !occursin(obsolete_unicode, text), checked_sources)
+
+    obsolete_title = "k-space diagnostics via Jordan-Wigner"
+    obsolete_momentum_occupation = "momentum occupations n_k"
     @test !occursin(obsolete_title, slide_flat)
     @test !occursin(obsolete_momentum_occupation, slide_flat)
     @test !occursin(raw"Multi-frequency detunings improve cooling performance compared to single-$\Delta$ protocols", slide_flat)
