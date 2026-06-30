@@ -21,6 +21,8 @@ _slide_normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin(raw"In the displayed finite-window examples, multi-frequency detunings can lower the measured energy relative to single-$\Delta$ protocols", slide_flat)
     @test occursin(raw"use large-$N$ TN runs as convergence diagnostics", slide_flat)
     @test occursin("bond-dimension and trajectory checks before making scalable ground-state cooling claims", slide_flat)
+    @test occursin("raw Fourier occupation", slide_flat)
+    @test occursin("quasiparticle occupation", slide_flat)
 
     @test occursin("ising_energy_from_mode_hk", plot_flat)
     @test occursin("The energy reconstruction uses \\(h_k\\) and the signed coefficient", map_flat)
@@ -30,9 +32,13 @@ _slide_normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     obsolete_ascii = "e_k = " * "epsilon_k n_k"
     obsolete_tex = "e_k = " * "\\epsilon_k n_k"
     obsolete_unicode = "e_k = " * "\u03b5_k n_k"
+    obsolete_title = "k-space diagnostics via Jordan-Wigner"
+    obsolete_momentum_occupation = "momentum occupations n_k"
     @test all(text -> !occursin(obsolete_ascii, text), checked_sources)
     @test all(text -> !occursin(obsolete_tex, text), checked_sources)
     @test all(text -> !occursin(obsolete_unicode, text), checked_sources)
+    @test !occursin(obsolete_title, slide_flat)
+    @test !occursin(obsolete_momentum_occupation, slide_flat)
     @test !occursin(raw"Multi-frequency detunings improve cooling performance compared to single-$\Delta$ protocols", slide_flat)
     @test !occursin(raw"extend TN runs to larger $N$ and perform parameter/convergence scans", slide_flat)
 end
