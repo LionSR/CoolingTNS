@@ -79,6 +79,7 @@ function write_split_trajectory_summary_file(
     randomize_times::Bool=false,
     init_state::AbstractString="product",
     theta::Real=0.0,
+    write_trajectory_seed::Bool=true,
 )
     N = 4
     E0 = -4.0
@@ -132,7 +133,9 @@ function write_split_trajectory_summary_file(
               CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED)
         write(gr, LARGE_N_ELAPSED_SECONDS_KEY, [Float64(elapsed_seconds)])
         write(gr, LARGE_N_TRAJECTORY_INDICES_KEY, [Int(trajectory)])
-        write(gr, LARGE_N_TRAJECTORY_SEEDS_KEY, [largeN_trajectory_seed(20260617, N, 2, trajectory)])
+        write_trajectory_seed &&
+            write(gr, LARGE_N_TRAJECTORY_SEEDS_KEY,
+                  [largeN_trajectory_seed(20260617, N, 2, trajectory)])
         write(gr, CoolingTNS.RESULT_REQUESTED_STEPS, [4])
         write(gr, CoolingTNS.RESULT_COMPLETED_STEPS, [Int(completed_steps)])
         write_stop_reason && write(gr, LARGE_N_STOP_REASONS_KEY, [String(stop_reason)])
@@ -287,6 +290,8 @@ end
                 CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED,
             )
             write(gr, LARGE_N_ELAPSED_SECONDS_KEY, [10.0, 15.5])
+            write(gr, LARGE_N_TRAJECTORY_INDICES_KEY, [1, 2])
+            write(gr, LARGE_N_TRAJECTORY_SEEDS_KEY, [101, 102])
             write(gr, CoolingTNS.RESULT_REQUESTED_STEPS, [3, 3])
             write(gr, CoolingTNS.RESULT_COMPLETED_STEPS, [2, 2])
             write(gr, LARGE_N_STOP_REASONS_KEY, ["", "bond_cap"])
@@ -312,6 +317,8 @@ end
         @test row.init_protocol == "product"
         @test row.R == 2
         @test row.M == 2
+        @test row.trajectory_indices == [1, 2]
+        @test row.trajectory_seeds == Union{Missing,Int}[101, 102]
         @test row.schedule == "descending"
         @test row.completed_requested == "2/3"
         @test row.completed_requested_periods == "1.00/1.50"
@@ -366,7 +373,7 @@ end
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | te | g | time protocol | init | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap |",
+            "| file | N | method | evolution | te | g | time protocol | init | R | M | traj | seed | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap |",
             output,
         )
         @test length(unique(markdown_column_counts(output))) == 1
@@ -375,7 +382,7 @@ end
         @test occursin("| final E/N | relE | best E/N | best relE | tail E/N |", output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 1.250 | 0.3 | fixed | product | 2 | 2 | " *
-            "descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | 25.5 | 564.71 | bond_capx1/2 | fixed_range | " *
+            "1,2 | 101,102 | descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | 25.5 | 564.71 | bond_capx1/2 | fixed_range | " *
             "[0.50000000,3.00000000] | n/a | 12 | >=12 | >=14 | >=14 | " *
             "$(LARGE_N_BOND_STATUS_SYSTEM_AND_EVOLVED_AND_TDVP_SWEEP_CAP) | " *
             "not_recorded | " *
@@ -384,7 +391,7 @@ end
             "-0.25000000 | 0.00000 | 0.41666667 | 1.00000 | 3 |",
             output,
         )
-        @test occursin("| 2 | 2 | descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | 25.5 | 564.71 | bond_capx1/2 | fixed_range |", output)
+        @test occursin("| 2 | 2 | 1,2 | 101,102 | descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | 25.5 | 564.71 | bond_capx1/2 | fixed_range |", output)
 
         compact_output = mktemp() do output_path, io
             close(io)
@@ -396,7 +403,7 @@ end
             read(output_path, String)
         end
         @test occursin(
-            "| file | N | method | evolution | te | g | time protocol | init | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | initial E/N | initial overlap | final E/N | best E/N | mode max abs dE/N | Dcap |",
+            "| file | N | method | evolution | te | g | time protocol | init | R | M | traj | seed | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | initial E/N | initial overlap | final E/N | best E/N | mode max abs dE/N | Dcap |",
             compact_output,
         )
         @test length(unique(markdown_column_counts(compact_output))) == 1
@@ -404,7 +411,7 @@ end
         @test occursin("| elapsed_total | traj cycles/hour | stop_reason |", compact_output)
         @test occursin(
             "| $(basename(path)) | 4 | mcwf | continuous | 1.250 | 0.3 | fixed | product | 2 | 2 | " *
-            "descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | -0.25000000 | 0.75000 | 1.00000000 | -0.25000000 | n/a | 12 | >=12 | >=14 | >=14 | " *
+            "1,2 | 101,102 | descending | 2/3 | 1.00/1.50 | 1-2/2 | full_grid_observed | -0.25000000 | 0.75000 | 1.00000000 | -0.25000000 | n/a | 12 | >=12 | >=14 | >=14 | " *
             "$(LARGE_N_BOND_STATUS_SYSTEM_AND_EVOLVED_AND_TDVP_SWEEP_CAP) | not_recorded | 25.5 | 564.71 | bond_capx1/2 |",
             compact_output,
         )
@@ -452,6 +459,7 @@ end
 @testset "Large-N summary combines split trajectory-axis files" begin
     path1 = tempname() * ".h5"
     path3 = tempname() * ".h5"
+    legacy_seed_path3 = tempname() * ".h5"
     missing_delta_path = tempname() * ".h5"
     missing_stop_path = tempname() * ".h5"
     legacy_e0_path1 = tempname() * ".h5"
@@ -483,6 +491,17 @@ end
             completed_steps=3,
             stop_reason="",
             elapsed_seconds=20.0,
+        )
+        write_split_trajectory_summary_file(
+            legacy_seed_path3;
+            trajectory=3,
+            energy_values=[-1.0, -1.5, -2.0, -2.5],
+            system_max=[1, 3, 5, 6],
+            evolved_max=[0, 4, 6, 7],
+            completed_steps=3,
+            stop_reason="",
+            elapsed_seconds=20.0,
+            write_trajectory_seed=false,
         )
         write_split_trajectory_summary_file(
             missing_delta_path;
@@ -622,6 +641,7 @@ end
         @test row.init_protocol == "product"
         @test row.source_files == (basename(path1), basename(path3))
         @test row.trajectory_indices == [1, 3]
+        @test row.trajectory_seeds == Union{Missing,Int}[24280618, 24280620]
         @test row.M == 2
         @test row.completed_requested == "2-3/4"
         @test row.completed_requested_periods == "1.00-1.50/2.00"
@@ -664,7 +684,7 @@ end
             read(output_path, String)
         end
         @test occursin("trajectory_ensemble(traj=1,3)", compact_output)
-        @test occursin("| 4 | mcwf | continuous | 1.000 | 0.3 | fixed | product | 2 | 2 | descending | 2-3/4 |", compact_output)
+        @test occursin("| 4 | mcwf | continuous | 1.000 | 0.3 | fixed | product | 2 | 2 | 1,3 | 24280618,24280620 | descending | 2-3/4 |", compact_output)
         @test occursin(
             "| full_grid_observed | -0.25000000 | 0.50000 | -0.43750000 | " *
             "-0.56250000 | n/a | 8 | >=8 | >=8 | n/a | " *
@@ -672,6 +692,20 @@ end
             "30.0 | 600.00 | bond_capx1/2 |",
             compact_output,
         )
+
+        mixed_seed_row = only(combine_trajectory_rows(vcat(
+            summarize_file(path1),
+            summarize_file(legacy_seed_path3),
+        )))
+        @test mixed_seed_row.trajectory_indices == [1, 3]
+        @test isequal(
+            mixed_seed_row.trajectory_seeds,
+            Union{Missing,Int}[largeN_trajectory_seed(20260617, 4, 2, 1), missing],
+        )
+        @test trajectory_seeds_label(
+            mixed_seed_row.trajectory_indices,
+            mixed_seed_row.trajectory_seeds,
+        ) == "24280618,legacy_missing"
 
         @test_throws ErrorException combine_trajectory_rows(
             vcat(rows, summarize_file(duplicate_path))
@@ -735,6 +769,7 @@ end
     finally
         rm(path1; force=true)
         rm(path3; force=true)
+        rm(legacy_seed_path3; force=true)
         rm(missing_delta_path; force=true)
         rm(missing_stop_path; force=true)
         rm(legacy_e0_path1; force=true)
@@ -791,6 +826,7 @@ end
     bad_energy_rows_path = tempname() * ".h5"
     legacy_overlap_path = tempname() * ".h5"
     bad_stop_reasons_path = tempname() * ".h5"
+    bad_seeds_path = tempname() * ".h5"
     bad_r_group_path = tempname() * ".h5"
     bad_n_group_path = tempname() * ".h5"
     mismatched_n_group_path = tempname() * ".h5"
@@ -798,6 +834,15 @@ end
         write_legacy_split_metadata_file(fallback_path)
         fallback_row = only(summarize_file(fallback_path))
         @test fallback_row.trajectory_indices == [1, 2]
+        @test isequal(fallback_row.trajectory_seeds, Union{Missing,Int}[missing, missing])
+        @test trajectory_seeds_label(
+            fallback_row.trajectory_indices,
+            fallback_row.trajectory_seeds,
+        ) ==
+              "legacy_missing,legacy_missing"
+        @test trajectory_indices_label([3, 1]) == "1,3"
+        @test trajectory_seeds_label([3, 1], Union{Missing,Int}[303, 101]) ==
+              "101,303"
         @test fallback_row.stop_reason_values == ["", ""]
         @test fallback_row.stop_reason == "none"
         @test fallback_row.final_e_over_n_values == [-0.5, -0.5]
@@ -816,6 +861,13 @@ end
 
         write_legacy_split_metadata_file(bad_indices_path; trajectory_indices=[1])
         @test_throws ErrorException summarize_file(bad_indices_path)
+
+        write_legacy_split_metadata_file(bad_seeds_path)
+        h5open(bad_seeds_path, "r+") do f
+            gr = f["$(largeN_n_group_name(2))/mcwf/$(largeN_r_group_name(1))"]
+            write(gr, LARGE_N_TRAJECTORY_SEEDS_KEY, [101])
+        end
+        @test_throws ErrorException summarize_file(bad_seeds_path)
 
         write_legacy_split_metadata_file(
             bad_energy_columns_path;
@@ -876,6 +928,7 @@ end
         rm(bad_energy_rows_path; force=true)
         rm(legacy_overlap_path; force=true)
         rm(bad_stop_reasons_path; force=true)
+        rm(bad_seeds_path; force=true)
         rm(bad_r_group_path; force=true)
         rm(bad_n_group_path; force=true)
         rm(mismatched_n_group_path; force=true)
@@ -935,11 +988,11 @@ end
         end
         @test occursin(
             "| $(basename(path)) | 2 | mcwf | unknown | NaN | NaN | fixed | unknown | 1 | 1 | " *
-            "unknown | 1/1 | n/a | n/a | n/a | NaN | NaN | none | unknown | " *
+            "1 | legacy_missing | unknown | 1/1 | n/a | n/a | n/a | NaN | NaN | none | unknown | " *
             "unknown | unknown | 4 | 2 | >=4 | n/a | $(LARGE_N_BOND_STATUS_EVOLVED_CAP) | legacy_missing |",
             output,
         )
-        @test occursin("| 1 | 1 | unknown | 1/1 | n/a | n/a | n/a | NaN | NaN | none | unknown |", output)
+        @test occursin("| 1 | 1 | 1 | legacy_missing | unknown | 1/1 | n/a | n/a | n/a | NaN | NaN | none | unknown |", output)
         @test occursin("| 4.00 | n/a | none | 1 | n/a |", output)
     finally
         rm(path; force=true)

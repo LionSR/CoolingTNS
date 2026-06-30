@@ -19,6 +19,10 @@ coupling strength `g`, initial-state protocol, bath-evolution time `te`, and
 time protocol are shown next to the bond-dimension diagnostics, so
 initial-state controls, fixed-detuning cutoff, coupling-strength scans,
 time-ladder, and randomized-time sweeps can be audited from the summary alone.
+The compact and full tables also show the stored MCWF trajectory labels and
+seeds, making single-trajectory diagnostics distinguishable from ensemble
+summaries without inspecting the HDF5 file by hand.  Legacy files without
+stored seeds are displayed as `legacy_missing`.
 The `delta_range` column is the stored protocol
 interval; for `R=1`, the campaign samples only the lower endpoint.  For
 multi-trajectory data, final-link quantiles and threshold fractions are computed
@@ -118,6 +122,18 @@ end
 function read_trajectory_indices(run_group, M::Integer)
     default_indices = collect(1:M)
     return read_integer_vector(run_group, LARGE_N_TRAJECTORY_INDICES_KEY, default_indices)
+end
+
+function read_trajectory_seeds(run_group, M::Integer)
+    if haskey(run_group, LARGE_N_TRAJECTORY_SEEDS_KEY)
+        seeds = Int.(scalar_or_vector(read(run_group[LARGE_N_TRAJECTORY_SEEDS_KEY])))
+        length(seeds) == M ||
+            error(
+                "trajectory_seeds length $(length(seeds)) does not match M=$M"
+            )
+        return Union{Missing,Int}[seed for seed in seeds]
+    end
+    return Union{Missing,Int}[missing for _ in 1:M]
 end
 
 function read_energy_trajectory_matrix(run_group, energy_mean::AbstractVector, M::Integer)
@@ -647,6 +663,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
             "trajectory_indices length $(length(trajectory_indices)) does not match M=$M " *
             "in $(basename(file_name))/$n_group_name/$method_name/$r_group_name"
         )
+    trajectory_seeds = read_trajectory_seeds(run_group, M)
     E0 = Float64(read_group_value(method_group, root, LARGE_N_GROUND_ENERGY_KEY, NaN))
 
     energy_dataset = read_largeN_energy_mean_with_name(run_group)
@@ -834,6 +851,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         source_files=(basename(file_name),),
         E0=E0,
         trajectory_indices=trajectory_indices,
+        trajectory_seeds=trajectory_seeds,
         completed_steps_values=completed_steps_values,
         requested_steps_values=requested_steps_values,
         visited_delta_counts=visited_delta_counts,
@@ -978,6 +996,14 @@ function concatenate_int_field(rows, field::Symbol)
     return Int[value for value in concatenate_field(rows, field)]
 end
 
+function concatenate_optional_int_field(rows, field::Symbol)
+    values = Union{Missing,Int}[]
+    for value in concatenate_field(rows, field)
+        push!(values, ismissing(value) ? missing : Int(value))
+    end
+    return values
+end
+
 function concatenate_float_field(rows, field::Symbol)
     return Float64[value for value in concatenate_field(rows, field)]
 end
@@ -1019,6 +1045,31 @@ function trajectory_indices_label(indices::AbstractVector{<:Integer})
     return join(sort(Int.(indices)), ",")
 end
 
+function sorted_trajectory_seed_pairs(indices::AbstractVector{<:Integer},
+                                      seeds::AbstractVector)
+    # HDF5 stores trajectory indices and seeds as positionally paired vectors.
+    # Sort pairs together so the printed `traj` and `seed` columns stay aligned.
+    length(indices) == length(seeds) ||
+        error(
+            "trajectory seed count $(length(seeds)) does not match " *
+            "trajectory index count $(length(indices))"
+        )
+    pairs = collect(zip(Int.(indices), seeds))
+    return sort(pairs; by=first)
+end
+
+function trajectory_seeds_label(indices::AbstractVector{<:Integer}, seeds::AbstractVector)
+    isempty(seeds) && return LARGE_N_LABEL_NONE
+    pairs = sorted_trajectory_seed_pairs(indices, seeds)
+    return join(
+        [
+            ismissing(seed) ? LARGE_N_LABEL_LEGACY_MISSING : string(Int(seed))
+            for (_, seed) in pairs
+        ],
+        ",",
+    )
+end
+
 """
     combine_trajectory_bucket(rows)
 
@@ -1039,11 +1090,17 @@ function combine_trajectory_bucket(rows)
 
     rows = sort(rows; by=row -> minimum(row.trajectory_indices))
     indices = concatenate_int_field(rows, :trajectory_indices)
+    seeds = concatenate_optional_int_field(rows, :trajectory_seeds)
     unique_indices = unique(indices)
     length(unique_indices) == length(indices) ||
         error(
             "cannot combine split trajectory summaries with duplicate trajectory_indices: " *
             trajectory_indices_label(indices)
+        )
+    length(seeds) == length(indices) ||
+        error(
+            "combined trajectory seed count $(length(seeds)) does not match " *
+            "trajectory count $(length(indices))"
         )
 
     base = first(rows)
@@ -1093,6 +1150,7 @@ function combine_trajectory_bucket(rows)
             source_files=source_files,
             E0=base.E0,
             trajectory_indices=indices,
+            trajectory_seeds=seeds,
             completed_steps_values=completed_steps,
             requested_steps_values=requested_steps,
             visited_delta_counts=visited_delta_counts,
@@ -1223,14 +1281,16 @@ function sorted_rows(rows)
 end
 
 function print_markdown(rows)
-    println("| file | N | method | evolution | te | g | time protocol | init | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | truncation errors | initial E/N | initial relE | initial overlap | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
-    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---|---|---:|---:|---|---:|---:|---|---|---|---|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
+    println("| file | N | method | evolution | te | g | time protocol | init | R | M | traj | seed | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | elapsed_total | traj cycles/hour | stop_reason | delta_protocol | delta_range | delta_factor | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | truncation errors | initial E/N | initial relE | initial overlap | final E/N | relE | best E/N | best relE | tail E/N | tail relE | tail n | mode gF | mode source | mode rows | mode last-measured E/N | mode last-measured abs dE/N | mode max abs dE/N | final sys max | final sys mean | peak evolved max | peak evolved mean | peak tdvp sweep max | sys sat | evolved sat | tdvp sweep sat | q50 | q75 | q90 | q95 | frac_ge_0.5D | frac_ge_0.75D | frac_ge_0.9D |")
+    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---|---|---|---|---:|---:|---|---:|---:|---|---|---|---|---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | " *
             "$(format_float(row.te, 3)) | $(format_float(row.g, 12)) | " *
             "$(row.time_protocol) | $(row.init_protocol) | " *
             "$(row.R) | $(row.M) | " *
+            "$(trajectory_indices_label(row.trajectory_indices)) | " *
+            "$(trajectory_seeds_label(row.trajectory_indices, row.trajectory_seeds)) | " *
             "$(row.schedule) | $(row.completed_requested) | $(row.completed_requested_periods) | " *
             "$(row.visited_detunings) | $(row.detuning_coverage) | " *
             "$(format_float(row.elapsed_total_seconds, 1)) | " *
@@ -1267,14 +1327,16 @@ function print_markdown(rows)
 end
 
 function print_compact_markdown(rows)
-    println("| file | N | method | evolution | te | g | time protocol | init | R | M | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | initial E/N | initial overlap | final E/N | best E/N | mode max abs dE/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | truncation errors | elapsed_total | traj cycles/hour | stop_reason |")
-    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---|")
+    println("| file | N | method | evolution | te | g | time protocol | init | R | M | traj | seed | schedule | completed/requested | completed/requested periods | visited detunings | detuning coverage | initial E/N | initial overlap | final E/N | best E/N | mode max abs dE/N | Dcap | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | truncation errors | elapsed_total | traj cycles/hour | stop_reason |")
+    println("|---|---:|---|---|---:|---:|---|---|---:|---:|---|---|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---|")
     for row in sorted_rows(rows)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | " *
             "$(format_float(row.te, 3)) | $(format_float(row.g, 12)) | " *
             "$(row.time_protocol) | $(row.init_protocol) | " *
             "$(row.R) | $(row.M) | " *
+            "$(trajectory_indices_label(row.trajectory_indices)) | " *
+            "$(trajectory_seeds_label(row.trajectory_indices, row.trajectory_seeds)) | " *
             "$(row.schedule) | $(row.completed_requested) | " *
             "$(row.completed_requested_periods) | $(row.visited_detunings) | " *
             "$(row.detuning_coverage) | " *
