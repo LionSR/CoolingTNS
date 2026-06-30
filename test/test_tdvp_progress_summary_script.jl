@@ -378,7 +378,7 @@ end
     legacy_g_path = tempname() * ".csv"
     try
         legacy_columns = filter(
-            col -> col != "g",
+            col -> col != TDVPProgressCSVSummary.LARGE_N_PROGRESS_G_KEY,
             TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS,
         )
         open(legacy_g_path, "w") do io

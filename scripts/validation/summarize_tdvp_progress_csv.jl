@@ -338,7 +338,7 @@ end
 
 function summarize_progress_file(path::AbstractString; cap=nothing, file_label=basename(path))
     header, rows = read_progress_csv(path)
-    has_g_column = "g" in header
+    has_g_column = LARGE_N_PROGRESS_G_KEY in header
     groups = Dict{Any,Vector{Dict{String,String}}}()
     for row in rows
         push!(get!(groups, group_key(row), Vector{Dict{String,String}}()), row)
