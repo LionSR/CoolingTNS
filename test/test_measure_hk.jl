@@ -488,7 +488,7 @@ end
         k_expected, nk_expected = measure_raw_fourier_occupation_ed(ρ0, ham_params)
 
         @test results[RESULT_MOMENTUM_GF] == fermionic_bc(:periodic, 1)
-        @test results[RESULT_MOMENTUM_GF_SOURCE] == "state"
+        @test results[RESULT_MOMENTUM_GF_SOURCE] == FERMIONIC_GRID_SOURCE_STATE
         @test results[RESULT_K_VALUES] ≈ k_expected atol=1e-12
         @test results[RESULT_MOMENTUM_DISTRIBUTION][1, :] ≈ nk_expected atol=1e-10
 
@@ -499,7 +499,7 @@ end
         end
 
         @test results_sb[RESULT_MOMENTUM_GF] == fermionic_bc(:periodic, 1)
-        @test results_sb[RESULT_MOMENTUM_GF_SOURCE] == "state"
+        @test results_sb[RESULT_MOMENTUM_GF_SOURCE] == FERMIONIC_GRID_SOURCE_STATE
         @test results_sb[RESULT_K_VALUES] ≈ k_expected atol=1e-12
         @test results_sb[RESULT_MOMENTUM_DISTRIBUTION][1, :] ≈ nk_expected atol=1e-10
     end
@@ -576,10 +576,10 @@ end
         measurements = Dict{String, Any}()
         gF = CoolingTNS._momentum_measurement_gF!(measurements, ρ_mix, ham_params)
         @test gF == fermionic_bc(:periodic, 1)
-        @test measurements[RESULT_MOMENTUM_GF_SOURCE] == "reference"
+        @test measurements[RESULT_MOMENTUM_GF_SOURCE] == FERMIONIC_GRID_SOURCE_REFERENCE
 
         @test CoolingTNS._momentum_measurement_gF!(measurements, odd_state, ham_params) == gF
-        @test measurements[RESULT_MOMENTUM_GF_SOURCE] == "reference"
+        @test measurements[RESULT_MOMENTUM_GF_SOURCE] == FERMIONIC_GRID_SOURCE_REFERENCE
 
         odd_reference_measurements = Dict{String, Any}()
         @test CoolingTNS._momentum_measurement_gF!(
@@ -587,12 +587,13 @@ end
             ρ_mix,
             ham_params,
         ) == fermionic_bc(:periodic, 1)
-        @test odd_reference_measurements[RESULT_MOMENTUM_GF_SOURCE] == "reference"
+        @test odd_reference_measurements[RESULT_MOMENTUM_GF_SOURCE] ==
+              FERMIONIC_GRID_SOURCE_REFERENCE
 
         precomputed = Dict{String, Any}(RESULT_MOMENTUM_GF => fermionic_bc(:periodic, -1))
         @test CoolingTNS._momentum_measurement_gF!(precomputed, ρ_mix, ham_params) ==
               fermionic_bc(:periodic, -1)
-        @test precomputed[RESULT_MOMENTUM_GF_SOURCE] == "precomputed"
+        @test precomputed[RESULT_MOMENTUM_GF_SOURCE] == FERMIONIC_GRID_SOURCE_PRECOMPUTED
 
         coupling_params = BasicCouplingParameters("XX", 0.0, 0, 0.0, 0.5)
         sim_params = UnifiedSimulationParameters(DensityMatrix(), ContinuousEvolution())
@@ -606,7 +607,7 @@ end
             ham_params,
         )
         @test mode_measurements[RESULT_MODE_GF] == gF
-        @test mode_measurements[RESULT_MODE_GF_SOURCE] == "reference"
+        @test mode_measurements[RESULT_MODE_GF_SOURCE] == FERMIONIC_GRID_SOURCE_REFERENCE
 
         expected_gF = fermionic_bc(:periodic, 1)
         expected_ks = allowed_k_indices(N, expected_gF)

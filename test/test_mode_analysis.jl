@@ -453,12 +453,20 @@ end
         even_sector = CoolingTNS._reference_parity_sector_with_source(0.95)
         @test even_sector.parity == 1
         @test even_sector.source === :state
+        @test fermionic_grid_source_label(even_sector.source) == FERMIONIC_GRID_SOURCE_STATE
         mixed_sector = CoolingTNS._reference_parity_sector_with_source(0.0)
         @test mixed_sector.parity == 1
         @test mixed_sector.source === :reference
+        @test fermionic_grid_source_label(mixed_sector.source) == FERMIONIC_GRID_SOURCE_REFERENCE
         odd_reference = CoolingTNS._reference_parity_sector_with_source(0.0; default=-1)
         @test odd_reference.parity == -1
         @test odd_reference.source === :reference
+        @test FERMIONIC_GRID_SOURCE_LABELS == (
+            FERMIONIC_GRID_SOURCE_STATE,
+            FERMIONIC_GRID_SOURCE_REFERENCE,
+            FERMIONIC_GRID_SOURCE_PRECOMPUTED,
+        )
+        @test_throws ArgumentError fermionic_grid_source_label(:unknown)
 
         @test CoolingTNS._reference_fermionic_bc(:periodic, 0.0) ==
               fermionic_bc(:periodic, 1)

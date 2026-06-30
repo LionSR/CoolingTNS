@@ -140,7 +140,7 @@ function _momentum_measurement_gF!(measurements,
                                    state::Union{EDStateVector, EDDensityMatrix},
                                    ham_params)
     if haskey(measurements, RESULT_MOMENTUM_GF)
-        get!(measurements, RESULT_MOMENTUM_GF_SOURCE, "precomputed")
+        get!(measurements, RESULT_MOMENTUM_GF_SOURCE, FERMIONIC_GRID_SOURCE_PRECOMPUTED)
         return measurements[RESULT_MOMENTUM_GF]
     end
 
@@ -148,7 +148,7 @@ function _momentum_measurement_gF!(measurements,
     px = measure_state_parity(state, N)
     sector = _reference_parity_sector_with_source(px)
     gF = fermionic_bc(ham_params.bc, sector.parity)
-    measurements[RESULT_MOMENTUM_GF_SOURCE] = string(sector.source)
+    measurements[RESULT_MOMENTUM_GF_SOURCE] = fermionic_grid_source_label(sector.source)
 
     measurements[RESULT_MOMENTUM_GF] = gF
     return gF

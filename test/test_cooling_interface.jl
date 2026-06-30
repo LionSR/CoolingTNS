@@ -280,6 +280,14 @@ using HDF5
         @test CoolingTNS.RESULT_MOMENTUM_GF_SOURCE == "momentum_gF_source"
         @test CoolingTNS.RESULT_MODE_GF == "mode_gF"
         @test CoolingTNS.RESULT_MODE_GF_SOURCE == "mode_gF_source"
+        @test CoolingTNS.FERMIONIC_GRID_SOURCE_STATE == "state"
+        @test CoolingTNS.FERMIONIC_GRID_SOURCE_REFERENCE == "reference"
+        @test CoolingTNS.FERMIONIC_GRID_SOURCE_PRECOMPUTED == "precomputed"
+        @test CoolingTNS.FERMIONIC_GRID_SOURCE_LABELS == (
+            "state",
+            "reference",
+            "precomputed",
+        )
         @test CoolingTNS.RESULT_MODE_HK == "mode_hk"
         @test CoolingTNS.RESULT_MODE_NK == "mode_nk"
         @test CoolingTNS.RESULT_MODE_ENERGIES == "mode_ek_values"

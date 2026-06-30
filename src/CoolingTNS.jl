@@ -90,6 +90,8 @@ export RESULT_ENERGY, RESULT_RELATIVE_ENERGY, RESULT_GROUND_STATE_OVERLAP, RESUL
 export RESULT_BATH_MAGNETIZATION, RESULT_BATH_SAMPLE_MAGNETIZATION
 export RESULT_MOMENTUM_DISTRIBUTION, RESULT_K_VALUES, RESULT_MOMENTUM_GF, RESULT_MOMENTUM_GF_SOURCE
 export RESULT_MODE_GF, RESULT_MODE_GF_SOURCE
+export FERMIONIC_GRID_SOURCE_STATE, FERMIONIC_GRID_SOURCE_REFERENCE
+export FERMIONIC_GRID_SOURCE_PRECOMPUTED, FERMIONIC_GRID_SOURCE_LABELS
 export RESULT_MODE_HK, RESULT_MODE_NK, RESULT_MODE_K_INDICES, RESULT_MODE_ENERGIES
 export RESULT_MODE_MEASUREMENT_CYCLES
 export RESULT_MODE_HK_TRAJECTORIES, RESULT_MODE_NK_TRAJECTORIES
@@ -120,6 +122,7 @@ export w_k_coefficient, r_k_coefficient
 export obc_bdg_matrices, obc_bdg_matrix, obc_mode_energies, obc_mode_energies_Jh
 export bogoliubov_angle, coeff_k, vacuum_energy, vacuum_energy_Jh
 export allowed_k_indices, fermionic_bc, parity_operator_code
+export fermionic_grid_source_label
 export is_generic_mode, generic_k_indices
 export mode_occupation_from_hk, validate_mode_nk_matches_hk, mode_occupation_from_results
 export ising_mode_energy_contribution_coefficients

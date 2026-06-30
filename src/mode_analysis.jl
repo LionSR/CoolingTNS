@@ -845,13 +845,27 @@ end
 Return `(parity, source)` for an automatic Fourier-grid choice from a measured
 value of ``⟨P_x⟩``.  The source is `:state` when ``⟨P_x⟩`` selects a definite
 parity sector within `atol`, and `:reference` when the deterministic fallback
-sector is used.
+sector is used.  Use `fermionic_grid_source_label` when storing this provenance
+in result dictionaries or HDF5 output.
 """
 function _reference_parity_sector_with_source(px::Real; atol=0.1, default::Int=1)
     @assert default == 1 || default == -1 "default must be +1 or -1"
     abs(px - 1) <= atol && return (parity=1, source=:state)
     abs(px + 1) <= atol && return (parity=-1, source=:state)
     return (parity=default, source=:reference)
+end
+
+"""
+    fermionic_grid_source_label(source) -> String
+
+Return the canonical result-schema label for a Fourier-grid provenance source.
+The automatic parity selector uses symbols internally, while result dictionaries
+and HDF5 files store the corresponding string labels.
+"""
+function fermionic_grid_source_label(source::Symbol)
+    source === :state && return FERMIONIC_GRID_SOURCE_STATE
+    source === :reference && return FERMIONIC_GRID_SOURCE_REFERENCE
+    throw(ArgumentError("unknown fermionic grid source: $(repr(source))"))
 end
 
 """

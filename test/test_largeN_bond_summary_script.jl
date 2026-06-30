@@ -49,7 +49,7 @@ function write_minimal_mode_summary_file(path::AbstractString, mode_hk, mode_nk;
         write(gr, CoolingTNS.RESULT_MODE_ENERGIES, gaps)
         write(gr, CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES, mode_measurement_cycles)
         write(gr, CoolingTNS.RESULT_MODE_GF, -1)
-        write(gr, CoolingTNS.RESULT_MODE_GF_SOURCE, "state")
+        write(gr, CoolingTNS.RESULT_MODE_GF_SOURCE, CoolingTNS.FERMIONIC_GRID_SOURCE_STATE)
     end
     return nothing
 end
@@ -1029,12 +1029,12 @@ end
                   CoolingTNS.mode_energies_Jh(k_indices, J, h, N))
             write(gr, CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES, [0, 2])
             write(gr, CoolingTNS.RESULT_MODE_GF, -1)
-            write(gr, CoolingTNS.RESULT_MODE_GF_SOURCE, "state")
+            write(gr, CoolingTNS.RESULT_MODE_GF_SOURCE, CoolingTNS.FERMIONIC_GRID_SOURCE_STATE)
         end
 
         row = only(summarize_file(path))
         @test row.mode_gF == -1
-        @test row.mode_gF_source == "state"
+        @test row.mode_gF_source == CoolingTNS.FERMIONIC_GRID_SOURCE_STATE
         @test row.mode_measured_rows == "2/3"
         @test row.mode_last_measured_e_over_n ≈ mode_energy[2] / N
         @test row.mode_last_measured_abs_err_over_n ≈ final_energy_offset / N
@@ -1402,7 +1402,7 @@ end
             write(gr, CoolingTNS.RESULT_MODE_ENERGIES, ones(length(k_indices)))
             write(gr, CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES, [0])
             write(gr, CoolingTNS.RESULT_MODE_GF, -1)
-            write(gr, CoolingTNS.RESULT_MODE_GF_SOURCE, "state")
+            write(gr, CoolingTNS.RESULT_MODE_GF_SOURCE, CoolingTNS.FERMIONIC_GRID_SOURCE_STATE)
         end
 
         err = try
