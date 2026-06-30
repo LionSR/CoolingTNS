@@ -38,8 +38,8 @@ function tdvp_progress_line(; timestamp="2026-06-19T00:00:00",
         TDVPProgressCSVSummary.LARGE_N_SYSTEM_MEAN_BOND_KEY => system_mean_bond,
         TDVPProgressCSVSummary.LARGE_N_EVOLVED_MAX_BOND_KEY => evolved_max_bond,
         TDVPProgressCSVSummary.LARGE_N_EVOLVED_MEAN_BOND_KEY => evolved_mean_bond,
-        "tdvp_sweep" => tdvp_sweep,
-        "tdvp_time" => tdvp_time,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_TDVP_SWEEP_KEY => tdvp_sweep,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_TDVP_TIME_KEY => tdvp_time,
         TDVPProgressCSVSummary.LARGE_N_ELAPSED_SECONDS_KEY => string(elapsed_seconds),
     )
     return join(

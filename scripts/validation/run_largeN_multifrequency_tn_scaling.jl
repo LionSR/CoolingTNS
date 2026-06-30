@@ -1011,8 +1011,8 @@ function progress_base_row(context, ham_params; stage, step, cycle, delta, te,
         LARGE_N_SYSTEM_MEAN_BOND_KEY => sys_bs.mean,
         LARGE_N_EVOLVED_MAX_BOND_KEY => evolved_bs.max,
         LARGE_N_EVOLVED_MEAN_BOND_KEY => evolved_bs.mean,
-        "tdvp_sweep" => tdvp_sweep,
-        "tdvp_time" => tdvp_time,
+        LARGE_N_PROGRESS_TDVP_SWEEP_KEY => tdvp_sweep,
+        LARGE_N_PROGRESS_TDVP_TIME_KEY => tdvp_time,
         LARGE_N_ELAPSED_SECONDS_KEY => elapsed,
     )
 end
