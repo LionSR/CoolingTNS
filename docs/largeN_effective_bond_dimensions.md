@@ -2054,6 +2054,62 @@ It does not improve the cooling prefix: the stopped energy density is
 `0.84528025`.  At this fixed descending schedule, smaller `te` is therefore a
 cap-delay mechanism rather than a route to the ground state.
 
+### Dmax=128 Descending Remaining Frequencies at te=0.5
+
+The remaining frequency counts were then run at the same `Dmax = 128`,
+`g = 0.3`, `te = 0.5`, fixed descending detuning interval, stopping rule, and
+thread pinning.  The child commands were generated with planning mode,
+
+```bash
+julia --project=. --startup-file=no \
+  scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
+  --Ns 64 --R-values 1,2,5 --methods mcwf \
+  --evolution-method continuous --steps 20 --Dmax 128 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open \
+  --g-values 0.3 --te 0.5 \
+  --delta-min 0.5051167496264384 \
+  --delta-max 3.0307004977586303 \
+  --schedule descending \
+  --progress-csv .worktree/descending_te05_dmax128_R1_R2_R5_20260630/progress.csv \
+  --outdir .worktree/descending_te05_dmax128_R1_R2_R5_20260630 \
+  --tdvp-sweep-progress --stop-on-bond-cap \
+  --print-parallel-plan --plan-julia-threads 1 --plan-blas-threads 1
+```
+
+and the three one-thread child jobs wrote
+
+```text
+.worktree/descending_te05_dmax128_R1_R2_R5_20260630/largeN_multifrequency_tn_N64_R1_mcwf_continuous_stopcap_scheddesc_steps20_Dmax128_g0.3_te0.5_tau0.2_seed20260617.h5
+.worktree/descending_te05_dmax128_R1_R2_R5_20260630/largeN_multifrequency_tn_N64_R2_mcwf_continuous_stopcap_scheddesc_steps20_Dmax128_g0.3_te0.5_tau0.2_seed20260617.h5
+.worktree/descending_te05_dmax128_R1_R2_R5_20260630/largeN_multifrequency_tn_N64_R5_mcwf_continuous_stopcap_scheddesc_steps20_Dmax128_g0.3_te0.5_tau0.2_seed20260617.h5
+```
+
+Combining the new files with the already-recorded `R = 10` file gives the
+matched `Dmax = 128`, `te = 0.5` comparison
+
+| R | te | Dcap | completed/requested cycles | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | stop_reason |
+|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---|---:|---|
+| 1 | 0.5 | 128 | 10/20 | 10.00/20.00 | 1/1 | single_detuning | 1.12013548 | 1.12013548 | 102 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | 757.7 s | bond_cap |
+| 2 | 0.5 | 128 | 10/20 | 5.00/10.00 | 2/2 | full_grid_observed | 1.07026583 | 1.07026583 | 100 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | 834.5 s | bond_cap |
+| 5 | 0.5 | 128 | 10/20 | 2.00/4.00 | 5/5 | full_grid_observed | 0.98089919 | 0.98089919 | 100 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | 761.4 s | bond_cap |
+| 10 | 0.5 | 128 | 10/20 | 1.00/2.00 | 10/10 | full_grid_observed | 1.00873665 | 1.00873665 | 113 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | 807.8 s | bond_cap |
+
+The completed-cycle energy-density prefixes for the new jobs are
+
+| R | completed-cycle E/N prefix |
+|---:|---|
+| 1 | `1.40165476, 1.36503509, 1.32226325, 1.27186394, 1.27656917, 1.27846189, 1.23993121, 1.20065576, 1.15990439, 1.12013548` |
+| 2 | `1.30289284, 1.30517300, 1.30289340, 1.30660230, 1.22081148, 1.22280886, 1.16004069, 1.11717079, 1.11503576, 1.07026583` |
+| 5 | `1.42822826, 1.42714357, 1.38513415, 1.33261959, 1.26978109, 1.21606719, 1.12092091, 1.07529489, 0.99708597, 0.98089919` |
+
+At this fixed `Dmax = 128` and `te = 0.5`, the best stopped prefix is now
+`R = 5`, followed by `R = 10`, `R = 2`, and `R = 1`.  This does not change the
+physical conclusion.  Every row reaches the evolved system-bath and TDVP-sweep
+cap at cycle 10, and even the best stopped prefix,
+`E/N = 0.98089919`, remains far above the DMRG reference
+`E0/N = -1.3246328892`.  The shorter-time descending scan is therefore still a
+bond-growth diagnostic, not evidence of scalable cooling to the ground state.
+
 ### Dmax=192 Descending R=10 Probe at te=0.5
 
 The same `te = 0.5` trajectory was then repeated at `Dmax = 192`:

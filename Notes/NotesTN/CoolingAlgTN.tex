@@ -862,6 +862,28 @@ worsens the capped energy compared with the \(t_e=1.0\) value
 \(E/N=0.84528025\).  At this fixed descending schedule, a smaller evolution
 time is a cap-delay mechanism rather than evidence of ground-state cooling.
 
+The remaining frequency counts \(R=1,2,5\) were then run at the same
+\(D_{\max}=128\), \(g=0.3\), \(t_e=0.5\), fixed descending detuning interval,
+and stop-on-cap rule.  Combining these new rows with the \(R=10\) row gives
+\[
+\begin{array}{c|c|c|c|c|c|c}
+R & \text{cycles} & \text{periods}
+  & E_{\mathrm{final}}/N & D_{\mathrm{sys}}^{\mathrm{eff}}
+  & D_{\mathrm{sb}}^{\mathrm{eff}}
+  & D_{\mathrm{TDVP\ sweep}}^{\mathrm{eff}}\\
+\hline
+1 & 10/20 & 10.00/20.00 & 1.12013548 & 102 & \geq 128 & \geq 128\\
+2 & 10/20 & 5.00/10.00 & 1.07026583 & 100 & \geq 128 & \geq 128\\
+5 & 10/20 & 2.00/4.00 & 0.98089919 & 100 & \geq 128 & \geq 128\\
+10 & 10/20 & 1.00/2.00 & 1.00873665 & 113 & \geq 128 & \geq 128
+\end{array}
+\]
+For this particular \(D_{\max}=128\), \(t_e=0.5\) comparison, the best stopped
+prefix is \(R=5\), followed by \(R=10\), \(R=2\), and \(R=1\).  The conclusion is
+nevertheless unchanged: all four rows stop at cycle \(10\) because the evolved
+system-bath state and the TDVP sweep observer reach the cap, and even the best
+stopped prefix remains far above \(E_0/N=-1.3246328892\).
+
 The same \(t_e=0.5\) trajectory was then repeated at
 \(D_{\max}=192,256,320\), with the same fixed detuning interval and the same
 trajectory seed.  These runs complete progressively farther into the second

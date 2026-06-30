@@ -298,6 +298,20 @@ evolved system-bath and TDVP-sweep caps:
 | 256 | 12/20 | 1.20/2.00 | 1.00494536 | 221 | >=256 | >=256 |
 | 320 | 13/20 | 1.30/2.00 | 1.00365324 | 299 | >=320 | >=320 |
 
+The matched `Dmax = 128`, `te = 0.5` comparison across frequency counts is
+also now available:
+
+| R | completed/requested cycles | completed/requested periods | final E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 10/20 | 10.00/20.00 | 1.12013548 | 102 | >=128 | >=128 |
+| 2 | 10/20 | 5.00/10.00 | 1.07026583 | 100 | >=128 | >=128 |
+| 5 | 10/20 | 2.00/4.00 | 0.98089919 | 100 | >=128 | >=128 |
+| 10 | 10/20 | 1.00/2.00 | 1.00873665 | 113 | >=128 | >=128 |
+
+At this shorter evolution time and cap, `R = 5` has the lowest stopped prefix,
+but all four rows still reach the evolved system-bath and TDVP-sweep cap at
+cycle 10 and remain far above `E0/N = -1.3246328892`.
+
 Thus this `te = 0.5` ladder is useful for estimating the bond scale required
 to continue the deterministic descending schedule, but it is not a route to
 scalable ground-state cooling: larger caps buy one additional second-pass
