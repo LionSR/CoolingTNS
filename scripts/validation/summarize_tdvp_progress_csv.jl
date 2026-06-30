@@ -266,7 +266,9 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
         maximum(progress_int(row, LARGE_N_PROGRESS_CYCLE_KEY) for row in updates)
     visited_detuning_count = completed_update_detuning_count(updates)
     final_update = isempty(updates) ? nothing : updates[end]
-    final_energy = final_update === nothing ? NaN : progress_float(final_update, "energy_per_site")
+    final_energy = final_update === nothing ?
+        NaN :
+        progress_float(final_update, LARGE_N_PROGRESS_ENERGY_PER_SITE_KEY)
     final_system_max = final_update === nothing ?
         0 :
         Int(round(progress_float(final_update, LARGE_N_SYSTEM_MAX_BOND_KEY)))
@@ -402,7 +404,10 @@ function print_energy_trace(rows)
                 "| $(row.R) | $(g_label) | $(row.trajectory) | " *
                 "$(progress_cell(update, LARGE_N_PROGRESS_CYCLE_KEY)) | " *
                 "$(format_float(progress_float(update, LARGE_N_PROGRESS_DELTA_KEY), 8)) | " *
-                "$(format_float(progress_float(update, "energy_per_site"), 8)) | " *
+                "$(format_float(
+                    progress_float(update, LARGE_N_PROGRESS_ENERGY_PER_SITE_KEY),
+                    8,
+                )) | " *
                 "$(progress_cell(update, LARGE_N_SYSTEM_MAX_BOND_KEY)) | " *
                 "$(progress_cell(update, LARGE_N_EVOLVED_MAX_BOND_KEY)) | " *
                 "$(format_float(progress_float(update, LARGE_N_ELAPSED_SECONDS_KEY), 1)) |"

@@ -113,26 +113,40 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test LARGE_N_PROGRESS_CYCLE_KEY == "cycle"
     @test LARGE_N_PROGRESS_DELTA_KEY == "delta"
     @test LARGE_N_PROGRESS_TE_KEY == "te"
+    @test LARGE_N_PROGRESS_TIMESTAMP_KEY == "timestamp"
+    @test LARGE_N_PROGRESS_N_KEY == "N"
+    @test LARGE_N_PROGRESS_METHOD_KEY == "method"
+    @test LARGE_N_PROGRESS_EVOLUTION_KEY == "evolution"
+    @test LARGE_N_PROGRESS_R_KEY == "R"
+    @test LARGE_N_PROGRESS_TRAJECTORY_KEY == "trajectory"
+    @test LARGE_N_PROGRESS_SEED_KEY == "seed"
+    @test LARGE_N_PROGRESS_DMAX_KEY == "Dmax"
+    @test LARGE_N_PROGRESS_CUTOFF_KEY == "cutoff"
+    @test LARGE_N_PROGRESS_G_KEY == "g"
+    @test LARGE_N_PROGRESS_TAU_KEY == "tau"
+    @test LARGE_N_PROGRESS_ENERGY_PER_SITE_KEY == "energy_per_site"
+    @test LARGE_N_PROGRESS_RELATIVE_ENERGY_KEY == "relative_energy"
+    @test LARGE_N_PROGRESS_OVERLAP_KEY == "overlap"
     @test LARGE_N_PROGRESS_CSV_COLUMNS == (
-        "timestamp",
-        "N",
-        "method",
-        "evolution",
-        "R",
-        "trajectory",
-        "seed",
-        "Dmax",
-        "cutoff",
-        "g",
-        "tau",
+        LARGE_N_PROGRESS_TIMESTAMP_KEY,
+        LARGE_N_PROGRESS_N_KEY,
+        LARGE_N_PROGRESS_METHOD_KEY,
+        LARGE_N_PROGRESS_EVOLUTION_KEY,
+        LARGE_N_PROGRESS_R_KEY,
+        LARGE_N_PROGRESS_TRAJECTORY_KEY,
+        LARGE_N_PROGRESS_SEED_KEY,
+        LARGE_N_PROGRESS_DMAX_KEY,
+        LARGE_N_PROGRESS_CUTOFF_KEY,
+        LARGE_N_PROGRESS_G_KEY,
+        LARGE_N_PROGRESS_TAU_KEY,
         LARGE_N_PROGRESS_STAGE_KEY,
         LARGE_N_PROGRESS_STEP_KEY,
         LARGE_N_PROGRESS_CYCLE_KEY,
         LARGE_N_PROGRESS_DELTA_KEY,
         LARGE_N_PROGRESS_TE_KEY,
-        "energy_per_site",
-        "relative_energy",
-        "overlap",
+        LARGE_N_PROGRESS_ENERGY_PER_SITE_KEY,
+        LARGE_N_PROGRESS_RELATIVE_ENERGY_KEY,
+        LARGE_N_PROGRESS_OVERLAP_KEY,
         LARGE_N_SYSTEM_MAX_BOND_KEY,
         LARGE_N_SYSTEM_MEAN_BOND_KEY,
         LARGE_N_EVOLVED_MAX_BOND_KEY,
@@ -142,16 +156,16 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
         LARGE_N_ELAPSED_SECONDS_KEY,
     )
     @test LARGE_N_PROGRESS_GROUP_COLUMNS == (
-        "N",
-        "method",
-        "evolution",
-        "R",
-        "trajectory",
-        "seed",
-        "Dmax",
-        "cutoff",
-        "g",
-        "tau",
+        LARGE_N_PROGRESS_N_KEY,
+        LARGE_N_PROGRESS_METHOD_KEY,
+        LARGE_N_PROGRESS_EVOLUTION_KEY,
+        LARGE_N_PROGRESS_R_KEY,
+        LARGE_N_PROGRESS_TRAJECTORY_KEY,
+        LARGE_N_PROGRESS_SEED_KEY,
+        LARGE_N_PROGRESS_DMAX_KEY,
+        LARGE_N_PROGRESS_CUTOFF_KEY,
+        LARGE_N_PROGRESS_G_KEY,
+        LARGE_N_PROGRESS_TAU_KEY,
     )
     @test largeN_progress_stage(:initial) == LARGE_N_PROGRESS_STAGE_INITIAL
     @test largeN_progress_stage(:prepared) == LARGE_N_PROGRESS_STAGE_PREPARED

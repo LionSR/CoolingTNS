@@ -1439,13 +1439,14 @@ end
         3.5,
     )
 
-    @test row["method"] == "mcwf"
-    @test row["evolution"] == "continuous"
+    @test row[LARGE_N_PROGRESS_METHOD_KEY] == "mcwf"
+    @test row[LARGE_N_PROGRESS_EVOLUTION_KEY] == "continuous"
     @test row[LARGE_N_PROGRESS_STAGE_KEY] == LARGE_N_PROGRESS_STAGE_UPDATED
     @test row[LARGE_N_PROGRESS_CYCLE_KEY] == 1
-    @test row["g"] == 0.05
-    @test row["energy_per_site"] == -0.25
-    @test row["relative_energy"] == relative_energy(-1.0, -4.0)
+    @test row[LARGE_N_PROGRESS_G_KEY] == 0.05
+    @test row[LARGE_N_PROGRESS_ENERGY_PER_SITE_KEY] == -0.25
+    @test row[LARGE_N_PROGRESS_RELATIVE_ENERGY_KEY] ==
+          relative_energy(-1.0, -4.0)
     @test row[LARGE_N_SYSTEM_MAX_BOND_KEY] == 8
     @test row[LARGE_N_EVOLVED_MAX_BOND_KEY] == 13
 
@@ -1461,7 +1462,7 @@ end
     )
     @test initial_row[LARGE_N_PROGRESS_CYCLE_KEY] == 0
     @test initial_row[LARGE_N_PROGRESS_STAGE_KEY] == LARGE_N_PROGRESS_STAGE_INITIAL
-    @test initial_row["energy_per_site"] == -1.0
+    @test initial_row[LARGE_N_PROGRESS_ENERGY_PER_SITE_KEY] == -1.0
     @test isnan(initial_row[LARGE_N_PROGRESS_DELTA_KEY])
     @test isnan(initial_row[LARGE_N_EVOLVED_MAX_BOND_KEY])
 
@@ -1478,9 +1479,9 @@ end
     @test prepared_row[LARGE_N_PROGRESS_CYCLE_KEY] == 1
     @test prepared_row[LARGE_N_PROGRESS_STAGE_KEY] ==
           LARGE_N_PROGRESS_STAGE_PREPARED
-    @test isnan(prepared_row["energy_per_site"])
-    @test isnan(prepared_row["relative_energy"])
-    @test isnan(prepared_row["overlap"])
+    @test isnan(prepared_row[LARGE_N_PROGRESS_ENERGY_PER_SITE_KEY])
+    @test isnan(prepared_row[LARGE_N_PROGRESS_RELATIVE_ENERGY_KEY])
+    @test isnan(prepared_row[LARGE_N_PROGRESS_OVERLAP_KEY])
     @test prepared_row[LARGE_N_SYSTEM_MAX_BOND_KEY] == 8
     @test prepared_row[LARGE_N_EVOLVED_MAX_BOND_KEY] == 11
 
@@ -1496,9 +1497,9 @@ end
     )
     @test evolved_row[LARGE_N_PROGRESS_CYCLE_KEY] == 1
     @test evolved_row[LARGE_N_PROGRESS_STAGE_KEY] == LARGE_N_PROGRESS_STAGE_EVOLVED
-    @test isnan(evolved_row["energy_per_site"])
-    @test isnan(evolved_row["relative_energy"])
-    @test isnan(evolved_row["overlap"])
+    @test isnan(evolved_row[LARGE_N_PROGRESS_ENERGY_PER_SITE_KEY])
+    @test isnan(evolved_row[LARGE_N_PROGRESS_RELATIVE_ENERGY_KEY])
+    @test isnan(evolved_row[LARGE_N_PROGRESS_OVERLAP_KEY])
     @test evolved_row[LARGE_N_SYSTEM_MAX_BOND_KEY] == 8
     @test evolved_row[LARGE_N_EVOLVED_MAX_BOND_KEY] == 13
     @test isnan(evolved_row[LARGE_N_PROGRESS_TDVP_SWEEP_KEY])
@@ -1517,7 +1518,7 @@ end
     @test sweep_row[LARGE_N_PROGRESS_STAGE_KEY] ==
           LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
     @test sweep_row[LARGE_N_PROGRESS_CYCLE_KEY] == 1
-    @test isnan(sweep_row["energy_per_site"])
+    @test isnan(sweep_row[LARGE_N_PROGRESS_ENERGY_PER_SITE_KEY])
     @test sweep_row[LARGE_N_SYSTEM_MAX_BOND_KEY] == 8
     @test sweep_row[LARGE_N_EVOLVED_MAX_BOND_KEY] == 21
     @test sweep_row[LARGE_N_PROGRESS_TDVP_SWEEP_KEY] == 3
@@ -1527,7 +1528,7 @@ end
     try
         append_progress_csv_row(path, row)
         append_progress_csv_row(path, merge(row, Dict{String,Any}(
-            "timestamp" => "contains,comma",
+            LARGE_N_PROGRESS_TIMESTAMP_KEY => "contains,comma",
             LARGE_N_PROGRESS_STAGE_KEY => LARGE_N_PROGRESS_STAGE_EVOLVED,
         )))
         lines = readlines(path)
