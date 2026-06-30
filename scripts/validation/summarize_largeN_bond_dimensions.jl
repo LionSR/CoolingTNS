@@ -607,10 +607,22 @@ function truncation_error_history_status(run_group)
     return TRUNCATION_ERROR_HISTORY_LEGACY_MISSING
 end
 
+function read_largeN_system_size(file_name::AbstractString, n_group_name::AbstractString,
+                                 n_group)
+    stored_N = Int(read(n_group[LARGE_N_SYSTEM_SIZE_KEY]))
+    group_N = largeN_n_from_group_name(n_group_name)
+    stored_N == group_N || throw(ArgumentError(
+        "large-N HDF5 group $(basename(file_name))/$n_group_name stores " *
+        "$(LARGE_N_SYSTEM_SIZE_KEY)=$stored_N but the group name encodes " *
+        "$(LARGE_N_SYSTEM_SIZE_KEY)=$group_N"
+    ))
+    return stored_N
+end
+
 function summarize_run(file_name::AbstractString, root, n_group_name::AbstractString,
                        method_name::AbstractString, method_group, r_group_name::AbstractString,
                        run_group)
-    N = Int(read(root[n_group_name][LARGE_N_SYSTEM_SIZE_KEY]))
+    N = read_largeN_system_size(file_name, n_group_name, root[n_group_name])
     R = largeN_r_from_group_name(r_group_name)
     M = Int(read(run_group[LARGE_N_TRAJECTORY_COUNT_KEY]))
     evolution = String(
