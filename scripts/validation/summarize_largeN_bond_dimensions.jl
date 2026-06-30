@@ -607,6 +607,12 @@ function truncation_error_history_status(run_group)
     return TRUNCATION_ERROR_HISTORY_LEGACY_MISSING
 end
 
+"""
+    read_largeN_system_size(file_name, n_group_name, n_group)
+
+Read the stored large-N system size and require it to match the canonical HDF5
+group name, e.g. an `N64` group must store `N = 64`.
+"""
 function read_largeN_system_size(file_name::AbstractString, n_group_name::AbstractString,
                                  n_group)
     stored_N = Int(read(n_group[LARGE_N_SYSTEM_SIZE_KEY]))
