@@ -97,6 +97,24 @@ end
 # ============================================================================
 
 """
+    CoolingStepInterrupted(reason)
+
+Exception used by low-level diagnostics to interrupt the current cooling cycle
+without reporting its partially evolved state as a completed cycle. The
+interruption `reason` is recorded as `RESULT_STOP_REASON` by
+`run_cooling_multi_freq`.
+"""
+struct CoolingStepInterrupted <: Exception
+    reason::String
+end
+
+CoolingStepInterrupted(reason::Union{AbstractString,Symbol}) =
+    CoolingStepInterrupted(String(string(reason)))
+
+Base.showerror(io::IO, ex::CoolingStepInterrupted) =
+    print(io, "cooling step interrupted: ", ex.reason)
+
+"""
     run_cooling_multi_freq(problem, state, mf_params::MultiFrequencyCouplingParameters, sim_params, ham_params; measure_modes=false)
 
 Run a multi-frequency cooling protocol, cycling the bath detuning Δ through
@@ -152,16 +170,6 @@ inside the current evolution step. This records `reason` as
 cycle, and does not report the partially evolved state as a completed cooling
 cycle.
 """
-struct CoolingStepInterrupted <: Exception
-    reason::String
-end
-
-CoolingStepInterrupted(reason::Union{AbstractString,Symbol}) =
-    CoolingStepInterrupted(String(string(reason)))
-
-Base.showerror(io::IO, ex::CoolingStepInterrupted) =
-    print(io, "cooling step interrupted: ", ex.reason)
-
 function run_cooling_multi_freq(
     problem::CoolingProblem{B},
     state::QuantumState{B,S,E},

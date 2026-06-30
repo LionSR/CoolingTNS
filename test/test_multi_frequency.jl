@@ -270,6 +270,16 @@ using Random
     @test isnan(in_step_results[CoolingTNS.RESULT_DELTA_LIST][1])
     @test sprint(showerror, CoolingTNS.CoolingStepInterrupted(:example_stop)) ==
           "cooling step interrupted: example_stop"
+    run_multi_freq_doc = (@doc CoolingTNS.run_cooling_multi_freq)
+    interrupted_doc = (@doc CoolingTNS.CoolingStepInterrupted)
+    @test occursin(
+        "Run a multi-frequency cooling protocol",
+        string(run_multi_freq_doc),
+    )
+    @test occursin(
+        "interrupt the current cooling cycle",
+        string(interrupted_doc),
+    )
 
     final_stop_state = CoolingTNS.setup_initial_state(problem_mf, sim_params, "product", 0.0)
     final_stop_results = CoolingTNS.run_cooling(
