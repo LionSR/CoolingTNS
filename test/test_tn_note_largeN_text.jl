@@ -137,6 +137,9 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("the realized detuning coverage before the cap, not the intended full grid", evidence_flat)
     @test occursin("`traj cycles/hour` is computed as", evidence_flat)
     @test occursin("It is therefore a throughput diagnostic, not a cooling-performance metric", evidence_flat)
+    @test occursin("scripts/validation/check_largeN_artifact_provenance.jl", evidence_flat)
+    @test occursin("HDF5 basename, not merely a machine-specific local path", evidence_flat)
+    @test occursin("the stable audit handle for the evidence table and notes", evidence_flat)
     end
 
     @testset "Validation plan setup and detuning anchors" begin
@@ -155,6 +158,9 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("the detuning reference is setup-grid provenance, not a reconstruction from `mode_ek_values`", plan_flat)
     @test occursin("The stored `mode_ek_values` remain positive single-quasiparticle gaps used to label modes and resonance plots", plan_flat)
     @test occursin("they are not by themselves the automatic bath-detuning reference for the parity-preserving Ising cooling channel", plan_flat)
+    @test occursin("scripts/validation/check_largeN_artifact_provenance.jl", plan_flat)
+    @test occursin("The audit is based on the HDF5 basename recorded as a filename token", plan_flat)
+    @test occursin("the enclosing local directory is only execution provenance", plan_flat)
     end
 
     @testset "Driver and evidence setup-grid provenance anchors" begin
