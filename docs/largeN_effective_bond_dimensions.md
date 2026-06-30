@@ -317,7 +317,14 @@ interval sweeps and then fusing the four MPS correlator sweeps, the stopped-row
 contract was checked on 2026-06-28 with the full `N = 64`, `R = 1,2,5,10`,
 `Dmax = 80` MCWF/continuous-TDVP mode-resolved run.  This is the same physical
 protocol as the earlier `R = 2` stopped-row check that previously reached the
-cycle-2 update but spent more than 20 minutes in the final mode measurement:
+cycle-2 update but spent more than 20 minutes in the final mode measurement.
+That earlier standalone timing check wrote
+
+```text
+.worktree/N64_R2_stopcap_after_correlator_sweep/largeN_multifrequency_tn_N64_R2_mcwf_continuous_ising_bcperiodic_stopcap_modestride5_inittheta_theta0_steps40_Dmax80_g0.3_te2_tau0.2_seed20260617.h5
+```
+
+The all-frequency post-fusion verification command was:
 
 ```bash
 julia --project=. --startup-file=no \
@@ -459,6 +466,12 @@ julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
   --verbose
 ```
 
+The run wrote
+
+```text
+.worktree/mode_probe_N64_ising_periodic_D16_te0.5_20260627/largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_continuous_ising_bcperiodic_stopcap_scheddesc_modes_steps5_Dmax16_te0.5_tau0.2_seed20260617.h5
+```
+
 The run used the analytic periodic-Ising pair reference
 `detuning_reference_gap_source = "ising_mode_pair_reference"` with
 `detuning_reference_gap = 1.01435154`.  The direct ground-state reference stored
@@ -506,6 +519,12 @@ julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
   --tdvp-sweep-progress \
   --outdir .worktree/mode_probe_N64_ising_periodic_theta_D16_te0.5_20260627 \
   --verbose
+```
+
+The run wrote
+
+```text
+.worktree/mode_probe_N64_ising_periodic_theta_D16_te0.5_20260627/largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_continuous_ising_bcperiodic_stopcap_scheddesc_modes_inittheta_theta0_steps5_Dmax16_te0.5_tau0.2_seed20260617.h5
 ```
 
 The stored direct ground-state reference is again
@@ -1988,6 +2007,12 @@ julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
   --progress-csv .worktree/descending_te05_dmax128_R10_recheck_20260629/progress.csv \
   --outdir .worktree/descending_te05_dmax128_R10_recheck_20260629 \
   --tdvp-sweep-progress --stop-on-bond-cap --verbose
+```
+
+The recheck wrote
+
+```text
+.worktree/descending_te05_dmax128_R10_recheck_20260629/largeN_multifrequency_tn_N64_R10_mcwf_continuous_stopcap_scheddesc_steps20_Dmax128_g0.3_te0.5_tau0.2_seed20260617.h5
 ```
 
 The HDF5 output again records trajectory seed `[84360618]`.  The HDF5 summary,
