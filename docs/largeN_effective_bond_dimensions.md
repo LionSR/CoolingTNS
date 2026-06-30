@@ -1973,7 +1973,7 @@ than scalable ground-state cooling.
 The best `Dmax = 128` descending prefix above used `R = 10` and `te = 1.0`.
 To test whether a shorter per-cycle evolution time can delay the cap without
 losing the schedule advantage, the same trajectory seed and fixed detuning
-interval were rerun with `te = 0.5` and a longer requested prefix:
+interval were rechecked with `te = 0.5` and a longer requested prefix:
 
 ```bash
 JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 \
@@ -1985,8 +1985,8 @@ julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
   --delta-min 0.5051167496264384 \
   --delta-max 3.0307004977586303 \
   --schedule descending \
-  --progress-csv .worktree/descending_te05_dmax128_R10_20260620/tdvp_progress_N64_niising_open_mcwf_R10_Dmax128_te0.5_descending.csv \
-  --outdir .worktree/descending_te05_dmax128_R10_20260620 \
+  --progress-csv .worktree/descending_te05_dmax128_R10_recheck_20260629/progress.csv \
+  --outdir .worktree/descending_te05_dmax128_R10_recheck_20260629 \
   --tdvp-sweep-progress --stop-on-bond-cap --verbose
 ```
 
@@ -1995,22 +1995,22 @@ with the fixed `te` shown for comparison, is
 
 | R | te | Dcap | completed/requested cycles | completed/requested periods | visited detunings | detuning coverage | final E/N | best E/N | Dsys_eff | Dsb_eff | Dtdvp_sweep_eff | bond_status | elapsed_total | stop_reason |
 |---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---|---:|---|
-| 10 | 0.5 | 128 | 10/20 | 1.00/2.00 | 10/10 | full_grid_observed | 1.00873665 | 1.00873665 | 113 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | 831.9 s | bond_cap |
+| 10 | 0.5 | 128 | 10/20 | 1.00/2.00 | 10/10 | full_grid_observed | 1.00873665 | 1.00873665 | 113 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | 807.8 s | bond_cap |
 
 The completed-cycle prefix is
 
 | cycle | delta | E/N | system max bond | evolved max bond | elapsed |
 |---:|---:|---:|---:|---:|---:|
-| 1 | 3.03070050 | 1.36556055 | 3 | 4 | 26.0 s |
-| 2 | 2.75008008 | 1.27175621 | 4 | 6 | 33.6 s |
-| 3 | 2.46945966 | 1.18301786 | 8 | 9 | 41.9 s |
-| 4 | 2.18883925 | 1.18241961 | 10 | 14 | 52.6 s |
-| 5 | 1.90821883 | 1.18369439 | 16 | 21 | 67.9 s |
-| 6 | 1.62759842 | 1.13684288 | 25 | 32 | 94.2 s |
-| 7 | 1.34697800 | 1.11629039 | 34 | 48 | 143.7 s |
-| 8 | 1.06635758 | 1.05446449 | 55 | 68 | 239.6 s |
-| 9 | 0.78573717 | 1.04273197 | 73 | 101 | 439.8 s |
-| 10 | 0.50511675 | 1.00873665 | 113 | 128 | 831.9 s |
+| 1 | 3.03070050 | 1.36556055 | 3 | 4 | 25.1 s |
+| 2 | 2.75008008 | 1.27175621 | 4 | 6 | 32.5 s |
+| 3 | 2.46945966 | 1.18301786 | 8 | 9 | 40.9 s |
+| 4 | 2.18883925 | 1.18241961 | 10 | 14 | 51.4 s |
+| 5 | 1.90821883 | 1.18369439 | 16 | 21 | 65.8 s |
+| 6 | 1.62759842 | 1.13684288 | 25 | 32 | 90.6 s |
+| 7 | 1.34697800 | 1.11629039 | 34 | 48 | 140.6 s |
+| 8 | 1.06635758 | 1.05446449 | 55 | 68 | 232.4 s |
+| 9 | 0.78573717 | 1.04273197 | 73 | 101 | 423.5 s |
+| 10 | 0.50511675 | 1.00873665 | 113 | 128 | 807.8 s |
 
 Thus reducing `te` from `1.0` to `0.5` delays the evolved and TDVP-sweep cap
 from cycle 5 to cycle 10 for this `R = 10`, `Dmax = 128` descending trajectory.
