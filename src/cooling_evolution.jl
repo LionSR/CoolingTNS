@@ -145,7 +145,23 @@ series entries and record `RESULT_REQUESTED_STEPS` and
 no truncation occurs; a non-empty `RESULT_STOP_REASON` with
 `RESULT_COMPLETED_STEPS == RESULT_REQUESTED_STEPS` records a final-cycle
 diagnostic event, not a partial run.
+
+A low-level diagnostic may instead throw `CoolingStepInterrupted(reason)` from
+inside the current evolution step. This records `reason` as
+`RESULT_STOP_REASON`, keeps only the prefix completed before the interrupted
+cycle, and does not report the partially evolved state as a completed cooling
+cycle.
 """
+struct CoolingStepInterrupted <: Exception
+    reason::String
+end
+
+CoolingStepInterrupted(reason::Union{AbstractString,Symbol}) =
+    CoolingStepInterrupted(String(string(reason)))
+
+Base.showerror(io::IO, ex::CoolingStepInterrupted) =
+    print(io, "cooling step interrupted: ", ex.reason)
+
 function run_cooling_multi_freq(
     problem::CoolingProblem{B},
     state::QuantumState{B,S,E},
@@ -199,23 +215,35 @@ function run_cooling_multi_freq(
         # Per-step coupling parameters (encodes Δ_r and possibly step-specific time)
         coupling_step = BasicCouplingParameters(mf_params.coupling, mf_params.g, steps, te_step, delta_r)
 
-        # Prepare system+bath state
+        # Prepare and evolve with the step-dependent coupling parameters.
+        # A diagnostic may interrupt this in-progress cycle before it becomes a
+        # completed cooling step.
+        evolution_interrupted = false
         combined_state = prepare_combined_state(problem, state)
-        notify_step_observer(
-            step_observer,
-            (stage=:prepared, step=step, state=state, evolved_state=combined_state,
-             measurements=measurements, delta=delta_r, te=te_step, bath_info=nothing),
-        )
-
-        # Evolve with the step-dependent coupling parameters
-        evolved_state = if te_step <= 0
-            combined_state
-        else
-            evolve_cooling_step_dynamic(
-                problem, combined_state, coupling_step, te_step, sim_params, ham_params;
-                evolution_kwargs...,
+        evolved_state = try
+            notify_step_observer(
+                step_observer,
+                (stage=:prepared, step=step, state=state, evolved_state=combined_state,
+                 measurements=measurements, delta=delta_r, te=te_step, bath_info=nothing),
             )
+            if te_step <= 0
+                combined_state
+            else
+                evolve_cooling_step_dynamic(
+                    problem, combined_state, coupling_step, te_step, sim_params, ham_params;
+                    evolution_kwargs...,
+                )
+            end
+        catch err
+            if err isa CoolingStepInterrupted
+                stop_reason = err.reason
+                evolution_interrupted = true
+                nothing
+            else
+                rethrow()
+            end
         end
+        evolution_interrupted && break
         notify_step_observer(
             step_observer,
             (stage=:evolved, step=step, state=state, evolved_state=evolved_state,

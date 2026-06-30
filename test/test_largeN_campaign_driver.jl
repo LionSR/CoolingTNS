@@ -5,6 +5,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation",
                  "run_largeN_multifrequency_tn_scaling.jl"))
 
 @testset "Large-N bond-cap stop rule" begin
+    @test LARGE_N_TDVP_SWEEP_IN_STEP_STOP_REASON == "tdvp_sweep_bond_cap_in_step"
     @test isnothing(bond_cap_stop_reason(2, 10, [1, 5], [0, 6], [0, 9]))
     @test bond_cap_stop_reason(2, 10, [1, 10], [0, 6], [0, 9]) == "bond_cap"
     @test bond_cap_stop_reason(2, 10, [1, 5], [0, 10], [0, 9]) == "bond_cap"

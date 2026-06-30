@@ -357,4 +357,6 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test final_system_mean_bond(system_mean) == 6.5
     @test peak_evolved_max_bond(evolved_max) == 14
     @test peak_evolved_mean_bond(evolved_mean) == 10.0
+    @test peak_evolved_max_bond([0]) == 0
+    @test isnan(peak_evolved_mean_bond([NaN]))
 end

@@ -121,9 +121,12 @@ let ITensorMPS print its own TDVP sweep summary, use `--tdvp-outputlevel 1`.
 
 For diagnostic runs where the objective is only to locate the first
 bond-dimension cap event, add `--stop-on-bond-cap`.  This stops a trajectory
-after the first completed cycle whose retained system state, evolved
-system-bath state, or, with `--tdvp-sweep-progress`, TDVP sweep-observer
-history reaches the method-specific cap.  It is intended for single-trajectory
+after the first completed cycle whose retained system state or evolved
+system-bath state reaches the method-specific cap.  With TDVP sweep progress
+enabled, a sweep-level cap reached inside the current TDVP evolution interrupts that
+cycle before it is reported as completed; the progress CSV keeps the
+cap-crossing sweep row, while the HDF5 file records only completed cycles and
+stores a distinct in-step stop reason.  It is intended for single-trajectory
 diagnostics; use independent jobs for ensemble members whose partial
 trajectories may stop at different cycle counts.  Unless `--output` is given
 explicitly, the HDF5
@@ -921,6 +924,8 @@ function bond_summary(state)
 end
 
 """Return the diagnostic stop reason when any recorded bond cap is reached."""
+const LARGE_N_TDVP_SWEEP_IN_STEP_STOP_REASON = "tdvp_sweep_bond_cap_in_step"
+
 function bond_cap_stop_reason(step, saturation_threshold, sys_maxbond,
                               evolved_maxbond, tdvp_sweep_maxbond)
     system_hit = sys_maxbond[step] >= saturation_threshold
@@ -1197,6 +1202,9 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
                         evolved_bs, elapsed,
                     ),
                 )
+            end
+            if cfg["stop_on_bond_cap"] && evolved_bs.max >= saturation_threshold
+                throw(CoolingStepInterrupted(LARGE_N_TDVP_SWEEP_IN_STEP_STOP_REASON))
             end
             return nothing
         end)
@@ -1681,8 +1689,9 @@ function run_campaign(cfg)
                                                  cfg, seed; method=method, R=R,
                                                  trajectory=trajectory_index, E0=E0)
                         push!(traj_rows, row)
-                        peak_evolved_maxbond =
-                            maximum(row[LARGE_N_ROW_EVOLVED_MAX_BOND_KEY][2:end])
+                        peak_evolved_maxbond = peak_evolved_max_bond(
+                            row[LARGE_N_ROW_EVOLVED_MAX_BOND_KEY]
+                        )
                         system_saturation_cycle = first_bond_saturation_cycle(
                             row[LARGE_N_ROW_SYSTEM_MAX_BOND_KEY], saturation_threshold
                         )
