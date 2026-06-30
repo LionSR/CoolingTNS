@@ -111,8 +111,8 @@ function provenance_check_exit_code(
     doc_paths::AbstractVector{<:AbstractString};
     io::IO=stdout,
 )
-    missing = missing_artifact_basenames(artifact_paths, doc_paths)
-    if isempty(missing)
+    missing_names = missing_artifact_basenames(artifact_paths, doc_paths)
+    if isempty(missing_names)
         println(
             io,
             "All $(length(artifact_paths)) large-N artifact basename(s) are named " *
@@ -123,10 +123,10 @@ function provenance_check_exit_code(
 
     println(
         io,
-        "Missing $(length(missing)) of $(length(artifact_paths)) large-N artifact " *
+        "Missing $(length(missing_names)) of $(length(artifact_paths)) large-N artifact " *
         "basename(s) from $(length(doc_paths)) provenance document(s):",
     )
-    for name in missing
+    for name in missing_names
         println(io, "- $name")
     end
     return 1
