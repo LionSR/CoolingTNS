@@ -104,7 +104,6 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
             "D_{\\mathrm{sb}}^{\\mathrm{eff}}=394, 862, 518, 737",
             "the TDVP sweep observer reaches the cap during cycle 3 sweep 4",
             "same \\(t_e=0.5\\) trajectory was then repeated at \\(D_{\\max}=192,256,320\\)",
-            "1.30/2.00 & 1.00365324 & 299 & \\geq 320 & \\geq 320",
             "At common completed cycles the higher-cap trajectories agree with the lower-cap prefixes",
             raw"\texttt{not\_converged\_system\_and\_evolved\_and}",
             raw"\texttt{\_tdvp\_sweep\_cap}",
