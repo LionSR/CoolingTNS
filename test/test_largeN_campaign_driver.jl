@@ -4,11 +4,44 @@ using HDF5
 include(joinpath(@__DIR__, "..", "scripts", "validation",
                  "run_largeN_multifrequency_tn_scaling.jl"))
 
+function parse_largeN_test_csv_line(line::AbstractString)
+    fields = String[]
+    io = IOBuffer()
+    in_quotes = false
+    i = firstindex(line)
+    while i <= lastindex(line)
+        c = line[i]
+        if in_quotes
+            if c == '"'
+                next_i = nextind(line, i)
+                if next_i <= lastindex(line) && line[next_i] == '"'
+                    print(io, '"')
+                    i = next_i
+                else
+                    in_quotes = false
+                end
+            else
+                print(io, c)
+            end
+        elseif c == '"'
+            in_quotes = true
+        elseif c == ','
+            push!(fields, String(take!(io)))
+        else
+            print(io, c)
+        end
+        i = nextind(line, i)
+    end
+    in_quotes && throw(ArgumentError("unterminated quoted CSV field"))
+    push!(fields, String(take!(io)))
+    return fields
+end
+
 function read_single_largeN_progress_row(path)
     lines = readlines(path)
-    @test lines[1] == join(LARGE_N_PROGRESS_CSV_COLUMNS, ",")
-    @test length(lines) == 2
-    return Dict(String.(split(lines[1], ",")) .=> String.(split(lines[2], ",")))
+    header = parse_largeN_test_csv_line(lines[1])
+    values = parse_largeN_test_csv_line(lines[2])
+    return (lines=lines, row=Dict(header .=> values))
 end
 
 @testset "Large-N bond-cap stop rule" begin
@@ -1462,6 +1495,9 @@ end
 end
 
 @testset "Large-N campaign progress CSV" begin
+    @test parse_largeN_test_csv_line("plain,\"with,comma\",\"with\"\"quote\"") ==
+          ["plain", "with,comma", "with\"quote"]
+
     context = (
         method="mcwf",
         evolution="continuous",
@@ -1651,7 +1687,10 @@ end
             stop_on_bond_cap=false,
             saturation_threshold=1,
         )
-        csv_row = read_single_largeN_progress_row(sweep_progress_path)
+        parsed_csv = read_single_largeN_progress_row(sweep_progress_path)
+        @test parsed_csv.lines[1] == join(LARGE_N_PROGRESS_CSV_COLUMNS, ",")
+        @test length(parsed_csv.lines) == 2
+        csv_row = parsed_csv.row
         @test tdvp_sweep_history[2] == 1
         @test csv_row[LARGE_N_PROGRESS_STAGE_KEY] == LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
         @test parse(Int, csv_row[LARGE_N_PROGRESS_STEP_KEY]) == 2
@@ -1687,7 +1726,10 @@ end
         @test err isa CoolingTNS.CoolingStepInterrupted
         @test err.reason == LARGE_N_TDVP_SWEEP_IN_STEP_STOP_REASON
         @test tdvp_sweep_history[2] == 1
-        csv_row = read_single_largeN_progress_row(cap_progress_path)
+        parsed_csv = read_single_largeN_progress_row(cap_progress_path)
+        @test parsed_csv.lines[1] == join(LARGE_N_PROGRESS_CSV_COLUMNS, ",")
+        @test length(parsed_csv.lines) == 2
+        csv_row = parsed_csv.row
         @test csv_row[LARGE_N_PROGRESS_STAGE_KEY] == LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
         @test parse(Int, csv_row[LARGE_N_PROGRESS_TDVP_SWEEP_KEY]) == 5
         @test parse(Float64, csv_row[LARGE_N_PROGRESS_TDVP_TIME_KEY]) == 0.25
