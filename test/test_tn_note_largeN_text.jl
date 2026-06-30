@@ -118,6 +118,18 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     te1_d192_frequency_latex_row(row) =
         "$(row.R) & $(row.cycles) & $(row.final_energy) & " *
         "$(row.best_energy) & $(row.Dsys)"
+    te1_d192_progress_rows = (
+        (R="1", first_transient_cap="6:5", tdvp_sweep_cap="6:5",
+         max_sweep_at="6:5", max_sweep_elapsed="430.2 s"),
+        (R="2", first_transient_cap="6:2", tdvp_sweep_cap="6:2",
+         max_sweep_at="6:5", max_sweep_elapsed="737.6 s"),
+        (R="5", first_transient_cap="6:2", tdvp_sweep_cap="6:2",
+         max_sweep_at="6:5", max_sweep_elapsed="708.5 s"),
+    )
+    te1_d192_progress_evidence_row(row) =
+        "| $(row.R) | $(row.first_transient_cap) | " *
+        "$(row.tdvp_sweep_cap) | $(row.max_sweep_at) | " *
+        "$(row.max_sweep_elapsed) |"
 
     # These anchors intentionally couple the note to the source documents.
     # Update them together when the notation or bond-dimension evidence changes.
@@ -154,6 +166,14 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
         @test occursin("At this fixed cap and seed, the stopped-prefix ordering is `R = 10 < R = 2 < R = 5 < R = 1`", evidence_flat)
         @test occursin("For this fixed cap and seed, \\(R=10\\) gives the lowest stopped prefix", note_flat)
         @test occursin("The completed/requested periods for \\(R=1,2,5,10\\) are \\(6.00/12.00\\), \\(3.00/6.00\\), \\(1.20/2.40\\), and \\(0.60/1.20\\)", note_flat)
+    end
+
+    @testset "Shared te=1.0 Dmax=192 progress-row anchors" begin
+        for row in te1_d192_progress_rows
+            @test occursin(te1_d192_progress_evidence_row(row), evidence_flat)
+        end
+        @test occursin("The progress CSV saturation summary for the new rows is", evidence_flat)
+        @test occursin("For `R = 2` and `R = 5`, the progress CSV first observes the transient cap during cycle `6:2`, while the most expensive sweep occurs at cycle `6:5`", evidence_flat)
     end
 
     @testset "TN note cooling and large-N qualification anchors" begin
