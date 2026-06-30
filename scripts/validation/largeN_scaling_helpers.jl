@@ -60,6 +60,8 @@ const LARGE_N_ROOT_STOP_ON_BOND_CAP_KEY = "stop_on_bond_cap"
 const LARGE_N_ROOT_SEED_KEY = "seed"
 
 # Persisted run-group HDF5 keys and group-name conventions.
+# The prefixes name HDF5 groups such as N64 and R10.  The dataset keys below
+# name scalar or array datasets stored inside those groups.
 const LARGE_N_N_GROUP_PREFIX = "N"
 const LARGE_N_R_GROUP_PREFIX = "R"
 const LARGE_N_SYSTEM_SIZE_KEY = "N"
