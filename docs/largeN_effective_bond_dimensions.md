@@ -466,7 +466,9 @@ julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
   --verbose
 ```
 
-The run wrote
+This 2026-06-27 mode-probe file uses a legacy stem from before the default
+output name added the `_g<value>` token.  The HDF5 metadata still stores the
+default coupling `g = 0.3`.  The run wrote
 
 ```text
 .worktree/mode_probe_N64_ising_periodic_D16_te0.5_20260627/largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_continuous_ising_bcperiodic_stopcap_scheddesc_modes_steps5_Dmax16_te0.5_tau0.2_seed20260617.h5
@@ -521,7 +523,9 @@ julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
   --verbose
 ```
 
-The run wrote
+This matched 2026-06-27 mode-probe file uses the same legacy pre-`_g<value>`
+stem convention.  The HDF5 metadata still stores the default coupling
+`g = 0.3`.  The run wrote
 
 ```text
 .worktree/mode_probe_N64_ising_periodic_theta_D16_te0.5_20260627/largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_continuous_ising_bcperiodic_stopcap_scheddesc_modes_inittheta_theta0_steps5_Dmax16_te0.5_tau0.2_seed20260617.h5

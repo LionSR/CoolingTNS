@@ -541,6 +541,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("mode_gF_source = \"reference\"", evidence_flat)
     @test occursin("mixed-parity state for the periodic Ising chain in the code basis", evidence_flat)
     @test occursin("Dmax=16 Product-State Mode Probe", evidence_flat)
+    @test occursin("legacy stem from before the default output name added the `_g<value>` token", evidence_flat)
     @test occursin("largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_continuous_ising_bcperiodic_stopcap_scheddesc_modes_steps5_Dmax16_te0.5_tau0.2_seed20260617.h5", evidence_flat)
     @test occursin("detuning_reference_gap_source = \"ising_mode_pair_reference\"", evidence_flat)
     @test occursin(
@@ -553,6 +554,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("0.015625 = 1/64", evidence_flat)
     @test occursin("fixed-reference diagnostic rather than an exact sector energy decomposition", evidence_flat)
     @test occursin("Dmax=16 Theta-State Mode Control", evidence_flat)
+    @test occursin("same legacy pre-`_g<value>` stem convention", evidence_flat)
     @test occursin("largeN_multifrequency_tn_N64_R1-2-5-10_mcwf_continuous_ising_bcperiodic_stopcap_scheddesc_modes_inittheta_theta0_steps5_Dmax16_te0.5_tau0.2_seed20260617.h5", evidence_flat)
     @test occursin(
         "| 10 | 2/5 | requested_partial_grid | -0.75000000 | -0.76569923 | " *
