@@ -81,9 +81,9 @@ function format_float(value::Real, digits::Int=2)
 end
 
 format_integer_or_na(value::Integer) = string(value)
-format_integer_or_na(::Missing) = "n/a"
+format_integer_or_na(::Missing) = LARGE_N_LABEL_NA
 format_float_or_na(value::Real, digits::Int=2) = format_float(value, digits)
-format_float_or_na(::Missing, digits::Int=2) = "n/a"
+format_float_or_na(::Missing, digits::Int=2) = LARGE_N_LABEL_NA
 function format_error_float(value::Real, digits::Int=3)
     !isfinite(value) && return "NaN"
     value == 0 && return format_float(value, digits)
@@ -91,9 +91,9 @@ function format_error_float(value::Real, digits::Int=3)
     return format_float(value, digits)
 end
 format_error_float_or_na(value::Real, digits::Int=3) = format_error_float(value, digits)
-format_error_float_or_na(::Missing, digits::Int=3) = "n/a"
+format_error_float_or_na(::Missing, digits::Int=3) = LARGE_N_LABEL_NA
 format_string_or_na(value) = string(value)
-format_string_or_na(::Missing) = "n/a"
+format_string_or_na(::Missing) = LARGE_N_LABEL_NA
 
 function scalar_or_vector(value)
     value isa AbstractArray && return vec(value)
@@ -142,22 +142,22 @@ end
 
 function detuning_interval_label(delta_min::Real, delta_max::Real)
     isfinite(delta_min) && isfinite(delta_max) ||
-        return "unknown"
+        return LARGE_N_LABEL_UNKNOWN
     return "[$(format_float(delta_min, 8)),$(format_float(delta_max, 8))]"
 end
 
 function delta_values_interval_label(run_group)
-    haskey(run_group, RESULT_DELTA_VALUES) || return "unknown"
+    haskey(run_group, RESULT_DELTA_VALUES) || return LARGE_N_LABEL_UNKNOWN
     delta_values = Float64.(read(run_group[RESULT_DELTA_VALUES]))
-    isempty(delta_values) && return "unknown"
+    isempty(delta_values) && return LARGE_N_LABEL_UNKNOWN
     return detuning_interval_label(minimum(delta_values), maximum(delta_values))
 end
 
 function detuning_factor_label(source::AbstractString, factor::Real)
     source == LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE && isfinite(factor) &&
         return format_float(factor, 3)
-    source == LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE && return "n/a"
-    return "unknown"
+    source == LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE && return LARGE_N_LABEL_NA
+    return LARGE_N_LABEL_UNKNOWN
 end
 
 function detuning_protocol_summary(method_group, run_group)
@@ -166,7 +166,7 @@ function detuning_protocol_summary(method_group, run_group)
             run_group,
             method_group,
             LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY,
-            "unknown",
+            LARGE_N_LABEL_UNKNOWN,
         ),
     )
     delta_min = Float64(
@@ -184,7 +184,7 @@ function detuning_protocol_summary(method_group, run_group)
         ),
     )
 
-    interval = source == "unknown" ?
+    interval = source == LARGE_N_LABEL_UNKNOWN ?
         delta_values_interval_label(run_group) :
         detuning_interval_label(delta_min, delta_max)
     return (
@@ -206,7 +206,7 @@ function missing_mode_reconstruction_summary()
 end
 
 function mode_measurement_row_label(n_measured::Integer, n_rows::Integer)
-    n_rows <= 0 && return "n/a"
+    n_rows <= 0 && return LARGE_N_LABEL_NA
     return "$(n_measured)/$(n_rows)"
 end
 
@@ -239,8 +239,8 @@ function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean;
     mode_gF = Int(read(run_group[RESULT_MODE_GF]))
     mode_gF_source = String(read(run_group[RESULT_MODE_GF_SOURCE]))
 
-    model = haskey(root, "model") ? String(read(root["model"])) : "unknown"
-    bc = haskey(root, "bc") ? String(read(root["bc"])) : "unknown"
+    model = haskey(root, "model") ? String(read(root["model"])) : LARGE_N_LABEL_UNKNOWN
+    bc = haskey(root, "bc") ? String(read(root["bc"])) : LARGE_N_LABEL_UNKNOWN
     if model != "ising" || !(bc in ("periodic", "antiperiodic"))
         error(
             "mode measurements are present, but the file describes model='$model' " *
@@ -287,16 +287,16 @@ end
 energy_tail_start(nsteps::Integer) = max(1, nsteps - ENERGY_TAIL_WINDOW + 1)
 
 function range_label(values::AbstractVector{<:Integer})
-    isempty(values) && return "n/a"
+    isempty(values) && return LARGE_N_LABEL_NA
     lo, hi = extrema(values)
     lo == hi && return string(lo)
     return "$lo-$hi"
 end
 
 function range_float_label(values::AbstractVector{<:Real}; digits::Int=2)
-    isempty(values) && return "n/a"
+    isempty(values) && return LARGE_N_LABEL_NA
     finite_values = Float64[value for value in values if isfinite(value)]
-    isempty(finite_values) && return "n/a"
+    isempty(finite_values) && return LARGE_N_LABEL_NA
     lo, hi = extrema(finite_values)
     lo == hi && return format_float(lo, digits)
     return "$(format_float(lo, digits))-$(format_float(hi, digits))"
@@ -304,7 +304,13 @@ end
 
 function schedule_label(root, method_group, run_group)
     return String(
-        read_first_group_value(RESULT_SCHEDULE, "unknown", run_group, method_group, root)
+        read_first_group_value(
+            RESULT_SCHEDULE,
+            LARGE_N_LABEL_UNKNOWN,
+            run_group,
+            method_group,
+            root,
+        )
     )
 end
 
@@ -318,7 +324,13 @@ time_protocol_label(randomize_times::Bool) = randomize_times ? "randomized" : "f
 
 function initial_state_metadata(root, method_group, run_group)
     init_state = String(
-        read_first_group_value(RESULT_INIT_STATE, "unknown", run_group, method_group, root)
+        read_first_group_value(
+            RESULT_INIT_STATE,
+            LARGE_N_LABEL_UNKNOWN,
+            run_group,
+            method_group,
+            root,
+        )
     )
     theta = Float64(
         read_first_group_value(RESULT_INIT_THETA, NaN, run_group, method_group, root)
@@ -425,12 +437,12 @@ function visited_detunings_label_from_counts(
     unknown_count::Integer=0,
     total_count::Integer=length(counts) + unknown_count,
 )
-    R > 0 || return "n/a"
+    R > 0 || return LARGE_N_LABEL_NA
     unknown_count >= 0 ||
         error("unknown detuning-history count must be non-negative")
     total_count >= length(counts) + unknown_count ||
         error("total detuning-history count is smaller than known plus unknown counts")
-    isempty(counts) && unknown_count == 0 && return "n/a"
+    isempty(counts) && unknown_count == 0 && return LARGE_N_LABEL_NA
     known_label = isempty(counts) ? "" : "$(range_label(counts))/$(R)"
     unknown_count == 0 && return known_label
     unknown_label = "unknownx$(unknown_count)/$(total_count)"
@@ -440,7 +452,7 @@ end
 function stop_reason_label(reasons::AbstractVector{<:AbstractString})
     values = String.(reasons)
     nonempty = filter(!isempty, values)
-    isempty(nonempty) && return "none"
+    isempty(nonempty) && return LARGE_N_LABEL_NONE
     unique_reasons = sort(unique(nonempty))
     length(unique_reasons) == 1 && length(nonempty) == length(values) &&
         return only(unique_reasons)
@@ -582,7 +594,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
     R = parse(Int, r_group_name[2:end])
     M = Int(read(run_group["M"]))
     evolution = String(
-        read_group_value(method_group, root, LARGE_N_EVOLUTION_METHOD_KEY, "unknown")
+        read_group_value(method_group, root, LARGE_N_EVOLUTION_METHOD_KEY, LARGE_N_LABEL_UNKNOWN)
     )
     te = Float64(read_first_group_value(RESULT_TE, NaN, run_group, method_group, root))
     g = Float64(read_first_group_value("g", NaN, run_group, method_group, root))
@@ -763,7 +775,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         effective_bond_dimension_label(
             peak_tdvp_sweep_max, tdvp_sweep_saturation_cycle, threshold
         ) :
-        "n/a"
+        LARGE_N_LABEL_NA
     truncation_error_status = truncation_error_history_status(run_group)
     bond_status = require_largeN_bond_status_label(
         bond_cap_status(
@@ -936,7 +948,7 @@ function weighted_row_mean(rows, field::Symbol)
 end
 
 function combined_string_status(values::AbstractVector{<:AbstractString})
-    isempty(values) && return "n/a"
+    isempty(values) && return LARGE_N_LABEL_NA
     unique_values = sort(unique(values))
     length(unique_values) == 1 && return only(unique_values)
     return "mixed:" * join(unique_values, "+")
@@ -958,7 +970,7 @@ function maximum_or_missing(values)
 end
 
 function trajectory_indices_label(indices::AbstractVector{<:Integer})
-    isempty(indices) && return "none"
+    isempty(indices) && return LARGE_N_LABEL_NONE
     return join(sort(Int.(indices)), ",")
 end
 
@@ -1099,7 +1111,7 @@ function combine_trajectory_bucket(rows)
                     tdvp_sweep_saturation_cycle,
                     base.threshold,
                 ) :
-                "n/a",
+                LARGE_N_LABEL_NA,
             truncation_error_history_status=combined_string_status(
                 String[row.truncation_error_history_status for row in rows]
             ),

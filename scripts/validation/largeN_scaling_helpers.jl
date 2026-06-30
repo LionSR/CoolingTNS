@@ -23,6 +23,15 @@ const LARGE_N_DETUNING_REFERENCE_ISING_MODE_PAIR = "ising_mode_pair_reference"
 const LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE = "gap_scaled_range"
 const LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE = "fixed_range"
 
+# Generic reader-facing summary labels used by large-N validation tables.
+# These distinguish absent, unknown, empty, and legacy provenance without
+# changing the underlying numerical evidence.
+const LARGE_N_LABEL_NA = "n/a"
+const LARGE_N_LABEL_UNKNOWN = "unknown"
+const LARGE_N_LABEL_NONE = "none"
+const LARGE_N_LABEL_MISSING = "missing"
+const LARGE_N_LABEL_LEGACY_MISSING = "legacy_missing"
+
 # Persisted HDF5 evolution and bond-cap diagnostic keys for large-N campaigns.
 const LARGE_N_EVOLUTION_METHOD_KEY = "evolution_method"
 const LARGE_N_SYSTEM_SOLVE_REUSED_ACROSS_R_KEY = "system_solve_reused_across_R"
@@ -52,7 +61,7 @@ const LARGE_N_FINAL_BOND_DIMS_TRAJECTORY_PREFIX = "trajectory_"
 # Reader-facing detuning-coverage labels.  HDF5 campaign summaries and
 # interrupted progress-CSV summaries use these labels to distinguish a completed
 # multi-frequency grid pass from a short prefix.
-const LARGE_N_DETUNING_COVERAGE_NA = "n/a"
+const LARGE_N_DETUNING_COVERAGE_NA = LARGE_N_LABEL_NA
 const LARGE_N_DETUNING_COVERAGE_SINGLE_DETUNING = "single_detuning"
 const LARGE_N_DETUNING_COVERAGE_FULL_GRID = "full_grid_observed"
 const LARGE_N_DETUNING_COVERAGE_REQUESTED_PARTIAL_GRID = "requested_partial_grid"
@@ -437,8 +446,8 @@ function first_recorded_saturation_cycle(cycles::AbstractVector{<:Integer})
     return isempty(recorded) ? 0 : minimum(recorded)
 end
 
-saturation_cycle_label(cycle::Integer) = cycle == 0 ? "none" : string(cycle)
-saturation_cycle_label(::Missing) = "n/a"
+saturation_cycle_label(cycle::Integer) = cycle == 0 ? LARGE_N_LABEL_NONE : string(cycle)
+saturation_cycle_label(::Missing) = LARGE_N_LABEL_NA
 
 """
     bond_cap_status(system_saturation_cycle, evolved_saturation_cycle,

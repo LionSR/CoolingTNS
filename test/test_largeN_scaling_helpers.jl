@@ -18,6 +18,11 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test LARGE_N_DETUNING_REFERENCE_ISING_MODE_PAIR == "ising_mode_pair_reference"
     @test LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE == "gap_scaled_range"
     @test LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE == "fixed_range"
+    @test LARGE_N_LABEL_NA == "n/a"
+    @test LARGE_N_LABEL_UNKNOWN == "unknown"
+    @test LARGE_N_LABEL_NONE == "none"
+    @test LARGE_N_LABEL_MISSING == "missing"
+    @test LARGE_N_LABEL_LEGACY_MISSING == "legacy_missing"
     @test LARGE_N_EVOLUTION_METHOD_KEY == "evolution_method"
     @test LARGE_N_SYSTEM_SOLVE_REUSED_ACROSS_R_KEY == "system_solve_reused_across_R"
     @test LARGE_N_BOND_SATURATION_THRESHOLD_KEY == "bond_saturation_threshold"
@@ -43,7 +48,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test LARGE_N_TE_LIST_IS_COMMON_KEY == "te_list_is_common"
     @test LARGE_N_FINAL_BOND_DIMS_GROUP == "final_bond_dims"
     @test LARGE_N_FINAL_BOND_DIMS_TRAJECTORY_PREFIX == "trajectory_"
-    @test LARGE_N_DETUNING_COVERAGE_NA == "n/a"
+    @test LARGE_N_DETUNING_COVERAGE_NA == LARGE_N_LABEL_NA
     @test LARGE_N_DETUNING_COVERAGE_SINGLE_DETUNING == "single_detuning"
     @test LARGE_N_DETUNING_COVERAGE_FULL_GRID == "full_grid_observed"
     @test LARGE_N_DETUNING_COVERAGE_REQUESTED_PARTIAL_GRID ==
