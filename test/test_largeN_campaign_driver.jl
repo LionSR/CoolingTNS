@@ -1500,8 +1500,8 @@ end
     @test isnan(evolved_row["overlap"])
     @test evolved_row[LARGE_N_SYSTEM_MAX_BOND_KEY] == 8
     @test evolved_row[LARGE_N_EVOLVED_MAX_BOND_KEY] == 13
-    @test isnan(evolved_row["tdvp_sweep"])
-    @test isnan(evolved_row["tdvp_time"])
+    @test isnan(evolved_row[LARGE_N_PROGRESS_TDVP_SWEEP_KEY])
+    @test isnan(evolved_row[LARGE_N_PROGRESS_TDVP_TIME_KEY])
 
     tdvp_context = (step=2, delta=0.5, te=2.0, sys_bs=(max=8, mean=6.5))
     sweep_row = tdvp_sweep_progress_row(
@@ -1518,8 +1518,8 @@ end
     @test isnan(sweep_row["energy_per_site"])
     @test sweep_row[LARGE_N_SYSTEM_MAX_BOND_KEY] == 8
     @test sweep_row[LARGE_N_EVOLVED_MAX_BOND_KEY] == 21
-    @test sweep_row["tdvp_sweep"] == 3
-    @test sweep_row["tdvp_time"] == 0.6
+    @test sweep_row[LARGE_N_PROGRESS_TDVP_SWEEP_KEY] == 3
+    @test sweep_row[LARGE_N_PROGRESS_TDVP_TIME_KEY] == 0.6
 
     path = tempname() * ".csv"
     try

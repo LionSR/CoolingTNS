@@ -106,6 +106,8 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
         "updated",
         "tdvp_sweep",
     )
+    @test LARGE_N_PROGRESS_TDVP_SWEEP_KEY == "tdvp_sweep"
+    @test LARGE_N_PROGRESS_TDVP_TIME_KEY == "tdvp_time"
     @test LARGE_N_PROGRESS_CSV_COLUMNS == (
         "timestamp",
         "N",
@@ -130,8 +132,8 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
         LARGE_N_SYSTEM_MEAN_BOND_KEY,
         LARGE_N_EVOLVED_MAX_BOND_KEY,
         LARGE_N_EVOLVED_MEAN_BOND_KEY,
-        "tdvp_sweep",
-        "tdvp_time",
+        LARGE_N_PROGRESS_TDVP_SWEEP_KEY,
+        LARGE_N_PROGRESS_TDVP_TIME_KEY,
         LARGE_N_ELAPSED_SECONDS_KEY,
     )
     @test LARGE_N_PROGRESS_GROUP_COLUMNS == (

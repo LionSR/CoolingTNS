@@ -225,7 +225,8 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
             if stage == LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
                 if tdvp_sweep_cap_cycle == 0
                     tdvp_sweep_cap_cycle = progress_int(row, "cycle")
-                    tdvp_sweep_cap_sweep = progress_int(row, "tdvp_sweep")
+                    tdvp_sweep_cap_sweep =
+                        progress_int(row, LARGE_N_PROGRESS_TDVP_SWEEP_KEY)
                 end
             else
                 evolved_cap_cycle == 0 &&
@@ -251,7 +252,7 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
             if !isfinite(max_sweep_increment) || increment > max_sweep_increment
                 max_sweep_increment = increment
                 max_sweep_cycle = cycle
-                max_sweep = progress_int(row, "tdvp_sweep")
+                max_sweep = progress_int(row, LARGE_N_PROGRESS_TDVP_SWEEP_KEY)
             end
         end
     end

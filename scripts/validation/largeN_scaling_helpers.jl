@@ -185,6 +185,11 @@ const LARGE_N_PROGRESS_STAGES = (
     LARGE_N_PROGRESS_STAGE_TDVP_SWEEP,
 )
 
+# These are CSV column names, not observer stage labels.  The sweep column
+# intentionally has the same persisted spelling as the TDVP-sweep stage.
+const LARGE_N_PROGRESS_TDVP_SWEEP_KEY = "tdvp_sweep"
+const LARGE_N_PROGRESS_TDVP_TIME_KEY = "tdvp_time"
+
 # Persisted progress CSV schema.  These columns are written by the large-N
 # campaign driver and read by the interrupted-run recovery summarizer.
 const LARGE_N_PROGRESS_CSV_COLUMNS = (
@@ -211,8 +216,8 @@ const LARGE_N_PROGRESS_CSV_COLUMNS = (
     LARGE_N_SYSTEM_MEAN_BOND_KEY,
     LARGE_N_EVOLVED_MAX_BOND_KEY,
     LARGE_N_EVOLVED_MEAN_BOND_KEY,
-    "tdvp_sweep",
-    "tdvp_time",
+    LARGE_N_PROGRESS_TDVP_SWEEP_KEY,
+    LARGE_N_PROGRESS_TDVP_TIME_KEY,
     LARGE_N_ELAPSED_SECONDS_KEY,
 )
 
