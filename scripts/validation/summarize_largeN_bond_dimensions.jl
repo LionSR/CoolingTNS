@@ -626,9 +626,9 @@ function read_largeN_system_size(file_name::AbstractString, n_group_name::Abstra
 end
 
 function summarize_run(file_name::AbstractString, root, n_group_name::AbstractString,
-                       method_name::AbstractString, method_group, r_group_name::AbstractString,
-                       run_group)
-    N = read_largeN_system_size(file_name, n_group_name, root[n_group_name])
+                       n_group::HDF5.Group, method_name::AbstractString,
+                       method_group, r_group_name::AbstractString, run_group)
+    N = read_largeN_system_size(file_name, n_group_name, n_group)
     R = largeN_r_from_group_name(r_group_name)
     M = Int(read(run_group[LARGE_N_TRAJECTORY_COUNT_KEY]))
     evolution = String(
@@ -937,8 +937,8 @@ function summarize_file(path::AbstractString)
                     method_group[r_group_name] isa HDF5.Group || continue
                     push!(
                         rows,
-                        summarize_run(path, root, n_group_name, method_name, method_group,
-                                      r_group_name, method_group[r_group_name]),
+                        summarize_run(path, root, n_group_name, n_group, method_name,
+                                      method_group, r_group_name, method_group[r_group_name]),
                     )
                 end
             end
