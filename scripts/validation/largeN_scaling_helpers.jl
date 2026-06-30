@@ -187,36 +187,50 @@ const LARGE_N_PROGRESS_STAGES = (
 
 # These are persisted progress CSV column names, not observer stage labels.
 # The sweep column intentionally has the same spelling as the TDVP-sweep stage.
+const LARGE_N_PROGRESS_TIMESTAMP_KEY = "timestamp"
+const LARGE_N_PROGRESS_N_KEY = "N"
+const LARGE_N_PROGRESS_METHOD_KEY = "method"
+const LARGE_N_PROGRESS_EVOLUTION_KEY = "evolution"
+const LARGE_N_PROGRESS_R_KEY = "R"
+const LARGE_N_PROGRESS_TRAJECTORY_KEY = "trajectory"
+const LARGE_N_PROGRESS_SEED_KEY = "seed"
+const LARGE_N_PROGRESS_DMAX_KEY = "Dmax"
+const LARGE_N_PROGRESS_CUTOFF_KEY = "cutoff"
+const LARGE_N_PROGRESS_G_KEY = "g"
+const LARGE_N_PROGRESS_TAU_KEY = "tau"
 const LARGE_N_PROGRESS_STAGE_KEY = "stage"
 const LARGE_N_PROGRESS_STEP_KEY = "step"
 const LARGE_N_PROGRESS_CYCLE_KEY = "cycle"
 const LARGE_N_PROGRESS_DELTA_KEY = "delta"
 const LARGE_N_PROGRESS_TE_KEY = "te"
+const LARGE_N_PROGRESS_ENERGY_PER_SITE_KEY = "energy_per_site"
+const LARGE_N_PROGRESS_RELATIVE_ENERGY_KEY = "relative_energy"
+const LARGE_N_PROGRESS_OVERLAP_KEY = "overlap"
 const LARGE_N_PROGRESS_TDVP_SWEEP_KEY = "tdvp_sweep"
 const LARGE_N_PROGRESS_TDVP_TIME_KEY = "tdvp_time"
 
 # Persisted progress CSV schema.  These columns are written by the large-N
 # campaign driver and read by the interrupted-run recovery summarizer.
 const LARGE_N_PROGRESS_CSV_COLUMNS = (
-    "timestamp",
-    "N",
-    "method",
-    "evolution",
-    "R",
-    "trajectory",
-    "seed",
-    "Dmax",
-    "cutoff",
-    "g",
-    "tau",
+    LARGE_N_PROGRESS_TIMESTAMP_KEY,
+    LARGE_N_PROGRESS_N_KEY,
+    LARGE_N_PROGRESS_METHOD_KEY,
+    LARGE_N_PROGRESS_EVOLUTION_KEY,
+    LARGE_N_PROGRESS_R_KEY,
+    LARGE_N_PROGRESS_TRAJECTORY_KEY,
+    LARGE_N_PROGRESS_SEED_KEY,
+    LARGE_N_PROGRESS_DMAX_KEY,
+    LARGE_N_PROGRESS_CUTOFF_KEY,
+    LARGE_N_PROGRESS_G_KEY,
+    LARGE_N_PROGRESS_TAU_KEY,
     LARGE_N_PROGRESS_STAGE_KEY,
     LARGE_N_PROGRESS_STEP_KEY,
     LARGE_N_PROGRESS_CYCLE_KEY,
     LARGE_N_PROGRESS_DELTA_KEY,
     LARGE_N_PROGRESS_TE_KEY,
-    "energy_per_site",
-    "relative_energy",
-    "overlap",
+    LARGE_N_PROGRESS_ENERGY_PER_SITE_KEY,
+    LARGE_N_PROGRESS_RELATIVE_ENERGY_KEY,
+    LARGE_N_PROGRESS_OVERLAP_KEY,
     LARGE_N_SYSTEM_MAX_BOND_KEY,
     LARGE_N_SYSTEM_MEAN_BOND_KEY,
     LARGE_N_EVOLVED_MAX_BOND_KEY,
@@ -284,16 +298,16 @@ end
 # different `te` per cycle, and fixed `--te-values` scans are emitted as separate
 # planned jobs with distinct paths.
 const LARGE_N_PROGRESS_GROUP_COLUMNS = (
-    "N",
-    "method",
-    "evolution",
-    "R",
-    "trajectory",
-    "seed",
-    "Dmax",
-    "cutoff",
-    "g",
-    "tau",
+    LARGE_N_PROGRESS_N_KEY,
+    LARGE_N_PROGRESS_METHOD_KEY,
+    LARGE_N_PROGRESS_EVOLUTION_KEY,
+    LARGE_N_PROGRESS_R_KEY,
+    LARGE_N_PROGRESS_TRAJECTORY_KEY,
+    LARGE_N_PROGRESS_SEED_KEY,
+    LARGE_N_PROGRESS_DMAX_KEY,
+    LARGE_N_PROGRESS_CUTOFF_KEY,
+    LARGE_N_PROGRESS_G_KEY,
+    LARGE_N_PROGRESS_TAU_KEY,
 )
 
 """

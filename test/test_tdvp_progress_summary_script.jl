@@ -15,25 +15,27 @@ function tdvp_progress_line(; timestamp="2026-06-19T00:00:00",
                             elapsed_seconds,
                             columns=TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS)
     row = Dict(
-        "timestamp" => timestamp,
-        "N" => "4",
-        "method" => method,
-        "evolution" => evolution,
-        "R" => R,
-        "trajectory" => "1",
-        "seed" => "123",
-        "Dmax" => Dmax,
-        "cutoff" => "1.0e-6",
-        "g" => g,
-        "tau" => "0.2",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_TIMESTAMP_KEY => timestamp,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_N_KEY => "4",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_METHOD_KEY => method,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_EVOLUTION_KEY => evolution,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_R_KEY => R,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_TRAJECTORY_KEY => "1",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_SEED_KEY => "123",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_DMAX_KEY => Dmax,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_CUTOFF_KEY => "1.0e-6",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_G_KEY => g,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_TAU_KEY => "0.2",
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_KEY => stage,
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_STEP_KEY => string(step),
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_CYCLE_KEY => string(cycle),
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_DELTA_KEY => delta,
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_TE_KEY => te,
-        "energy_per_site" => energy_per_site,
-        "relative_energy" => relative_energy,
-        "overlap" => overlap,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_ENERGY_PER_SITE_KEY =>
+            energy_per_site,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_RELATIVE_ENERGY_KEY =>
+            relative_energy,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_OVERLAP_KEY => overlap,
         TDVPProgressCSVSummary.LARGE_N_SYSTEM_MAX_BOND_KEY => system_max_bond,
         TDVPProgressCSVSummary.LARGE_N_SYSTEM_MEAN_BOND_KEY => system_mean_bond,
         TDVPProgressCSVSummary.LARGE_N_EVOLVED_MAX_BOND_KEY => evolved_max_bond,
@@ -79,28 +81,28 @@ end
     @test TDVPProgressCSVSummary.progress_detuning_coverage_status(5, 5, 5) ==
           TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_FULL_GRID
     @test TDVPProgressCSVSummary.LARGE_N_PROGRESS_GROUP_COLUMNS == (
-        "N",
-        "method",
-        "evolution",
-        "R",
-        "trajectory",
-        "seed",
-        "Dmax",
-        "cutoff",
-        "g",
-        "tau",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_N_KEY,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_METHOD_KEY,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_EVOLUTION_KEY,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_R_KEY,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_TRAJECTORY_KEY,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_SEED_KEY,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_DMAX_KEY,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_CUTOFF_KEY,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_G_KEY,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_TAU_KEY,
     )
     fixed_identity_a = Dict(
-        "N" => "64",
-        "method" => "mcwf",
-        "evolution" => "continuous",
-        "R" => "5",
-        "trajectory" => "1",
-        "seed" => "84310618",
-        "Dmax" => "96",
-        "cutoff" => "1.0e-6",
-        "g" => "0.05",
-        "tau" => "0.2",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_N_KEY => "64",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_METHOD_KEY => "mcwf",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_EVOLUTION_KEY => "continuous",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_R_KEY => "5",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_TRAJECTORY_KEY => "1",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_SEED_KEY => "84310618",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_DMAX_KEY => "96",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_CUTOFF_KEY => "1.0e-6",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_G_KEY => "0.05",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_TAU_KEY => "0.2",
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_TE_KEY => "0.34",
     )
     fixed_identity_b = merge(
@@ -109,7 +111,10 @@ end
     )
     @test TDVPProgressCSVSummary.group_key(fixed_identity_a) ==
           TDVPProgressCSVSummary.group_key(fixed_identity_b)
-    fixed_identity_c = merge(fixed_identity_a, Dict("g" => "0.1"))
+    fixed_identity_c = merge(
+        fixed_identity_a,
+        Dict(TDVPProgressCSVSummary.LARGE_N_PROGRESS_G_KEY => "0.1"),
+    )
     @test TDVPProgressCSVSummary.group_key(fixed_identity_a) !=
           TDVPProgressCSVSummary.group_key(fixed_identity_c)
     fixed_label = TDVPProgressCSVSummary.group_label(
@@ -373,7 +378,7 @@ end
     legacy_g_path = tempname() * ".csv"
     try
         legacy_columns = filter(
-            col -> col != "g",
+            col -> col != TDVPProgressCSVSummary.LARGE_N_PROGRESS_G_KEY,
             TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS,
         )
         open(legacy_g_path, "w") do io

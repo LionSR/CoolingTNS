@@ -266,7 +266,9 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
         maximum(progress_int(row, LARGE_N_PROGRESS_CYCLE_KEY) for row in updates)
     visited_detuning_count = completed_update_detuning_count(updates)
     final_update = isempty(updates) ? nothing : updates[end]
-    final_energy = final_update === nothing ? NaN : progress_float(final_update, "energy_per_site")
+    final_energy = final_update === nothing ?
+        NaN :
+        progress_float(final_update, LARGE_N_PROGRESS_ENERGY_PER_SITE_KEY)
     final_system_max = final_update === nothing ?
         0 :
         Int(round(progress_float(final_update, LARGE_N_SYSTEM_MAX_BOND_KEY)))
@@ -336,7 +338,7 @@ end
 
 function summarize_progress_file(path::AbstractString; cap=nothing, file_label=basename(path))
     header, rows = read_progress_csv(path)
-    has_g_column = "g" in header
+    has_g_column = LARGE_N_PROGRESS_G_KEY in header
     groups = Dict{Any,Vector{Dict{String,String}}}()
     for row in rows
         push!(get!(groups, group_key(row), Vector{Dict{String,String}}()), row)
@@ -402,7 +404,10 @@ function print_energy_trace(rows)
                 "| $(row.R) | $(g_label) | $(row.trajectory) | " *
                 "$(progress_cell(update, LARGE_N_PROGRESS_CYCLE_KEY)) | " *
                 "$(format_float(progress_float(update, LARGE_N_PROGRESS_DELTA_KEY), 8)) | " *
-                "$(format_float(progress_float(update, "energy_per_site"), 8)) | " *
+                "$(format_float(
+                    progress_float(update, LARGE_N_PROGRESS_ENERGY_PER_SITE_KEY),
+                    8,
+                )) | " *
                 "$(progress_cell(update, LARGE_N_SYSTEM_MAX_BOND_KEY)) | " *
                 "$(progress_cell(update, LARGE_N_EVOLVED_MAX_BOND_KEY)) | " *
                 "$(format_float(progress_float(update, LARGE_N_ELAPSED_SECONDS_KEY), 1)) |"
