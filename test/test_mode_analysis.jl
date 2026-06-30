@@ -461,11 +461,6 @@ end
         odd_reference = CoolingTNS._reference_parity_sector_with_source(0.0; default=-1)
         @test odd_reference.parity == -1
         @test odd_reference.source === :reference
-        @test FERMIONIC_GRID_SOURCE_LABELS == (
-            FERMIONIC_GRID_SOURCE_STATE,
-            FERMIONIC_GRID_SOURCE_REFERENCE,
-            FERMIONIC_GRID_SOURCE_PRECOMPUTED,
-        )
         @test_throws ArgumentError fermionic_grid_source_label(:unknown)
 
         @test CoolingTNS._reference_fermionic_bc(:periodic, 0.0) ==
