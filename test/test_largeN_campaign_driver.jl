@@ -1234,7 +1234,7 @@ end
             CoolingTNS.RESULT_MODE_ENERGIES => [0.4, 0.8],
             CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES => [0, 1, 2],
             CoolingTNS.RESULT_MODE_GF => -1,
-            CoolingTNS.RESULT_MODE_GF_SOURCE => "state",
+            CoolingTNS.RESULT_MODE_GF_SOURCE => CoolingTNS.FERMIONIC_GRID_SOURCE_STATE,
         )
         traj_rows = [
             merge(copy(base_row), Dict{String,Any}(
@@ -1300,7 +1300,8 @@ end
             @test read(g[CoolingTNS.RESULT_MODE_ENERGIES]) == [0.4, 0.8]
             @test read(g[CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES]) == [0, 1, 2]
             @test read(g[CoolingTNS.RESULT_MODE_GF]) == -1
-            @test read(g[CoolingTNS.RESULT_MODE_GF_SOURCE]) == "state"
+            @test read(g[CoolingTNS.RESULT_MODE_GF_SOURCE]) ==
+                  CoolingTNS.FERMIONIC_GRID_SOURCE_STATE
             @test read(g[LARGE_N_TRAJECTORY_SEEDS_KEY]) == [101, 102]
             @test read(g[LARGE_N_TRAJECTORY_INDICES_KEY]) == [1, 2]
             @test size(read(g[CoolingTNS.RESULT_MODE_HK_TRAJECTORIES])) == (3, 2, 2)
@@ -1366,7 +1367,7 @@ end
         CoolingTNS.RESULT_MODE_ENERGIES => [0.4, 0.8],
         CoolingTNS.RESULT_MODE_MEASUREMENT_CYCLES => [0, 1],
         CoolingTNS.RESULT_MODE_GF => -1,
-        CoolingTNS.RESULT_MODE_GF_SOURCE => "state",
+        CoolingTNS.RESULT_MODE_GF_SOURCE => CoolingTNS.FERMIONIC_GRID_SOURCE_STATE,
     )
 
     @test validate_mode_measurement_result(result, energy).rows == [1, 2]
@@ -1651,7 +1652,8 @@ end
             @test all(isfinite, mode_hk)
             @test all(n -> -1e-12 <= n <= 1 + 1e-12, mode_nk)
             @test read(g[CoolingTNS.RESULT_MODE_GF]) == -1
-            @test read(g[CoolingTNS.RESULT_MODE_GF_SOURCE]) == "state"
+            @test read(g[CoolingTNS.RESULT_MODE_GF_SOURCE]) ==
+                  CoolingTNS.FERMIONIC_GRID_SOURCE_STATE
             @test read(g[LARGE_N_TRAJECTORY_SEEDS_KEY]) ==
                   [largeN_trajectory_seed(20260617, 2, 1, 3)]
             @test read(g[LARGE_N_TRAJECTORY_INDICES_KEY]) == [3]

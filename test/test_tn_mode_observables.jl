@@ -483,7 +483,7 @@ end
         @test haskey(results_tn, RESULT_MODE_ENERGIES)
         @test results_tn[RESULT_MODE_GF] == results_ed[RESULT_MODE_GF]
         @test results_tn[RESULT_MODE_GF_SOURCE] == results_ed[RESULT_MODE_GF_SOURCE]
-        @test results_tn[RESULT_MODE_GF_SOURCE] == "state"
+        @test results_tn[RESULT_MODE_GF_SOURCE] == FERMIONIC_GRID_SOURCE_STATE
         @test results_tn[RESULT_MODE_K_INDICES] == results_ed[RESULT_MODE_K_INDICES]
         @test results_tn[RESULT_MODE_ENERGIES] ≈ results_ed[RESULT_MODE_ENERGIES] atol=1e-12
         @test results_tn[RESULT_MODE_HK] ≈ results_ed[RESULT_MODE_HK] atol=1e-8
@@ -512,8 +512,8 @@ end
         end
 
         expected_gF = fermionic_bc(:periodic, 1)
-        @test results_tn[RESULT_MODE_GF_SOURCE] == "reference"
-        @test results_ed[RESULT_MODE_GF_SOURCE] == "reference"
+        @test results_tn[RESULT_MODE_GF_SOURCE] == FERMIONIC_GRID_SOURCE_REFERENCE
+        @test results_ed[RESULT_MODE_GF_SOURCE] == FERMIONIC_GRID_SOURCE_REFERENCE
         @test results_tn[RESULT_MODE_GF] == expected_gF
         @test results_ed[RESULT_MODE_GF] == expected_gF
         @test results_tn[RESULT_MODE_K_INDICES] == results_ed[RESULT_MODE_K_INDICES]
@@ -562,7 +562,7 @@ end
         @test isnan(measurements[RESULT_ENERGY][2])
         @test isnan(measurements[RESULT_GROUND_STATE_OVERLAP][2])
         @test isnan(measurements[RESULT_BATH_SAMPLE_MAGNETIZATION][2])
-        @test measurements[RESULT_MODE_GF_SOURCE] == "state"
+        @test measurements[RESULT_MODE_GF_SOURCE] == FERMIONIC_GRID_SOURCE_STATE
         @test all(isfinite, measurements[RESULT_MODE_HK][1, :])
         @test all(isfinite, measurements[RESULT_MODE_NK][1, :])
         @test all(isnan, measurements[RESULT_MODE_HK][2, :])
@@ -647,7 +647,7 @@ end
         @test all(isfinite, results_tn[RESULT_MODE_NK])
         @test results_tn[RESULT_MODE_GF] == results_ed[RESULT_MODE_GF]
         @test results_tn[RESULT_MODE_GF_SOURCE] == results_ed[RESULT_MODE_GF_SOURCE]
-        @test results_tn[RESULT_MODE_GF_SOURCE] == "state"
+        @test results_tn[RESULT_MODE_GF_SOURCE] == FERMIONIC_GRID_SOURCE_STATE
         @test results_tn[RESULT_MODE_K_INDICES] == results_ed[RESULT_MODE_K_INDICES]
         @test results_tn[RESULT_MODE_ENERGIES] ≈ results_ed[RESULT_MODE_ENERGIES] atol=1e-12
         @test results_tn[RESULT_MODE_HK] ≈ results_ed[RESULT_MODE_HK] atol=1e-6
@@ -831,7 +831,7 @@ end
         @test haskey(results_tn, RESULT_MODE_ENERGIES)
         @test results_tn[RESULT_MODE_GF] == results_ed[RESULT_MODE_GF]
         @test results_tn[RESULT_MODE_GF_SOURCE] == results_ed[RESULT_MODE_GF_SOURCE]
-        @test results_tn[RESULT_MODE_GF_SOURCE] == "state"
+        @test results_tn[RESULT_MODE_GF_SOURCE] == FERMIONIC_GRID_SOURCE_STATE
         @test results_tn[RESULT_MODE_K_INDICES] == results_ed[RESULT_MODE_K_INDICES]
         @test results_tn[RESULT_MODE_ENERGIES] ≈ results_ed[RESULT_MODE_ENERGIES] atol=1e-12
         @test results_tn[RESULT_MODE_HK] ≈ results_ed[RESULT_MODE_HK] atol=1e-8

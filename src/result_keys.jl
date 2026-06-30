@@ -1,12 +1,13 @@
 """
     result_keys.jl
 
-Canonical string keys for cooling result dictionaries.
+Canonical string keys and schema label values for cooling result dictionaries.
 
 These constants do not change the public output format.  They name the strings
-used by `run_cooling`, HDF5 writers, plotting scripts, and tests, so changes to
-the result schema can be made deliberately rather than by scattered literals.
-`RESULT_KEYS` is the complete registry of keys owned by the cooling result schema.
+used by `run_cooling`, HDF5 writers, plotting scripts, and tests, so changes
+to the result schema can be made deliberately rather than by scattered
+literals.  `RESULT_KEYS` is the complete registry of keys owned by the cooling
+result schema.
 """
 
 const RESULT_ENERGY = "E_list"
@@ -23,6 +24,14 @@ const RESULT_MOMENTUM_GF_SOURCE = "momentum_gF_source"
 
 const RESULT_MODE_GF = "mode_gF"
 const RESULT_MODE_GF_SOURCE = "mode_gF_source"
+const FERMIONIC_GRID_SOURCE_STATE = "state"
+const FERMIONIC_GRID_SOURCE_REFERENCE = "reference"
+const FERMIONIC_GRID_SOURCE_PRECOMPUTED = "precomputed"
+const FERMIONIC_GRID_SOURCE_LABELS = (
+    FERMIONIC_GRID_SOURCE_STATE,
+    FERMIONIC_GRID_SOURCE_REFERENCE,
+    FERMIONIC_GRID_SOURCE_PRECOMPUTED,
+)
 const RESULT_MODE_HK = "mode_hk"
 const RESULT_MODE_NK = "mode_nk"
 const RESULT_MODE_K_INDICES = "mode_k_indices"

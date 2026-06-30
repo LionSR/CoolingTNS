@@ -744,7 +744,7 @@ function _add_ising_mode_measurement_slots!(measurements, ::CoolingProblem,
     px = measure_state_parity(state.state, ham_params.N)
     sector = _reference_parity_sector_with_source(px)
     measurements[RESULT_MODE_GF] = fermionic_bc(ham_params.bc, sector.parity)
-    measurements[RESULT_MODE_GF_SOURCE] = string(sector.source)
+    measurements[RESULT_MODE_GF_SOURCE] = fermionic_grid_source_label(sector.source)
 
     measurements[RESULT_MODE_HK] = nothing
     measurements[RESULT_MODE_NK] = nothing
