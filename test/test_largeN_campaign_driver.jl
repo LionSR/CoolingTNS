@@ -4,6 +4,13 @@ using HDF5
 include(joinpath(@__DIR__, "..", "scripts", "validation",
                  "run_largeN_multifrequency_tn_scaling.jl"))
 
+function read_single_largeN_progress_row(path)
+    lines = readlines(path)
+    @test lines[1] == join(LARGE_N_PROGRESS_CSV_COLUMNS, ",")
+    @test length(lines) == 2
+    return Dict(String.(split(lines[1], ",")) .=> String.(split(lines[2], ",")))
+end
+
 @testset "Large-N bond-cap stop rule" begin
     @test LARGE_N_TDVP_SWEEP_IN_STEP_STOP_REASON == "tdvp_sweep_bond_cap_in_step"
     sweep_stop_reason_doc = (@doc LARGE_N_TDVP_SWEEP_IN_STEP_STOP_REASON)
@@ -1573,13 +1580,6 @@ end
     @test sweep_row[LARGE_N_PROGRESS_TDVP_SWEEP_KEY] == 3
     @test sweep_row[LARGE_N_PROGRESS_TDVP_TIME_KEY] == 0.6
 
-    function read_single_progress_row(path)
-        lines = readlines(path)
-        @test lines[1] == join(LARGE_N_PROGRESS_CSV_COLUMNS, ",")
-        @test length(lines) == 2
-        return Dict(String.(split(lines[1], ",")) .=> String.(split(lines[2], ",")))
-    end
-
     sweep_state = MPS(siteinds("S=1/2", 4), "Up")
     tdvp_sweep_history = zeros(Int, 3)
     sweep_summary = record_tdvp_sweep_progress!(
@@ -1612,6 +1612,29 @@ end
         saturation_threshold=1,
     ))
 
+    tdvp_sweep_history .= 0
+    no_csv_err = try
+        record_tdvp_sweep_progress!(
+            sweep_state;
+            sweep=4,
+            current_time=0.75,
+            tdvp_context=tdvp_context,
+            tdvp_sweep_maxbond=tdvp_sweep_history,
+            progress_csv=nothing,
+            progress_context=context,
+            ham_params=ham_params,
+            elapsed=5.0,
+            stop_on_bond_cap=true,
+            saturation_threshold=1,
+        )
+        nothing
+    catch caught
+        caught
+    end
+    @test no_csv_err isa CoolingTNS.CoolingStepInterrupted
+    @test no_csv_err.reason == LARGE_N_TDVP_SWEEP_IN_STEP_STOP_REASON
+    @test tdvp_sweep_history[2] == 1
+
     sweep_progress_path = tempname() * ".csv"
     try
         tdvp_sweep_history .= 0
@@ -1628,7 +1651,7 @@ end
             stop_on_bond_cap=false,
             saturation_threshold=1,
         )
-        csv_row = read_single_progress_row(sweep_progress_path)
+        csv_row = read_single_largeN_progress_row(sweep_progress_path)
         @test tdvp_sweep_history[2] == 1
         @test csv_row[LARGE_N_PROGRESS_STAGE_KEY] == LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
         @test parse(Int, csv_row[LARGE_N_PROGRESS_STEP_KEY]) == 2
@@ -1664,7 +1687,7 @@ end
         @test err isa CoolingTNS.CoolingStepInterrupted
         @test err.reason == LARGE_N_TDVP_SWEEP_IN_STEP_STOP_REASON
         @test tdvp_sweep_history[2] == 1
-        csv_row = read_single_progress_row(cap_progress_path)
+        csv_row = read_single_largeN_progress_row(cap_progress_path)
         @test csv_row[LARGE_N_PROGRESS_STAGE_KEY] == LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
         @test parse(Int, csv_row[LARGE_N_PROGRESS_TDVP_SWEEP_KEY]) == 5
         @test parse(Float64, csv_row[LARGE_N_PROGRESS_TDVP_TIME_KEY]) == 0.25
