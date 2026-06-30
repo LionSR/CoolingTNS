@@ -1355,6 +1355,30 @@ function output_path(cfg)
     return joinpath(cfg["outdir"], default_output_filename(cfg))
 end
 
+"""
+Return the sibling temporary path used while a large-`N` campaign HDF5 file is open.
+The suffix deliberately does not end in `.h5`, so artifact scans ignore an
+interrupted write.
+"""
+largeN_atomic_temp_output_path(path::AbstractString) = string(path, ".tmp")
+
+"""
+Promote a closed temporary HDF5 file to the final campaign output path.
+
+On POSIX filesystems, `rename` atomically replaces the destination. Julia's
+Windows rename does not replace an existing file, so the Windows path falls back
+to `mv(...; force=true)` after the HDF5 handle has closed. This may briefly
+remove an old final file on Windows, but it never exposes a corrupt `.h5`.
+"""
+function promote_largeN_atomic_output!(temp_path::AbstractString, path::AbstractString)
+    if Sys.iswindows()
+        mv(temp_path, path; force=true)
+    else
+        Base.Filesystem.rename(temp_path, path)
+    end
+    return path
+end
+
 mode_dataset_present(row) = get(row, RESULT_MODE_HK, nothing) !== nothing
 
 function common_mode_metadata(traj_rows, key::AbstractString)
@@ -1541,11 +1565,13 @@ end
 function run_campaign(cfg)
     backend = TNBackend()
     path = output_path(cfg)
+    temp_path = largeN_atomic_temp_output_path(path)
     mkpath(dirname(path))
+    rm(temp_path; force=true)
 
     summaries = Vector{NamedTuple}()
 
-    h5open(path, "w") do f
+    h5open(temp_path, "w") do f
         write(f, LARGE_N_ROOT_GENERATED_AT_KEY, Dates.format(now(), Dates.ISODateTimeFormat))
         write(f, LARGE_N_ROOT_NS_KEY, Int.(cfg["Ns"]))
         write(f, LARGE_N_ROOT_R_VALUES_KEY, Int.(cfg["R_values"]))
@@ -1715,6 +1741,7 @@ function run_campaign(cfg)
             end
         end
     end
+    promote_largeN_atomic_output!(temp_path, path)
 
     println("\nwrote $path")
     println("summary:")
