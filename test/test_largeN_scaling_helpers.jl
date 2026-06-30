@@ -108,6 +108,11 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     )
     @test LARGE_N_PROGRESS_TDVP_SWEEP_KEY == "tdvp_sweep"
     @test LARGE_N_PROGRESS_TDVP_TIME_KEY == "tdvp_time"
+    @test LARGE_N_PROGRESS_STAGE_KEY == "stage"
+    @test LARGE_N_PROGRESS_STEP_KEY == "step"
+    @test LARGE_N_PROGRESS_CYCLE_KEY == "cycle"
+    @test LARGE_N_PROGRESS_DELTA_KEY == "delta"
+    @test LARGE_N_PROGRESS_TE_KEY == "te"
     @test LARGE_N_PROGRESS_CSV_COLUMNS == (
         "timestamp",
         "N",
@@ -120,11 +125,11 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
         "cutoff",
         "g",
         "tau",
-        "stage",
-        "step",
-        "cycle",
-        "delta",
-        "te",
+        LARGE_N_PROGRESS_STAGE_KEY,
+        LARGE_N_PROGRESS_STEP_KEY,
+        LARGE_N_PROGRESS_CYCLE_KEY,
+        LARGE_N_PROGRESS_DELTA_KEY,
+        LARGE_N_PROGRESS_TE_KEY,
         "energy_per_site",
         "relative_energy",
         "overlap",
