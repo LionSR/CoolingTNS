@@ -239,8 +239,12 @@ function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean;
     mode_gF = Int(read(run_group[RESULT_MODE_GF]))
     mode_gF_source = String(read(run_group[RESULT_MODE_GF_SOURCE]))
 
-    model = haskey(root, "model") ? String(read(root["model"])) : LARGE_N_LABEL_UNKNOWN
-    bc = haskey(root, "bc") ? String(read(root["bc"])) : LARGE_N_LABEL_UNKNOWN
+    model = haskey(root, LARGE_N_ROOT_MODEL_KEY) ?
+        String(read(root[LARGE_N_ROOT_MODEL_KEY])) :
+        LARGE_N_LABEL_UNKNOWN
+    bc = haskey(root, LARGE_N_ROOT_BC_KEY) ?
+        String(read(root[LARGE_N_ROOT_BC_KEY])) :
+        LARGE_N_LABEL_UNKNOWN
     if model != "ising" || !(bc in ("periodic", "antiperiodic"))
         error(
             "mode measurements are present, but the file describes model='$model' " *
@@ -248,13 +252,18 @@ function mode_reconstruction_summary(root, run_group, N::Integer, energy_mean;
             "the integrable Ising chain with periodic or antiperiodic spin BC"
         )
     end
-    haskey(root, "J") && haskey(root, "h") ||
+    haskey(root, LARGE_N_ROOT_J_KEY) && haskey(root, LARGE_N_ROOT_H_KEY) ||
         error("mode measurements are present, but root datasets J and h are missing")
 
     # The stored k-grid determines the fermionic sector.  Here `ham_params`
     # supplies the common Ising parameters needed by the shared reconstruction
     # routine.
-    ham_params = IsingParameters(N, Float64(read(root["J"])), Float64(read(root["h"])), Symbol(bc))
+    ham_params = IsingParameters(
+        N,
+        Float64(read(root[LARGE_N_ROOT_J_KEY])),
+        Float64(read(root[LARGE_N_ROOT_H_KEY])),
+        Symbol(bc),
+    )
     mode_hk = Float64.(read(run_group[RESULT_MODE_HK]))
     mode_nk = Float64.(read(run_group[RESULT_MODE_NK]))
     k_indices = Float64.(vec(read(run_group[RESULT_MODE_K_INDICES])))
@@ -482,7 +491,7 @@ function saturation_threshold_for(root, method_group, run_group, method_name::Ab
         return Int(read(run_group[LARGE_N_BOND_SATURATION_THRESHOLD_KEY]))
     haskey(method_group, LARGE_N_BOND_SATURATION_THRESHOLD_KEY) &&
         return Int(read(method_group[LARGE_N_BOND_SATURATION_THRESHOLD_KEY]))
-    return tn_method_maxdim(method_from_name(method_name), Int(read(root["Dmax"])))
+    return tn_method_maxdim(method_from_name(method_name), Int(read(root[LARGE_N_ROOT_DMAX_KEY])))
 end
 
 function final_link_dimensions(run_group)
@@ -597,7 +606,7 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         read_group_value(method_group, root, LARGE_N_EVOLUTION_METHOD_KEY, LARGE_N_LABEL_UNKNOWN)
     )
     te = Float64(read_first_group_value(RESULT_TE, NaN, run_group, method_group, root))
-    g = Float64(read_first_group_value("g", NaN, run_group, method_group, root))
+    g = Float64(read_first_group_value(LARGE_N_ROOT_G_KEY, NaN, run_group, method_group, root))
     randomize_times = randomize_times_flag(root, method_group, run_group)
     time_protocol = time_protocol_label(randomize_times)
     init_state, theta = initial_state_metadata(root, method_group, run_group)
@@ -639,8 +648,8 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
         )
     relative_energy_mean = vec(Float64.(read(run_group[RESULT_RELATIVE_ENERGY])))
     inferred_completed_steps = max(length(energy_mean) - 1, 0)
-    default_requested_steps = haskey(root, "steps") ?
-        Int(read(root["steps"])) :
+    default_requested_steps = haskey(root, LARGE_N_ROOT_STEPS_KEY) ?
+        Int(read(root[LARGE_N_ROOT_STEPS_KEY])) :
         inferred_completed_steps
     requested_steps_values = read_integer_vector(
         run_group,

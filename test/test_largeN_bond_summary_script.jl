@@ -23,11 +23,11 @@ function write_minimal_mode_summary_file(path::AbstractString, mode_hk, mode_nk;
     energy = energy_values === nothing ? zeros(Float64, n_rows) : Float64.(energy_values)
     length(energy) == n_rows || error("test helper energy_values length must match mode_hk rows")
     h5open(path, "w") do f
-        write(f, "Dmax", 8)
-        write(f, "model", "ising")
-        write(f, "bc", "periodic")
-        write(f, "J", J)
-        write(f, "h", h)
+        write(f, LARGE_N_ROOT_DMAX_KEY, 8)
+        write(f, LARGE_N_ROOT_MODEL_KEY, "ising")
+        write(f, LARGE_N_ROOT_BC_KEY, "periodic")
+        write(f, LARGE_N_ROOT_J_KEY, J)
+        write(f, LARGE_N_ROOT_H_KEY, h)
         gn = create_group(f, "N4")
         write(gn, "N", N)
         gm = create_group(gn, "mcwf")
@@ -85,10 +85,10 @@ function write_split_trajectory_summary_file(
     length(energy_values) == length(system_max) == length(evolved_max) ||
         error("split trajectory test data must have matching history lengths")
     h5open(path, "w") do f
-        write(f, "Dmax", 8)
-        write(f, "steps", 4)
+        write(f, LARGE_N_ROOT_DMAX_KEY, 8)
+        write(f, LARGE_N_ROOT_STEPS_KEY, 4)
         write(f, CoolingTNS.RESULT_TE, Float64(te))
-        write(f, "g", Float64(g))
+        write(f, LARGE_N_ROOT_G_KEY, Float64(g))
         write(f, CoolingTNS.RESULT_RANDOMIZE_TIMES, randomize_times)
         write(f, CoolingTNS.RESULT_INIT_STATE, String(init_state))
         write(f, CoolingTNS.RESULT_INIT_THETA, Float64(theta))
@@ -219,7 +219,7 @@ end
     path = tempname() * ".h5"
     try
         h5open(path, "w") do f
-            write(f, "Dmax", 8)
+            write(f, LARGE_N_ROOT_DMAX_KEY, 8)
             write(f, CoolingTNS.RESULT_SCHEDULE, "descending")
             gn = create_group(f, "N4")
             write(gn, "N", 4)
@@ -253,9 +253,9 @@ end
     path = tempname() * ".h5"
     try
         h5open(path, "w") do f
-            write(f, "Dmax", 12)
+            write(f, LARGE_N_ROOT_DMAX_KEY, 12)
             write(f, CoolingTNS.RESULT_TE, 1.25)
-            write(f, "g", 0.3)
+            write(f, LARGE_N_ROOT_G_KEY, 0.3)
             write(f, CoolingTNS.RESULT_RANDOMIZE_TIMES, false)
             write(f, CoolingTNS.RESULT_INIT_STATE, "product")
             write(f, CoolingTNS.RESULT_INIT_THETA, 0.0)
@@ -754,8 +754,8 @@ end
                                              energy_trajectories=nothing,
                                              stop_reasons=nothing)
         h5open(path, "w") do f
-            write(f, "Dmax", 4)
-            write(f, "steps", 1)
+            write(f, LARGE_N_ROOT_DMAX_KEY, 4)
+            write(f, LARGE_N_ROOT_STEPS_KEY, 1)
             gn = create_group(f, "N2")
             write(gn, "N", 2)
             gm = create_group(gn, "mcwf")
@@ -827,7 +827,7 @@ end
     path = tempname() * ".h5"
     try
         h5open(path, "w") do f
-            write(f, "Dmax", 4)
+            write(f, LARGE_N_ROOT_DMAX_KEY, 4)
             gn = create_group(f, "N2")
             write(gn, "N", 2)
             gm = create_group(gn, "mcwf")
@@ -891,7 +891,7 @@ end
     path = tempname() * ".h5"
     try
         h5open(path, "w") do f
-            write(f, "Dmax", 8)
+            write(f, LARGE_N_ROOT_DMAX_KEY, 8)
             gn = create_group(f, "N2")
             write(gn, "N", 2)
             gm = create_group(gn, "mcwf")
@@ -930,7 +930,7 @@ end
     path = tempname() * ".h5"
     try
         h5open(path, "w") do f
-            write(f, "Dmax", 8)
+            write(f, LARGE_N_ROOT_DMAX_KEY, 8)
             gn = create_group(f, "N2")
             write(gn, "N", 2)
             gm = create_group(gn, "mcwf")
@@ -1004,11 +1004,11 @@ end
         final_energy_offset = 0.04
 
         h5open(path, "w") do f
-            write(f, "Dmax", 8)
-            write(f, "model", "ising")
-            write(f, "bc", "periodic")
-            write(f, "J", J)
-            write(f, "h", h)
+            write(f, LARGE_N_ROOT_DMAX_KEY, 8)
+            write(f, LARGE_N_ROOT_MODEL_KEY, "ising")
+            write(f, LARGE_N_ROOT_BC_KEY, "periodic")
+            write(f, LARGE_N_ROOT_J_KEY, J)
+            write(f, LARGE_N_ROOT_H_KEY, h)
             write(f, LARGE_N_EVOLUTION_METHOD_KEY, "continuous")
             gn = create_group(f, "N4")
             write(gn, "N", N)
@@ -1336,11 +1336,11 @@ end
     path = tempname() * ".h5"
     try
         h5open(path, "w") do f
-            write(f, "Dmax", 8)
-            write(f, "model", "ising")
-            write(f, "bc", "periodic")
-            write(f, "J", 1.0)
-            write(f, "h", 0.5)
+            write(f, LARGE_N_ROOT_DMAX_KEY, 8)
+            write(f, LARGE_N_ROOT_MODEL_KEY, "ising")
+            write(f, LARGE_N_ROOT_BC_KEY, "periodic")
+            write(f, LARGE_N_ROOT_J_KEY, 1.0)
+            write(f, LARGE_N_ROOT_H_KEY, 0.5)
             gn = create_group(f, "N4")
             write(gn, "N", 4)
             gm = create_group(gn, "mcwf")
@@ -1377,11 +1377,11 @@ end
     path = tempname() * ".h5"
     try
         h5open(path, "w") do f
-            write(f, "Dmax", 8)
-            write(f, "model", "niising")
-            write(f, "bc", "open")
-            write(f, "J", 1.0)
-            write(f, "h", NaN)
+            write(f, LARGE_N_ROOT_DMAX_KEY, 8)
+            write(f, LARGE_N_ROOT_MODEL_KEY, "niising")
+            write(f, LARGE_N_ROOT_BC_KEY, "open")
+            write(f, LARGE_N_ROOT_J_KEY, 1.0)
+            write(f, LARGE_N_ROOT_H_KEY, NaN)
             gn = create_group(f, "N4")
             write(gn, "N", 4)
             gm = create_group(gn, "mcwf")
@@ -1425,7 +1425,7 @@ end
     path = tempname() * ".h5"
     try
         h5open(path, "w") do f
-            write(f, "Dmax", 4)
+            write(f, LARGE_N_ROOT_DMAX_KEY, 4)
             write(f, LARGE_N_EVOLUTION_METHOD_KEY, "continuous")
             gn = create_group(f, "N2")
             write(gn, "N", 2)
@@ -1457,7 +1457,7 @@ end
     path = tempname() * ".h5"
     try
         h5open(path, "w") do f
-            write(f, "Dmax", 4)
+            write(f, LARGE_N_ROOT_DMAX_KEY, 4)
             gn = create_group(f, "N2")
             write(gn, "N", 2)
             gm = create_group(gn, "mcwf")

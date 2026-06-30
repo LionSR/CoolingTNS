@@ -32,6 +32,33 @@ const LARGE_N_LABEL_NONE = "none"
 const LARGE_N_LABEL_MISSING = "missing"
 const LARGE_N_LABEL_LEGACY_MISSING = "legacy_missing"
 
+# Persisted root HDF5 metadata keys for large-N campaign files.  These datasets
+# define the global protocol and simulation parameters for all run groups in a
+# campaign file, so the writer and summary readers should share one spelling.
+const LARGE_N_ROOT_GENERATED_AT_KEY = "generated_at"
+const LARGE_N_ROOT_NS_KEY = "Ns"
+const LARGE_N_ROOT_R_VALUES_KEY = "R_values"
+const LARGE_N_ROOT_MODEL_KEY = "model"
+const LARGE_N_ROOT_BC_KEY = "bc"
+const LARGE_N_ROOT_STEPS_KEY = "steps"
+const LARGE_N_ROOT_DMAX_KEY = "Dmax"
+const LARGE_N_ROOT_CUTOFF_KEY = "cutoff"
+const LARGE_N_ROOT_TAU_KEY = "tau"
+const LARGE_N_ROOT_J_KEY = "J"
+const LARGE_N_ROOT_H_KEY = "h"
+const LARGE_N_ROOT_HX_KEY = "hx"
+const LARGE_N_ROOT_HZ_KEY = "hz"
+const LARGE_N_ROOT_MEASURE_MODES_KEY = "measure_modes"
+const LARGE_N_ROOT_MODE_MEASUREMENT_STRIDE_KEY = "mode_measurement_stride"
+const LARGE_N_ROOT_TDVP_SWEEP_PROGRESS_KEY = "tdvp_sweep_progress"
+const LARGE_N_ROOT_COUPLING_KEY = "coupling"
+const LARGE_N_ROOT_G_KEY = "g"
+const LARGE_N_ROOT_DELTA_MAX_FACTOR_KEY = "delta_max_factor"
+const LARGE_N_ROOT_DELTA_MIN_OVERRIDE_KEY = "delta_min_override"
+const LARGE_N_ROOT_DELTA_MAX_OVERRIDE_KEY = "delta_max_override"
+const LARGE_N_ROOT_STOP_ON_BOND_CAP_KEY = "stop_on_bond_cap"
+const LARGE_N_ROOT_SEED_KEY = "seed"
+
 # Persisted HDF5 evolution and bond-cap diagnostic keys for large-N campaigns.
 const LARGE_N_EVOLUTION_METHOD_KEY = "evolution_method"
 const LARGE_N_SYSTEM_SOLVE_REUSED_ACROSS_R_KEY = "system_solve_reused_across_R"
