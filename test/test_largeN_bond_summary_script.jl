@@ -791,13 +791,14 @@ end
                                              overlap_trajectories=nothing,
                                              n_group_name=largeN_n_group_name(2),
                                              stored_N=2,
+                                             method_name="mcwf",
                                              r_group_name=largeN_r_group_name(1))
         h5open(path, "w") do f
             write(f, LARGE_N_ROOT_DMAX_KEY, 4)
             write(f, LARGE_N_ROOT_STEPS_KEY, 1)
             gn = create_group(f, n_group_name)
             write(gn, LARGE_N_SYSTEM_SIZE_KEY, stored_N)
-            gm = create_group(gn, "mcwf")
+            gm = create_group(gn, method_name)
             gr = create_group(gm, r_group_name)
 
             write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 2)
@@ -827,6 +828,7 @@ end
     legacy_overlap_path = tempname() * ".h5"
     bad_stop_reasons_path = tempname() * ".h5"
     bad_seeds_path = tempname() * ".h5"
+    mpo_no_seeds_path = tempname() * ".h5"
     bad_r_group_path = tempname() * ".h5"
     bad_n_group_path = tempname() * ".h5"
     mismatched_n_group_path = tempname() * ".h5"
@@ -836,6 +838,12 @@ end
         @test fallback_row.trajectory_indices == [1, 2]
         @test isequal(fallback_row.trajectory_seeds, Union{Missing,Int}[missing, missing])
         @test trajectory_seeds_label(
+            fallback_row.trajectory_indices,
+            fallback_row.trajectory_seeds,
+        ) ==
+              "legacy_missing,legacy_missing"
+        @test trajectory_seeds_label(
+            fallback_row.method,
             fallback_row.trajectory_indices,
             fallback_row.trajectory_seeds,
         ) ==
@@ -858,6 +866,25 @@ end
         legacy_overlap_row = only(summarize_file(legacy_overlap_path))
         @test legacy_overlap_row.initial_overlap ≈ 0.85
         @test legacy_overlap_row.initial_overlap_values == [0.9, 0.8]
+
+        write_legacy_split_metadata_file(mpo_no_seeds_path; method_name="mpo")
+        mpo_no_seeds_row = only(summarize_file(mpo_no_seeds_path))
+        @test mpo_no_seeds_row.method == "mpo"
+        @test isequal(
+            mpo_no_seeds_row.trajectory_seeds,
+            Union{Missing,Int}[missing, missing],
+        )
+        @test trajectory_seeds_label(
+            mpo_no_seeds_row.method,
+            mpo_no_seeds_row.trajectory_indices,
+            mpo_no_seeds_row.trajectory_seeds,
+        ) == "n/a"
+        @test trajectory_seeds_label("mpo", Int[], Union{Missing,Int}[]) == "none"
+        @test_throws ArgumentError trajectory_seeds_label(
+            "unknown_method",
+            [1],
+            Union{Missing,Int}[missing],
+        )
 
         write_legacy_split_metadata_file(bad_indices_path; trajectory_indices=[1])
         @test_throws ErrorException summarize_file(bad_indices_path)
@@ -929,6 +956,7 @@ end
         rm(legacy_overlap_path; force=true)
         rm(bad_stop_reasons_path; force=true)
         rm(bad_seeds_path; force=true)
+        rm(mpo_no_seeds_path; force=true)
         rm(bad_r_group_path; force=true)
         rm(bad_n_group_path; force=true)
         rm(mismatched_n_group_path; force=true)

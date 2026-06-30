@@ -21,8 +21,9 @@ initial-state controls, fixed-detuning cutoff, coupling-strength scans,
 time-ladder, and randomized-time sweeps can be audited from the summary alone.
 The compact and full tables also show the stored MCWF trajectory labels and
 seeds, making single-trajectory diagnostics distinguishable from ensemble
-summaries without inspecting the HDF5 file by hand.  Legacy files without
-stored seeds are displayed as `legacy_missing`.
+summaries without inspecting the HDF5 file by hand.  Legacy MCWF files without
+stored seeds are displayed as `legacy_missing`; deterministic non-MCWF rows
+without seeds are displayed as `n/a`.
 The `delta_range` column is the stored protocol
 interval; for `R=1`, the campaign samples only the lower endpoint.  For
 multi-trajectory data, final-link quantiles and threshold fractions are computed
@@ -1070,6 +1071,16 @@ function trajectory_seeds_label(indices::AbstractVector{<:Integer}, seeds::Abstr
     )
 end
 
+function trajectory_seeds_label(method_name::AbstractString,
+                                indices::AbstractVector{<:Integer},
+                                seeds::AbstractVector)
+    isempty(seeds) && return trajectory_seeds_label(indices, seeds)
+    if largeN_method_kind_from_name(method_name) != :mcwf && all(ismissing, seeds)
+        return LARGE_N_LABEL_NA
+    end
+    return trajectory_seeds_label(indices, seeds)
+end
+
 """
     combine_trajectory_bucket(rows)
 
@@ -1290,7 +1301,7 @@ function print_markdown(rows)
             "$(row.time_protocol) | $(row.init_protocol) | " *
             "$(row.R) | $(row.M) | " *
             "$(trajectory_indices_label(row.trajectory_indices)) | " *
-            "$(trajectory_seeds_label(row.trajectory_indices, row.trajectory_seeds)) | " *
+            "$(trajectory_seeds_label(row.method, row.trajectory_indices, row.trajectory_seeds)) | " *
             "$(row.schedule) | $(row.completed_requested) | $(row.completed_requested_periods) | " *
             "$(row.visited_detunings) | $(row.detuning_coverage) | " *
             "$(format_float(row.elapsed_total_seconds, 1)) | " *
@@ -1336,7 +1347,7 @@ function print_compact_markdown(rows)
             "$(row.time_protocol) | $(row.init_protocol) | " *
             "$(row.R) | $(row.M) | " *
             "$(trajectory_indices_label(row.trajectory_indices)) | " *
-            "$(trajectory_seeds_label(row.trajectory_indices, row.trajectory_seeds)) | " *
+            "$(trajectory_seeds_label(row.method, row.trajectory_indices, row.trajectory_seeds)) | " *
             "$(row.schedule) | $(row.completed_requested) | " *
             "$(row.completed_requested_periods) | $(row.visited_detunings) | " *
             "$(row.detuning_coverage) | " *
