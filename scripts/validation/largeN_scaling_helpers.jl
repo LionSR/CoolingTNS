@@ -185,8 +185,13 @@ const LARGE_N_PROGRESS_STAGES = (
     LARGE_N_PROGRESS_STAGE_TDVP_SWEEP,
 )
 
-# These are CSV column names, not observer stage labels.  The sweep column
-# intentionally has the same persisted spelling as the TDVP-sweep stage.
+# These are persisted progress CSV column names, not observer stage labels.
+# The sweep column intentionally has the same spelling as the TDVP-sweep stage.
+const LARGE_N_PROGRESS_STAGE_KEY = "stage"
+const LARGE_N_PROGRESS_STEP_KEY = "step"
+const LARGE_N_PROGRESS_CYCLE_KEY = "cycle"
+const LARGE_N_PROGRESS_DELTA_KEY = "delta"
+const LARGE_N_PROGRESS_TE_KEY = "te"
 const LARGE_N_PROGRESS_TDVP_SWEEP_KEY = "tdvp_sweep"
 const LARGE_N_PROGRESS_TDVP_TIME_KEY = "tdvp_time"
 
@@ -204,11 +209,11 @@ const LARGE_N_PROGRESS_CSV_COLUMNS = (
     "cutoff",
     "g",
     "tau",
-    "stage",
-    "step",
-    "cycle",
-    "delta",
-    "te",
+    LARGE_N_PROGRESS_STAGE_KEY,
+    LARGE_N_PROGRESS_STEP_KEY,
+    LARGE_N_PROGRESS_CYCLE_KEY,
+    LARGE_N_PROGRESS_DELTA_KEY,
+    LARGE_N_PROGRESS_TE_KEY,
     "energy_per_site",
     "relative_energy",
     "overlap",

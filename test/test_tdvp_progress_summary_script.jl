@@ -26,11 +26,11 @@ function tdvp_progress_line(; timestamp="2026-06-19T00:00:00",
         "cutoff" => "1.0e-6",
         "g" => g,
         "tau" => "0.2",
-        "stage" => stage,
-        "step" => string(step),
-        "cycle" => string(cycle),
-        "delta" => delta,
-        "te" => te,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_KEY => stage,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_STEP_KEY => string(step),
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_CYCLE_KEY => string(cycle),
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_DELTA_KEY => delta,
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_TE_KEY => te,
         "energy_per_site" => energy_per_site,
         "relative_energy" => relative_energy,
         "overlap" => overlap,
@@ -101,9 +101,12 @@ end
         "cutoff" => "1.0e-6",
         "g" => "0.05",
         "tau" => "0.2",
-        "te" => "0.34",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_TE_KEY => "0.34",
     )
-    fixed_identity_b = merge(fixed_identity_a, Dict("te" => "1.86"))
+    fixed_identity_b = merge(
+        fixed_identity_a,
+        Dict(TDVPProgressCSVSummary.LARGE_N_PROGRESS_TE_KEY => "1.86"),
+    )
     @test TDVPProgressCSVSummary.group_key(fixed_identity_a) ==
           TDVPProgressCSVSummary.group_key(fixed_identity_b)
     fixed_identity_c = merge(fixed_identity_a, Dict("g" => "0.1"))

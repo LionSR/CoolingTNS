@@ -75,10 +75,10 @@ function read_progress_csv(path::AbstractString)
             "but the header has $(length(header))"
         ))
         row = Dict(zip(header, values))
-        haskey(row, "stage") || throw(ArgumentError(
+        haskey(row, LARGE_N_PROGRESS_STAGE_KEY) || throw(ArgumentError(
             "progress CSV header in $path is missing the required stage column"
         ))
-        require_largeN_progress_stage_label(row["stage"])
+        require_largeN_progress_stage_label(row[LARGE_N_PROGRESS_STAGE_KEY])
         push!(rows, row)
     end
     return header, rows
@@ -187,7 +187,7 @@ Count distinct finite detuning values among completed `updated` progress rows.
 function completed_update_detuning_count(updates)
     detunings = Set{Float64}()
     for row in updates
-        delta = progress_float(row, "delta")
+        delta = progress_float(row, LARGE_N_PROGRESS_DELTA_KEY)
         isfinite(delta) && push!(detunings, delta)
     end
     return length(detunings)
@@ -201,13 +201,14 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
         Int(cap)
     updates = [
         row for row in rows
-        if progress_cell(row, "stage") == LARGE_N_PROGRESS_STAGE_UPDATED
+        if progress_cell(row, LARGE_N_PROGRESS_STAGE_KEY) ==
+           LARGE_N_PROGRESS_STAGE_UPDATED
     ]
 
     system_cap_cycle = 0
     for row in updates
         if progress_float(row, LARGE_N_SYSTEM_MAX_BOND_KEY) >= threshold
-            system_cap_cycle = progress_int(row, "cycle")
+            system_cap_cycle = progress_int(row, LARGE_N_PROGRESS_CYCLE_KEY)
             break
         end
     end
@@ -216,7 +217,7 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
     tdvp_sweep_cap_cycle = 0
     tdvp_sweep_cap_sweep = nothing
     for row in rows
-        stage = progress_cell(row, "stage")
+        stage = progress_cell(row, LARGE_N_PROGRESS_STAGE_KEY)
         # Evolved rows describe the post-evolution system-bath MPS; TDVP-sweep
         # rows describe the integrator observer history.
         stage in (LARGE_N_PROGRESS_STAGE_TDVP_SWEEP, LARGE_N_PROGRESS_STAGE_EVOLVED) ||
@@ -224,13 +225,15 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
         if progress_float(row, LARGE_N_EVOLVED_MAX_BOND_KEY) >= threshold
             if stage == LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
                 if tdvp_sweep_cap_cycle == 0
-                    tdvp_sweep_cap_cycle = progress_int(row, "cycle")
+                    tdvp_sweep_cap_cycle =
+                        progress_int(row, LARGE_N_PROGRESS_CYCLE_KEY)
                     tdvp_sweep_cap_sweep =
                         progress_int(row, LARGE_N_PROGRESS_TDVP_SWEEP_KEY)
                 end
             else
                 evolved_cap_cycle == 0 &&
-                    (evolved_cap_cycle = progress_int(row, "cycle"))
+                    (evolved_cap_cycle =
+                        progress_int(row, LARGE_N_PROGRESS_CYCLE_KEY))
             end
         end
     end
@@ -240,8 +243,8 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
     max_sweep_cycle = 0
     max_sweep = 0
     for row in rows
-        stage = progress_cell(row, "stage")
-        cycle = progress_int(row, "cycle")
+        stage = progress_cell(row, LARGE_N_PROGRESS_STAGE_KEY)
+        cycle = progress_int(row, LARGE_N_PROGRESS_CYCLE_KEY)
         elapsed = progress_float(row, LARGE_N_ELAPSED_SECONDS_KEY)
         if stage == LARGE_N_PROGRESS_STAGE_PREPARED
             prepared_or_sweep_elapsed[cycle] = elapsed
@@ -258,7 +261,9 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
     end
 
     R = parse(Int, label.R)
-    completed_cycles = isempty(updates) ? 0 : maximum(progress_int(row, "cycle") for row in updates)
+    completed_cycles = isempty(updates) ?
+        0 :
+        maximum(progress_int(row, LARGE_N_PROGRESS_CYCLE_KEY) for row in updates)
     visited_detuning_count = completed_update_detuning_count(updates)
     final_update = isempty(updates) ? nothing : updates[end]
     final_energy = final_update === nothing ? NaN : progress_float(final_update, "energy_per_site")
@@ -267,9 +272,15 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
         Int(round(progress_float(final_update, LARGE_N_SYSTEM_MAX_BOND_KEY)))
     peak_evolved = peak_evolved_bond(rows)
     last_row = isempty(rows) ? nothing : rows[end]
-    last_stage = last_row === nothing ? LARGE_N_LABEL_NONE : progress_cell(last_row, "stage")
-    last_step = last_row === nothing ? 0 : progress_int(last_row, "step")
-    last_cycle = last_row === nothing ? 0 : progress_int(last_row, "cycle")
+    last_stage = last_row === nothing ?
+        LARGE_N_LABEL_NONE :
+        progress_cell(last_row, LARGE_N_PROGRESS_STAGE_KEY)
+    last_step = last_row === nothing ?
+        0 :
+        progress_int(last_row, LARGE_N_PROGRESS_STEP_KEY)
+    last_cycle = last_row === nothing ?
+        0 :
+        progress_int(last_row, LARGE_N_PROGRESS_CYCLE_KEY)
     status = require_largeN_bond_status_label(
         bond_cap_status(system_cap_cycle, evolved_cap_cycle, tdvp_sweep_cap_cycle)
     )
@@ -389,8 +400,8 @@ function print_energy_trace(rows)
         for update in row.updates
             println(
                 "| $(row.R) | $(g_label) | $(row.trajectory) | " *
-                "$(progress_cell(update, "cycle")) | " *
-                "$(format_float(progress_float(update, "delta"), 8)) | " *
+                "$(progress_cell(update, LARGE_N_PROGRESS_CYCLE_KEY)) | " *
+                "$(format_float(progress_float(update, LARGE_N_PROGRESS_DELTA_KEY), 8)) | " *
                 "$(format_float(progress_float(update, "energy_per_site"), 8)) | " *
                 "$(progress_cell(update, LARGE_N_SYSTEM_MAX_BOND_KEY)) | " *
                 "$(progress_cell(update, LARGE_N_EVOLVED_MAX_BOND_KEY)) | " *

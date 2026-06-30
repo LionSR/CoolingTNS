@@ -1441,8 +1441,8 @@ end
 
     @test row["method"] == "mcwf"
     @test row["evolution"] == "continuous"
-    @test row["stage"] == LARGE_N_PROGRESS_STAGE_UPDATED
-    @test row["cycle"] == 1
+    @test row[LARGE_N_PROGRESS_STAGE_KEY] == LARGE_N_PROGRESS_STAGE_UPDATED
+    @test row[LARGE_N_PROGRESS_CYCLE_KEY] == 1
     @test row["g"] == 0.05
     @test row["energy_per_site"] == -0.25
     @test row["relative_energy"] == relative_energy(-1.0, -4.0)
@@ -1459,10 +1459,10 @@ end
         (max=NaN, mean=NaN),
         0.1,
     )
-    @test initial_row["cycle"] == 0
-    @test initial_row["stage"] == LARGE_N_PROGRESS_STAGE_INITIAL
+    @test initial_row[LARGE_N_PROGRESS_CYCLE_KEY] == 0
+    @test initial_row[LARGE_N_PROGRESS_STAGE_KEY] == LARGE_N_PROGRESS_STAGE_INITIAL
     @test initial_row["energy_per_site"] == -1.0
-    @test isnan(initial_row["delta"])
+    @test isnan(initial_row[LARGE_N_PROGRESS_DELTA_KEY])
     @test isnan(initial_row[LARGE_N_EVOLVED_MAX_BOND_KEY])
 
     prepared_info = merge(info, (stage=:prepared,))
@@ -1475,8 +1475,9 @@ end
         (max=11, mean=7.25),
         2.0,
     )
-    @test prepared_row["cycle"] == 1
-    @test prepared_row["stage"] == LARGE_N_PROGRESS_STAGE_PREPARED
+    @test prepared_row[LARGE_N_PROGRESS_CYCLE_KEY] == 1
+    @test prepared_row[LARGE_N_PROGRESS_STAGE_KEY] ==
+          LARGE_N_PROGRESS_STAGE_PREPARED
     @test isnan(prepared_row["energy_per_site"])
     @test isnan(prepared_row["relative_energy"])
     @test isnan(prepared_row["overlap"])
@@ -1493,8 +1494,8 @@ end
         (max=13, mean=9.25),
         2.5,
     )
-    @test evolved_row["cycle"] == 1
-    @test evolved_row["stage"] == LARGE_N_PROGRESS_STAGE_EVOLVED
+    @test evolved_row[LARGE_N_PROGRESS_CYCLE_KEY] == 1
+    @test evolved_row[LARGE_N_PROGRESS_STAGE_KEY] == LARGE_N_PROGRESS_STAGE_EVOLVED
     @test isnan(evolved_row["energy_per_site"])
     @test isnan(evolved_row["relative_energy"])
     @test isnan(evolved_row["overlap"])
@@ -1513,8 +1514,9 @@ end
         (max=21, mean=14.5),
         4.5,
     )
-    @test sweep_row["stage"] == LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
-    @test sweep_row["cycle"] == 1
+    @test sweep_row[LARGE_N_PROGRESS_STAGE_KEY] ==
+          LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
+    @test sweep_row[LARGE_N_PROGRESS_CYCLE_KEY] == 1
     @test isnan(sweep_row["energy_per_site"])
     @test sweep_row[LARGE_N_SYSTEM_MAX_BOND_KEY] == 8
     @test sweep_row[LARGE_N_EVOLVED_MAX_BOND_KEY] == 21
@@ -1526,7 +1528,7 @@ end
         append_progress_csv_row(path, row)
         append_progress_csv_row(path, merge(row, Dict{String,Any}(
             "timestamp" => "contains,comma",
-            "stage" => LARGE_N_PROGRESS_STAGE_EVOLVED,
+            LARGE_N_PROGRESS_STAGE_KEY => LARGE_N_PROGRESS_STAGE_EVOLVED,
         )))
         lines = readlines(path)
         @test lines[1] == join(LARGE_N_PROGRESS_CSV_COLUMNS, ",")
@@ -1541,7 +1543,10 @@ end
     try
         @test_throws ArgumentError append_progress_csv_row(
             bad_stage_append_path,
-            merge(row, Dict{String,Any}("stage" => "renormalized")),
+            merge(
+                row,
+                Dict{String,Any}(LARGE_N_PROGRESS_STAGE_KEY => "renormalized"),
+            ),
         )
     finally
         rm(bad_stage_append_path; force=true)
