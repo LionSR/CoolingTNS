@@ -87,7 +87,7 @@ end
 progress_cell(row, name::AbstractString) = get(row, name, "")
 function progress_coupling_label(g::AbstractString; column_present::Bool=true)
     !isempty(g) && return g
-    return column_present ? "missing" : "legacy_missing"
+    return column_present ? LARGE_N_LABEL_MISSING : LARGE_N_LABEL_LEGACY_MISSING
 end
 
 function progress_float(row, name::AbstractString)
@@ -148,7 +148,7 @@ function format_float(value::Real, digits::Int=2)
 end
 
 function cap_label(cycle::Integer, sweep)
-    cycle == 0 && return "none"
+    cycle == 0 && return LARGE_N_LABEL_NONE
     sweep === nothing && return string(cycle)
     return "$(cycle):$(sweep)"
 end
@@ -266,7 +266,7 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
         Int(round(progress_float(final_update, LARGE_N_SYSTEM_MAX_BOND_KEY)))
     peak_evolved = peak_evolved_bond(rows)
     last_row = isempty(rows) ? nothing : rows[end]
-    last_stage = last_row === nothing ? "none" : progress_cell(last_row, "stage")
+    last_stage = last_row === nothing ? LARGE_N_LABEL_NONE : progress_cell(last_row, "stage")
     last_step = last_row === nothing ? 0 : progress_int(last_row, "step")
     last_cycle = last_row === nothing ? 0 : progress_int(last_row, "cycle")
     status = require_largeN_bond_status_label(
@@ -359,7 +359,9 @@ function print_summary_table(rows)
     println("| file | N | method | evolution | R | g | traj | seed | Dcap | completed cycles | visited detunings | detuning coverage | final E/N | Dsys_eff | Dsb_eff | bond_status | sys cap | evolved cap | tdvp sweep cap | first transient cap | max sweep dt | max sweep at | last step | last cycle | last stage |")
     println("|---|---:|---|---|---:|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---|---|---|---|---|---:|---|---:|---:|---|")
     for row in rows
-        max_sweep_label = row.max_sweep_cycle == 0 ? "none" : "$(row.max_sweep_cycle):$(row.max_sweep)"
+        max_sweep_label = row.max_sweep_cycle == 0 ?
+            LARGE_N_LABEL_NONE :
+            "$(row.max_sweep_cycle):$(row.max_sweep)"
         g_label = progress_coupling_label(row.g; column_present=row.has_g_column)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | " *
