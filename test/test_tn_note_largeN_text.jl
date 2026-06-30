@@ -28,8 +28,46 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     driver_flat = normalize_ws(read(driver_path, String))
     summary_flat = normalize_ws(read(summary_path, String))
 
+    te05_cap_ladder_rows = (
+        (Dcap="128", cycles="10/20", periods="1.00/2.00",
+         final_energy="1.00873665", Dsys="113", Dsb=">=128",
+         Dtdvp=">=128", elapsed="831.9 s"),
+        (Dcap="192", cycles="11/20", periods="1.10/2.00",
+         final_energy="1.00650854", Dsys="154", Dsb=">=192",
+         Dtdvp=">=192", elapsed="1712.8 s"),
+        (Dcap="256", cycles="12/20", periods="1.20/2.00",
+         final_energy="1.00494536", Dsys="221", Dsb=">=256",
+         Dtdvp=">=256", elapsed="3703.6 s"),
+        (Dcap="320", cycles="13/20", periods="1.30/2.00",
+         final_energy="1.00365324", Dsys="299", Dsb=">=320",
+         Dtdvp=">=320", elapsed="8055.7 s"),
+    )
+    cap_ladder_markdown_row(row) =
+        "| $(row.Dcap) | $(row.cycles) | $(row.periods) | " *
+        "$(row.final_energy) | $(row.Dsys) | $(row.Dsb) | $(row.Dtdvp) |"
+    cap_ladder_evidence_row(row) =
+        "| 10 | 0.5 | $(row.Dcap) | $(row.cycles) | $(row.periods) | " *
+        "10/10 | full_grid_observed | $(row.final_energy) | " *
+        "$(row.final_energy) | $(row.Dsys) | $(row.Dsb) | $(row.Dtdvp) | " *
+        "not_converged_evolved_and_tdvp_sweep_cap | $(row.elapsed) | bond_cap |"
+    cap_ladder_latex_value(value) =
+        startswith(value, ">=") ? "\\geq " * value[3:end] : value
+    cap_ladder_latex_row(row) =
+        "$(row.Dcap) & $(row.cycles) & $(row.periods) & " *
+        "$(row.final_energy) & $(row.Dsys) & " *
+        "$(cap_ladder_latex_value(row.Dsb)) & " *
+        "$(cap_ladder_latex_value(row.Dtdvp))"
+
     # These anchors intentionally couple the note to the source documents.
     # Update them together when the notation or bond-dimension evidence changes.
+    @testset "Shared te=0.5 cap-ladder row anchors" begin
+        for row in te05_cap_ladder_rows
+            @test occursin(cap_ladder_evidence_row(row), evidence_flat)
+            @test occursin(cap_ladder_markdown_row(row), plan_flat)
+            @test occursin(cap_ladder_latex_row(row), note_flat)
+        end
+    end
+
     @testset "TN note cooling and large-N qualification anchors" begin
         require_phrases(note_flat, [
             "We study a repeated bath-reset cooling map whose intended fixed point",
@@ -66,7 +104,6 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
             "D_{\\mathrm{sb}}^{\\mathrm{eff}}=394, 862, 518, 737",
             "the TDVP sweep observer reaches the cap during cycle 3 sweep 4",
             "same \\(t_e=0.5\\) trajectory was then repeated at \\(D_{\\max}=192,256,320\\)",
-            "1.30/2.00 & 1.00365324 & 299 & \\geq 320 & \\geq 320",
             "At common completed cycles the higher-cap trajectories agree with the lower-cap prefixes",
             raw"\texttt{not\_converged\_system\_and\_evolved\_and}",
             raw"\texttt{\_tdvp\_sweep\_cap}",
@@ -158,7 +195,6 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("choose `Dmax` from a convergence ladder with retained-system, evolved system-bath, and TDVP sweep-observer diagnostics", plan_flat)
     @test occursin("the evolved system-bath cap in cycle 3, the TDVP sweep-observer cap during cycle 3 sweep 4, and the retained system cap in cycle 4", plan_flat)
     @test occursin("The latest fixed descending product-state `R = 10`, `g = 0.3` time-ladder control uses the shorter evolution time `te = 0.5`", plan_flat)
-    @test occursin("| 320 | 13/20 | 1.30/2.00 | 1.00365324 | 299 | >=320 | >=320 |", plan_flat)
     @test occursin("larger caps buy one additional second-pass detuning at a time, while the stopped prefixes stay close to `E/N = 1.0`", plan_flat)
     @test occursin("whose retained system state, evolved system-bath state, or, when `--tdvp-sweep-progress` is enabled, TDVP sweep-observer history reaches", plan_flat)
     @test occursin("current large-`N` HDF5 campaign records bond-cap and saturation diagnostics", plan_flat)
@@ -380,26 +416,22 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("evidence for bond-dimension growth rather than scalable ground-state cooling", evidence_flat)
     @test occursin("Dmax=128 Descending R=10 Probe at te=0.5", evidence_flat)
     @test occursin("trajectory seed `[84360618]`", evidence_flat)
-    @test occursin("| 10 | 0.5 | 128 | 10/20 | 1.00/2.00 | 10/10 | full_grid_observed | 1.00873665 | 1.00873665 | 113 | >=128 | >=128 | not_converged_evolved_and_tdvp_sweep_cap | 831.9 s | bond_cap |", evidence_flat)
     @test occursin("| 10 | 0.50511675 | 1.00873665 | 113 | 128 | 831.9 s |", evidence_flat)
     @test occursin("reducing `te` from `1.0` to `0.5` delays the evolved and TDVP-sweep cap from cycle 5 to cycle 10", evidence_flat)
     @test occursin("cap-delay mechanism rather than a route to the ground state", evidence_flat)
     @test occursin("Dmax=192 Descending R=10 Probe at te=0.5", evidence_flat)
     @test occursin("largeN_multifrequency_tn_N64_R10_mcwf_continuous_stopcap_scheddesc_steps20_Dmax192_g0.3_te0.5_tau0.2_seed20260617.h5", evidence_flat)
-    @test occursin("| 10 | 0.5 | 192 | 11/20 | 1.10/2.00 | 10/10 | full_grid_observed | 1.00650854 | 1.00650854 | 154 | >=192 | >=192 | not_converged_evolved_and_tdvp_sweep_cap | 1712.8 s | bond_cap |", evidence_flat)
     @test occursin("| 11 | 3.03070050 | 1.00650854 | 154 | 192 | 1712.8 s |", evidence_flat)
     @test occursin("The first-pass endpoint, `E/N = 1.00873678`, is essentially unchanged from the `Dmax = 128` stopped value `1.00873665`", evidence_flat)
     @test occursin("`te = 0.5` remains a cap-delay diagnostic for this schedule", evidence_flat)
     @test occursin("Dmax=256 Descending R=10 Probe at te=0.5", evidence_flat)
     @test occursin("largeN_multifrequency_tn_N64_R10_mcwf_continuous_stopcap_scheddesc_steps20_Dmax256_g0.3_te0.5_tau0.2_seed20260617.h5", evidence_flat)
-    @test occursin("| 10 | 0.5 | 256 | 12/20 | 1.20/2.00 | 10/10 | full_grid_observed | 1.00494536 | 1.00494536 | 221 | >=256 | >=256 | not_converged_evolved_and_tdvp_sweep_cap | 3703.6 s | bond_cap |", evidence_flat)
     @test occursin("| 12 | 2.75008008 | 1.00494536 | 221 | 256 | 3703.6 s |", evidence_flat)
     @test occursin("Raising the cap from `192` to `256` at `te = 0.5` buys one additional second-pass detuning", evidence_flat)
     @test occursin("At the common cycle 11, the `Dmax = 256` run gives `E/N = 1.00650866`, agreeing with the `Dmax = 192` stopped value to about `1e-7`", evidence_flat)
     @test occursin("delayed saturation with weak energy improvement rather than scalable cooling", evidence_flat)
     @test occursin("Dmax=320 Descending R=10 Probe at te=0.5", evidence_flat)
     @test occursin("largeN_multifrequency_tn_N64_R10_mcwf_continuous_stopcap_scheddesc_steps20_Dmax320_g0.3_te0.5_tau0.2_seed20260617.h5", evidence_flat)
-    @test occursin("| 10 | 0.5 | 320 | 13/20 | 1.30/2.00 | 10/10 | full_grid_observed | 1.00365324 | 1.00365324 | 299 | >=320 | >=320 | not_converged_evolved_and_tdvp_sweep_cap | 8055.7 s | bond_cap |", evidence_flat)
     @test occursin("| 13 | 2.46945966 | 1.00365324 | 299 | 320 | 8055.6 s |", evidence_flat)
     @test occursin("Raising the cap from `256` to `320` at `te = 0.5` buys one additional second-pass detuning", evidence_flat)
     @test occursin("At the common cycle 12, the `Dmax = 320` run gives `E/N = 1.00494543`, agreeing with the `Dmax = 256` stopped value `1.00494536`", evidence_flat)
