@@ -8,9 +8,10 @@ Example:
     julia --project=. scripts/validation/check_largeN_artifact_provenance.jl \
         .worktree/campaign/*.h5
 
-Use `--doc FILE` to replace the default provenance-document set.  The check is
-based on artifact basenames rather than absolute paths, so local worktree
-locations may differ while the recorded HDF5 artifact name remains auditable.
+Use `--doc FILE` to replace the default provenance-document set.  The check
+matches artifact basenames as filename tokens rather than absolute paths, so
+local worktree locations may differ while the recorded HDF5 artifact name
+remains auditable.
 """
 
 module LargeNArtifactProvenanceChecker
@@ -18,6 +19,7 @@ module LargeNArtifactProvenanceChecker
 export DEFAULT_PROVENANCE_DOCUMENTS,
        ProvenanceArgs,
        artifact_basenames,
+       artifact_basename_is_recorded,
        missing_artifact_basenames,
        parse_artifact_provenance_args,
        provenance_check_exit_code,
@@ -95,6 +97,33 @@ function artifact_basenames(artifact_paths::AbstractVector{<:AbstractString})
     return names
 end
 
+is_filename_token_character(c::Char) = isletter(c) || isdigit(c) || c in ('_', '-', '.')
+is_filename_boundary(c::Char) = !is_filename_token_character(c)
+function is_after_filename_boundary(text::AbstractString, index::Integer)
+    index > lastindex(text) && return true
+    c = text[index]
+    is_filename_boundary(c) && return true
+    c == '.' || return false
+    next_index = nextind(text, index)
+    return next_index > lastindex(text) || isspace(text[next_index])
+end
+
+function artifact_basename_is_recorded(name::AbstractString, text::AbstractString)
+    start = firstindex(text)
+    while start <= lastindex(text)
+        range = findnext(name, text, start)
+        range === nothing && return false
+
+        before_ok = first(range) == firstindex(text) ||
+            is_filename_boundary(text[prevind(text, first(range))])
+        after_index = nextind(text, last(range))
+        after_ok = is_after_filename_boundary(text, after_index)
+        before_ok && after_ok && return true
+        start = nextind(text, first(range))
+    end
+    return false
+end
+
 function missing_artifact_basenames(
     artifact_paths::AbstractVector{<:AbstractString},
     doc_paths::AbstractVector{<:AbstractString},
@@ -102,7 +131,7 @@ function missing_artifact_basenames(
     text = read_provenance_text(doc_paths)
     return String[
         name for name in artifact_basenames(artifact_paths)
-        if !occursin(name, text)
+        if !artifact_basename_is_recorded(name, text)
     ]
 end
 

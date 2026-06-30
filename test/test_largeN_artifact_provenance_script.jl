@@ -46,6 +46,14 @@ using .LargeNArtifactProvenanceChecker
         @test repeated_doc_parsed.artifact_paths == [recorded_artifact]
         @test artifact_basenames(parsed.artifact_paths) ==
               [basename(recorded_artifact), basename(missing_artifact)]
+        @test artifact_basename_is_recorded(
+            basename(recorded_artifact),
+            "path/$(basename(recorded_artifact))",
+        )
+        @test !artifact_basename_is_recorded(
+            basename(recorded_artifact),
+            "path/$(basename(recorded_artifact)).backup",
+        )
         @test missing_artifact_basenames(parsed.artifact_paths, parsed.doc_paths) ==
               [basename(missing_artifact)]
 
