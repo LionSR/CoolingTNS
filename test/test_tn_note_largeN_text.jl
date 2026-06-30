@@ -31,7 +31,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     te05_cap_ladder_rows = (
         (Dcap="128", cycles="10/20", periods="1.00/2.00",
          final_energy="1.00873665", Dsys="113", Dsb=">=128",
-         Dtdvp=">=128", elapsed="831.9 s"),
+         Dtdvp=">=128", elapsed="807.8 s"),
         (Dcap="192", cycles="11/20", periods="1.10/2.00",
          final_energy="1.00650854", Dsys="154", Dsb=">=192",
          Dtdvp=">=192", elapsed="1712.8 s"),
@@ -415,8 +415,9 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("cycle-7 transient state already reaches the `320` cap on the first TDVP sweep", evidence_flat)
     @test occursin("evidence for bond-dimension growth rather than scalable ground-state cooling", evidence_flat)
     @test occursin("Dmax=128 Descending R=10 Probe at te=0.5", evidence_flat)
+    @test occursin("descending_te05_dmax128_R10_recheck_20260629", evidence_flat)
     @test occursin("trajectory seed `[84360618]`", evidence_flat)
-    @test occursin("| 10 | 0.50511675 | 1.00873665 | 113 | 128 | 831.9 s |", evidence_flat)
+    @test occursin("| 10 | 0.50511675 | 1.00873665 | 113 | 128 | 807.8 s |", evidence_flat)
     @test occursin("reducing `te` from `1.0` to `0.5` delays the evolved and TDVP-sweep cap from cycle 5 to cycle 10", evidence_flat)
     @test occursin("cap-delay mechanism rather than a route to the ground state", evidence_flat)
     @test occursin("Dmax=192 Descending R=10 Probe at te=0.5", evidence_flat)
