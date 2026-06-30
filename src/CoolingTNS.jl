@@ -51,6 +51,7 @@ include("setup.jl")                 # setup_problem implementations
 
 
 export setup_problem, run_cooling, run_cooling_multi_freq, setup_initial_state
+export CoolingStepInterrupted
 export setup_tn_multifrequency_problem_from_system
 export tdvp_sweep_observer
 export initial_product_angle

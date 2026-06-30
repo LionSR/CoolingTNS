@@ -245,6 +245,42 @@ using Random
     @test isnan(stopped_results[CoolingTNS.RESULT_DELTA_LIST][1])
     @test isfinite(stopped_results[CoolingTNS.RESULT_DELTA_LIST][2])
 
+    in_step_state = CoolingTNS.setup_initial_state(problem_mf, sim_params, "product", 0.0)
+    in_step_stages = Symbol[]
+    in_step_results = CoolingTNS.run_cooling(
+        problem_mf,
+        in_step_state,
+        mf_params,
+        sim_params,
+        ham_params;
+        step_observer=info -> begin
+            push!(in_step_stages, info.stage)
+            if info.stage === :prepared && info.step == 2
+                throw(CoolingTNS.CoolingStepInterrupted(:unit_test_in_step_stop))
+            end
+            return nothing
+        end,
+    )
+    @test in_step_stages == [:initial, :prepared]
+    @test in_step_results[CoolingTNS.RESULT_REQUESTED_STEPS] == mf_params.steps
+    @test in_step_results[CoolingTNS.RESULT_COMPLETED_STEPS] == 0
+    @test in_step_results[CoolingTNS.RESULT_STOP_REASON] == "unit_test_in_step_stop"
+    @test length(in_step_results[CoolingTNS.RESULT_ENERGY]) == 1
+    @test length(in_step_results[CoolingTNS.RESULT_DELTA_LIST]) == 1
+    @test isnan(in_step_results[CoolingTNS.RESULT_DELTA_LIST][1])
+    @test sprint(showerror, CoolingTNS.CoolingStepInterrupted(:example_stop)) ==
+          "cooling step interrupted: example_stop"
+    run_multi_freq_doc = (@doc CoolingTNS.run_cooling_multi_freq)
+    interrupted_doc = (@doc CoolingTNS.CoolingStepInterrupted)
+    @test occursin(
+        "Run a multi-frequency cooling protocol",
+        string(run_multi_freq_doc),
+    )
+    @test occursin(
+        "interrupt the current cooling cycle",
+        string(interrupted_doc),
+    )
+
     final_stop_state = CoolingTNS.setup_initial_state(problem_mf, sim_params, "product", 0.0)
     final_stop_results = CoolingTNS.run_cooling(
         problem_mf,

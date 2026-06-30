@@ -352,15 +352,18 @@ detuning at a time, while the stopped prefixes stay close to `E/N = 1.0`
 instead of approaching `E0/N = -1.3246328892`.
 If the purpose of a run is only to locate the first cap event, the validation
 driver can also be run with `--stop-on-bond-cap`.  This stops after the first
-completed cycle whose retained system state, evolved system-bath state, or,
-when `--tdvp-sweep-progress` is enabled, TDVP sweep-observer history reaches
-the method-specific cap.
+completed cycle whose retained system state or evolved system-bath state
+reaches the method-specific cap.  When `--tdvp-sweep-progress` is enabled, a
+TDVP sweep that reaches the cap inside the current evolution interrupts that
+cycle before it is counted as completed; the progress CSV keeps the
+cap-crossing sweep row, and the HDF5 group records only the completed prefix
+with the distinct in-step stop reason `tdvp_sweep_bond_cap_in_step`.
 The driver writes the completed prefix of each time series and records
 `requested_steps`, `completed_steps`, and `stop_reasons` in the HDF5 group.  It
-also stores the per-cycle `tdvp_sweep_max_bond` trace and
-`tdvp_sweep_saturation_cycle` metadata, so the sweep-level cap source is
-recoverable from the HDF5 file without consulting the progress CSV.  This option
-is restricted to single-trajectory diagnostic runs; ensemble members whose cap
+also stores the completed-prefix `tdvp_sweep_max_bond` trace and
+`tdvp_sweep_saturation_cycle` metadata; for an in-step TDVP cap, the
+cap-crossing sweep itself is recovered from the progress CSV.  This option is
+restricted to single-trajectory diagnostic runs; ensemble members whose cap
 events may occur at different cycles should be launched as independent jobs.
 When no explicit `--output` path is supplied, the generated HDF5 filename
 receives a `_stopcap` suffix so these partial diagnostic outputs do not

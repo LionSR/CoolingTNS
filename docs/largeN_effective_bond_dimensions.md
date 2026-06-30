@@ -182,7 +182,12 @@ three recorded histories reached the cap.
 
 A `no_cap_hit` entry does not by itself imply ground-state cooling or
 trajectory convergence; it only means that the imposed bond cap was not reached
-in the recorded run.
+in the recorded completed-cycle prefix.  For newer `--stop-on-bond-cap` runs
+with TDVP sweep progress, an in-step TDVP sweep cap can stop the current
+evolution before that cycle is counted as completed.  Such files record a
+distinct `stop_reason` (`tdvp_sweep_bond_cap_in_step`); the cap-crossing sweep
+row is retained in the progress CSV, while the HDF5 `bond_status` describes
+only the completed prefix.
 
 For long-cycle diagnostics, the summary script reports the initial row together
 with three later energy readouts.  `initial E/N`, `initial relE`, and
