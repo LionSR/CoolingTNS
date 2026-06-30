@@ -24,6 +24,7 @@ end
         include("test_multi_frequency.jl")
         include("test_largeN_scaling_helpers.jl")
         include("test_largeN_bond_summary_script.jl")
+        include("test_largeN_artifact_provenance_script.jl")
         include("test_tdvp_progress_summary_script.jl")
         include("test_largeN_campaign_driver.jl")
     end
