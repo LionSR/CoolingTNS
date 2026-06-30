@@ -4,6 +4,46 @@ using HDF5
 include(joinpath(@__DIR__, "..", "scripts", "validation",
                  "run_largeN_multifrequency_tn_scaling.jl"))
 
+function parse_largeN_test_csv_line(line::AbstractString)
+    fields = String[]
+    io = IOBuffer()
+    in_quotes = false
+    i = firstindex(line)
+    while i <= lastindex(line)
+        c = line[i]
+        if in_quotes
+            if c == '"'
+                next_i = nextind(line, i)
+                if next_i <= lastindex(line) && line[next_i] == '"'
+                    print(io, '"')
+                    i = next_i
+                else
+                    in_quotes = false
+                end
+            else
+                print(io, c)
+            end
+        elseif c == '"'
+            in_quotes = true
+        elseif c == ','
+            push!(fields, String(take!(io)))
+        else
+            print(io, c)
+        end
+        i = nextind(line, i)
+    end
+    in_quotes && throw(ArgumentError("unterminated quoted CSV field"))
+    push!(fields, String(take!(io)))
+    return fields
+end
+
+function read_single_largeN_progress_row(path)
+    lines = readlines(path)
+    header = parse_largeN_test_csv_line(lines[1])
+    values = parse_largeN_test_csv_line(lines[2])
+    return (lines=lines, row=Dict(header .=> values))
+end
+
 @testset "Large-N bond-cap stop rule" begin
     @test LARGE_N_TDVP_SWEEP_IN_STEP_STOP_REASON == "tdvp_sweep_bond_cap_in_step"
     sweep_stop_reason_doc = (@doc LARGE_N_TDVP_SWEEP_IN_STEP_STOP_REASON)
@@ -1455,6 +1495,9 @@ end
 end
 
 @testset "Large-N campaign progress CSV" begin
+    @test parse_largeN_test_csv_line("plain,\"with,comma\",\"with\"\"quote\"") ==
+          ["plain", "with,comma", "with\"quote"]
+
     context = (
         method="mcwf",
         evolution="continuous",
@@ -1572,6 +1615,128 @@ end
     @test sweep_row[LARGE_N_EVOLVED_MAX_BOND_KEY] == 21
     @test sweep_row[LARGE_N_PROGRESS_TDVP_SWEEP_KEY] == 3
     @test sweep_row[LARGE_N_PROGRESS_TDVP_TIME_KEY] == 0.6
+
+    sweep_state = MPS(siteinds("S=1/2", 4), "Up")
+    tdvp_sweep_history = zeros(Int, 3)
+    sweep_summary = record_tdvp_sweep_progress!(
+        sweep_state;
+        sweep=4,
+        current_time=0.75,
+        tdvp_context=tdvp_context,
+        tdvp_sweep_maxbond=tdvp_sweep_history,
+        progress_csv=nothing,
+        progress_context=context,
+        ham_params=ham_params,
+        elapsed=5.0,
+        stop_on_bond_cap=false,
+        saturation_threshold=1,
+    )
+    @test sweep_summary.max == 1
+    @test sweep_summary.mean == 1.0
+    @test tdvp_sweep_history[2] == 1
+    @test isnothing(record_tdvp_sweep_progress!(
+        sweep_state;
+        sweep=4,
+        current_time=0.75,
+        tdvp_context=nothing,
+        tdvp_sweep_maxbond=tdvp_sweep_history,
+        progress_csv=nothing,
+        progress_context=context,
+        ham_params=ham_params,
+        elapsed=5.0,
+        stop_on_bond_cap=true,
+        saturation_threshold=1,
+    ))
+
+    tdvp_sweep_history .= 0
+    no_csv_err = try
+        record_tdvp_sweep_progress!(
+            sweep_state;
+            sweep=4,
+            current_time=0.75,
+            tdvp_context=tdvp_context,
+            tdvp_sweep_maxbond=tdvp_sweep_history,
+            progress_csv=nothing,
+            progress_context=context,
+            ham_params=ham_params,
+            elapsed=5.0,
+            stop_on_bond_cap=true,
+            saturation_threshold=1,
+        )
+        nothing
+    catch caught
+        caught
+    end
+    @test no_csv_err isa CoolingTNS.CoolingStepInterrupted
+    @test no_csv_err.reason == LARGE_N_TDVP_SWEEP_IN_STEP_STOP_REASON
+    @test tdvp_sweep_history[2] == 1
+
+    sweep_progress_path = tempname() * ".csv"
+    try
+        tdvp_sweep_history .= 0
+        record_tdvp_sweep_progress!(
+            sweep_state;
+            sweep=4,
+            current_time=0.75,
+            tdvp_context=tdvp_context,
+            tdvp_sweep_maxbond=tdvp_sweep_history,
+            progress_csv=sweep_progress_path,
+            progress_context=context,
+            ham_params=ham_params,
+            elapsed=5.0,
+            stop_on_bond_cap=false,
+            saturation_threshold=1,
+        )
+        parsed_csv = read_single_largeN_progress_row(sweep_progress_path)
+        @test parsed_csv.lines[1] == join(LARGE_N_PROGRESS_CSV_COLUMNS, ",")
+        @test length(parsed_csv.lines) == 2
+        csv_row = parsed_csv.row
+        @test tdvp_sweep_history[2] == 1
+        @test csv_row[LARGE_N_PROGRESS_STAGE_KEY] == LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
+        @test parse(Int, csv_row[LARGE_N_PROGRESS_STEP_KEY]) == 2
+        @test parse(Int, csv_row[LARGE_N_PROGRESS_CYCLE_KEY]) == 1
+        @test parse(Int, csv_row[LARGE_N_PROGRESS_TDVP_SWEEP_KEY]) == 4
+        @test parse(Float64, csv_row[LARGE_N_PROGRESS_TDVP_TIME_KEY]) == 0.75
+        @test parse(Int, csv_row[LARGE_N_EVOLVED_MAX_BOND_KEY]) == 1
+    finally
+        rm(sweep_progress_path; force=true)
+    end
+
+    cap_progress_path = tempname() * ".csv"
+    try
+        tdvp_sweep_history .= 0
+        err = try
+            record_tdvp_sweep_progress!(
+                sweep_state;
+                sweep=5,
+                current_time=-0.25im,
+                tdvp_context=tdvp_context,
+                tdvp_sweep_maxbond=tdvp_sweep_history,
+                progress_csv=cap_progress_path,
+                progress_context=context,
+                ham_params=ham_params,
+                elapsed=6.0,
+                stop_on_bond_cap=true,
+                saturation_threshold=1,
+            )
+            nothing
+        catch caught
+            caught
+        end
+        @test err isa CoolingTNS.CoolingStepInterrupted
+        @test err.reason == LARGE_N_TDVP_SWEEP_IN_STEP_STOP_REASON
+        @test tdvp_sweep_history[2] == 1
+        parsed_csv = read_single_largeN_progress_row(cap_progress_path)
+        @test parsed_csv.lines[1] == join(LARGE_N_PROGRESS_CSV_COLUMNS, ",")
+        @test length(parsed_csv.lines) == 2
+        csv_row = parsed_csv.row
+        @test csv_row[LARGE_N_PROGRESS_STAGE_KEY] == LARGE_N_PROGRESS_STAGE_TDVP_SWEEP
+        @test parse(Int, csv_row[LARGE_N_PROGRESS_TDVP_SWEEP_KEY]) == 5
+        @test parse(Float64, csv_row[LARGE_N_PROGRESS_TDVP_TIME_KEY]) == 0.25
+        @test parse(Int, csv_row[LARGE_N_EVOLVED_MAX_BOND_KEY]) == 1
+    finally
+        rm(cap_progress_path; force=true)
+    end
 
     path = tempname() * ".csv"
     try
