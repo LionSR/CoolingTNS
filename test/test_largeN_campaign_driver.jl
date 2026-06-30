@@ -1622,17 +1622,17 @@ end
         @test isfile(output)
 
         h5open(output, "r") do f
-            @test read(f["model"]) == "ising"
-            @test read(f["bc"]) == "periodic"
-            @test read(f["measure_modes"]) == true
-            @test read(f["mode_measurement_stride"]) == 1
+            @test read(f[LARGE_N_ROOT_MODEL_KEY]) == "ising"
+            @test read(f[LARGE_N_ROOT_BC_KEY]) == "periodic"
+            @test read(f[LARGE_N_ROOT_MEASURE_MODES_KEY]) == true
+            @test read(f[LARGE_N_ROOT_MODE_MEASUREMENT_STRIDE_KEY]) == 1
             @test read(f[CoolingTNS.RESULT_INIT_STATE]) == "theta"
             @test read(f[CoolingTNS.RESULT_INIT_THETA]) == 0.0
             @test read(f[CoolingTNS.RESULT_RANDOMIZE_TIMES]) == false
             @test read(f[LARGE_N_TRAJECTORY_SEED_RULE_KEY]) == LARGE_N_TRAJECTORY_SEED_RULE
-            @test read(f["h"]) == 0.5
-            @test isnan(read(f["hx"]))
-            @test isnan(read(f["hz"]))
+            @test read(f[LARGE_N_ROOT_H_KEY]) == 0.5
+            @test isnan(read(f[LARGE_N_ROOT_HX_KEY]))
+            @test isnan(read(f[LARGE_N_ROOT_HZ_KEY]))
 
             gm = f["N2/mcwf"]
             reference = CoolingTNS.ising_mode_detuning_reference(
@@ -1702,7 +1702,7 @@ end
         end
 
         h5open(output, "r") do f
-            @test read(f["tdvp_sweep_progress"]) == true
+            @test read(f[LARGE_N_ROOT_TDVP_SWEEP_PROGRESS_KEY]) == true
             @test read(f[CoolingTNS.RESULT_RANDOMIZE_TIMES]) == false
             g = f["N2/mcwf/R1"]
             tdvp_sweep_max_bond = read(g[LARGE_N_TDVP_SWEEP_MAX_BOND_KEY])
