@@ -1073,6 +1073,47 @@ function tdvp_sweep_progress_row(context, tdvp_context, sweep, current_time,
 end
 
 """
+    record_tdvp_sweep_progress!(state; ...)
+
+Record one TDVP sweep-observer event for the current cooling cycle.  The
+cap-crossing progress row is appended before a `CoolingStepInterrupted`
+exception is thrown, so a stopped in-step trajectory keeps an audit row even
+though the HDF5 output is truncated to completed cycles.
+"""
+function record_tdvp_sweep_progress!(
+    state;
+    sweep,
+    current_time,
+    tdvp_context,
+    tdvp_sweep_maxbond,
+    progress_csv,
+    progress_context,
+    ham_params,
+    elapsed,
+    stop_on_bond_cap::Bool,
+    saturation_threshold,
+)
+    tdvp_context === nothing && return nothing
+    evolved_bs = bond_summary(state)
+    tdvp_sweep_maxbond[tdvp_context.step] = max(
+        tdvp_sweep_maxbond[tdvp_context.step], evolved_bs.max,
+    )
+    if progress_csv !== nothing
+        append_progress_csv_row(
+            progress_csv,
+            tdvp_sweep_progress_row(
+                progress_context, tdvp_context, sweep, current_time, ham_params,
+                evolved_bs, elapsed,
+            ),
+        )
+    end
+    if stop_on_bond_cap && evolved_bs.max >= saturation_threshold
+        throw(CoolingStepInterrupted(LARGE_N_TDVP_SWEEP_IN_STEP_STOP_REASON))
+    end
+    return evolved_bs
+end
+
+"""
     validate_mode_measurement_result(result, energy)
 
 Validate the Bogoliubov mode-observable payload produced by one large-`N`
@@ -1190,23 +1231,19 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         tdvp_sweep_observer((; state, sweep, current_time, kwargs...) -> begin
             ctx = tdvp_context[]
             ctx === nothing && return nothing
-            elapsed = time() - start_time
-            evolved_bs = bond_summary(state)
-            tdvp_sweep_maxbond[ctx.step] = max(
-                tdvp_sweep_maxbond[ctx.step], evolved_bs.max,
+            record_tdvp_sweep_progress!(
+                state;
+                sweep=sweep,
+                current_time=current_time,
+                tdvp_context=ctx,
+                tdvp_sweep_maxbond=tdvp_sweep_maxbond,
+                progress_csv=progress_csv,
+                progress_context=progress_context,
+                ham_params=ham_params,
+                elapsed=time() - start_time,
+                stop_on_bond_cap=cfg["stop_on_bond_cap"],
+                saturation_threshold=saturation_threshold,
             )
-            if progress_csv !== nothing
-                append_progress_csv_row(
-                    progress_csv,
-                    tdvp_sweep_progress_row(
-                        progress_context, ctx, sweep, current_time, ham_params,
-                        evolved_bs, elapsed,
-                    ),
-                )
-            end
-            if cfg["stop_on_bond_cap"] && evolved_bs.max >= saturation_threshold
-                throw(CoolingStepInterrupted(LARGE_N_TDVP_SWEEP_IN_STEP_STOP_REASON))
-            end
             return nothing
         end)
     else
