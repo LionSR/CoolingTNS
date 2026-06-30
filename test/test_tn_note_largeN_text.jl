@@ -398,6 +398,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("Raising the cap from `256` to `320` at `te = 0.5` buys one additional second-pass detuning", evidence_flat)
     @test occursin("At the common cycle 12, the `Dmax = 320` run gives `E/N = 1.00494543`, agreeing with the `Dmax = 256` stopped value `1.00494536`", evidence_flat)
     @test occursin("larger caps postpone saturation and give only weak incremental energy improvement", evidence_flat)
+    @test length(collect(eachmatch(r"--g-values 0\.3 --te 0\.5", evidence_flat))) >= 4
     @test occursin("Weak-Coupling ED and N=64 Probe", evidence_flat)
     @test occursin("| 0.10 | 1.0 | 4.992e-03 | 0.99393667 | 1.25000000 | 1.09428205 | 1.09428205 | 1.557e-01 |", evidence_flat)
     @test occursin("weaker coupling is closer to a ground-state fixed point, but it cools the product state more slowly", evidence_flat)
