@@ -753,14 +753,15 @@ end
     function write_legacy_split_metadata_file(path; trajectory_indices=nothing,
                                              energy_trajectories=nothing,
                                              stop_reasons=nothing,
-                                             overlap_trajectories=nothing)
+                                             overlap_trajectories=nothing,
+                                             r_group_name=largeN_r_group_name(1))
         h5open(path, "w") do f
             write(f, LARGE_N_ROOT_DMAX_KEY, 4)
             write(f, LARGE_N_ROOT_STEPS_KEY, 1)
             gn = create_group(f, largeN_n_group_name(2))
             write(gn, LARGE_N_SYSTEM_SIZE_KEY, 2)
             gm = create_group(gn, "mcwf")
-            gr = create_group(gm, largeN_r_group_name(1))
+            gr = create_group(gm, r_group_name)
 
             write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 2)
             write(gr, CoolingTNS.RESULT_ENERGY, [-2.0, -1.0])
@@ -788,6 +789,7 @@ end
     bad_energy_rows_path = tempname() * ".h5"
     legacy_overlap_path = tempname() * ".h5"
     bad_stop_reasons_path = tempname() * ".h5"
+    bad_r_group_path = tempname() * ".h5"
     try
         write_legacy_split_metadata_file(fallback_path)
         fallback_row = only(summarize_file(fallback_path))
@@ -827,6 +829,17 @@ end
             bad_stop_reasons_path; stop_reasons=["bond_cap"]
         )
         @test_throws ErrorException summarize_file(bad_stop_reasons_path)
+
+        write_legacy_split_metadata_file(bad_r_group_path; r_group_name="Rbad")
+        err = try
+            summarize_file(bad_r_group_path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        @test occursin("R<positive integer>", sprint(showerror, err))
+        @test occursin("\"Rbad\"", sprint(showerror, err))
     finally
         rm(fallback_path; force=true)
         rm(bad_indices_path; force=true)
@@ -834,6 +847,7 @@ end
         rm(bad_energy_rows_path; force=true)
         rm(legacy_overlap_path; force=true)
         rm(bad_stop_reasons_path; force=true)
+        rm(bad_r_group_path; force=true)
     end
 end
 
