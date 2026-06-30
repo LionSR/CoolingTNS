@@ -1937,6 +1937,14 @@ The new completed-cycle prefixes are
 | 5 | 5 | 0.50511675 | 1.04315874 | 117 | 152 | 792.9 s |
 | 5 | 6 | 3.03070050 | 0.90017691 | 189 | 192 | 3132.9 s |
 
+The progress CSV saturation summary for the new rows is
+
+| R | first transient cap | TDVP-sweep cap | max sweep at | max sweep elapsed |
+|---:|---|---|---|---:|
+| 1 | 6:5 | 6:5 | 6:5 | 430.2 s |
+| 2 | 6:2 | 6:2 | 6:5 | 737.6 s |
+| 5 | 6:2 | 6:2 | 6:5 | 708.5 s |
+
 At this fixed cap and seed, the stopped-prefix ordering is
 `R = 10 < R = 2 < R = 5 < R = 1`.  This is not a converged frequency
 optimization: every row stops by the evolved system-bath and TDVP-sweep bond
