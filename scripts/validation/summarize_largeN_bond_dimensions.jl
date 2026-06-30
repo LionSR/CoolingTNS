@@ -554,7 +554,8 @@ function read_largeN_energy_mean_with_name(run_group)
             name=LARGE_N_LEGACY_ENERGY_MEAN_KEY,
         )
     error(
-        "large-N run group is missing both $RESULT_ENERGY and legacy E_mean " *
+        "large-N run group is missing both $RESULT_ENERGY and legacy " *
+        "$LARGE_N_LEGACY_ENERGY_MEAN_KEY " *
         "energy-mean datasets"
     )
 end
