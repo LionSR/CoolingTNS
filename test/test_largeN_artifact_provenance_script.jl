@@ -30,6 +30,20 @@ using .LargeNArtifactProvenanceChecker
         ])
         @test parsed.doc_paths == [doc_path]
         @test parsed.artifact_paths == [recorded_artifact, missing_artifact]
+        equals_parsed = parse_artifact_provenance_args([
+            "--doc=$doc_path",
+            recorded_artifact,
+        ])
+        @test equals_parsed.doc_paths == [doc_path]
+        @test equals_parsed.artifact_paths == [recorded_artifact]
+        repeated_doc_parsed = parse_artifact_provenance_args([
+            "--doc",
+            doc_path,
+            "--doc=$doc_path",
+            recorded_artifact,
+        ])
+        @test repeated_doc_parsed.doc_paths == [doc_path, doc_path]
+        @test repeated_doc_parsed.artifact_paths == [recorded_artifact]
         @test artifact_basenames(parsed.artifact_paths) ==
               [basename(recorded_artifact), basename(missing_artifact)]
         @test missing_artifact_basenames(parsed.artifact_paths, parsed.doc_paths) ==
@@ -51,6 +65,7 @@ using .LargeNArtifactProvenanceChecker
 
         @test parse_artifact_provenance_args(["--help"]) === nothing
         @test_throws ArgumentError parse_artifact_provenance_args(["--doc"])
+        @test_throws ArgumentError parse_artifact_provenance_args(["--doc="])
         @test_throws ArgumentError parse_artifact_provenance_args(["--unknown"])
         @test_throws ArgumentError parse_artifact_provenance_args(String[])
         @test_throws ArgumentError artifact_basenames([joinpath(dir, "absent.h5")])
