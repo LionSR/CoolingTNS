@@ -1980,7 +1980,8 @@ JULIA_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 BLIS_NUM_THREADS=1 
 julia --project=. scripts/validation/run_largeN_multifrequency_tn_scaling.jl \
   --Ns 64 --R-values 10 --methods mcwf \
   --evolution-method continuous --steps 20 --Dmax 128 \
-  --cutoff 1e-7 --tau 0.2 --model niising --bc open --te 0.5 \
+  --cutoff 1e-7 --tau 0.2 --model niising --bc open \
+  --g-values 0.3 --te 0.5 \
   --delta-min 0.5051167496264384 \
   --delta-max 3.0307004977586303 \
   --schedule descending \
@@ -2149,7 +2150,7 @@ julia --project=. --startup-file=no scripts/validation/run_largeN_multifrequency
   --Ns 64 --R-values 10 --methods mcwf \
   --evolution-method continuous --steps 20 --Dmax 320 \
   --cutoff 1e-7 --tau 0.2 --model niising --bc open \
-  --g 0.3 --te 0.5 \
+  --g-values 0.3 --te 0.5 \
   --delta-min 0.5051167496264384 \
   --delta-max 3.0307004977586303 \
   --schedule descending \
