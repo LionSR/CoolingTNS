@@ -752,7 +752,8 @@ end
 @testset "Large-N summary validates trajectory metadata fallbacks" begin
     function write_legacy_split_metadata_file(path; trajectory_indices=nothing,
                                              energy_trajectories=nothing,
-                                             stop_reasons=nothing)
+                                             stop_reasons=nothing,
+                                             overlap_trajectories=nothing)
         h5open(path, "w") do f
             write(f, LARGE_N_ROOT_DMAX_KEY, 4)
             write(f, LARGE_N_ROOT_STEPS_KEY, 1)
@@ -773,6 +774,9 @@ end
             energy_trajectories === nothing ||
                 write(gr, CoolingTNS.RESULT_ENERGY_TRAJECTORIES,
                       Float64.(energy_trajectories))
+            overlap_trajectories === nothing ||
+                write(gr, LARGE_N_LEGACY_GROUND_STATE_OVERLAP_TRAJECTORIES_KEY,
+                      Float64.(overlap_trajectories))
             stop_reasons === nothing ||
                 write(gr, LARGE_N_STOP_REASONS_KEY, String.(stop_reasons))
         end
@@ -782,6 +786,7 @@ end
     bad_indices_path = tempname() * ".h5"
     bad_energy_columns_path = tempname() * ".h5"
     bad_energy_rows_path = tempname() * ".h5"
+    legacy_overlap_path = tempname() * ".h5"
     bad_stop_reasons_path = tempname() * ".h5"
     try
         write_legacy_split_metadata_file(fallback_path)
@@ -794,6 +799,14 @@ end
         @test fallback_row.tail_e_over_n_values == [-0.75, -0.75]
         @test isnan(fallback_row.initial_overlap)
         @test all(isnan, fallback_row.initial_overlap_values)
+
+        write_legacy_split_metadata_file(
+            legacy_overlap_path;
+            overlap_trajectories=[0.9 0.8; 0.7 0.6],
+        )
+        legacy_overlap_row = only(summarize_file(legacy_overlap_path))
+        @test legacy_overlap_row.initial_overlap ≈ 0.85
+        @test legacy_overlap_row.initial_overlap_values == [0.9, 0.8]
 
         write_legacy_split_metadata_file(bad_indices_path; trajectory_indices=[1])
         @test_throws ErrorException summarize_file(bad_indices_path)
@@ -819,6 +832,7 @@ end
         rm(bad_indices_path; force=true)
         rm(bad_energy_columns_path; force=true)
         rm(bad_energy_rows_path; force=true)
+        rm(legacy_overlap_path; force=true)
         rm(bad_stop_reasons_path; force=true)
     end
 end

@@ -568,8 +568,15 @@ overlap history.  Files without overlap data are summarized with `NaN` entries
 so legacy bond-dimension tables remain readable.
 """
 function read_overlap_trajectory_matrix(run_group, nsteps::Integer, M::Integer)
-    if haskey(run_group, RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES)
-        values = read(run_group[RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES])
+    trajectory_key = if haskey(run_group, RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES)
+        RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES
+    elseif haskey(run_group, LARGE_N_LEGACY_GROUND_STATE_OVERLAP_TRAJECTORIES_KEY)
+        LARGE_N_LEGACY_GROUND_STATE_OVERLAP_TRAJECTORIES_KEY
+    else
+        nothing
+    end
+    if trajectory_key !== nothing
+        values = read(run_group[trajectory_key])
         values isa AbstractVector && return reshape(Float64.(values), :, 1)
         return Matrix{Float64}(values)
     end
