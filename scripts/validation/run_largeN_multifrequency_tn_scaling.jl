@@ -923,9 +923,10 @@ function bond_summary(state)
     return (dims=dims, max=maximum(dims), mean=mean(dims))
 end
 
-"""Return the diagnostic stop reason when any recorded bond cap is reached."""
+"""Stop reason used when a TDVP sweep observer reaches the bond cap mid-cycle."""
 const LARGE_N_TDVP_SWEEP_IN_STEP_STOP_REASON = "tdvp_sweep_bond_cap_in_step"
 
+"""Return the diagnostic stop reason when any recorded bond cap is reached."""
 function bond_cap_stop_reason(step, saturation_threshold, sys_maxbond,
                               evolved_maxbond, tdvp_sweep_maxbond)
     system_hit = sys_maxbond[step] >= saturation_threshold
