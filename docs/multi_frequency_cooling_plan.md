@@ -301,7 +301,7 @@ evolved system-bath and TDVP-sweep caps:
 Thus this `te = 0.5` ladder is useful for estimating the bond scale required
 to continue the deterministic descending schedule, but it is not a route to
 scalable ground-state cooling: larger caps buy one additional second-pass
-detuning at a time, while the stopped prefixes stay near `E/N \approx 1.0`
+detuning at a time, while the stopped prefixes stay close to `E/N = 1.0`
 instead of approaching `E0/N = -1.3246328892`.
 If the purpose of a run is only to locate the first cap event, the validation
 driver can also be run with `--stop-on-bond-cap`.  This stops after the first
