@@ -29,47 +29,17 @@ function usage()
     )
 end
 
-function parse_csv_line(line::AbstractString)
-    fields = String[]
-    io = IOBuffer()
-    in_quotes = false
-    i = firstindex(line)
-    while i <= lastindex(line)
-        c = line[i]
-        if in_quotes
-            if c == '"'
-                next_i = nextind(line, i)
-                if next_i <= lastindex(line) && line[next_i] == '"'
-                    print(io, '"')
-                    i = next_i
-                else
-                    in_quotes = false
-                end
-            else
-                print(io, c)
-            end
-        elseif c == '"'
-            in_quotes = true
-        elseif c == ','
-            push!(fields, String(take!(io)))
-        else
-            print(io, c)
-        end
-        i = nextind(line, i)
-    end
-    in_quotes && throw(ArgumentError("unterminated quoted CSV field"))
-    push!(fields, String(take!(io)))
-    return fields
-end
+"""Compatibility wrapper; the parser itself is defined in largeN_scaling_helpers.jl."""
+parse_csv_line(line::AbstractString) = parse_largeN_progress_csv_line(line)
 
 function read_progress_csv(path::AbstractString)
     lines = readlines(path)
     isempty(lines) && throw(ArgumentError("progress CSV is empty: $path"))
-    header = parse_csv_line(lines[1])
+    header = parse_largeN_progress_csv_line(lines[1])
     rows = Vector{Dict{String,String}}()
     for (line_number, line) in enumerate(lines[2:end])
         isempty(line) && continue
-        values = parse_csv_line(line)
+        values = parse_largeN_progress_csv_line(line)
         length(values) == length(header) || throw(ArgumentError(
             "row $(line_number + 1) in $path has $(length(values)) fields, " *
             "but the header has $(length(header))"

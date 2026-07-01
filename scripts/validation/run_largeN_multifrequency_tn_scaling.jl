@@ -935,16 +935,6 @@ function bond_cap_stop_reason(step, saturation_threshold, sys_maxbond,
     return (system_hit || evolved_hit || tdvp_sweep_hit) ? "bond_cap" : nothing
 end
 
-"""Return a single RFC-4180-compatible CSV cell for scalar progress data."""
-function csv_cell(x)
-    x === nothing && return ""
-    s = x isa AbstractFloat && isnan(x) ? "NaN" : string(x)
-    if occursin(',', s) || occursin('"', s) || occursin('\n', s) || occursin('\r', s)
-        return "\"" * replace(s, "\"" => "\"\"") * "\""
-    end
-    return s
-end
-
 """Append one flushed progress row, creating the header when the file is new."""
 function append_progress_csv_row(path::AbstractString, row)
     mkpath(dirname(path))
@@ -970,7 +960,7 @@ function append_progress_csv_row(path::AbstractString, row)
             io,
             join(
                 (
-                    csv_cell(
+                    largeN_progress_csv_cell(
                         col == LARGE_N_PROGRESS_STAGE_KEY ?
                         progress_stage :
                         get(row, col, "")
