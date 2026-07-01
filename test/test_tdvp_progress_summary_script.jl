@@ -12,6 +12,7 @@ function tdvp_progress_line(; timestamp="2026-06-19T00:00:00",
                             system_max_bond="1", system_mean_bond="1.0",
                             evolved_max_bond="NaN", evolved_mean_bond="NaN",
                             tdvp_sweep="NaN", tdvp_time="NaN",
+                            stop_on_bond_cap="false",
                             elapsed_seconds,
                             columns=TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS)
     row = Dict(
@@ -26,6 +27,8 @@ function tdvp_progress_line(; timestamp="2026-06-19T00:00:00",
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_CUTOFF_KEY => "1.0e-6",
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_G_KEY => g,
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_TAU_KEY => "0.2",
+        TDVPProgressCSVSummary.LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY =>
+            stop_on_bond_cap,
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_KEY => stage,
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_STEP_KEY => string(step),
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_CYCLE_KEY => string(cycle),
@@ -143,6 +146,25 @@ end
     @test TDVPProgressCSVSummary.validate_progress_csv_header(
         "legacy.csv", legacy_progress_columns,
     ) === nothing
+    legacy_stop_columns = String[
+        column for column in TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS
+        if column != TDVPProgressCSVSummary.LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY
+    ]
+    @test TDVPProgressCSVSummary.validate_progress_csv_header(
+        "legacy_stop.csv", legacy_stop_columns,
+    ) === nothing
+    @test TDVPProgressCSVSummary.progress_bool_value(
+        "true", TDVPProgressCSVSummary.LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY,
+    )
+    @test !TDVPProgressCSVSummary.progress_bool_value(
+        "0", TDVPProgressCSVSummary.LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY,
+    )
+    @test !TDVPProgressCSVSummary.progress_bool_value(
+        "", TDVPProgressCSVSummary.LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY,
+    )
+    @test_throws ArgumentError TDVPProgressCSVSummary.progress_bool_value(
+        "maybe", TDVPProgressCSVSummary.LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY,
+    )
     missing_R_columns = String[
         column for column in TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS
         if column != TDVPProgressCSVSummary.LARGE_N_PROGRESS_R_KEY
@@ -375,6 +397,7 @@ end
         @test mpo_row.threshold == 24
         @test mpo_row.completed_cycles == 2
         @test mpo_row.visited_detunings == "2/3"
+        @test !mpo_row.stop_on_bond_cap
         @test mpo_row.detuning_coverage ==
               TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_PARTIAL_GRID_OBSERVED
         @test mpo_row.final_energy == 0.5
@@ -393,12 +416,15 @@ end
         @test mpo_row.last_cycle == 2
         @test mpo_row.last_stage == TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_UPDATED
 
-        stopped_rows = TDVPProgressCSVSummary.summarize_progress_file(
+        modern_flag_rows = TDVPProgressCSVSummary.summarize_progress_file(
             path; stopped_on_cap=true,
         )
-        stopped_mpo_row = only(filter(row -> row.method == "mpo", stopped_rows))
-        @test stopped_mpo_row.detuning_coverage ==
-              TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_STOPPED_PARTIAL_GRID
+        modern_flag_mpo_row = only(
+            filter(row -> row.method == "mpo", modern_flag_rows)
+        )
+        @test modern_flag_mpo_row.detuning_coverage ==
+              TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_PARTIAL_GRID_OBSERVED
+        @test !modern_flag_mpo_row.stop_on_bond_cap
 
         output = mktemp() do output_path, io
             close(io)
@@ -432,6 +458,109 @@ end
         @test occursin("| 4 | 3 | tdvp_sweep |", output)
     finally
         rm(path; force=true)
+    end
+
+    legacy_stop_path = tempname() * ".csv"
+    try
+        open(legacy_stop_path, "w") do io
+            println(io, join(legacy_stop_columns, ","))
+            println(io, tdvp_progress_line(
+                columns=legacy_stop_columns,
+                method="mpo", evolution="trotter", R="3", Dmax="6",
+                stage="updated", step=2, cycle=1, delta="0.5",
+                energy_per_site="0.75", relative_energy="1.75", overlap="0.1",
+                system_max_bond="10", evolved_max_bond="12", elapsed_seconds=1.0,
+            ))
+            println(io, tdvp_progress_line(
+                columns=legacy_stop_columns,
+                method="mpo", evolution="trotter", R="3", Dmax="6",
+                stage="evolved", step=3, cycle=2, delta="0.8",
+                system_max_bond="10", evolved_max_bond="24", elapsed_seconds=2.0,
+            ))
+            println(io, tdvp_progress_line(
+                columns=legacy_stop_columns,
+                method="mpo", evolution="trotter", R="3", Dmax="6",
+                stage="updated", step=3, cycle=2, delta="0.8",
+                energy_per_site="0.5", relative_energy="1.5", overlap="0.2",
+                system_max_bond="24", evolved_max_bond="24", elapsed_seconds=3.0,
+            ))
+        end
+        legacy_default_row = only(TDVPProgressCSVSummary.summarize_progress_file(
+            legacy_stop_path
+        ))
+        @test !legacy_default_row.stop_on_bond_cap
+        @test legacy_default_row.detuning_coverage ==
+              TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_PARTIAL_GRID_OBSERVED
+        legacy_flag_row = only(TDVPProgressCSVSummary.summarize_progress_file(
+            legacy_stop_path; stopped_on_cap=true,
+        ))
+        @test legacy_flag_row.stop_on_bond_cap
+        @test legacy_flag_row.detuning_coverage ==
+              TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_STOPPED_PARTIAL_GRID
+    finally
+        rm(legacy_stop_path; force=true)
+    end
+
+    stored_stop_path = tempname() * ".csv"
+    try
+        open(stored_stop_path, "w") do io
+            println(io, join(TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS, ","))
+            println(io, tdvp_progress_line(
+                method="mpo", evolution="trotter", R="3", Dmax="6",
+                stop_on_bond_cap="true",
+                stage="updated", step=2, cycle=1, delta="0.5",
+                energy_per_site="0.75", relative_energy="1.75", overlap="0.1",
+                system_max_bond="10", evolved_max_bond="12", elapsed_seconds=1.0,
+            ))
+            println(io, tdvp_progress_line(
+                method="mpo", evolution="trotter", R="3", Dmax="6",
+                stop_on_bond_cap="true",
+                stage="evolved", step=3, cycle=2, delta="0.8",
+                system_max_bond="10", evolved_max_bond="24", elapsed_seconds=2.0,
+            ))
+            println(io, tdvp_progress_line(
+                method="mpo", evolution="trotter", R="3", Dmax="6",
+                stop_on_bond_cap="true",
+                stage="updated", step=3, cycle=2, delta="0.8",
+                energy_per_site="0.5", relative_energy="1.5", overlap="0.2",
+                system_max_bond="24", evolved_max_bond="24", elapsed_seconds=3.0,
+            ))
+        end
+        stored_stop_row = only(TDVPProgressCSVSummary.summarize_progress_file(
+            stored_stop_path
+        ))
+        @test stored_stop_row.stop_on_bond_cap
+        @test stored_stop_row.visited_detunings == "2/3"
+        @test stored_stop_row.detuning_coverage ==
+              TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_STOPPED_PARTIAL_GRID
+    finally
+        rm(stored_stop_path; force=true)
+    end
+
+    inconsistent_stop_path = tempname() * ".csv"
+    try
+        open(inconsistent_stop_path, "w") do io
+            println(io, join(TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS, ","))
+            println(io, tdvp_progress_line(
+                method="mpo", evolution="trotter", R="3", Dmax="6",
+                stop_on_bond_cap="true",
+                stage="updated", step=2, cycle=1, delta="0.5",
+                energy_per_site="0.75", relative_energy="1.75", overlap="0.1",
+                system_max_bond="10", evolved_max_bond="12", elapsed_seconds=1.0,
+            ))
+            println(io, tdvp_progress_line(
+                method="mpo", evolution="trotter", R="3", Dmax="6",
+                stop_on_bond_cap="false",
+                stage="updated", step=3, cycle=2, delta="0.8",
+                energy_per_site="0.5", relative_energy="1.5", overlap="0.2",
+                system_max_bond="20", evolved_max_bond="22", elapsed_seconds=2.0,
+            ))
+        end
+        @test_throws ArgumentError TDVPProgressCSVSummary.summarize_progress_file(
+            inconsistent_stop_path
+        )
+    finally
+        rm(inconsistent_stop_path; force=true)
     end
 
     duplicate_root = mktempdir()

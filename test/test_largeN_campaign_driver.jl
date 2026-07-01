@@ -1743,6 +1743,7 @@ end
         cutoff=1e-6,
         g=0.05,
         tau=0.2,
+        stop_on_bond_cap=false,
     )
     ham_params = CoolingTNS.NiIsingParameters(4, 1.0, -1.05, 0.5)
     measurements = Dict{String,Any}(
@@ -1771,6 +1772,7 @@ end
     @test row[LARGE_N_PROGRESS_STAGE_KEY] == LARGE_N_PROGRESS_STAGE_UPDATED
     @test row[LARGE_N_PROGRESS_CYCLE_KEY] == 1
     @test row[LARGE_N_PROGRESS_G_KEY] == 0.05
+    @test row[LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY] == false
     @test row[LARGE_N_PROGRESS_ENERGY_PER_SITE_KEY] == -0.25
     @test row[LARGE_N_PROGRESS_RELATIVE_ENERGY_KEY] ==
           relative_energy(-1.0, -4.0)
@@ -1850,6 +1852,17 @@ end
     @test sweep_row[LARGE_N_EVOLVED_MAX_BOND_KEY] == 21
     @test sweep_row[LARGE_N_PROGRESS_TDVP_SWEEP_KEY] == 3
     @test sweep_row[LARGE_N_PROGRESS_TDVP_TIME_KEY] == 0.6
+    stopped_sweep_row = tdvp_sweep_progress_row(
+        context,
+        tdvp_context,
+        3,
+        -0.6im,
+        ham_params,
+        (max=21, mean=14.5),
+        4.5;
+        stop_on_bond_cap=true,
+    )
+    @test stopped_sweep_row[LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY] == true
 
     sweep_state = MPS(siteinds("S=1/2", 4), "Up")
     tdvp_sweep_history = zeros(Int, 3)
@@ -1933,6 +1946,7 @@ end
         @test parse(Int, csv_row[LARGE_N_PROGRESS_TDVP_SWEEP_KEY]) == 4
         @test parse(Float64, csv_row[LARGE_N_PROGRESS_TDVP_TIME_KEY]) == 0.75
         @test parse(Int, csv_row[LARGE_N_EVOLVED_MAX_BOND_KEY]) == 1
+        @test parse(Bool, csv_row[LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY]) == false
     finally
         rm(sweep_progress_path; force=true)
     end
@@ -1969,6 +1983,7 @@ end
         @test parse(Int, csv_row[LARGE_N_PROGRESS_TDVP_SWEEP_KEY]) == 5
         @test parse(Float64, csv_row[LARGE_N_PROGRESS_TDVP_TIME_KEY]) == 0.25
         @test parse(Int, csv_row[LARGE_N_EVOLVED_MAX_BOND_KEY]) == 1
+        @test parse(Bool, csv_row[LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY]) == true
     finally
         rm(cap_progress_path; force=true)
     end

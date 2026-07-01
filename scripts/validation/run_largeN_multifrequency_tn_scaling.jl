@@ -1220,6 +1220,7 @@ system has been measured. For `:prepared` and `:evolved`, these columns are
 function progress_base_row(context, ham_params; stage, step, cycle, delta, te,
                            energy_per_site, relative_energy_value, overlap,
                            sys_bs, evolved_bs, tdvp_sweep=NaN, tdvp_time=NaN,
+                           stop_on_bond_cap=get(context, :stop_on_bond_cap, false),
                            elapsed)
     return Dict{String,Any}(
         LARGE_N_PROGRESS_TIMESTAMP_KEY =>
@@ -1234,6 +1235,7 @@ function progress_base_row(context, ham_params; stage, step, cycle, delta, te,
         LARGE_N_PROGRESS_CUTOFF_KEY => context.cutoff,
         LARGE_N_PROGRESS_G_KEY => context.g,
         LARGE_N_PROGRESS_TAU_KEY => context.tau,
+        LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY => stop_on_bond_cap,
         LARGE_N_PROGRESS_STAGE_KEY => require_largeN_progress_stage_label(stage),
         LARGE_N_PROGRESS_STEP_KEY => step,
         LARGE_N_PROGRESS_CYCLE_KEY => cycle,
@@ -1276,7 +1278,10 @@ tdvp_physical_time(t::Real) = Float64(t)
 tdvp_physical_time(t::Complex) = -Float64(imag(t))
 
 function tdvp_sweep_progress_row(context, tdvp_context, sweep, current_time,
-                                 ham_params, evolved_bs, elapsed)
+                                 ham_params, evolved_bs, elapsed;
+                                 stop_on_bond_cap=get(
+                                     context, :stop_on_bond_cap, false
+                                 ))
     return progress_base_row(
         context, ham_params;
         stage=largeN_progress_stage(:tdvp_sweep),
@@ -1291,6 +1296,7 @@ function tdvp_sweep_progress_row(context, tdvp_context, sweep, current_time,
         evolved_bs=evolved_bs,
         tdvp_sweep=sweep,
         tdvp_time=tdvp_physical_time(current_time),
+        stop_on_bond_cap=stop_on_bond_cap,
         elapsed=elapsed,
     )
 end
@@ -1326,7 +1332,7 @@ function record_tdvp_sweep_progress!(
             progress_csv,
             tdvp_sweep_progress_row(
                 progress_context, tdvp_context, sweep, current_time, ham_params,
-                evolved_bs, elapsed,
+                evolved_bs, elapsed; stop_on_bond_cap=stop_on_bond_cap,
             ),
         )
     end
@@ -1385,6 +1391,7 @@ function run_one_trajectory(problem, ham_params, cp_multi, sim_params, cfg, seed
         cutoff=cfg["cutoff"],
         g=cfg["g"],
         tau=cfg["tau"],
+        stop_on_bond_cap=cfg["stop_on_bond_cap"],
     )
     start_time = time()
     tdvp_context = Ref{Any}(nothing)
