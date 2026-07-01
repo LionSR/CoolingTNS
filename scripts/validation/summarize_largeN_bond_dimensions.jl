@@ -329,12 +329,15 @@ function range_float_label(values::AbstractVector{<:Real}; digits::Int=2)
 end
 
 function schedule_label(root, method_group, run_group)
-    for group in (run_group, method_group, root)
-        haskey(group, RESULT_SCHEDULE) ||
-            continue
-        return string(parse_multi_frequency_schedule(read(group[RESULT_SCHEDULE])))
-    end
-    return LARGE_N_LABEL_UNKNOWN
+    schedule = read_first_group_value(
+        RESULT_SCHEDULE,
+        nothing,
+        run_group,
+        method_group,
+        root,
+    )
+    schedule === nothing && return LARGE_N_LABEL_UNKNOWN
+    return string(parse_multi_frequency_schedule(schedule))
 end
 
 function randomize_times_flag(root, method_group, run_group)
