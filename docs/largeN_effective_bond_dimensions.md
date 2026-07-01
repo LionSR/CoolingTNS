@@ -153,7 +153,9 @@ D_{\rm cap} = \mathrm{tn\_method\_maxdim}(\mathrm{method}, D_{\max}).
 ```
 
 For MCWF/MPS, `Dcap = Dmax`.  For MPO density-matrix Trotter evolution,
-`Dcap = 4 Dmax`.
+`Dcap = 4 Dmax`.  The interrupted progress-CSV recovery path uses the same
+large-N method-label cap helper as the validation readers, so recovered stopped
+prefixes and HDF5 summaries use the same `Dcap` convention.
 
 The summary table reports three effective bond-dimension labels.  They refer to
 different states in the same cooling cycle and should not be interchanged.

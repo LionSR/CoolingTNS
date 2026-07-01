@@ -325,6 +325,14 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test largeN_method_kind_from_name("mcwf") === :mcwf
     @test largeN_method_kind_from_name("MPO") === :mpo
     @test_throws ArgumentError largeN_method_kind_from_name("ed")
+    @test largeN_method_maxdim_from_name("mcwf", 12) ==
+          tn_method_maxdim(MonteCarloWavefunction(), 12)
+    @test largeN_method_maxdim_from_name("MPO", 12) ==
+          tn_method_maxdim(DensityMatrix(), 12)
+    @test_throws ArgumentError largeN_method_maxdim_from_name("ed", 12)
+    big_dmax = big(typemax(Int)) + 1
+    @test largeN_method_maxdim_from_name("mcwf", big_dmax) == big_dmax
+    @test largeN_method_maxdim_from_name("mpo", big_dmax) == 4 * big_dmax
 
     fixed_protocol_negative_reference = largeN_detuning_protocol(
         -0.035; delta_min=0.5, delta_max=0.5, delta_max_factor=6.0
