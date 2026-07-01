@@ -297,6 +297,44 @@ end
     end
 end
 
+@testset "Large-N summary rejects non-string explicit schedule metadata" begin
+    path = tempname() * ".h5"
+    try
+        h5open(path, "w") do f
+            write(f, LARGE_N_ROOT_DMAX_KEY, 8)
+            write(f, CoolingTNS.RESULT_SCHEDULE, 7)
+            gn = create_group(f, largeN_n_group_name(4))
+            write(gn, LARGE_N_SYSTEM_SIZE_KEY, 4)
+            gm = create_group(gn, "mcwf")
+            gr = create_group(gm, largeN_r_group_name(2))
+
+            write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 1)
+            write(gr, CoolingTNS.RESULT_ENERGY, [-1.0, 0.0, 1.0])
+            write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 1.0, 2.0])
+            write(gr, LARGE_N_SYSTEM_MAX_BOND_KEY, [1, 2, 3])
+            write(gr, LARGE_N_SYSTEM_MEAN_BOND_KEY, [1.0, 2.0, 3.0])
+            write(gr, LARGE_N_EVOLVED_MAX_BOND_KEY, [0, 4, 8])
+            write(gr, LARGE_N_EVOLVED_MEAN_BOND_KEY, [NaN, 4.0, 8.0])
+        end
+
+        err = try
+            summarize_file(path)
+            nothing
+        catch caught
+            caught
+        end
+        @test err isa ArgumentError
+        message = sprint(showerror, err)
+        @test occursin("Symbol or string", message)
+        @test occursin("round_robin", message)
+        @test occursin("descending", message)
+        @test occursin("random", message)
+        @test occursin("7", message)
+    finally
+        rm(path; force=true)
+    end
+end
+
 @testset "Large-N bond-dimension summary script" begin
     path = tempname() * ".h5"
     try
