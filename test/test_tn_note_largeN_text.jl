@@ -313,6 +313,14 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("scripts/validation/check_largeN_artifact_provenance.jl", evidence_flat)
     @test occursin("HDF5 basename, not merely a machine-specific local path", evidence_flat)
     @test occursin("the stable audit handle for the evidence table and notes", evidence_flat)
+    @test occursin(
+        "validates explicit `detuning_protocol_source` metadata against the legal writer vocabulary",
+        evidence_flat,
+    )
+    @test occursin(
+        "a malformed explicit source is rejected rather than normalized into an evidence table",
+        evidence_flat,
+    )
     end
 
     @testset "Validation plan setup and detuning anchors" begin

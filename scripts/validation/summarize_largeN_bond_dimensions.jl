@@ -177,15 +177,21 @@ function detuning_factor_label(source::AbstractString, factor::Real)
     return LARGE_N_LABEL_UNKNOWN
 end
 
+function detuning_protocol_source_label(method_group, run_group)
+    if haskey(run_group, LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY)
+        return require_largeN_detuning_protocol_source_label(
+            read(run_group[LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY])
+        )
+    elseif haskey(method_group, LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY)
+        return require_largeN_detuning_protocol_source_label(
+            read(method_group[LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY])
+        )
+    end
+    return LARGE_N_LABEL_UNKNOWN
+end
+
 function detuning_protocol_summary(method_group, run_group)
-    source = String(
-        read_group_value(
-            run_group,
-            method_group,
-            LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY,
-            LARGE_N_LABEL_UNKNOWN,
-        ),
-    )
+    source = detuning_protocol_source_label(method_group, run_group)
     delta_min = Float64(
         read_group_value(run_group, method_group, LARGE_N_DETUNING_DELTA_MIN_KEY, NaN),
     )

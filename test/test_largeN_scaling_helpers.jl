@@ -294,6 +294,14 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test isnan(fixed_protocol.delta_max_factor)
     @test fixed_protocol.fixed_across_dmax == true
     @test largeN_delta_values(fixed_protocol, 2) == [0.25, 1.25]
+    @test require_largeN_detuning_protocol_source_label(
+        LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE
+    ) == LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE
+    @test require_largeN_detuning_protocol_source_label(
+        Symbol(LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE)
+    ) == LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE
+    @test_throws ArgumentError require_largeN_detuning_protocol_source_label("adaptive_range")
+    @test_throws ArgumentError require_largeN_detuning_protocol_source_label(7)
 
     @test largeN_method_kind_from_name("mcwf") === :mcwf
     @test largeN_method_kind_from_name("MPO") === :mpo

@@ -58,7 +58,11 @@ a `_trajk` token to both HDF5 and progress-CSV stems and store the physical
 MCWF trajectory labels in the HDF5 `trajectory_indices` dataset.  The HDF5
 metadata is the authoritative protocol record.  The summary table includes the
 stored `te` column, so a later time-ladder comparison does not have to infer
-the bath-evolution time from a filename.  It also includes a `time protocol`
+the bath-evolution time from a filename.  It also validates explicit
+`detuning_protocol_source` metadata against the legal writer vocabulary
+(`gap_scaled_range` and `fixed_range`): absent legacy metadata is reported as
+`unknown`, but a malformed explicit source is rejected rather than normalized
+into an evidence table.  It also includes a `time protocol`
 column, which distinguishes fixed cycle times from randomized cycle times using
 the stored `randomize_times` metadata, and an `init` column, which records the
 stored initial-state protocol (`product`, `ground`, `identity`, or
