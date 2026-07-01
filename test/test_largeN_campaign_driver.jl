@@ -311,6 +311,39 @@ end
     @test occursin("--schedule descending", descending_command)
     @test_throws ErrorException parse_args(["--schedule", "bad"])
 
+    short_period_cfg = parse_args([
+        "--R-values", "1,2,5,10",
+        "--steps", "2",
+        "--schedule", "descending",
+        "--outdir", tempdir(),
+    ])
+    @test incomplete_deterministic_schedule_period_R_values(short_period_cfg) == [5, 10]
+    short_period_message =
+        incomplete_deterministic_schedule_period_message(short_period_cfg)
+    @test short_period_message !== nothing
+    @test occursin("R=5,10", short_period_message)
+    @test occursin("full-grid multi-frequency cooling evidence", short_period_message)
+    @test_logs (:warn, r"shorter than one full deterministic detuning-grid period") begin
+        @test warn_if_incomplete_deterministic_schedule_period(short_period_cfg)
+    end
+    short_period_plan = sprint(io -> print_parallel_plan(short_period_cfg; io=io))
+    @test occursin("# Warning:", short_period_plan)
+    @test occursin("R=5,10", short_period_plan)
+
+    random_short_period_cfg = parse_args([
+        "--R-values", "10",
+        "--steps", "2",
+        "--schedule", "random",
+        "--outdir", tempdir(),
+    ])
+    @test isempty(incomplete_deterministic_schedule_period_R_values(random_short_period_cfg))
+    @test incomplete_deterministic_schedule_period_message(random_short_period_cfg) === nothing
+    @test !warn_if_incomplete_deterministic_schedule_period(random_short_period_cfg)
+    random_short_period_plan = sprint(
+        io -> print_parallel_plan(random_short_period_cfg; io=io)
+    )
+    @test !occursin("full-grid multi-frequency cooling evidence", random_short_period_plan)
+
     random_time_cfg = parse_args([
         "--randomize-times",
         "--outdir", tempdir(),
