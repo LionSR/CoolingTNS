@@ -648,9 +648,19 @@ bond-dimension cap are varied.
 \paragraph{State overlaps}
 The state fidelity between a given state $\ket{\Phi}$ and $\rho_S^k$ can be computed in parallel
 \begin{equation}
-	F = \bra{\Phi}\rho_S^k\ket{\Phi} \approx \frac{1}{N_\text{QT}}\sum_{i=1}^{N_\text{QT}} \left|\braket{\Phi|Psi_S^{k,(i)}}\right|^2.
+	F = \bra{\Phi}\rho_S^k\ket{\Phi} \approx \frac{1}{N_\text{QT}}\sum_{i=1}^{N_\text{QT}} \left|\braket{\Phi|\Psi_S^{k,(i)}}\right|^2.
 \end{equation}
 We use the state fidelity with respect to the low excited states of $H_S$ to quantify the efficiency of cooling.
+In the validation tables we treat \(F\) as a probability.  Thus a stored
+finite ground-state overlap must lie in the physical interval \(0\leq F\leq
+1\), up to the numerical tolerance appropriate to the representation.  For
+MCWF/MPS trajectories this tolerance is a roundoff-scale check on the pure-state
+quantity \(\left|\braket{\Phi|\Psi_S^{k,(i)}}\right|^2\).  For MPO
+density-matrix diagnostics we use a looser compression-scale tolerance, because
+truncating an MPO density matrix need not preserve trace and positivity to
+roundoff accuracy.  If an archived large-\(N\) artifact contains no overlap
+history, the summary records this absence explicitly as \texttt{NaN}; it is not
+interpreted as a physical overlap value.
 
 
 A single trajectory ($N_\text{QT}=1$), together with a time average over late cooling steps, is useful as a diagnostic of a proposed protocol. It is not by itself a proof of convergence of the density-matrix channel. Quantitative steady-state estimates should compare independent trajectories, or otherwise justify the replacement of the ensemble average by a time average.
