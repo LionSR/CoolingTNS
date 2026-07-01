@@ -356,6 +356,16 @@ end
     @test incomplete_deterministic_schedule_period_R_values(
         round_robin_short_period_cfg
     ) == [5]
+    round_robin_short_period_plan = sprint(
+        io -> print_parallel_plan(round_robin_short_period_cfg; io=io)
+    )
+    round_robin_partial_period_lines = filter(
+        line -> startswith(line, "# Partial-period diagnostic for "),
+        split(chomp(round_robin_short_period_plan), '\n'),
+    )
+    @test length(round_robin_partial_period_lines) == 1
+    @test occursin("_R5_", round_robin_partial_period_lines[1])
+    @test !occursin("_R2_", round_robin_partial_period_lines[1])
 
     random_short_period_cfg = parse_args([
         "--R-values", "10",

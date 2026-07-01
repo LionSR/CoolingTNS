@@ -879,7 +879,7 @@ function warn_if_incomplete_deterministic_schedule_period(cfg)
     return true
 end
 
-function partial_period_parallel_plan_comment(run_cfg)
+function incomplete_deterministic_schedule_period_plan_comment(run_cfg)
     message = incomplete_deterministic_schedule_period_message(run_cfg; single_job=true)
     message === nothing && return nothing
     output_name = default_output_filename(run_cfg)
@@ -925,7 +925,7 @@ function print_parallel_plan(cfg; io=stdout)
     end
     for (run_cfg, command) in zip(run_cfgs, commands)
         if length(commands) > 1
-            job_comment = partial_period_parallel_plan_comment(run_cfg)
+            job_comment = incomplete_deterministic_schedule_period_plan_comment(run_cfg)
             job_comment === nothing || println(io, job_comment)
         end
         println(io, command)
