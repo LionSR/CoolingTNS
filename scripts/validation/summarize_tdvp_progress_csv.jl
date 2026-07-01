@@ -22,11 +22,19 @@ using Printf
 
 include(joinpath(@__DIR__, "largeN_scaling_helpers.jl"))
 
-function usage()
+function usage(io=stdout)
     println(
+        io,
         "usage: julia --project=. scripts/validation/summarize_tdvp_progress_csv.jl " *
-        "[--cap D] PROGRESS.csv [PROGRESS2.csv ...]"
+        "[--cap D] [--help] PROGRESS.csv [PROGRESS2.csv ...]"
     )
+end
+
+function cap_arg_value(args, index::Integer)
+    index < length(args) || throw(ArgumentError("--cap requires a value"))
+    value = args[index + 1]
+    startswith(value, "--") || value == "-h" || return value
+    throw(ArgumentError("--cap requires a value, got option token $value"))
 end
 
 """Compatibility wrapper; the parser itself is defined in largeN_scaling_helpers.jl."""
@@ -432,9 +440,11 @@ function parse_args(args)
     paths = String[]
     i = 1
     while i <= length(args)
-        if args[i] == "--cap"
-            i == length(args) && throw(ArgumentError("--cap requires a value"))
-            cap = parse(Int, args[i + 1])
+        if args[i] in ("--help", "-h")
+            return (paths=paths, cap=cap, help=true)
+        elseif args[i] == "--cap"
+            cap = parse(Int, cap_arg_value(args, i))
+            cap >= 1 || throw(ArgumentError("--cap must be positive"))
             i += 2
         elseif startswith(args[i], "--")
             throw(ArgumentError("unknown option: $(args[i])"))
@@ -443,11 +453,15 @@ function parse_args(args)
             i += 1
         end
     end
-    return (paths=paths, cap=cap)
+    return (paths=paths, cap=cap, help=false)
 end
 
 function summarize_tdvp_progress_csv_main(args=ARGS)
     parsed = parse_args(args)
+    if parsed.help
+        usage()
+        return 0
+    end
     if isempty(parsed.paths)
         usage()
         return 1

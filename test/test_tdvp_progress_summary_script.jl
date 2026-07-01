@@ -59,6 +59,28 @@ end
           TDVPProgressCSVSummary.parse_largeN_progress_csv_line(
               "plain,\"with,comma\"",
           )
+    help_args = TDVPProgressCSVSummary.parse_args(["--help"])
+    @test help_args.help
+    @test isempty(help_args.paths)
+    @test help_args.cap === nothing
+    short_help_args = TDVPProgressCSVSummary.parse_args(["-h"])
+    @test short_help_args.help
+    @test TDVPProgressCSVSummary.parse_args(["--help", "--cap"]).help
+    @test occursin(
+        "[--cap D] [--help] PROGRESS.csv",
+        sprint(TDVPProgressCSVSummary.usage),
+    )
+    cap_args = TDVPProgressCSVSummary.parse_args(["--cap", "12", "progress.csv"])
+    @test cap_args.cap == 12
+    @test cap_args.paths == ["progress.csv"]
+    @test_throws ArgumentError TDVPProgressCSVSummary.parse_args(["--cap"])
+    @test_throws ArgumentError TDVPProgressCSVSummary.parse_args(
+        ["--cap", "-1", "progress.csv"],
+    )
+    @test_throws ArgumentError TDVPProgressCSVSummary.parse_args(["--cap", "--help"])
+    @test_throws ArgumentError TDVPProgressCSVSummary.parse_args(["--cap", "-h"])
+    @test_throws ArgumentError TDVPProgressCSVSummary.parse_args(["--unknown"])
+
     @test TDVPProgressCSVSummary.largeN_method_kind_from_name("mcwf") === :mcwf
     @test TDVPProgressCSVSummary.largeN_method_kind_from_name("MPO") === :mpo
     @test TDVPProgressCSVSummary.largeN_method_maxdim_from_name("mcwf", 7) ==
