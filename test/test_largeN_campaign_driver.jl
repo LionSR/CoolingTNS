@@ -4,43 +4,10 @@ using HDF5
 include(joinpath(@__DIR__, "..", "scripts", "validation",
                  "run_largeN_multifrequency_tn_scaling.jl"))
 
-function parse_largeN_test_csv_line(line::AbstractString)
-    fields = String[]
-    io = IOBuffer()
-    in_quotes = false
-    i = firstindex(line)
-    while i <= lastindex(line)
-        c = line[i]
-        if in_quotes
-            if c == '"'
-                next_i = nextind(line, i)
-                if next_i <= lastindex(line) && line[next_i] == '"'
-                    print(io, '"')
-                    i = next_i
-                else
-                    in_quotes = false
-                end
-            else
-                print(io, c)
-            end
-        elseif c == '"'
-            in_quotes = true
-        elseif c == ','
-            push!(fields, String(take!(io)))
-        else
-            print(io, c)
-        end
-        i = nextind(line, i)
-    end
-    in_quotes && throw(ArgumentError("unterminated quoted CSV field"))
-    push!(fields, String(take!(io)))
-    return fields
-end
-
 function read_single_largeN_progress_row(path)
     lines = readlines(path)
-    header = parse_largeN_test_csv_line(lines[1])
-    values = parse_largeN_test_csv_line(lines[2])
+    header = parse_largeN_progress_csv_line(lines[1])
+    values = parse_largeN_progress_csv_line(lines[2])
     return (lines=lines, row=Dict(header .=> values))
 end
 
@@ -1495,7 +1462,7 @@ end
 end
 
 @testset "Large-N campaign progress CSV" begin
-    @test parse_largeN_test_csv_line("plain,\"with,comma\",\"with\"\"quote\"") ==
+    @test parse_largeN_progress_csv_line("plain,\"with,comma\",\"with\"\"quote\"") ==
           ["plain", "with,comma", "with\"quote"]
 
     context = (

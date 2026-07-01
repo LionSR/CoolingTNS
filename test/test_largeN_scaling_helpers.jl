@@ -231,6 +231,21 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
         LARGE_N_PROGRESS_G_KEY,
         LARGE_N_PROGRESS_TAU_KEY,
     )
+    @test largeN_progress_csv_cell(nothing) == ""
+    @test largeN_progress_csv_cell(NaN) == "NaN"
+    @test largeN_progress_csv_cell("plain") == "plain"
+    @test largeN_progress_csv_cell("with,comma") == "\"with,comma\""
+    @test largeN_progress_csv_cell("with\"quote") == "\"with\"\"quote\""
+    @test largeN_progress_csv_cell("line\nbreak") == "\"line\nbreak\""
+    @test parse_largeN_progress_csv_line(
+        "\"contains,comma\",\"escaped \"\"quote\"\"\",plain",
+    ) == ["contains,comma", "escaped \"quote\"", "plain"]
+    @test parse_largeN_progress_csv_line("") == [""]
+    @test_throws ArgumentError parse_largeN_progress_csv_line("\"unterminated")
+    progress_csv_values = ["plain", "with,comma", "with\"quote", "line\nbreak", ""]
+    @test parse_largeN_progress_csv_line(
+        join((largeN_progress_csv_cell(value) for value in progress_csv_values), ",")
+    ) == progress_csv_values
     @test largeN_progress_stage(:initial) == LARGE_N_PROGRESS_STAGE_INITIAL
     @test largeN_progress_stage(:prepared) == LARGE_N_PROGRESS_STAGE_PREPARED
     @test largeN_progress_stage(:evolved) == LARGE_N_PROGRESS_STAGE_EVOLVED

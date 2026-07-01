@@ -55,6 +55,10 @@ end
         "\"contains,comma\",\"escaped \"\"quote\"\"\",plain"
     ) ==
         ["contains,comma", "escaped \"quote\"", "plain"]
+    @test TDVPProgressCSVSummary.parse_csv_line("plain,\"with,comma\"") ==
+          TDVPProgressCSVSummary.parse_largeN_progress_csv_line(
+              "plain,\"with,comma\"",
+          )
     @test TDVPProgressCSVSummary.largeN_method_kind_from_name("mcwf") === :mcwf
     @test TDVPProgressCSVSummary.largeN_method_kind_from_name("MPO") === :mpo
     @test TDVPProgressCSVSummary.default_progress_cap("mcwf", 7) ==

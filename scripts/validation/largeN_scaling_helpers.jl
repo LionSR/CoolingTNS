@@ -312,6 +312,60 @@ const LARGE_N_PROGRESS_CSV_COLUMNS = (
 )
 
 """
+    largeN_progress_csv_cell(x) -> String
+
+Return a single RFC-4180-compatible CSV cell for scalar large-N progress data.
+This is the writer-side counterpart of `parse_largeN_progress_csv_line`.
+"""
+function largeN_progress_csv_cell(x)
+    x === nothing && return ""
+    s = x isa AbstractFloat && isnan(x) ? "NaN" : string(x)
+    if occursin(',', s) || occursin('"', s) || occursin('\n', s) || occursin('\r', s)
+        return "\"" * replace(s, "\"" => "\"\"") * "\""
+    end
+    return s
+end
+
+"""
+    parse_largeN_progress_csv_line(line) -> Vector{String}
+
+Parse one large-N progress CSV record line using the same scalar-cell convention
+as `largeN_progress_csv_cell`.
+"""
+function parse_largeN_progress_csv_line(line::AbstractString)
+    fields = String[]
+    io = IOBuffer()
+    in_quotes = false
+    i = firstindex(line)
+    while i <= lastindex(line)
+        c = line[i]
+        if in_quotes
+            if c == '"'
+                next_i = nextind(line, i)
+                if next_i <= lastindex(line) && line[next_i] == '"'
+                    print(io, '"')
+                    i = next_i
+                else
+                    in_quotes = false
+                end
+            else
+                print(io, c)
+            end
+        elseif c == '"'
+            in_quotes = true
+        elseif c == ','
+            push!(fields, String(take!(io)))
+        else
+            print(io, c)
+        end
+        i = nextind(line, i)
+    end
+    in_quotes && throw(ArgumentError("unterminated quoted CSV field"))
+    push!(fields, String(take!(io)))
+    return fields
+end
+
+"""
     largeN_progress_stage(stage::Symbol) -> String
 
 Return the persisted progress-CSV stage label for a cooling observer stage.
