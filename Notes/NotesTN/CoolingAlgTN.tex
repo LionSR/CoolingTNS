@@ -325,7 +325,11 @@ routines store the individual Bogoliubov mode observable
 \end{equation}
 This $n_k^{\mathrm{Bog}}$ is the quasiparticle occupation; it is not the raw
 momentum occupation $\langle\tilde a_k^\dagger\tilde a_k\rangle$, which equals
-$\sin^2\varphi_k$ in the chosen-operator vacuum for generic modes.  The exact energy
+$\sin^2\varphi_k$ in the chosen-operator vacuum for generic modes.  The
+corresponding source equations in \texttt{NotesED/MapToSpin.tex} are
+\texttt{eq:bog\_occupation\_from\_hk} and
+\texttt{eq:raw\_fourier\_occupation}; the tensor-network diagnostics should
+use these two symbols, rather than an unqualified \(n_k\).  The exact energy
 reconstruction used to compare ED and tensor-network results is
 \begin{align}
 	\langle H_{\mathrm{code}}\rangle
