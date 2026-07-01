@@ -152,7 +152,11 @@ $$
 It is therefore a throughput diagnostic, not a cooling-performance metric.
 Partial stop reasons are reported with counts such as `bond_capx1/2`.  Use
 `scripts/validation/summarize_largeN_bond_dimensions.jl --compact` for the
-short table format used in the notes.
+short table format used in the notes.  For interrupted or live TDVP traces
+where only the flushed progress CSV is available, use
+`scripts/validation/summarize_tdvp_progress_csv.jl --compact`; this prints the
+same run-level saturation and detuning-coverage audit without the detailed
+per-cycle energy trace.
 
 The nominal parameter `Dmax` is not always the actual Trotter truncation cap.
 The method-specific cap is
