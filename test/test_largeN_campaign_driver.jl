@@ -322,6 +322,7 @@ end
         incomplete_deterministic_schedule_period_message(short_period_cfg)
     @test short_period_message !== nothing
     @test occursin("R=5,10", short_period_message)
+    @test occursin("these jobs are valid cap-pressure probes", short_period_message)
     @test occursin("full-grid multi-frequency cooling evidence", short_period_message)
     @test_logs (:warn, r"shorter than one full deterministic detuning-grid period") begin
         @test warn_if_incomplete_deterministic_schedule_period(short_period_cfg)
@@ -338,6 +339,10 @@ end
     @test any(line -> occursin("_R10_", line), partial_period_lines)
     @test all(
         line -> occursin("requested 2-cycle window", line),
+        partial_period_lines,
+    )
+    @test all(
+        line -> occursin("this job is a valid cap-pressure probe", line),
         partial_period_lines,
     )
     @test !any(line -> occursin("_R1_", line) || occursin("_R2_", line),

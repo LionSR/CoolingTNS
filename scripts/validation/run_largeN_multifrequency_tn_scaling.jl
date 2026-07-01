@@ -859,13 +859,17 @@ function incomplete_deterministic_schedule_period_R_values(cfg)
     return Int[R for R in cfg["R_values"] if cfg["steps"] < R]
 end
 
-function incomplete_deterministic_schedule_period_message(cfg)
+function incomplete_deterministic_schedule_period_message(cfg; single_job=false)
     partial_R_values = incomplete_deterministic_schedule_period_R_values(cfg)
     isempty(partial_R_values) && return nothing
+    evidence_clause = single_job ?
+        "this job is a valid cap-pressure probe, but it cannot by " *
+        "itself establish full-grid multi-frequency cooling evidence." :
+        "these jobs are valid cap-pressure probes, but they cannot by " *
+        "themselves establish full-grid multi-frequency cooling evidence."
     return "requested $(cfg["steps"])-cycle window is shorter than one full " *
            "deterministic detuning-grid period for R=$(join(partial_R_values, ",")); " *
-           "these jobs are valid cap-pressure probes, but they cannot by " *
-           "themselves establish full-grid multi-frequency cooling evidence."
+           evidence_clause
 end
 
 function warn_if_incomplete_deterministic_schedule_period(cfg)
@@ -876,11 +880,9 @@ function warn_if_incomplete_deterministic_schedule_period(cfg)
 end
 
 function partial_period_parallel_plan_comment(run_cfg)
-    message = incomplete_deterministic_schedule_period_message(run_cfg)
+    message = incomplete_deterministic_schedule_period_message(run_cfg; single_job=true)
     message === nothing && return nothing
-    output_name = run_cfg["output"] === nothing ?
-        default_output_filename(run_cfg) :
-        basename(run_cfg["output"])
+    output_name = default_output_filename(run_cfg)
     return "# Partial-period diagnostic for $output_name: $message"
 end
 
