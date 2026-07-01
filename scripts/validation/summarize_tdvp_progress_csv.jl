@@ -278,7 +278,9 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
         seed=parse(Int, label.seed),
         threshold=threshold,
         completed_cycles=completed_cycles,
-        visited_detunings="$(visited_detuning_count)/$(R)",
+        visited_detunings=visited_detunings_label_from_counts(
+            [visited_detuning_count], R
+        ),
         detuning_coverage=progress_detuning_coverage_status(
             visited_detuning_count, R, completed_cycles
         ),
