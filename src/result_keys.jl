@@ -105,6 +105,22 @@ function require_truncation_error_history_status_label(status)
     ))
 end
 
+"""
+    truncation_error_history_status_label(values; recorded=false) -> String
+
+Classify a truncation-error history using the canonical result-schema labels.
+When `recorded=false`, the returned label is `not_recorded` irrespective of the
+container contents; this is the convention for tensor-network routines whose
+empty `truncation_errors` vector is a placeholder for unavailable measurements.
+When `recorded=true`, a nonempty container is classified as `measured`, while an
+empty container is classified as `empty`.
+"""
+function truncation_error_history_status_label(values; recorded::Bool=false)
+    recorded || return TRUNCATION_ERROR_HISTORY_NOT_RECORDED
+    isempty(values) && return TRUNCATION_ERROR_HISTORY_EMPTY
+    return TRUNCATION_ERROR_HISTORY_MEASURED
+end
+
 const RESULT_KEYS = (
     RESULT_ENERGY,
     RESULT_RELATIVE_ENERGY,

@@ -1471,6 +1471,38 @@ end
                 f, "R3_gap", traj_rows, -2.0, 8,
                 gap_protocol, largeN_delta_values(gap_protocol, 3)
             )
+            write_run_group(
+                f,
+                "R1_measured_truncation",
+                [
+                    merge(copy(traj_rows[1]), Dict{String,Any}(
+                        CoolingTNS.RESULT_TRUNCATION_ERRORS => [0.0, 1e-8],
+                    )),
+                    merge(copy(traj_rows[1]), Dict{String,Any}(
+                        CoolingTNS.RESULT_TRUNCATION_ERRORS => [0.0, 2e-8],
+                        "elapsed" => 1.5,
+                        "seed" => largeN_trajectory_seed(20260617, 64, 1, 2),
+                        "trajectory" => 2,
+                    )),
+                ],
+                -2.0,
+                8,
+                protocol,
+                [0.5],
+            )
+            write_run_group(
+                f,
+                "R1_empty_truncation",
+                [
+                    merge(copy(traj_rows[1]), Dict{String,Any}(
+                        CoolingTNS.RESULT_TRUNCATION_ERRORS => Float64[],
+                    )),
+                ],
+                -2.0,
+                8,
+                protocol,
+                [0.5],
+            )
         end
         h5open(path, "r") do f
             g = f[largeN_r_group_name(2)]
@@ -1524,6 +1556,18 @@ end
             @test read(g_gap[LARGE_N_DETUNING_DELTA_MAX_KEY]) == 3.0
             @test read(g_gap[LARGE_N_DETUNING_DELTA_MAX_FACTOR_KEY]) == 4.0
             @test read(g_gap[LARGE_N_DETUNING_FIXED_ACROSS_DMAX_KEY]) == false
+
+            g_measured_truncation = f["R1_measured_truncation"]
+            @test read(g_measured_truncation[CoolingTNS.RESULT_TRUNCATION_ERRORS]) ==
+                  [0.0 0.0; 1e-8 2e-8]
+            @test read(g_measured_truncation[CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS]) ==
+                  CoolingTNS.TRUNCATION_ERROR_HISTORY_MEASURED
+
+            g_empty_truncation = f["R1_empty_truncation"]
+            @test read(g_empty_truncation[CoolingTNS.RESULT_TRUNCATION_ERRORS]) ==
+                  Float64[]
+            @test read(g_empty_truncation[CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS]) ==
+                  CoolingTNS.TRUNCATION_ERROR_HISTORY_EMPTY
         end
     finally
         rm(path; force=true)

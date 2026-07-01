@@ -1803,6 +1803,27 @@ function write_mode_measurement_group!(g, traj_rows)
     return nothing
 end
 
+function run_group_truncation_error_history(traj_rows)
+    present = Bool[haskey(row, RESULT_TRUNCATION_ERRORS) for row in traj_rows]
+    any(present) || return (
+        status=TRUNCATION_ERROR_HISTORY_NOT_RECORDED,
+        values=nothing,
+    )
+    all(present) || error(
+        "truncation-error histories are present for only part of the trajectory ensemble"
+    )
+    histories = [Float64.(row[RESULT_TRUNCATION_ERRORS]) for row in traj_rows]
+    lengths = length.(histories)
+    length(unique(lengths)) == 1 || error(
+        "truncation-error histories must have the same length for every trajectory"
+    )
+    values = isempty(first(histories)) ? Float64[] : reduce(hcat, histories)
+    return (
+        status=truncation_error_history_status_label(values; recorded=true),
+        values=values,
+    )
+end
+
 function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
                          detuning_protocol, delta_values)
     g = create_group(parent, name)
@@ -1838,6 +1859,7 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
         first_bond_saturation_cycle(row[LARGE_N_ROW_TDVP_SWEEP_MAX_BOND_KEY], saturation_threshold)
         for row in traj_rows
     ]
+    truncation_error_history = run_group_truncation_error_history(traj_rows)
 
     write(g, LARGE_N_TRAJECTORY_COUNT_KEY, M)
     write(g, RESULT_ENERGY_TRAJECTORIES, E)
@@ -1856,7 +1878,9 @@ function write_run_group(parent, name, traj_rows, E0, saturation_threshold,
     write(g, LARGE_N_SYSTEM_SATURATION_CYCLE_KEY, system_saturation_cycles)
     write(g, LARGE_N_EVOLVED_SATURATION_CYCLE_KEY, evolved_saturation_cycles)
     write(g, LARGE_N_TDVP_SWEEP_SATURATION_CYCLE_KEY, tdvp_sweep_saturation_cycles)
-    write(g, RESULT_TRUNCATION_ERROR_HISTORY_STATUS, TRUNCATION_ERROR_HISTORY_NOT_RECORDED)
+    truncation_error_history.values !== nothing &&
+        write(g, RESULT_TRUNCATION_ERRORS, truncation_error_history.values)
+    write(g, RESULT_TRUNCATION_ERROR_HISTORY_STATUS, truncation_error_history.status)
     write(g, LARGE_N_ELAPSED_SECONDS_KEY, Float64[row["elapsed"] for row in traj_rows])
     write(g, LARGE_N_TRAJECTORY_SEEDS_KEY, Int[row["seed"] for row in traj_rows])
     write(g, LARGE_N_TRAJECTORY_INDICES_KEY, Int[row["trajectory"] for row in traj_rows])

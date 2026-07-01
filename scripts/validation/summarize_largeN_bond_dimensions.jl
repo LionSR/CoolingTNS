@@ -658,9 +658,10 @@ function truncation_error_history_status(run_group)
         values = read(run_group[RESULT_TRUNCATION_ERRORS])
         # The in-repository writer skips empty result arrays; this branch handles
         # externally authored or hand-edited legacy files defensively.
-        values isa AbstractArray && isempty(values) &&
-            return TRUNCATION_ERROR_HISTORY_EMPTY
-        return TRUNCATION_ERROR_HISTORY_MEASURED
+        return truncation_error_history_status_label(
+            values isa AbstractArray ? values : [values];
+            recorded=true,
+        )
     end
     return TRUNCATION_ERROR_HISTORY_LEGACY_MISSING
 end
