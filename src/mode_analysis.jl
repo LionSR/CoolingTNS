@@ -310,9 +310,6 @@ function _nearest_energy_detuning_indices(εk_values, δ_abs::Real; atol=1e-12)
     return findall(d -> isapprox(d, dmin; atol=atol, rtol=sqrt(eps(Float64))), distances)
 end
 
-_nearest_energy_resonance_indices(εk_values, δ_abs::Real; atol=1e-12) =
-    _nearest_energy_detuning_indices(εk_values, δ_abs; atol=atol)
-
 """
     theta_from_Jh(J, h) -> θ
 

@@ -123,7 +123,9 @@ end
         @test _momentum_has_vertical_line_at(ax, 0.0)
         @test _momentum_has_vertical_line_at(ax, pi / 2)
         @test !_momentum_has_horizontal_line_at(ax, delta)
+        @test _momentum_has_label_containing(ax, "nearest |Δ|")
         @test _momentum_has_label_containing(ax, "1.2")
+        @test !_momentum_has_label_containing(ax, "≈")
         plt.close(fig)
 
         heatmap_fig = plot_momentum_distribution_heatmap(stored_energy_file; save_fig=false)

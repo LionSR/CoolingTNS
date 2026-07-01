@@ -698,16 +698,16 @@ function _positive_gaps_for_momentum_plot(data::AbstractDict, filename::Abstract
     return compute_energy_dispersion(k_values, J, h)
 end
 
-function _add_momentum_resonance_markers!(ax, k_values, εk_values, delta)
+function _add_momentum_detuning_markers!(ax, k_values, εk_values, delta)
     εk_values === nothing && return Int[]
 
     δ_abs = bath_detuning_energy(delta)
     δ_abs === nothing && return Int[]
 
-    detuning_indices = nearest_bath_detuning_indices(εk_values, δ_abs)
+    detuning_indices = nearest_bath_detuning_indices(εk_values, delta)
     isempty(detuning_indices) && return detuning_indices
 
-    line_label = L"\varepsilon_k \approx |\Delta| = %$(_detuning_label_value(δ_abs))"
+    line_label = "nearest |Δ| = $(_detuning_label_value(δ_abs))"
     for (i, idx) in enumerate(detuning_indices)
         label = i == 1 ? line_label : "_nolegend_"
         ax.axvline(x=k_values[idx], color="red", linestyle="--",
@@ -757,7 +757,7 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
     end
 
     εk_values = _positive_gaps_for_momentum_plot(data, filename, k_values)
-    _add_momentum_resonance_markers!(ax, k_values, εk_values, get(data, "delta", nothing))
+    _add_momentum_detuning_markers!(ax, k_values, εk_values, get(data, "delta", nothing))
 
     ax.set_xlabel(L"Momentum $k$")
     ax.set_ylabel(RAW_FOURIER_OCCUPATION_LABEL)
