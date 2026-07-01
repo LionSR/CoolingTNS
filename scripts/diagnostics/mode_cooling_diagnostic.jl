@@ -241,13 +241,13 @@ function run_diagnostic(config=DEFAULT_MODE_COOLING_DIAGNOSTIC_CONFIG; do_plot=n
     @printf("  %-8s  %-12s  %-12s  %-12s  %-8s\n", "k", "φ_k", "ε_k(code)", "ε_k/Λ", "|ε_k-|Δ||")
     println("  " * "─" ^ 56)
     εk_all = [Λ * CoolingTNS.mode_energy(Float64(ki), θ, N) for ki in ks]
-    res_disp_indices = Set(CoolingTNS.nearest_bath_resonance_indices(εk_all, Δ))
+    detuning_disp_indices = Set(CoolingTNS.nearest_bath_detuning_indices(εk_all, Δ))
     for (idx, k) in enumerate(ks)
         εk_notes = CoolingTNS.mode_energy(Float64(k), θ, N)
         εk_code = Λ * εk_notes
         φk = 2π * Float64(k) / N
         k_str = _mode_index_label(k)
-        marker = idx in res_disp_indices ? _mode_detuning_marker(εk_code, Δ) : ""
+        marker = idx in detuning_disp_indices ? _mode_detuning_marker(εk_code, Δ) : ""
         @printf("  %-8s  %12.6f  %12.6f  %12.6f  %8.4f%s\n",
                 k_str, φk, εk_code, εk_notes, abs(εk_code - abs(Δ)),
                 marker)
@@ -286,7 +286,7 @@ function run_diagnostic(config=DEFAULT_MODE_COOLING_DIAGNOSTIC_CONFIG; do_plot=n
     n_modes = size(mode_hk, 2)
 
     # Find every mode closest to the bath detuning.
-    res_indices = Set(CoolingTNS.nearest_bath_resonance_indices(εk_values, Δ))
+    detuning_indices = Set(CoolingTNS.nearest_bath_detuning_indices(εk_values, Δ))
 
     println("=" ^ 80)
     println("  Cooling Summary Table: Bogoliubov occupations n_k^Bog")
@@ -317,7 +317,7 @@ function run_diagnostic(config=DEFAULT_MODE_COOLING_DIAGNOSTIC_CONFIG; do_plot=n
         end
         @printf("  %-6d  %10.6f  %8.5f", step - 1, E_list[step] / N, overlap_list[step])
         for i in 1:n_modes
-            marker = i in res_indices ? "*" : " "
+            marker = i in detuning_indices ? "*" : " "
             @printf("  %9.5f%s", mode_nk[step, i], marker)
         end
         println()
@@ -374,7 +374,7 @@ function run_diagnostic(config=DEFAULT_MODE_COOLING_DIAGNOSTIC_CONFIG; do_plot=n
         k_str = _mode_index_label(k)
         nk_init = mode_nk[1, i]
         nk_final = mode_nk[end, i]
-        marker = i in res_indices ? _mode_detuning_marker(εk_values[i], Δ) : ""
+        marker = i in detuning_indices ? _mode_detuning_marker(εk_values[i], Δ) : ""
         @printf("  %-10s  %10.4f  %12.6f  %12.6f  %10.6f  %10.4f%s\n",
                 k_str, εk_values[i], nk_init, nk_final, nk_final - nk_init,
                 abs(εk_values[i] - abs(Δ)), marker)

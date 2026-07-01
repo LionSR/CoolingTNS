@@ -22,7 +22,7 @@ using CoolingTNS: HamiltonianParameters, CouplingParameters, UnifiedSimulationPa
     RESULT_MOMENTUM_DISTRIBUTION, RESULT_K_VALUES, RESULT_MOMENTUM_GF,
     RESULT_MODE_GF, RESULT_MODE_K_INDICES, RESULT_MODE_ENERGIES,
     HDF5_PARSED_ARGS_GROUP, hamiltonian_name, bath_detuning_energy,
-    compute_energy_dispersion
+    nearest_bath_detuning_indices, compute_energy_dispersion
 
 if !isdefined(@__MODULE__, :_COOLINGTNS_PLOTTING_INCLUDED)
 const _COOLINGTNS_PLOTTING_INCLUDED = true
@@ -698,23 +698,23 @@ function _positive_gaps_for_momentum_plot(data::AbstractDict, filename::Abstract
     return compute_energy_dispersion(k_values, J, h)
 end
 
-function _add_momentum_resonance_markers!(ax, k_values, εk_values, delta)
+function _add_momentum_detuning_markers!(ax, k_values, εk_values, delta)
     εk_values === nothing && return Int[]
 
     δ_abs = bath_detuning_energy(delta)
     δ_abs === nothing && return Int[]
 
-    resonance_indices = CoolingTNS._nearest_energy_resonance_indices(εk_values, δ_abs)
-    isempty(resonance_indices) && return resonance_indices
+    detuning_indices = nearest_bath_detuning_indices(εk_values, delta)
+    isempty(detuning_indices) && return detuning_indices
 
-    line_label = L"\varepsilon_k \approx |\Delta| = %$(_detuning_label_value(δ_abs))"
-    for (i, idx) in enumerate(resonance_indices)
+    line_label = "nearest |Δ| = $(_detuning_label_value(δ_abs))"
+    for (i, idx) in enumerate(detuning_indices)
         label = i == 1 ? line_label : "_nolegend_"
         ax.axvline(x=k_values[idx], color="red", linestyle="--",
                    linewidth=1.5, alpha=0.55, label=label)
     end
 
-    return resonance_indices
+    return detuning_indices
 end
 
 """
@@ -757,7 +757,7 @@ function plot_momentum_distribution(filename; steps_to_plot=nothing, save_fig=tr
     end
 
     εk_values = _positive_gaps_for_momentum_plot(data, filename, k_values)
-    _add_momentum_resonance_markers!(ax, k_values, εk_values, get(data, "delta", nothing))
+    _add_momentum_detuning_markers!(ax, k_values, εk_values, get(data, "delta", nothing))
 
     ax.set_xlabel(L"Momentum $k$")
     ax.set_ylabel(RAW_FOURIER_OCCUPATION_LABEL)

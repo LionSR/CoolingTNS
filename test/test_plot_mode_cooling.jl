@@ -11,6 +11,7 @@ _mode_axis_lines(ax) = pyconvert(Vector, ax.lines)
 _mode_axis_ylabel(ax) = pyconvert(String, ax.get_ylabel())
 _mode_line_xdata(line) = pyconvert(Vector{Float64}, line.get_xdata())
 _mode_line_ydata(line) = pyconvert(Vector{Float64}, line.get_ydata())
+_mode_line_labels(ax) = [pyconvert(String, line.get_label()) for line in _mode_axis_lines(ax)]
 
 @testset "Mode cooling plot data convention" begin
     mode_hk = [-1.0 0.0; 1.0 -0.5]
@@ -52,6 +53,18 @@ _mode_line_ydata(line) = pyconvert(Vector{Float64}, line.get_ydata())
     @test occursin("Bog", _mode_axis_ylabel(fig.axes[0]))
     @test occursin("Bogoliubov", _mode_axis_ylabel(fig.axes[1]))
     get_pyplot().close(fig)
+
+    detuning_fig = plot_mode_occupation_from_data(
+        stored_nk,
+        [-1//2, 1//2],
+        [0.8, 1.2];
+        delta=1.1,
+        title="detuning label test",
+    )
+    labels = _mode_line_labels(detuning_fig.axes[0])
+    @test any(label -> occursin("nearest |Δ|", label), labels)
+    @test all(label -> !occursin("resonant:", label), labels)
+    get_pyplot().close(detuning_fig)
 end
 
 @testset "Mode cooling plots only measured strided cycles" begin
@@ -100,15 +113,17 @@ end
     end
 end
 
-@testset "Mode cooling resonance convention" begin
+@testset "Mode cooling nearest-detuning convention" begin
     εk_values = [0.8, 1.2, 1.2, 1.7]
 
     @test bath_detuning_energy([-1.2]) == 1.2
     @test bath_detuning_energy([1.0, 1.2]) === nothing
     @test bath_detuning_energy(Float64[]) === nothing
     @test bath_detuning_energy("1.2") === nothing
-    @test nearest_bath_resonance_indices(εk_values, -1.2) == [2, 3]
-    @test nearest_bath_resonance_indices(εk_values, nothing) == Int[]
-    @test nearest_bath_resonance_indices(εk_values, 0.0) == Int[]
-    @test nearest_bath_resonance_indices([1.0, 1.0 + 5e-13, 1.5], 1.0) == [1, 2]
+    @test nearest_bath_detuning_indices(εk_values, -1.2) == [2, 3]
+    @test nearest_bath_detuning_indices(εk_values, nothing) == Int[]
+    @test nearest_bath_detuning_indices(εk_values, 0.0) == Int[]
+    @test nearest_bath_detuning_indices([1.0, 1.0 + 5e-13, 1.5], 1.0) == [1, 2]
+    @test nearest_bath_resonance_indices(εk_values, -1.2) ==
+        nearest_bath_detuning_indices(εk_values, -1.2)
 end

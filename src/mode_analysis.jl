@@ -279,19 +279,30 @@ function bath_detuning_energy(delta)
 end
 
 """
-    nearest_bath_resonance_indices(εk_values, delta; atol=1e-12)
+    nearest_bath_detuning_indices(εk_values, delta; atol=1e-12)
 
 Return every mode index whose quasiparticle energy is closest to `|delta|`.
-This implements the resonance condition `ε_k ≈ |Δ|` without assuming that the
-nearest mode is unique.
+This is a nearest-detuning selector, not an exact resonance test: callers that
+need the latter should separately check whether `ε_k ≈ |Δ|`.
 """
-function nearest_bath_resonance_indices(εk_values, delta; atol=1e-12)
+function nearest_bath_detuning_indices(εk_values, delta; atol=1e-12)
     δ_abs = bath_detuning_energy(delta)
     δ_abs === nothing && return Int[]
-    return _nearest_energy_resonance_indices(εk_values, δ_abs; atol=atol)
+    return _nearest_energy_detuning_indices(εk_values, δ_abs; atol=atol)
 end
 
-function _nearest_energy_resonance_indices(εk_values, δ_abs::Real; atol=1e-12)
+"""
+    nearest_bath_resonance_indices(εk_values, delta; atol=1e-12)
+
+Compatibility alias for [`nearest_bath_detuning_indices`](@ref).  The old name
+is retained for external callers, but new code should use the detuning name so
+that exact resonance is not confused with the nearest discrete mode.
+"""
+function nearest_bath_resonance_indices(εk_values, delta; atol=1e-12)
+    return nearest_bath_detuning_indices(εk_values, delta; atol=atol)
+end
+
+function _nearest_energy_detuning_indices(εk_values, δ_abs::Real; atol=1e-12)
     isempty(εk_values) && return Int[]
 
     distances = abs.(εk_values .- δ_abs)
