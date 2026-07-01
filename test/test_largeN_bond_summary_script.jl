@@ -1127,6 +1127,46 @@ end
     end
 end
 
+@testset "Large-N summary rejects unknown truncation-error status labels" begin
+    path = tempname() * ".h5"
+    try
+        h5open(path, "w") do f
+            write(f, LARGE_N_ROOT_DMAX_KEY, 8)
+            gn = create_group(f, largeN_n_group_name(2))
+            write(gn, LARGE_N_SYSTEM_SIZE_KEY, 2)
+            gm = create_group(gn, "mcwf")
+            gr = create_group(gm, largeN_r_group_name(1))
+
+            write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 1)
+            write(gr, CoolingTNS.RESULT_ENERGY, [-1.0, -0.5])
+            write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 0.5])
+            write(gr, LARGE_N_SYSTEM_MAX_BOND_KEY, [1, 2])
+            write(gr, LARGE_N_SYSTEM_MEAN_BOND_KEY, [1.0, 2.0])
+            write(gr, LARGE_N_EVOLVED_MAX_BOND_KEY, [0, 3])
+            write(gr, LARGE_N_EVOLVED_MEAN_BOND_KEY, [NaN, 3.0])
+            write(
+                gr,
+                CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS,
+                "estimated",
+            )
+        end
+
+        err = try
+            summarize_file(path)
+            nothing
+        catch caught
+            caught
+        end
+        @test err isa ArgumentError
+        message = sprint(showerror, err)
+        @test occursin("unknown truncation-error history status 'estimated'", message)
+        @test occursin(CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED, message)
+        @test occursin(CoolingTNS.TRUNCATION_ERROR_HISTORY_MEASURED, message)
+    finally
+        rm(path; force=true)
+    end
+end
+
 @testset "Large-N summary reports mode energy reconstruction" begin
     path = tempname() * ".h5"
     try

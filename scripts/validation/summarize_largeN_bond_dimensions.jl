@@ -611,7 +611,9 @@ end
 
 function truncation_error_history_status(run_group)
     if haskey(run_group, RESULT_TRUNCATION_ERROR_HISTORY_STATUS)
-        return String(read(run_group[RESULT_TRUNCATION_ERROR_HISTORY_STATUS]))
+        return require_truncation_error_history_status_label(
+            read(run_group[RESULT_TRUNCATION_ERROR_HISTORY_STATUS])
+        )
     end
     if haskey(run_group, RESULT_TRUNCATION_ERRORS)
         values = read(run_group[RESULT_TRUNCATION_ERRORS])
