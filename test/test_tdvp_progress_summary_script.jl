@@ -67,22 +67,29 @@ end
     @test isempty(help_args.paths)
     @test help_args.cap === nothing
     @test !help_args.stopped_on_cap
+    @test !help_args.compact
     short_help_args = TDVPProgressCSVSummary.parse_args(["-h"])
     @test short_help_args.help
     @test TDVPProgressCSVSummary.parse_args(["--help", "--cap"]).help
     @test occursin(
-        "[--cap D] [--stopped-on-cap] [--help] PROGRESS.csv",
+        "[--cap D] [--stopped-on-cap] [--compact] [--help] PROGRESS.csv",
         sprint(TDVPProgressCSVSummary.usage),
     )
     cap_args = TDVPProgressCSVSummary.parse_args(["--cap", "12", "progress.csv"])
     @test cap_args.cap == 12
     @test cap_args.paths == ["progress.csv"]
     @test !cap_args.stopped_on_cap
+    @test !cap_args.compact
     stopped_args = TDVPProgressCSVSummary.parse_args([
         "--stopped-on-cap", "progress.csv",
     ])
     @test stopped_args.stopped_on_cap
     @test stopped_args.paths == ["progress.csv"]
+    @test !stopped_args.compact
+    compact_args = TDVPProgressCSVSummary.parse_args(["--compact", "progress.csv"])
+    @test compact_args.compact
+    @test compact_args.paths == ["progress.csv"]
+    @test !compact_args.stopped_on_cap
     @test_throws ArgumentError TDVPProgressCSVSummary.parse_args(["--cap"])
     @test_throws ArgumentError TDVPProgressCSVSummary.parse_args(
         ["--cap", "-1", "progress.csv"],
@@ -456,6 +463,21 @@ end
             output,
         )
         @test occursin("| 4 | 3 | tdvp_sweep |", output)
+        compact_return = Ref{Any}(missing)
+        compact_output = mktemp() do output_path, io
+            close(io)
+            open(output_path, "w") do out
+                redirect_stdout(out) do
+                    compact_return[] =
+                        TDVPProgressCSVSummary.print_markdown(rows; compact=true)
+                end
+            end
+            read(output_path, String)
+        end
+        @test compact_return[] === nothing
+        @test occursin("| file | N | method | evolution | R | g | traj |",
+                       compact_output)
+        @test !occursin("| R | g | traj | cycle | delta | E/N |", compact_output)
     finally
         rm(path; force=true)
     end
