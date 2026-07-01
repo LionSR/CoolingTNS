@@ -105,9 +105,14 @@ grid is labelled `partial_grid_observed`, while completed rows with no finite
 detuning values are labelled `missing_detuning_values`.  These CSV labels are
 therefore observation-based for the finite detunings present in the progress
 file; unlike the HDF5 summary, they are not gated by stored schedule metadata.
-The campaign driver now also warns before a direct run, and prints a note in a
-parallel plan, whenever a deterministic requested window has `steps < R`.
-Those jobs remain valid cap-pressure probes, but the warning means the
+The campaign driver now also warns before a direct run whenever a deterministic
+requested window has `steps < R`.  A printed plan carries the same information
+in its plan-level `# Warning:` line; for a single generated command this warning
+uses singular wording.  For multi-job plans, the driver additionally prints a
+per-command `# Partial-period diagnostic for ...` comment immediately before
+each child command whose deterministic schedule has `steps < R`.  Jobs with
+`R <= steps`, and jobs using random schedules, are not annotated.  These
+diagnostics mark valid cap-pressure probes, but they also state that the
 requested protocol cannot by itself establish full-grid multi-frequency cooling
 evidence.
 Progress CSV files written before the coupling-strength scan axis do not
