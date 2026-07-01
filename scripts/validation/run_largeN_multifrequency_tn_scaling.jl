@@ -169,8 +169,11 @@ include the canonical evolution-method token, including `trotter`, so paired
 Trotter/TDVP jobs do not rely on an implicit default.  If a job uses an explicit
 fixed detuning interval, or a non-default gap-scaled detuning factor, the same
 stem also records that detuning protocol so two physically different bath
-frequency grids do not share a default output path.  Single-job plans keep the
-requested CSV path unchanged.  The driver does not launch these jobs itself;
+frequency grids do not share a default output path.  Non-default Hamiltonian
+fields and non-default system-bath coupling labels are likewise included in the
+stem, because they can change the DMRG reference gap and the cooling channel.
+Single-job plans keep the requested CSV path unchanged.  The driver does not
+launch these jobs itself;
 process scheduling remains external so each Julia process owns its HDF5 output,
 progress CSV, and deterministic trajectory seed stream.
 
@@ -231,6 +234,10 @@ using Statistics
 include(joinpath(@__DIR__, "largeN_scaling_helpers.jl"))
 
 const DEFAULT_OUTDIR = joinpath(@__DIR__, "Data", "largeN_multifrequency")
+const LARGE_N_DEFAULT_J = 1.0
+const LARGE_N_DEFAULT_HX = -1.05
+const LARGE_N_DEFAULT_HZ = 0.5
+const LARGE_N_DEFAULT_COUPLING = "XX"
 
 parse_int_list(s::AbstractString) =
     [parse(Int, strip(x)) for x in split(s, ",") if !isempty(strip(x))]
@@ -291,11 +298,11 @@ function parse_args(args)
         "Dmax_values" => nothing,
         "cutoff" => 1e-7,
         "tau" => 0.2,
-        "J" => 1.0,
+        "J" => LARGE_N_DEFAULT_J,
         "h" => nothing,
-        "hx" => -1.05,
-        "hz" => 0.5,
-        "coupling" => "XX",
+        "hx" => LARGE_N_DEFAULT_HX,
+        "hz" => LARGE_N_DEFAULT_HZ,
+        "coupling" => LARGE_N_DEFAULT_COUPLING,
         "g" => 0.3,
         "g_values" => nothing,
         "te" => 2.0,
@@ -425,6 +432,12 @@ function parse_args(args)
         error("--model must be niising or ising")
     Symbol(cfg["bc"]) in (:open, :periodic, :antiperiodic) ||
         error("--bc must be open, periodic, or antiperiodic")
+    try
+        parse_coupling(cfg["coupling"])
+    catch e
+        e isa ArgumentError || rethrow()
+        error("--coupling: $(sprint(showerror, e))")
+    end
     if cfg["model"] == "niising" && cfg["h"] !== nothing
         error("--h is only used with --model ising; use --hx for niising")
     end
@@ -434,6 +447,12 @@ function parse_args(args)
         # is the effective Ising field, not a record of whether `--h` was
         # explicitly supplied.
         cfg["h"] = cfg["hx"]
+    end
+    isfinite(cfg["J"]) || error("--J must be finite")
+    isfinite(cfg["hx"]) || error("--hx must be finite")
+    isfinite(cfg["hz"]) || error("--hz must be finite")
+    if cfg["model"] == "ising"
+        isfinite(cfg["h"]) || error("--h must be finite")
     end
     cfg["evolution_method"] in ("trotter", "continuous") ||
         error("--evolution-method must be trotter or continuous")
@@ -1432,6 +1451,38 @@ function largeN_detuning_filename_suffix(cfg)
     return @sprintf("_dmaxfac%.12g", cfg["delta_max_factor"])
 end
 
+largeN_nondefault_float_suffix(token::AbstractString, value, default) =
+    value == default ? "" : @sprintf("_%s%.12g", token, value)
+
+"""
+    largeN_hamiltonian_filename_suffix(cfg) -> String
+
+Return filename tokens for non-default Hamiltonian parameters that alter the
+physical protocol.  The present default nonintegrable Ising parameters retain
+their historical empty suffix.
+"""
+function largeN_hamiltonian_filename_suffix(cfg)
+    suffix = largeN_nondefault_float_suffix("J", cfg["J"], LARGE_N_DEFAULT_J)
+    if cfg["model"] == "ising"
+        h = cfg["h"] === nothing ? cfg["hx"] : cfg["h"]
+        suffix *= largeN_nondefault_float_suffix("h", h, LARGE_N_DEFAULT_HX)
+    elseif cfg["model"] == "niising"
+        suffix *= largeN_nondefault_float_suffix("hx", cfg["hx"], LARGE_N_DEFAULT_HX)
+        suffix *= largeN_nondefault_float_suffix("hz", cfg["hz"], LARGE_N_DEFAULT_HZ)
+    end
+    return suffix
+end
+
+"""
+    largeN_coupling_filename_suffix(cfg) -> String
+
+Return a filename token for non-default system-bath coupling labels.
+"""
+function largeN_coupling_filename_suffix(cfg)
+    cfg["coupling"] == LARGE_N_DEFAULT_COUPLING && return ""
+    return "_coup$(cfg["coupling"])"
+end
+
 """
     default_output_filename(cfg)
 
@@ -1444,6 +1495,8 @@ function default_output_filename(cfg)
     evolution_suffix = "_$(largeN_evolution_filename_token(cfg))"
     model_suffix = cfg["model"] == "niising" && cfg["bc"] == "open" ? "" :
         "_$(cfg["model"])_bc$(cfg["bc"])"
+    hamiltonian_suffix = largeN_hamiltonian_filename_suffix(cfg)
+    coupling_suffix = largeN_coupling_filename_suffix(cfg)
     stop_suffix = cfg["stop_on_bond_cap"] ? "_stopcap" : ""
     schedule_suffix = cfg["schedule_symbol"] == :round_robin ? "" :
         "_sched$(multi_frequency_schedule_token(cfg["schedule_symbol"]))"
@@ -1470,12 +1523,13 @@ function default_output_filename(cfg)
     # `g` and `te` are scanned physical protocol parameters, so keep more digits
     # than the legacy `tau` token to avoid collisions between nearby protocols.
     return @sprintf(
-        "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s%s%s%s%s%s_steps%d_Dmax%d_g%.12g_te%.12g_tau%.3g_seed%d.h5",
+        "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s%s%s%s%s%s%s_steps%d_Dmax%d_g%.12g_te%.12g_tau%.3g_seed%d.h5",
         Ns,
         Rs,
         methods,
         evolution_suffix,
         model_suffix,
+        hamiltonian_suffix * coupling_suffix,
         stop_suffix,
         schedule_suffix * random_time_suffix,
         mode_suffix,

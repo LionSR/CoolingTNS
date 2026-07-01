@@ -50,7 +50,10 @@ mode-measurement suffixes, and suffixes for non-default detuning schedules and
 randomized evolution times.  New fixed-detuning runs also include
 `_dmin..._dmax...` in the default HDF5 stem, and gap-scaled runs with a
 non-default `delta_max_factor` include `_dmaxfac...`, so physically distinct
-bath-frequency grids cannot silently reuse one default output path.  Generated
+bath-frequency grids cannot silently reuse one default output path.  Non-default
+Hamiltonian fields and non-default system-bath coupling labels are also included
+in the stem, because they can change the DMRG reference gap and the cooling
+channel.  Generated
 per-job progress CSV filenames in a parallel plan reuse the same HDF5 protocol
 stem, with the user-supplied CSV stem kept as a prefix.  Plans with
 `--te-values` generate one child command per requested evolution time and rely
