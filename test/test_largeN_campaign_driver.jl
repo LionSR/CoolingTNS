@@ -68,6 +68,36 @@ end
     ])
     @test output_path(custom_factor_cfg) != output_path(default_cfg)
     @test occursin("_dmaxfac8_", output_path(custom_factor_cfg))
+    shifted_hx_cfg = parse_args([
+        "--hx", "-0.8",
+        "--outdir", default_cfg["outdir"],
+    ])
+    @test output_path(shifted_hx_cfg) != output_path(default_cfg)
+    @test occursin("_hx-0.8_", output_path(shifted_hx_cfg))
+    shifted_hz_cfg = parse_args([
+        "--hz", "0.25",
+        "--outdir", default_cfg["outdir"],
+    ])
+    @test output_path(shifted_hz_cfg) != output_path(default_cfg)
+    @test occursin("_hz0.25_", output_path(shifted_hz_cfg))
+    shifted_J_cfg = parse_args([
+        "--J", "0.75",
+        "--outdir", default_cfg["outdir"],
+    ])
+    @test output_path(shifted_J_cfg) != output_path(default_cfg)
+    @test occursin("_J0.75_", output_path(shifted_J_cfg))
+    shifted_coupling_cfg = parse_args([
+        "--coupling", "ZZ",
+        "--outdir", default_cfg["outdir"],
+    ])
+    @test output_path(shifted_coupling_cfg) != output_path(default_cfg)
+    @test occursin("_coupZZ_", output_path(shifted_coupling_cfg))
+    shifted_ising_h_cfg = parse_args([
+        "--model", "ising",
+        "--h", "-0.75",
+        "--outdir", tempdir(),
+    ])
+    @test occursin("_ising_bcopen_h-0.75_", output_path(shifted_ising_h_cfg))
     default_command = join(command_args_for_config(default_cfg), " ")
     @test occursin("--methods mcwf", default_command)
     @test !occursin("--methods mpo,mcwf", default_command)
@@ -1202,6 +1232,25 @@ end
     ])
     @test_throws ErrorException parse_args(["--h", "0.5"])
     @test_throws ErrorException parse_args(["--bc", "periodic"])
+    @test_throws ErrorException parse_args(["--coupling", "bad"])
+    @test_throws ErrorException parse_args(["--coupling", "xx"])
+    @test_throws ErrorException parse_args(["--J", "NaN"])
+    @test_throws ErrorException parse_args(["--hx", "NaN"])
+    @test_throws ErrorException parse_args(["--hz", "NaN"])
+    @test_throws ErrorException parse_args([
+        "--model", "ising",
+        "--h", "NaN",
+    ])
+    @test_throws ErrorException parse_args([
+        "--model", "ising",
+        "--h", "-0.75",
+        "--hx", "NaN",
+    ])
+    @test_throws ErrorException parse_args([
+        "--model", "ising",
+        "--h", "-0.75",
+        "--hz", "NaN",
+    ])
     @test_throws ErrorException parse_args(["--delta-max-factor", "NaN"])
     @test_throws ErrorException parse_args(["--delta-max-factor", "0.5"])
     @test_throws ErrorException parse_args([

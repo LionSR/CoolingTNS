@@ -391,7 +391,9 @@ including `trotter`, so paired Trotter/TDVP jobs do not rely on an implicit
 default in the filename.  They also include `_dmin..._dmax...` for explicit
 fixed detuning intervals and `_dmaxfac...` for non-default gap-scaled detuning
 factors, so two bath-frequency grids with the same `N`, `R`, `Dmax`, `g`, and
-`te` do not share one default HDF5 path.
+`te` do not share one default HDF5 path.  Non-default Hamiltonian fields and
+non-default system-bath coupling labels are included as stem tokens for the same
+reason: they can change the DMRG reference gap and the cooling channel.
 Thus process-level parallelism can be used without concurrent writes to the same
 output file.  To compare the MPS Trotter-gate route with MCWF+TDVP, use
 `--evolution-method-values trotter,continuous` together with an explicit
