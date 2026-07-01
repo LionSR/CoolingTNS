@@ -322,6 +322,7 @@ end
         incomplete_deterministic_schedule_period_message(short_period_cfg)
     @test short_period_message !== nothing
     @test occursin("R=5,10", short_period_message)
+    @test occursin("these jobs are valid cap-pressure probes", short_period_message)
     @test occursin("full-grid multi-frequency cooling evidence", short_period_message)
     @test_logs (:warn, r"shorter than one full deterministic detuning-grid period") begin
         @test warn_if_incomplete_deterministic_schedule_period(short_period_cfg)
@@ -329,6 +330,23 @@ end
     short_period_plan = sprint(io -> print_parallel_plan(short_period_cfg; io=io))
     @test occursin("# Warning:", short_period_plan)
     @test occursin("R=5,10", short_period_plan)
+    partial_period_lines = filter(
+        line -> startswith(line, "# Partial-period diagnostic for "),
+        split(chomp(short_period_plan), '\n'),
+    )
+    @test length(partial_period_lines) == 2
+    @test any(line -> occursin("_R5_", line), partial_period_lines)
+    @test any(line -> occursin("_R10_", line), partial_period_lines)
+    @test all(
+        line -> occursin("requested 2-cycle window", line),
+        partial_period_lines,
+    )
+    @test all(
+        line -> occursin("this job is a valid cap-pressure probe", line),
+        partial_period_lines,
+    )
+    @test !any(line -> occursin("_R1_", line) || occursin("_R2_", line),
+               partial_period_lines)
 
     round_robin_short_period_cfg = parse_args([
         "--R-values", "2,5",
@@ -338,6 +356,36 @@ end
     @test incomplete_deterministic_schedule_period_R_values(
         round_robin_short_period_cfg
     ) == [5]
+    round_robin_short_period_plan = sprint(
+        io -> print_parallel_plan(round_robin_short_period_cfg; io=io)
+    )
+    round_robin_partial_period_lines = filter(
+        line -> startswith(line, "# Partial-period diagnostic for "),
+        split(chomp(round_robin_short_period_plan), '\n'),
+    )
+    @test length(round_robin_partial_period_lines) == 1
+    @test occursin("_R5_", round_robin_partial_period_lines[1])
+    @test !occursin("_R2_", round_robin_partial_period_lines[1])
+
+    single_job_short_period_cfg = parse_args([
+        "--R-values", "5",
+        "--steps", "2",
+        "--schedule", "descending",
+        "--outdir", tempdir(),
+    ])
+    single_job_short_period_plan = sprint(
+        io -> print_parallel_plan(single_job_short_period_cfg; io=io)
+    )
+    @test occursin("# Warning:", single_job_short_period_plan)
+    @test occursin(
+        "this job is a valid cap-pressure probe",
+        single_job_short_period_plan,
+    )
+    @test !occursin(
+        "these jobs are valid cap-pressure probes",
+        single_job_short_period_plan,
+    )
+    @test !occursin("Partial-period diagnostic", single_job_short_period_plan)
 
     random_short_period_cfg = parse_args([
         "--R-values", "10",
@@ -352,6 +400,7 @@ end
         io -> print_parallel_plan(random_short_period_cfg; io=io)
     )
     @test !occursin("full-grid multi-frequency cooling evidence", random_short_period_plan)
+    @test !occursin("Partial-period diagnostic", random_short_period_plan)
 
     random_time_cfg = parse_args([
         "--randomize-times",

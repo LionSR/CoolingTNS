@@ -859,13 +859,17 @@ function incomplete_deterministic_schedule_period_R_values(cfg)
     return Int[R for R in cfg["R_values"] if cfg["steps"] < R]
 end
 
-function incomplete_deterministic_schedule_period_message(cfg)
+function incomplete_deterministic_schedule_period_message(cfg; single_job=false)
     partial_R_values = incomplete_deterministic_schedule_period_R_values(cfg)
     isempty(partial_R_values) && return nothing
+    evidence_clause = single_job ?
+        "this job is a valid cap-pressure probe, but it cannot by " *
+        "itself establish full-grid multi-frequency cooling evidence." :
+        "these jobs are valid cap-pressure probes, but they cannot by " *
+        "themselves establish full-grid multi-frequency cooling evidence."
     return "requested $(cfg["steps"])-cycle window is shorter than one full " *
            "deterministic detuning-grid period for R=$(join(partial_R_values, ",")); " *
-           "these jobs are valid cap-pressure probes, but they cannot by " *
-           "themselves establish full-grid multi-frequency cooling evidence."
+           evidence_clause
 end
 
 function warn_if_incomplete_deterministic_schedule_period(cfg)
@@ -875,8 +879,16 @@ function warn_if_incomplete_deterministic_schedule_period(cfg)
     return true
 end
 
+function incomplete_deterministic_schedule_period_plan_comment(run_cfg)
+    message = incomplete_deterministic_schedule_period_message(run_cfg; single_job=true)
+    message === nothing && return nothing
+    output_name = default_output_filename(run_cfg)
+    return "# Partial-period diagnostic for $output_name: $message"
+end
+
 function print_parallel_plan(cfg; io=stdout)
-    commands = parallel_plan_commands(cfg)
+    run_cfgs = parallel_plan_configs(cfg)
+    commands = [parallel_plan_command(run_cfg) for run_cfg in run_cfgs]
     println(io, "# large-N campaign parallel job plan")
     println(io, "# jobs: $(length(commands))")
     println(io, "# This driver does not launch jobs concurrently.")
@@ -894,7 +906,9 @@ function print_parallel_plan(cfg; io=stdout)
     if cfg["trajectory_values"] !== nothing
         println(io, "# Trajectory jobs use --M-mcwf 1 and the requested trajectory index in the stored seed rule.")
     end
-    period_message = incomplete_deterministic_schedule_period_message(cfg)
+    period_message = incomplete_deterministic_schedule_period_message(
+        cfg; single_job=length(commands) == 1
+    )
     period_message === nothing ||
         println(io, "# Warning: $period_message")
     if cfg["progress_csv"] === nothing
@@ -911,7 +925,11 @@ function print_parallel_plan(cfg; io=stdout)
     else
         println(io, "# With one job, a base --progress-csv path is kept unchanged.")
     end
-    for command in commands
+    for (run_cfg, command) in zip(run_cfgs, commands)
+        if length(commands) > 1
+            job_comment = incomplete_deterministic_schedule_period_plan_comment(run_cfg)
+            job_comment === nothing || println(io, job_comment)
+        end
         println(io, command)
     end
     return commands
