@@ -188,6 +188,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test LARGE_N_PROGRESS_CUTOFF_KEY == "cutoff"
     @test LARGE_N_PROGRESS_G_KEY == "g"
     @test LARGE_N_PROGRESS_TAU_KEY == "tau"
+    @test LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY == "stop_on_bond_cap"
     @test LARGE_N_PROGRESS_ENERGY_PER_SITE_KEY == "energy_per_site"
     @test LARGE_N_PROGRESS_RELATIVE_ENERGY_KEY == "relative_energy"
     @test LARGE_N_PROGRESS_OVERLAP_KEY == "overlap"
@@ -203,6 +204,7 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
         LARGE_N_PROGRESS_CUTOFF_KEY,
         LARGE_N_PROGRESS_G_KEY,
         LARGE_N_PROGRESS_TAU_KEY,
+        LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY,
         LARGE_N_PROGRESS_STAGE_KEY,
         LARGE_N_PROGRESS_STEP_KEY,
         LARGE_N_PROGRESS_CYCLE_KEY,

@@ -9,9 +9,10 @@ energy trace, detuning-grid coverage, cap onset, and per-sweep TDVP timing.
 Legacy progress CSV files that predate the `g` column are displayed with
 `legacy_missing` in the coupling column rather than with a blank cell.  Files
 with a present but empty `g` field are displayed as `missing`.
-Use `--stopped-on-cap` only for progress files from stop-on-cap diagnostics;
-then a cap-hit sub-grid deterministic prefix is labelled `stopped_partial_grid`
-rather than the default observation-only `partial_grid_observed`.
+For legacy progress files that do not have the `stop_on_bond_cap` column, use
+`--stopped-on-cap` only for stop-on-cap diagnostics; then a cap-hit sub-grid
+deterministic prefix is labelled `stopped_partial_grid` rather than the default
+observation-only `partial_grid_observed`.  Modern files trust the stored column.
 
 Example:
 
@@ -43,7 +44,10 @@ end
 """Compatibility wrapper; the parser itself is defined in largeN_scaling_helpers.jl."""
 parse_csv_line(line::AbstractString) = parse_largeN_progress_csv_line(line)
 
-const LEGACY_OPTIONAL_PROGRESS_CSV_COLUMNS = (LARGE_N_PROGRESS_G_KEY,)
+const LEGACY_OPTIONAL_PROGRESS_CSV_COLUMNS = (
+    LARGE_N_PROGRESS_G_KEY,
+    LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY,
+)
 
 function duplicate_progress_header_columns(header)
     seen = Set{String}()
@@ -120,6 +124,32 @@ function progress_int(row, name::AbstractString)
     value = progress_cell(row, name)
     isempty(value) && return 0
     return parse(Int, value)
+end
+
+function progress_bool_value(value::AbstractString, name::AbstractString)
+    label = lowercase(strip(value))
+    label in ("true", "1") && return true
+    label in ("false", "0", "") && return false
+    throw(ArgumentError("invalid boolean value for $name: $(repr(value))"))
+end
+
+function progress_stop_on_bond_cap(rows, has_stop_on_bond_cap_column::Bool)
+    has_stop_on_bond_cap_column || return false
+    values = Set{Bool}()
+    for row in rows
+        push!(
+            values,
+            progress_bool_value(
+                progress_cell(row, LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY),
+                LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY,
+            ),
+        )
+    end
+    length(values) <= 1 || throw(ArgumentError(
+        "progress CSV group has inconsistent " *
+        "$LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY values"
+    ))
+    return isempty(values) ? false : only(values)
 end
 
 function group_key(row)
@@ -210,6 +240,7 @@ end
 
 function summarize_progress_group(file_label::AbstractString, key, rows;
                                   cap=nothing, has_g_column::Bool=true,
+                                  has_stop_on_bond_cap_column::Bool=false,
                                   stopped_on_cap::Bool=false)
     label = group_label(key)
     threshold = cap === nothing ?
@@ -302,6 +333,11 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
     status = require_largeN_bond_status_label(
         bond_cap_status(system_cap_cycle, evolved_cap_cycle, tdvp_sweep_cap_cycle)
     )
+    stored_stopped_on_cap =
+        progress_stop_on_bond_cap(rows, has_stop_on_bond_cap_column)
+    effective_stopped_on_cap = has_stop_on_bond_cap_column ?
+        stored_stopped_on_cap :
+        stopped_on_cap
     transient_cap_cycle, transient_cap_sweep = if evolved_cap_cycle == 0
         (tdvp_sweep_cap_cycle, tdvp_sweep_cap_sweep)
     elseif tdvp_sweep_cap_cycle == 0
@@ -320,6 +356,7 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
         R=R,
         g=label.g,
         has_g_column=has_g_column,
+        stop_on_bond_cap=effective_stopped_on_cap,
         trajectory=parse(Int, label.trajectory),
         seed=parse(Int, label.seed),
         threshold=threshold,
@@ -332,7 +369,8 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
         # run as a stop-on-cap diagnostic.
         detuning_coverage=progress_detuning_coverage_status(
             visited_detuning_count, R, completed_cycles;
-            stopped=stopped_on_cap && status != LARGE_N_BOND_STATUS_NO_CAP_HIT,
+            stopped=effective_stopped_on_cap &&
+                    status != LARGE_N_BOND_STATUS_NO_CAP_HIT,
         ),
         final_energy=final_energy,
         system_effective_bond=effective_bond_dimension_label(
@@ -363,6 +401,7 @@ function summarize_progress_file(path::AbstractString; cap=nothing,
                                  stopped_on_cap::Bool=false)
     header, rows = read_progress_csv(path)
     has_g_column = LARGE_N_PROGRESS_G_KEY in header
+    has_stop_on_bond_cap_column = LARGE_N_PROGRESS_STOP_ON_BOND_CAP_KEY in header
     groups = Dict{Any,Vector{Dict{String,String}}}()
     for row in rows
         push!(get!(groups, group_key(row), Vector{Dict{String,String}}()), row)
@@ -370,6 +409,7 @@ function summarize_progress_file(path::AbstractString; cap=nothing,
     return [
         summarize_progress_group(
             file_label, key, group_rows; cap=cap, has_g_column=has_g_column,
+            has_stop_on_bond_cap_column=has_stop_on_bond_cap_column,
             stopped_on_cap=stopped_on_cap,
         )
         for (key, group_rows) in sort(
