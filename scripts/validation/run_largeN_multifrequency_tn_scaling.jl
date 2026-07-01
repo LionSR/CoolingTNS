@@ -166,7 +166,10 @@ plans where `--progress-csv` is
 supplied, generated per-job progress CSV filenames keep the requested CSV stem
 as a prefix and append the HDF5 protocol stem.  Default HDF5 protocol stems
 include the canonical evolution-method token, including `trotter`, so paired
-Trotter/TDVP jobs do not rely on an implicit default.  Single-job plans keep the
+Trotter/TDVP jobs do not rely on an implicit default.  If a job uses an explicit
+fixed detuning interval, or a non-default gap-scaled detuning factor, the same
+stem also records that detuning protocol so two physically different bath
+frequency grids do not share a default output path.  Single-job plans keep the
 requested CSV path unchanged.  The driver does not launch these jobs itself;
 process scheduling remains external so each Julia process owns its HDF5 output,
 progress CSV, and deterministic trajectory seed stream.
@@ -515,8 +518,15 @@ function parse_args(args)
     if (cfg["delta_min"] === nothing) != (cfg["delta_max"] === nothing)
         error("--delta-min and --delta-max must be supplied together")
     end
-    if cfg["delta_min"] !== nothing && cfg["delta_max"] < cfg["delta_min"]
-        error("--delta-max must be at least --delta-min")
+    isfinite(cfg["delta_max_factor"]) && cfg["delta_max_factor"] >= 1 ||
+        error("--delta-max-factor must be finite and at least 1")
+    if cfg["delta_min"] !== nothing
+        isfinite(cfg["delta_min"]) && isfinite(cfg["delta_max"]) &&
+            cfg["delta_min"] > 0 && cfg["delta_max"] >= cfg["delta_min"] ||
+            error(
+                "fixed detuning range must satisfy " *
+                "0 < --delta-min <= --delta-max with finite values"
+            )
     end
     if cfg["Dmax_values"] !== nothing && cfg["delta_min"] === nothing
         error(
@@ -1407,6 +1417,22 @@ Return the canonical evolution-method token used in default large-N output stems
 largeN_evolution_filename_token(cfg) = cfg["evolution_method"]
 
 """
+    largeN_detuning_filename_suffix(cfg) -> String
+
+Return the detuning-protocol token for default large-N output stems.  The
+historical default gap-scaled range keeps the empty suffix; explicit fixed
+ranges and non-default gap-scaled factors are physical protocol choices and must
+be visible in the filename audit handle.
+"""
+function largeN_detuning_filename_suffix(cfg)
+    if cfg["delta_min"] !== nothing
+        return @sprintf("_dmin%.12g_dmax%.12g", cfg["delta_min"], cfg["delta_max"])
+    end
+    cfg["delta_max_factor"] == 6.0 && return ""
+    return @sprintf("_dmaxfac%.12g", cfg["delta_max_factor"])
+end
+
+"""
     default_output_filename(cfg)
 
 Return the full default HDF5 filename; its stem is the protocol-naming source of truth.
@@ -1440,10 +1466,11 @@ function default_output_filename(cfg)
     end
     trajectory_suffix = cfg["trajectory_index"] === nothing ? "" :
         "_traj$(cfg["trajectory_index"])"
+    detuning_suffix = largeN_detuning_filename_suffix(cfg)
     # `g` and `te` are scanned physical protocol parameters, so keep more digits
     # than the legacy `tau` token to avoid collisions between nearby protocols.
     return @sprintf(
-        "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s%s%s%s%s_steps%d_Dmax%d_g%.12g_te%.12g_tau%.3g_seed%d.h5",
+        "largeN_multifrequency_tn_N%s_R%s_%s%s%s%s%s%s%s%s%s_steps%d_Dmax%d_g%.12g_te%.12g_tau%.3g_seed%d.h5",
         Ns,
         Rs,
         methods,
@@ -1454,6 +1481,7 @@ function default_output_filename(cfg)
         mode_suffix,
         init_suffix,
         trajectory_suffix,
+        detuning_suffix,
         cfg["steps"],
         cfg["Dmax"],
         cfg["g"],

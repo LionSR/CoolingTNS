@@ -47,6 +47,27 @@ end
     @test occursin("_g0.1_te2_", output_path(weak_coupling_cfg))
     @test basename(default_output_filename(weak_coupling_cfg)) !=
           basename(default_output_filename(default_cfg))
+    @test !occursin("_dmin", output_path(default_cfg))
+    @test !occursin("_dmaxfac", output_path(default_cfg))
+    fixed_detuning_cfg = parse_args([
+        "--delta-min", "0.5",
+        "--delta-max", "3.0",
+        "--outdir", tempdir(),
+    ])
+    shifted_fixed_detuning_cfg = parse_args([
+        "--delta-min", "0.6",
+        "--delta-max", "3.6",
+        "--outdir", fixed_detuning_cfg["outdir"],
+    ])
+    @test output_path(fixed_detuning_cfg) != output_path(shifted_fixed_detuning_cfg)
+    @test occursin("_dmin0.5_dmax3_", output_path(fixed_detuning_cfg))
+    @test occursin("_dmin0.6_dmax3.6_", output_path(shifted_fixed_detuning_cfg))
+    custom_factor_cfg = parse_args([
+        "--delta-max-factor", "8.0",
+        "--outdir", tempdir(),
+    ])
+    @test output_path(custom_factor_cfg) != output_path(default_cfg)
+    @test occursin("_dmaxfac8_", output_path(custom_factor_cfg))
     default_command = join(command_args_for_config(default_cfg), " ")
     @test occursin("--methods mcwf", default_command)
     @test !occursin("--methods mpo,mcwf", default_command)
@@ -183,6 +204,10 @@ end
     @test occursin("Dmax160", paths[1])
     @test occursin("Dmax320", paths[2])
     @test occursin("Dmax640", paths[3])
+    @test all(
+        path -> occursin("_dmin0.505116749626_dmax3.03070049776_", path),
+        paths,
+    )
 
     single_cfg = parse_args(["--Dmax", "80"])
     @test campaign_dmax_values(single_cfg) == [80]
@@ -483,6 +508,13 @@ end
     @test length(unique(output_path.(parallel_jobs))) == length(parallel_jobs)
     @test length(unique(job["progress_csv"] for job in parallel_jobs)) == length(parallel_jobs)
     @test all(job -> occursin("Dmax$(job["Dmax"])", output_path(job)), parallel_jobs)
+    @test all(
+        job -> occursin(
+            "_dmin0.505116749626_dmax3.03070049776_",
+            output_path(job),
+        ),
+        parallel_jobs,
+    )
     @test all(job -> occursin("_R$(only(job["R_values"]))_", job["progress_csv"]), parallel_jobs)
     @test all(
         job -> occursin(
@@ -675,8 +707,16 @@ end
     @test all(command -> occursin("--delta-min 0.5051167496264384", command), paired_commands)
     paired_plan_text = sprint(io -> print_parallel_plan(paired_evolution_cfg; io=io))
     @test occursin("Evolution-method jobs share the requested detuning interval", paired_plan_text)
-    @test any(job -> occursin("_mcwf_trotter_steps", output_path(job)), paired_jobs)
-    @test any(job -> occursin("_mcwf_continuous_steps", output_path(job)), paired_jobs)
+    @test any(
+        job -> occursin("_mcwf_trotter_", output_path(job)) &&
+               occursin("_steps", output_path(job)),
+        paired_jobs,
+    )
+    @test any(
+        job -> occursin("_mcwf_continuous_", output_path(job)) &&
+               occursin("_steps", output_path(job)),
+        paired_jobs,
+    )
     paired_no_progress_cfg = parse_args([
         "--Ns", "64",
         "--R-values", "2",
@@ -1162,6 +1202,20 @@ end
     ])
     @test_throws ErrorException parse_args(["--h", "0.5"])
     @test_throws ErrorException parse_args(["--bc", "periodic"])
+    @test_throws ErrorException parse_args(["--delta-max-factor", "NaN"])
+    @test_throws ErrorException parse_args(["--delta-max-factor", "0.5"])
+    @test_throws ErrorException parse_args([
+        "--delta-min", "NaN",
+        "--delta-max", "1.0",
+    ])
+    @test_throws ErrorException parse_args([
+        "--delta-min", "0.0",
+        "--delta-max", "1.0",
+    ])
+    @test_throws ErrorException parse_args([
+        "--delta-min", "1.0",
+        "--delta-max", "0.5",
+    ])
     @test_throws ErrorException parse_args([
         "--model", "ising",
         "--bc", "antiperiodic",
