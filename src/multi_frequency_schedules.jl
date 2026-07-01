@@ -29,6 +29,13 @@ parse_multi_frequency_schedule(schedule::Symbol)::Symbol =
 parse_multi_frequency_schedule(schedule::AbstractString)::Symbol =
     validate_multi_frequency_schedule(Symbol(schedule))
 
+function parse_multi_frequency_schedule(schedule)
+    throw(ArgumentError(
+        "schedule must be a Symbol or string naming one of " *
+        "$(join(string.(MULTI_FREQUENCY_SCHEDULES), ", ")), got $(repr(schedule))",
+    ))
+end
+
 """
     multi_frequency_schedule_token(schedule) -> String
 

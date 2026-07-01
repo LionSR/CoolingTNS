@@ -33,6 +33,16 @@ using Random
         @test CoolingTNS.multi_frequency_schedule_token("descending") == "desc"
         @test CoolingTNS.multi_frequency_schedule_token(:random) == "rand"
         @test_throws ArgumentError CoolingTNS.parse_multi_frequency_schedule("bad")
+        invalid_type_err = try
+            CoolingTNS.parse_multi_frequency_schedule(7)
+            nothing
+        catch err
+            err
+        end
+        @test invalid_type_err isa ArgumentError
+        @test occursin("Symbol or string", sprint(showerror, invalid_type_err))
+        @test occursin("round_robin", sprint(showerror, invalid_type_err))
+        @test occursin("7", sprint(showerror, invalid_type_err))
 
         for (schedule, token) in ((:round_robin, "rr"), (:descending, "desc"), (:random, "rand"))
             filename_params = CoolingTNS.MultiFrequencyCouplingParameters(
