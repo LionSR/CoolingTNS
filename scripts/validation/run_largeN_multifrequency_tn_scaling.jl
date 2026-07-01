@@ -872,8 +872,22 @@ function incomplete_deterministic_schedule_period_message(cfg; single_job=false)
            evidence_clause
 end
 
+function direct_campaign_job_count(cfg)
+    return length(cfg["Ns"]) *
+           length(cfg["methods"]) *
+           length(campaign_evolution_method_values(cfg)) *
+           length(campaign_dmax_values(cfg)) *
+           length(campaign_g_values(cfg)) *
+           length(campaign_te_values(cfg)) *
+           length(campaign_trajectory_values(cfg)) *
+           length(cfg["R_values"])
+end
+
 function warn_if_incomplete_deterministic_schedule_period(cfg)
-    message = incomplete_deterministic_schedule_period_message(cfg)
+    direct_job_count = direct_campaign_job_count(cfg)
+    message = incomplete_deterministic_schedule_period_message(
+        cfg; single_job=direct_job_count == 1
+    )
     message === nothing && return false
     @warn message
     return true
