@@ -129,7 +129,10 @@ Progress CSV files written before the coupling-strength scan axis do not
 contain a `g` column; the progress summarizer displays those entries as
 `legacy_missing` rather than leaving a blank coupling-strength cell.  If a
 file contains the `g` column but an individual field is empty, the summarizer
-uses the neutral label `missing`.
+uses the neutral label `missing`.  The progress-CSV reader validates the
+header against the shared schema before summarizing a file; `g` is the only
+schema column that may be omitted by legacy progress files, and duplicate
+header columns are rejected.
 The `elapsed_total` column sums
 per-trajectory elapsed times, matching the sequential large-N campaign driver,
 and `traj cycles/hour` is computed as
