@@ -33,7 +33,7 @@ using CoolingTNS:
     mode_occupation_from_hk,
     mode_occupation_from_results,
     bath_detuning_energy,
-    nearest_bath_resonance_indices
+    nearest_bath_detuning_indices
 
 """
     _mode_occupation_from_plot_data(data)
@@ -113,13 +113,14 @@ function plot_mode_occupation_from_data(mode_nk::AbstractMatrix, k_indices, εk_
                 label=BOGOLIUBOV_HALF_OCCUPATION_LABEL)
     ax1.axhline(y=1.0, color="black", linestyle=":", alpha=0.25)
 
-    # Highlight all resonant modes closest to the bath detuning.
+    # Highlight all modes closest to the bath detuning.
     δ_abs = bath_detuning_energy(delta)
     if δ_abs !== nothing
-        for res_idx in nearest_bath_resonance_indices(εk_values, delta)
-            k_label = _mode_index_label(k_indices[res_idx])
-            ax1.plot(cycles, measured_mode_nk[:, res_idx], color="red", linewidth=3, alpha=0.4,
-                     label=L"resonant: k=%$k_label" * L", \Delta=%$(round(δ_abs, digits=3))")
+        for detuning_idx in nearest_bath_detuning_indices(εk_values, delta)
+            k_label = _mode_index_label(k_indices[detuning_idx])
+            ax1.plot(cycles, measured_mode_nk[:, detuning_idx], color="red",
+                     linewidth=3, alpha=0.4,
+                     label="nearest |Δ|: k=$k_label, |Δ|=$(round(δ_abs, digits=3))")
         end
     end
 
