@@ -657,6 +657,25 @@ function campaign_trajectory_values(cfg)
     return Union{Nothing,Int}[nothing]
 end
 
+function campaign_job_count(
+    cfg;
+    R_values=cfg["R_values"],
+    dmax_values=campaign_dmax_values(cfg),
+    g_values=campaign_g_values(cfg),
+    te_values=campaign_te_values(cfg),
+    evolution_methods=campaign_evolution_method_values(cfg),
+    trajectory_values=campaign_trajectory_values(cfg),
+)
+    return length(cfg["Ns"]) *
+           length(cfg["methods"]) *
+           length(evolution_methods) *
+           length(dmax_values) *
+           length(g_values) *
+           length(te_values) *
+           length(trajectory_values) *
+           length(R_values)
+end
+
 function campaign_dmax_configs(cfg)
     # Retained as the Dmax-only regression oracle for the generalized ladder.
     values = campaign_dmax_values(cfg)
@@ -714,10 +733,14 @@ function parallel_plan_configs(cfg)
     te_values = campaign_te_values(cfg)
     evolution_methods = campaign_evolution_method_values(cfg)
     trajectory_values = campaign_trajectory_values(cfg)
-    njobs = length(cfg["Ns"]) * length(cfg["methods"]) *
-            length(evolution_methods) * length(cfg["R_values"]) *
-            length(dmax_values) * length(g_values) * length(te_values) *
-            length(trajectory_values)
+    njobs = campaign_job_count(
+        cfg;
+        dmax_values=dmax_values,
+        g_values=g_values,
+        te_values=te_values,
+        evolution_methods=evolution_methods,
+        trajectory_values=trajectory_values,
+    )
     if cfg["output"] !== nothing && njobs > 1
         error("--output cannot be used with a multi-job --print-parallel-plan")
     end
@@ -872,19 +895,14 @@ function incomplete_deterministic_schedule_period_message(cfg; single_job=false)
            evidence_clause
 end
 
-function direct_campaign_job_count(cfg)
-    return length(cfg["Ns"]) *
-           length(cfg["methods"]) *
-           length(campaign_evolution_method_values(cfg)) *
-           length(campaign_dmax_values(cfg)) *
-           length(campaign_g_values(cfg)) *
-           length(campaign_te_values(cfg)) *
-           length(campaign_trajectory_values(cfg)) *
-           length(cfg["R_values"])
+function incomplete_deterministic_schedule_period_direct_job_count(cfg)
+    return campaign_job_count(
+        cfg; R_values=incomplete_deterministic_schedule_period_R_values(cfg)
+    )
 end
 
 function warn_if_incomplete_deterministic_schedule_period(cfg)
-    direct_job_count = direct_campaign_job_count(cfg)
+    direct_job_count = incomplete_deterministic_schedule_period_direct_job_count(cfg)
     message = incomplete_deterministic_schedule_period_message(
         cfg; single_job=direct_job_count == 1
     )

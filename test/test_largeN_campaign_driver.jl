@@ -318,7 +318,8 @@ end
         "--outdir", tempdir(),
     ])
     @test incomplete_deterministic_schedule_period_R_values(short_period_cfg) == [5, 10]
-    @test direct_campaign_job_count(short_period_cfg) == 4
+    @test campaign_job_count(short_period_cfg) == 4
+    @test incomplete_deterministic_schedule_period_direct_job_count(short_period_cfg) == 2
     short_period_message =
         incomplete_deterministic_schedule_period_message(short_period_cfg)
     @test short_period_message !== nothing
@@ -357,8 +358,11 @@ end
     @test incomplete_deterministic_schedule_period_R_values(
         round_robin_short_period_cfg
     ) == [5]
-    @test direct_campaign_job_count(round_robin_short_period_cfg) == 2
-    @test_logs (:warn, r"these jobs are valid cap-pressure probes") begin
+    @test campaign_job_count(round_robin_short_period_cfg) == 2
+    @test incomplete_deterministic_schedule_period_direct_job_count(
+        round_robin_short_period_cfg
+    ) == 1
+    @test_logs (:warn, r"this job is a valid cap-pressure probe") begin
         @test warn_if_incomplete_deterministic_schedule_period(
             round_robin_short_period_cfg
         )
@@ -380,7 +384,10 @@ end
         "--schedule", "descending",
         "--outdir", tempdir(),
     ])
-    @test direct_campaign_job_count(single_job_short_period_cfg) == 1
+    @test campaign_job_count(single_job_short_period_cfg) == 1
+    @test incomplete_deterministic_schedule_period_direct_job_count(
+        single_job_short_period_cfg
+    ) == 1
     @test_logs (:warn, r"this job is a valid cap-pressure probe") begin
         @test warn_if_incomplete_deterministic_schedule_period(
             single_job_short_period_cfg
