@@ -84,6 +84,8 @@ end
           TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_PARTIAL_GRID_OBSERVED
     @test TDVPProgressCSVSummary.progress_detuning_coverage_status(5, 5, 5) ==
           TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_FULL_GRID
+    @test TDVPProgressCSVSummary.visited_detunings_label_from_counts([2], 3) ==
+          "2/3"
     @test TDVPProgressCSVSummary.LARGE_N_PROGRESS_GROUP_COLUMNS == (
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_N_KEY,
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_METHOD_KEY,

@@ -318,13 +318,6 @@ end
 
 energy_tail_start(nsteps::Integer) = max(1, nsteps - ENERGY_TAIL_WINDOW + 1)
 
-function range_label(values::AbstractVector{<:Integer})
-    isempty(values) && return LARGE_N_LABEL_NA
-    lo, hi = extrema(values)
-    lo == hi && return string(lo)
-    return "$lo-$hi"
-end
-
 function range_float_label(values::AbstractVector{<:Real}; digits::Int=2)
     isempty(values) && return LARGE_N_LABEL_NA
     finite_values = Float64[value for value in values if isfinite(value)]
@@ -461,24 +454,6 @@ function distinct_completed_delta_counts(delta_history, completed_steps::Abstrac
         push!(counts, length(unique(used_values)))
     end
     return counts
-end
-
-function visited_detunings_label_from_counts(
-    counts::AbstractVector{<:Integer},
-    R::Integer;
-    unknown_count::Integer=0,
-    total_count::Integer=length(counts) + unknown_count,
-)
-    R > 0 || return LARGE_N_LABEL_NA
-    unknown_count >= 0 ||
-        error("unknown detuning-history count must be non-negative")
-    total_count >= length(counts) + unknown_count ||
-        error("total detuning-history count is smaller than known plus unknown counts")
-    isempty(counts) && unknown_count == 0 && return LARGE_N_LABEL_NA
-    known_label = isempty(counts) ? "" : "$(range_label(counts))/$(R)"
-    unknown_count == 0 && return known_label
-    unknown_label = "unknownx$(unknown_count)/$(total_count)"
-    return isempty(known_label) ? unknown_label : "$(known_label)+$(unknown_label)"
 end
 
 function stop_reason_label(reasons::AbstractVector{<:AbstractString})

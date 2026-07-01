@@ -268,6 +268,25 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test progress_detuning_coverage_status(5, 5, 5) ==
           LARGE_N_DETUNING_COVERAGE_FULL_GRID
     @test progress_detuning_coverage_status(5, 0, 5) == LARGE_N_DETUNING_COVERAGE_NA
+    @test range_label(Int[]) == LARGE_N_LABEL_NA
+    @test range_label([2]) == "2"
+    @test range_label([2, 5, 3]) == "2-5"
+    @test visited_detunings_label_from_counts(Int[], 5) == LARGE_N_LABEL_NA
+    @test visited_detunings_label_from_counts([2], 5) == "2/5"
+    @test visited_detunings_label_from_counts([2, 5], 5) == "2-5/5"
+    @test visited_detunings_label_from_counts([2], 0) == LARGE_N_LABEL_NA
+    @test visited_detunings_label_from_counts(
+        [2], 5; unknown_count=1, total_count=2
+    ) == "2/5+unknownx1/2"
+    @test visited_detunings_label_from_counts(
+        Int[], 5; unknown_count=2, total_count=2
+    ) == "unknownx2/2"
+    @test_throws ArgumentError visited_detunings_label_from_counts(
+        [2], 5; unknown_count=-1
+    )
+    @test_throws ArgumentError visited_detunings_label_from_counts(
+        [2], 5; unknown_count=1, total_count=1
+    )
     @test largeN_trajectory_seed(20260617, 64, 10, 1) == 84360618
     @test largeN_trajectory_seed(7, 2, 1, 3) == 2010010
     @test_throws ArgumentError largeN_trajectory_seed(7, 2, 0, 1)

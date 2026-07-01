@@ -109,6 +109,9 @@ grid is labelled `partial_grid_observed`, while completed rows with no finite
 detuning values are labelled `missing_detuning_values`.  These CSV labels are
 therefore observation-based for the finite detunings present in the progress
 file; unlike the HDF5 summary, they are not gated by stored schedule metadata.
+The HDF5 and progress-CSV summaries share the same visited-detuning label
+helper for observed count labels such as `2/5`; only the HDF5 path can add an
+`unknownxq/M` term for missing stored detuning histories.
 The campaign driver now also warns before a direct run whenever a deterministic
 requested window has `steps < R`.  If that direct request contains one affected
 partial-period branch, the warning uses singular wording; if multiple generated

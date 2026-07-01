@@ -449,6 +449,46 @@ function progress_detuning_coverage_status(
     return LARGE_N_DETUNING_COVERAGE_PARTIAL_GRID_OBSERVED
 end
 
+"""
+    range_label(values) -> String
+
+Return the singleton value or integer range label used in large-N evidence
+tables.  Empty collections are reported as `n/a`.
+"""
+function range_label(values::AbstractVector{<:Integer})
+    isempty(values) && return LARGE_N_LABEL_NA
+    lo, hi = extrema(values)
+    lo == hi && return string(lo)
+    return "$lo-$hi"
+end
+
+"""
+    visited_detunings_label_from_counts(counts, R; unknown_count=0, total_count=...)
+
+Return the reader-facing label for distinct bath detunings observed across one
+or more trajectories.  `counts` records known trajectory counts; `unknown_count`
+is used by HDF5 summaries when some stored detuning histories are absent.
+"""
+function visited_detunings_label_from_counts(
+    counts::AbstractVector{<:Integer},
+    R::Integer;
+    unknown_count::Integer=0,
+    total_count::Integer=length(counts) + unknown_count,
+)
+    R > 0 || return LARGE_N_LABEL_NA
+    unknown_count >= 0 ||
+        throw(ArgumentError("unknown detuning-history count must be non-negative"))
+    total_count >= length(counts) + unknown_count ||
+        throw(ArgumentError(
+            "total detuning-history count is smaller than known plus unknown counts"
+        ))
+    isempty(counts) && unknown_count == 0 && return LARGE_N_LABEL_NA
+    known_label = isempty(counts) ? "" : "$(range_label(counts))/$(R)"
+    unknown_count == 0 && return known_label
+    unknown_label = "unknownx$(unknown_count)/$(total_count)"
+    return isempty(known_label) ? unknown_label : "$(known_label)+$(unknown_label)"
+end
+
 # Progress rows are grouped by the job identity columns when recovering an
 # interrupted run from CSV.  The coupling strength `g` is part of this identity
 # because serial `--g-values` scans may share one progress CSV path.  The per-row
