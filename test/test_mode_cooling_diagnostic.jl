@@ -41,9 +41,10 @@ end
     @test cfg.theta_code ≈ CoolingTNS.theta_code_from_initial_product_angle(pi / 6)
     @test cfg.do_plot
 
-    theta_cfg = parse_args(["--theta-code", "0.0"])
-    @test theta_cfg.theta_code == 0.0
-    @test theta_cfg.init_angle ≈ pi / 4
+    theta_cfg = parse_args(["--theta-code", "0.3"])
+    @test theta_cfg.theta_code == 0.3
+    @test theta_cfg.init_angle ≈ CoolingTNS.initial_product_angle(0.3)
+    @test theta_cfg.init_angle != defaults.init_angle
 
     io = IOBuffer()
     @test parse_args(["--help"]; io=io) === nothing
@@ -57,7 +58,28 @@ end
     @test_throws ArgumentError parse_args(["--init-angle", "0.1", "--theta-code", "0.2"])
     @test_throws ArgumentError parse_args(["--N"])
     @test_throws ArgumentError parse_args(["--coupling"])
+    @test_throws ArgumentError parse_args(["--coupling", "--N", "4"])
+    @test_throws ArgumentError parse_args(["--h", "--steps", "3"])
     @test_throws ArgumentError parse_args(["--unknown"])
+end
+
+@testset "Mode cooling diagnostic runs a one-cycle exact control" begin
+    parse_args = ModeCoolingDiagnosticScript.parse_mode_cooling_diagnostic_args
+    cfg = parse_args([
+        "--N", "2",
+        "--steps", "1",
+        "--h", "-1.05",
+        "--te", "0.0",
+        "--coupling", "XX",
+    ])
+
+    result = redirect_stdout(devnull) do
+        ModeCoolingDiagnosticScript.run_diagnostic(cfg)
+    end
+
+    @test result isa Dict{String,Any}
+    @test haskey(result, CoolingTNS.RESULT_MODE_NK)
+    @test size(result[CoolingTNS.RESULT_MODE_NK], 1) == cfg.steps + 1
 end
 
 @testset "Mode cooling diagnostic validates stored occupations" begin

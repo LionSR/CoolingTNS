@@ -39,6 +39,23 @@ const DEFAULT_MODE_COOLING_DIAGNOSTIC_CONFIG = (
     do_plot=false,
 )
 
+const MODE_COOLING_DIAGNOSTIC_OPTION_FLAGS = (
+    "--help",
+    "-h",
+    "--plot",
+    "-p",
+    "--N",
+    "--steps",
+    "--J",
+    "--h",
+    "--bc",
+    "--coupling",
+    "--g",
+    "--te",
+    "--init-angle",
+    "--theta-code",
+)
+
 function mode_cooling_diagnostic_usage(io=stdout)
     println(io, "usage: julia --project=. --startup-file=no scripts/diagnostics/mode_cooling_diagnostic.jl [options]")
     println(io)
@@ -66,7 +83,10 @@ end
 
 function _mode_arg_value(args, index::Integer, flag::AbstractString)
     index < length(args) || throw(ArgumentError("$flag requires a value"))
-    return args[index + 1]
+    value = args[index + 1]
+    value in MODE_COOLING_DIAGNOSTIC_OPTION_FLAGS &&
+        throw(ArgumentError("$flag requires a value"))
+    return value
 end
 
 function validate_mode_cooling_diagnostic_config(config)
@@ -74,7 +94,7 @@ function validate_mode_cooling_diagnostic_config(config)
         throw(ArgumentError("--N must be an even integer at least 2"))
     config.steps >= 1 || throw(ArgumentError("--steps must be at least 1"))
     all(isfinite, (config.J, config.h, config.g, config.te, config.theta_code)) ||
-        throw(ArgumentError("--J, --h, --g, --te, and theta_code must be finite"))
+        throw(ArgumentError("--J, --h, --g, --te, and --theta-code must be finite"))
     config.te >= 0 || throw(ArgumentError("--te must be non-negative"))
     config.bc in (:periodic, :antiperiodic) ||
         throw(ArgumentError("--bc must be periodic or antiperiodic"))
