@@ -636,7 +636,8 @@ end
 
 Return the method-dependent tensor-network bond cap for a persisted large-N
 method label.  This mirrors `CoolingTNS.tn_method_maxdim` for the large-N
-validation method vocabulary while keeping recovery scripts lightweight.
+validation method vocabulary while keeping recovery scripts lightweight.  If the
+library dispatch rule changes, update this helper and its parity tests together.
 """
 function largeN_method_maxdim_from_name(method_name::AbstractString, Dmax::Integer)
     kind = largeN_method_kind_from_name(method_name)

@@ -61,6 +61,34 @@ end
     @test format_error_float_or_na(missing, 3) == "n/a"
 end
 
+@testset "Large-N HDF5 Dcap fallback uses shared method-label helper" begin
+    path = tempname() * ".h5"
+    try
+        h5open(path, "w") do f
+            write(f, LARGE_N_ROOT_DMAX_KEY, 7)
+            gn = create_group(f, largeN_n_group_name(4))
+
+            gm_mcwf = create_group(gn, "mcwf")
+            gr_mcwf = create_group(gm_mcwf, largeN_r_group_name(1))
+            @test saturation_threshold_for(f, gm_mcwf, gr_mcwf, "mcwf") ==
+                  largeN_method_maxdim_from_name("mcwf", 7)
+
+            gm_mpo = create_group(gn, "mpo")
+            gr_mpo = create_group(gm_mpo, largeN_r_group_name(1))
+            @test saturation_threshold_for(f, gm_mpo, gr_mpo, "mpo") ==
+                  largeN_method_maxdim_from_name("mpo", 7)
+            @test_throws ArgumentError saturation_threshold_for(f, gm_mpo, gr_mpo, "ed")
+
+            write(gm_mpo, LARGE_N_BOND_SATURATION_THRESHOLD_KEY, 99)
+            @test saturation_threshold_for(f, gm_mpo, gr_mpo, "mpo") == 99
+            write(gr_mpo, LARGE_N_BOND_SATURATION_THRESHOLD_KEY, 123)
+            @test saturation_threshold_for(f, gm_mpo, gr_mpo, "mpo") == 123
+        end
+    finally
+        rm(path; force=true)
+    end
+end
+
 function write_split_trajectory_summary_file(
     path::AbstractString;
     trajectory::Integer,

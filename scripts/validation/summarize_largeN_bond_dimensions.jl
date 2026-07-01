@@ -475,21 +475,14 @@ function trajectory_cycles_per_hour(completed_steps::AbstractVector{<:Integer},
     return 3600.0 * sum(completed_steps) / elapsed_seconds
 end
 
-function method_from_name(method_name::AbstractString)
-    # HDF5 stores method names as strings; the cap itself is still determined
-    # by the library dispatch rule in `tn_method_maxdim`.
-    kind = largeN_method_kind_from_name(method_name)
-    kind === :mcwf && return MonteCarloWavefunction()
-    kind === :mpo && return DensityMatrix()
-    error("unreachable large-N method kind '$kind'")
-end
-
 function saturation_threshold_for(root, method_group, run_group, method_name::AbstractString)
     haskey(run_group, LARGE_N_BOND_SATURATION_THRESHOLD_KEY) &&
         return Int(read(run_group[LARGE_N_BOND_SATURATION_THRESHOLD_KEY]))
     haskey(method_group, LARGE_N_BOND_SATURATION_THRESHOLD_KEY) &&
         return Int(read(method_group[LARGE_N_BOND_SATURATION_THRESHOLD_KEY]))
-    return tn_method_maxdim(method_from_name(method_name), Int(read(root[LARGE_N_ROOT_DMAX_KEY])))
+    return largeN_method_maxdim_from_name(
+        method_name, Int(read(root[LARGE_N_ROOT_DMAX_KEY]))
+    )
 end
 
 function final_link_dimensions(run_group)
