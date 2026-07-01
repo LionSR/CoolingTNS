@@ -222,6 +222,17 @@ using CoolingTNS
         @test CoolingTNS.TRUNCATION_ERROR_HISTORY_LEGACY_MISSING == "legacy_missing"
         @test CoolingTNS.TRUNCATION_ERROR_HISTORY_MEASURED == "measured"
         @test CoolingTNS.TRUNCATION_ERROR_HISTORY_EMPTY == "empty"
+        @test CoolingTNS.TRUNCATION_ERROR_HISTORY_STATUSES == (
+            CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED,
+            CoolingTNS.TRUNCATION_ERROR_HISTORY_LEGACY_MISSING,
+            CoolingTNS.TRUNCATION_ERROR_HISTORY_MEASURED,
+            CoolingTNS.TRUNCATION_ERROR_HISTORY_EMPTY,
+        )
+        @test CoolingTNS.require_truncation_error_history_status_label("measured") ==
+              CoolingTNS.TRUNCATION_ERROR_HISTORY_MEASURED
+        @test_throws ArgumentError CoolingTNS.require_truncation_error_history_status_label(
+            "estimated",
+        )
         @test all(key -> key in CoolingTNS.RESULT_KEYS,
                   CoolingTNS.RESULT_MODE_OBSERVABLE_PAYLOAD_KEYS)
     end

@@ -82,6 +82,28 @@ const TRUNCATION_ERROR_HISTORY_NOT_RECORDED = "not_recorded"
 const TRUNCATION_ERROR_HISTORY_LEGACY_MISSING = "legacy_missing"
 const TRUNCATION_ERROR_HISTORY_MEASURED = "measured"
 const TRUNCATION_ERROR_HISTORY_EMPTY = "empty"
+const TRUNCATION_ERROR_HISTORY_STATUSES = (
+    TRUNCATION_ERROR_HISTORY_NOT_RECORDED,
+    TRUNCATION_ERROR_HISTORY_LEGACY_MISSING,
+    TRUNCATION_ERROR_HISTORY_MEASURED,
+    TRUNCATION_ERROR_HISTORY_EMPTY,
+)
+
+"""
+    require_truncation_error_history_status_label(status) -> String
+
+Return `status` as a string after checking that it is one of the canonical
+truncation-error history labels stored in cooling result dictionaries and HDF5
+summary files.
+"""
+function require_truncation_error_history_status_label(status)
+    label = String(status)
+    label in TRUNCATION_ERROR_HISTORY_STATUSES && return label
+    throw(ArgumentError(
+        "unknown truncation-error history status '$label'; expected one of " *
+        join(TRUNCATION_ERROR_HISTORY_STATUSES, ", ")
+    ))
+end
 
 const RESULT_KEYS = (
     RESULT_ENERGY,
