@@ -341,10 +341,12 @@ contract: it requires the measured cycles to be nonempty, sorted, unique, and
 in range, and maps them to the one-based rows used by Julia arrays.  The
 larger validator `validate_mode_measurement_rows` also checks the
 `mode_nk = mode_occupation_from_hk(mode_hk)` relation and rejects non-finite
-measured `mode_hk`, `mode_nk`, or energy rows.  The large-N writer, summary
+measured `mode_hk`, `mode_nk`, or energy rows.  It also rejects measured
+Bogoliubov observables outside the physical intervals `mode_hk in [-1,1]` and
+`mode_nk in [0,1]`, up to numerical roundoff.  The large-N writer, summary
 script, and plotting utilities all use these conventions so that deliberately
-unmeasured `NaN` rows are distinguished from malformed or non-finite measured
-rows.
+unmeasured `NaN` rows are distinguished from malformed, non-finite, or
+out-of-bounds measured rows.
 
 ### N=64 Stopped Final Mode-Row Verification
 

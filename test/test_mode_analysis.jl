@@ -303,6 +303,38 @@ end
             mode_hk, mode_nk, [0, 2]; energy=[-1.0, 100.0, NaN])
         @test_throws DimensionMismatch validate_mode_measurement_rows(
             mode_hk, mode_nk, [0, 2]; energy=[-1.0, -0.5])
+
+        roundoff_hk = copy(mode_hk)
+        roundoff_hk[1, 2] = 1.0 + 5e-11
+        @test validate_mode_measurement_rows(
+            roundoff_hk, mode_occupation_from_hk(roundoff_hk), [0, 2]
+        ).cycles == [0, 2]
+
+        bad_bound_hk = copy(mode_hk)
+        bad_bound_hk[1, 1] = -1.0 - 1e-6
+        bad_hk_err = try
+            validate_mode_measurement_rows(
+                bad_bound_hk, mode_occupation_from_hk(bad_bound_hk), [0, 2])
+            nothing
+        catch err
+            err
+        end
+        @test bad_hk_err isa ArgumentError
+        @test occursin("physical interval [-1, 1]", sprint(showerror, bad_hk_err))
+
+        bad_bound_nk = copy(mode_nk)
+        bad_bound_nk[1, 1] = -1e-6
+        bad_nk_err = try
+            validate_mode_measurement_rows(mode_hk, bad_bound_nk, [0, 2])
+            nothing
+        catch err
+            err
+        end
+        @test bad_nk_err isa ArgumentError
+        @test occursin("physical interval [0, 1]", sprint(showerror, bad_nk_err))
+
+        @test_throws ArgumentError validate_mode_measurement_rows(
+            mode_hk, mode_nk, [0, 2]; bound_atol=-1e-12)
     end
 
     @testset "Bogoliubov text matches MapToSpin phase convention" begin
