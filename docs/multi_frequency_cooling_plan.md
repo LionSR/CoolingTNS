@@ -394,6 +394,10 @@ factors, so two bath-frequency grids with the same `N`, `R`, `Dmax`, `g`, and
 `te` do not share one default HDF5 path.  Non-default Hamiltonian fields and
 non-default system-bath coupling labels are included as stem tokens for the same
 reason: they can change the DMRG reference gap and the cooling channel.
+Non-default cutoffs, selected-method trajectory counts, and enabled TDVP
+sweep-progress diagnostics are also tokenized, because they change the
+numerical approximation, the ensemble statistics, or the stored diagnostic
+record.
 Thus process-level parallelism can be used without concurrent writes to the same
 output file.  To compare the MPS Trotter-gate route with MCWF+TDVP, use
 `--evolution-method-values trotter,continuous` together with an explicit

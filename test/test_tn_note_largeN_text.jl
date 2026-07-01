@@ -323,6 +323,7 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("New fixed-detuning runs also include", evidence_flat)
     @test occursin("physically distinct bath-frequency grids cannot silently reuse one default output path", evidence_flat)
     @test occursin("Non-default Hamiltonian fields and non-default system-bath coupling labels", evidence_flat)
+    @test occursin("Non-default truncation cutoffs, non-default selected-method trajectory counts, and enabled TDVP sweep-progress diagnostics", evidence_flat)
     @test occursin(
         "validates explicit `detuning_protocol_source` metadata against the legal writer vocabulary",
         evidence_flat,

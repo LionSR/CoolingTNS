@@ -53,7 +53,10 @@ non-default `delta_max_factor` include `_dmaxfac...`, so physically distinct
 bath-frequency grids cannot silently reuse one default output path.  Non-default
 Hamiltonian fields and non-default system-bath coupling labels are also included
 in the stem, because they can change the DMRG reference gap and the cooling
-channel.  Generated
+channel.  Non-default truncation cutoffs, non-default selected-method
+trajectory counts, and enabled TDVP sweep-progress diagnostics are likewise
+included, because they change either the numerical approximation, the ensemble
+statistics, or the stored bond-dimension evidence.  Generated
 per-job progress CSV filenames in a parallel plan reuse the same HDF5 protocol
 stem, with the user-supplied CSV stem kept as a prefix.  Plans with
 `--te-values` generate one child command per requested evolution time and rely

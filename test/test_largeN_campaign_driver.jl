@@ -92,6 +92,37 @@ end
     ])
     @test output_path(shifted_coupling_cfg) != output_path(default_cfg)
     @test occursin("_coupZZ_", output_path(shifted_coupling_cfg))
+    shifted_cutoff_cfg = parse_args([
+        "--cutoff", "1e-8",
+        "--outdir", default_cfg["outdir"],
+    ])
+    @test output_path(shifted_cutoff_cfg) != output_path(default_cfg)
+    @test occursin("_cut1e-08_", output_path(shifted_cutoff_cfg))
+    ensemble_cfg = parse_args([
+        "--M-mcwf", "4",
+        "--outdir", default_cfg["outdir"],
+    ])
+    @test output_path(ensemble_cfg) != output_path(default_cfg)
+    @test occursin("_Mmcwf4_", output_path(ensemble_cfg))
+    mpo_ensemble_cfg = parse_args([
+        "--methods", "mpo,mcwf",
+        "--M-mpo", "3",
+        "--M-mcwf", "2",
+        "--outdir", default_cfg["outdir"],
+    ])
+    @test output_path(mpo_ensemble_cfg) != output_path(default_cfg)
+    @test occursin("_Mmcwf2_Mmpo3_", output_path(mpo_ensemble_cfg))
+    tdvp_sweep_filename_cfg = parse_args([
+        "--evolution-method", "continuous",
+        "--tdvp-sweep-progress",
+        "--outdir", default_cfg["outdir"],
+    ])
+    tdvp_filename_cfg = parse_args([
+        "--evolution-method", "continuous",
+        "--outdir", default_cfg["outdir"],
+    ])
+    @test output_path(tdvp_sweep_filename_cfg) != output_path(tdvp_filename_cfg)
+    @test occursin("_tdvpsweep_", output_path(tdvp_sweep_filename_cfg))
     shifted_ising_h_cfg = parse_args([
         "--model", "ising",
         "--h", "-0.75",
@@ -1207,7 +1238,7 @@ end
     sim_params_continuous = sim_params_for("mcwf", continuous_cfg)
     @test sim_params_continuous.evolution_method isa CoolingTNS.ContinuousEvolution
     @test sim_params_continuous.n_trajectories == 3
-    @test occursin("mcwf_continuous_steps", output_path(continuous_cfg))
+    @test occursin("mcwf_continuous_Mmcwf3_steps", output_path(continuous_cfg))
 
     normalized_continuous_cfg = parse_args([
         "--methods", "mcwf",
@@ -1237,6 +1268,10 @@ end
     @test_throws ErrorException parse_args(["--J", "NaN"])
     @test_throws ErrorException parse_args(["--hx", "NaN"])
     @test_throws ErrorException parse_args(["--hz", "NaN"])
+    @test_throws ErrorException parse_args(["--cutoff", "NaN"])
+    @test_throws ErrorException parse_args(["--cutoff", "-1e-7"])
+    @test_throws ErrorException parse_args(["--M-mcwf", "0"])
+    @test_throws ErrorException parse_args(["--M-mpo", "0"])
     @test_throws ErrorException parse_args([
         "--model", "ising",
         "--h", "NaN",

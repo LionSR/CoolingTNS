@@ -234,10 +234,13 @@ using Statistics
 include(joinpath(@__DIR__, "largeN_scaling_helpers.jl"))
 
 const DEFAULT_OUTDIR = joinpath(@__DIR__, "Data", "largeN_multifrequency")
+const LARGE_N_DEFAULT_CUTOFF = 1e-7
 const LARGE_N_DEFAULT_J = 1.0
 const LARGE_N_DEFAULT_HX = -1.05
 const LARGE_N_DEFAULT_HZ = 0.5
 const LARGE_N_DEFAULT_COUPLING = "XX"
+const LARGE_N_DEFAULT_M_MCWF = 1
+const LARGE_N_DEFAULT_M_MPO = 1
 
 parse_int_list(s::AbstractString) =
     [parse(Int, strip(x)) for x in split(s, ",") if !isempty(strip(x))]
@@ -296,7 +299,7 @@ function parse_args(args)
         "steps" => 40,
         "Dmax" => 40,
         "Dmax_values" => nothing,
-        "cutoff" => 1e-7,
+        "cutoff" => LARGE_N_DEFAULT_CUTOFF,
         "tau" => 0.2,
         "J" => LARGE_N_DEFAULT_J,
         "h" => nothing,
@@ -314,8 +317,8 @@ function parse_args(args)
         "delta_max" => nothing,
         "schedule" => "round_robin",
         "randomize_times" => false,
-        "M_mcwf" => 1,
-        "M_mpo" => 1,
+        "M_mcwf" => LARGE_N_DEFAULT_M_MCWF,
+        "M_mpo" => LARGE_N_DEFAULT_M_MPO,
         "trajectory_index" => nothing,
         "trajectory_values" => nothing,
         "seed" => 20260617,
@@ -414,6 +417,10 @@ function parse_args(args)
     cfg["steps"] >= 1 || error("--steps must be at least 1")
     all(D -> D >= 1, campaign_dmax_values(cfg)) ||
         error("all Dmax values must be positive")
+    isfinite(cfg["cutoff"]) && cfg["cutoff"] >= 0 ||
+        error("--cutoff must be finite and non-negative")
+    cfg["M_mcwf"] >= 1 || error("--M-mcwf must be at least 1")
+    cfg["M_mpo"] >= 1 || error("--M-mpo must be at least 1")
     all(isfinite, campaign_g_values(cfg)) ||
         error("all g values must be finite")
     all(isfinite, campaign_te_values(cfg)) ||
@@ -1484,6 +1491,36 @@ function largeN_coupling_filename_suffix(cfg)
 end
 
 """
+    largeN_numerical_filename_suffix(cfg) -> String
+
+Return filename tokens for non-default numerical approximation controls.
+These controls are not Hamiltonian parameters, but they change the trajectory
+ensemble or truncation protocol and therefore must not share one default output
+path.
+"""
+function largeN_numerical_filename_suffix(cfg)
+    suffix = largeN_nondefault_float_suffix(
+        "cut", cfg["cutoff"], LARGE_N_DEFAULT_CUTOFF
+    )
+    if "mcwf" in cfg["methods"] && cfg["M_mcwf"] != LARGE_N_DEFAULT_M_MCWF
+        suffix *= "_Mmcwf$(cfg["M_mcwf"])"
+    end
+    if "mpo" in cfg["methods"] && cfg["M_mpo"] != LARGE_N_DEFAULT_M_MPO
+        suffix *= "_Mmpo$(cfg["M_mpo"])"
+    end
+    return suffix
+end
+
+"""
+    largeN_diagnostic_filename_suffix(cfg) -> String
+
+Return filename tokens for optional diagnostics that change the stored large-N
+evidence, even when they do not change the Hamiltonian or cooling channel.
+"""
+largeN_diagnostic_filename_suffix(cfg) =
+    cfg["tdvp_sweep_progress"] ? "_tdvpsweep" : ""
+
+"""
     default_output_filename(cfg)
 
 Return the full default HDF5 filename; its stem is the protocol-naming source of truth.
@@ -1497,6 +1534,8 @@ function default_output_filename(cfg)
         "_$(cfg["model"])_bc$(cfg["bc"])"
     hamiltonian_suffix = largeN_hamiltonian_filename_suffix(cfg)
     coupling_suffix = largeN_coupling_filename_suffix(cfg)
+    numerical_suffix = largeN_numerical_filename_suffix(cfg)
+    diagnostic_suffix = largeN_diagnostic_filename_suffix(cfg)
     stop_suffix = cfg["stop_on_bond_cap"] ? "_stopcap" : ""
     schedule_suffix = cfg["schedule_symbol"] == :round_robin ? "" :
         "_sched$(multi_frequency_schedule_token(cfg["schedule_symbol"]))"
@@ -1529,7 +1568,7 @@ function default_output_filename(cfg)
         methods,
         evolution_suffix,
         model_suffix,
-        hamiltonian_suffix * coupling_suffix,
+        hamiltonian_suffix * coupling_suffix * numerical_suffix * diagnostic_suffix,
         stop_suffix,
         schedule_suffix * random_time_suffix,
         mode_suffix,
