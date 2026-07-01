@@ -265,6 +265,8 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
           LARGE_N_DETUNING_COVERAGE_SINGLE_DETUNING
     @test progress_detuning_coverage_status(2, 5, 2) ==
           LARGE_N_DETUNING_COVERAGE_PARTIAL_GRID_OBSERVED
+    @test progress_detuning_coverage_status(2, 5, 2; stopped=true) ==
+          LARGE_N_DETUNING_COVERAGE_STOPPED_PARTIAL_GRID
     @test progress_detuning_coverage_status(5, 5, 5) ==
           LARGE_N_DETUNING_COVERAGE_FULL_GRID
     @test progress_detuning_coverage_status(5, 0, 5) == LARGE_N_DETUNING_COVERAGE_NA

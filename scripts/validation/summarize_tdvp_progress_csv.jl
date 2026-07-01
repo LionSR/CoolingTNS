@@ -9,6 +9,9 @@ energy trace, detuning-grid coverage, cap onset, and per-sweep TDVP timing.
 Legacy progress CSV files that predate the `g` column are displayed with
 `legacy_missing` in the coupling column rather than with a blank cell.  Files
 with a present but empty `g` field are displayed as `missing`.
+Use `--stopped-on-cap` only for progress files from stop-on-cap diagnostics;
+then a cap-hit sub-grid deterministic prefix is labelled `stopped_partial_grid`
+rather than the default observation-only `partial_grid_observed`.
 
 Example:
 
@@ -26,7 +29,7 @@ function usage(io=stdout)
     println(
         io,
         "usage: julia --project=. scripts/validation/summarize_tdvp_progress_csv.jl " *
-        "[--cap D] [--help] PROGRESS.csv [PROGRESS2.csv ...]"
+        "[--cap D] [--stopped-on-cap] [--help] PROGRESS.csv [PROGRESS2.csv ...]"
     )
 end
 
@@ -206,7 +209,8 @@ function completed_update_detuning_count(updates)
 end
 
 function summarize_progress_group(file_label::AbstractString, key, rows;
-                                  cap=nothing, has_g_column::Bool=true)
+                                  cap=nothing, has_g_column::Bool=true,
+                                  stopped_on_cap::Bool=false)
     label = group_label(key)
     threshold = cap === nothing ?
         default_progress_cap(label.method, parse(Int, label.Dmax)) :
@@ -323,8 +327,12 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
         visited_detunings=visited_detunings_label_from_counts(
             [visited_detuning_count], R
         ),
+        # Progress CSVs do not store the requested cycle count or stop reason.
+        # Treat a cap hit as stop evidence only when the caller identifies the
+        # run as a stop-on-cap diagnostic.
         detuning_coverage=progress_detuning_coverage_status(
-            visited_detuning_count, R, completed_cycles
+            visited_detuning_count, R, completed_cycles;
+            stopped=stopped_on_cap && status != LARGE_N_BOND_STATUS_NO_CAP_HIT,
         ),
         final_energy=final_energy,
         system_effective_bond=effective_bond_dimension_label(
@@ -350,7 +358,9 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
     )
 end
 
-function summarize_progress_file(path::AbstractString; cap=nothing, file_label=basename(path))
+function summarize_progress_file(path::AbstractString; cap=nothing,
+                                 file_label=basename(path),
+                                 stopped_on_cap::Bool=false)
     header, rows = read_progress_csv(path)
     has_g_column = LARGE_N_PROGRESS_G_KEY in header
     groups = Dict{Any,Vector{Dict{String,String}}}()
@@ -359,7 +369,8 @@ function summarize_progress_file(path::AbstractString; cap=nothing, file_label=b
     end
     return [
         summarize_progress_group(
-            file_label, key, group_rows; cap=cap, has_g_column=has_g_column
+            file_label, key, group_rows; cap=cap, has_g_column=has_g_column,
+            stopped_on_cap=stopped_on_cap,
         )
         for (key, group_rows) in sort(
             collect(groups);
@@ -375,10 +386,17 @@ function summarize_progress_file(path::AbstractString; cap=nothing, file_label=b
     ]
 end
 
-function summarize_progress_files(paths::AbstractVector{<:AbstractString}; cap=nothing)
+function summarize_progress_files(paths::AbstractVector{<:AbstractString};
+                                  cap=nothing, stopped_on_cap::Bool=false)
     rows = NamedTuple[]
     for (path, file_label) in zip(paths, unique_progress_file_labels(paths))
-        append!(rows, summarize_progress_file(path; cap=cap, file_label=file_label))
+        append!(
+            rows,
+            summarize_progress_file(
+                path; cap=cap, file_label=file_label,
+                stopped_on_cap=stopped_on_cap,
+            ),
+        )
     end
     return rows
 end
@@ -437,15 +455,19 @@ end
 
 function parse_args(args)
     cap = nothing
+    stopped_on_cap = false
     paths = String[]
     i = 1
     while i <= length(args)
         if args[i] in ("--help", "-h")
-            return (paths=paths, cap=cap, help=true)
+            return (paths=paths, cap=cap, stopped_on_cap=stopped_on_cap, help=true)
         elseif args[i] == "--cap"
             cap = parse(Int, cap_arg_value(args, i))
             cap >= 1 || throw(ArgumentError("--cap must be positive"))
             i += 2
+        elseif args[i] == "--stopped-on-cap"
+            stopped_on_cap = true
+            i += 1
         elseif startswith(args[i], "--")
             throw(ArgumentError("unknown option: $(args[i])"))
         else
@@ -453,7 +475,7 @@ function parse_args(args)
             i += 1
         end
     end
-    return (paths=paths, cap=cap, help=false)
+    return (paths=paths, cap=cap, stopped_on_cap=stopped_on_cap, help=false)
 end
 
 function summarize_tdvp_progress_csv_main(args=ARGS)
@@ -466,7 +488,9 @@ function summarize_tdvp_progress_csv_main(args=ARGS)
         usage()
         return 1
     end
-    rows = summarize_progress_files(parsed.paths; cap=parsed.cap)
+    rows = summarize_progress_files(
+        parsed.paths; cap=parsed.cap, stopped_on_cap=parsed.stopped_on_cap
+    )
     print_markdown(rows)
     return 0
 end

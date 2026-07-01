@@ -63,16 +63,23 @@ end
     @test help_args.help
     @test isempty(help_args.paths)
     @test help_args.cap === nothing
+    @test !help_args.stopped_on_cap
     short_help_args = TDVPProgressCSVSummary.parse_args(["-h"])
     @test short_help_args.help
     @test TDVPProgressCSVSummary.parse_args(["--help", "--cap"]).help
     @test occursin(
-        "[--cap D] [--help] PROGRESS.csv",
+        "[--cap D] [--stopped-on-cap] [--help] PROGRESS.csv",
         sprint(TDVPProgressCSVSummary.usage),
     )
     cap_args = TDVPProgressCSVSummary.parse_args(["--cap", "12", "progress.csv"])
     @test cap_args.cap == 12
     @test cap_args.paths == ["progress.csv"]
+    @test !cap_args.stopped_on_cap
+    stopped_args = TDVPProgressCSVSummary.parse_args([
+        "--stopped-on-cap", "progress.csv",
+    ])
+    @test stopped_args.stopped_on_cap
+    @test stopped_args.paths == ["progress.csv"]
     @test_throws ArgumentError TDVPProgressCSVSummary.parse_args(["--cap"])
     @test_throws ArgumentError TDVPProgressCSVSummary.parse_args(
         ["--cap", "-1", "progress.csv"],
@@ -113,6 +120,9 @@ end
           TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_SINGLE_DETUNING
     @test TDVPProgressCSVSummary.progress_detuning_coverage_status(2, 5, 2) ==
           TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_PARTIAL_GRID_OBSERVED
+    @test TDVPProgressCSVSummary.progress_detuning_coverage_status(
+        2, 5, 2; stopped=true
+    ) == TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_STOPPED_PARTIAL_GRID
     @test TDVPProgressCSVSummary.progress_detuning_coverage_status(5, 5, 5) ==
           TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_FULL_GRID
     @test TDVPProgressCSVSummary.visited_detunings_label_from_counts([2], 3) ==
@@ -382,6 +392,13 @@ end
         @test mpo_row.last_step == 3
         @test mpo_row.last_cycle == 2
         @test mpo_row.last_stage == TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_UPDATED
+
+        stopped_rows = TDVPProgressCSVSummary.summarize_progress_file(
+            path; stopped_on_cap=true,
+        )
+        stopped_mpo_row = only(filter(row -> row.method == "mpo", stopped_rows))
+        @test stopped_mpo_row.detuning_coverage ==
+              TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_STOPPED_PARTIAL_GRID
 
         output = mktemp() do output_path, io
             close(io)

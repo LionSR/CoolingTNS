@@ -431,21 +431,25 @@ function require_largeN_progress_stage_label(stage)
 end
 
 """
-    progress_detuning_coverage_status(visited_count, R, completed_cycles) -> String
+    progress_detuning_coverage_status(visited_count, R, completed_cycles; stopped=false) -> String
 
 Return a reader-facing detuning-coverage label for an interrupted progress trace
 when only the completed update rows are available.  The progress CSV does not
-store the originally requested number of cycles, so a nonzero prefix shorter
-than one full grid is reported as `partial_grid_observed`.
+store the originally requested number of cycles, so an uncapped nonzero prefix
+shorter than one full grid is reported as `partial_grid_observed`.  When the
+same rows show a bond-cap stop, the prefix is reported as `stopped_partial_grid`
+to match the HDF5 large-N summary vocabulary.
 """
 function progress_detuning_coverage_status(
-    visited_count::Integer, R::Integer, completed_cycles::Integer,
+    visited_count::Integer, R::Integer, completed_cycles::Integer;
+    stopped::Bool=false,
 )
     R > 0 || return LARGE_N_DETUNING_COVERAGE_NA
     completed_cycles <= 0 && return LARGE_N_DETUNING_COVERAGE_NO_COMPLETED_CYCLES
     visited_count <= 0 && return LARGE_N_DETUNING_COVERAGE_MISSING_DETUNING_VALUES
     R == 1 && return LARGE_N_DETUNING_COVERAGE_SINGLE_DETUNING
     visited_count >= R && return LARGE_N_DETUNING_COVERAGE_FULL_GRID
+    stopped && return LARGE_N_DETUNING_COVERAGE_STOPPED_PARTIAL_GRID
     return LARGE_N_DETUNING_COVERAGE_PARTIAL_GRID_OBSERVED
 end
 
