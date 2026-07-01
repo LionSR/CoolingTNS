@@ -33,6 +33,23 @@ end
     @test_throws ErrorException parse_args(["--R-values", ","])
     @test_throws ErrorException parse_args(["--methods", ""])
 
+    help_io = IOBuffer()
+    @test parse_args(["--help"]; io=help_io) === nothing
+    help_text = String(take!(help_io))
+    @test occursin("run_largeN_multifrequency_tn_scaling.jl [options]", help_text)
+    @test occursin("--Ns LIST", help_text)
+    @test occursin("--delta-min FLOAT --delta-max FLOAT", help_text)
+    @test occursin("--print-parallel-plan", help_text)
+    short_help_io = IOBuffer()
+    @test parse_args(["-h"]; io=short_help_io) === nothing
+    @test occursin("--help, -h", String(take!(short_help_io)))
+    for flag in ("--Ns", "--steps", "--delta-min", "--outdir",
+                 "--evolution-method-values")
+        @test_throws ErrorException parse_args([flag])
+        @test_throws ErrorException parse_args([flag, "--quick"])
+    end
+    @test_throws ErrorException parse_args(["--outdir", "--outdri"])
+
     default_cfg = parse_args(["--outdir", tempdir()])
     @test default_cfg["Ns"] == [64]
     @test default_cfg["methods"] == ["mcwf"]
@@ -128,6 +145,7 @@ end
         "--h", "-0.75",
         "--outdir", tempdir(),
     ])
+    @test shifted_ising_h_cfg["h"] == -0.75
     @test occursin("_ising_bcopen_h-0.75_", output_path(shifted_ising_h_cfg))
     default_command = join(command_args_for_config(default_cfg), " ")
     @test occursin("--methods mcwf", default_command)

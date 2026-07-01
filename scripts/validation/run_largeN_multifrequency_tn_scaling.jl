@@ -242,6 +242,132 @@ const LARGE_N_DEFAULT_COUPLING = "XX"
 const LARGE_N_DEFAULT_M_MCWF = 1
 const LARGE_N_DEFAULT_M_MPO = 1
 
+const LARGE_N_HELP_FLAGS = ("--help", "-h")
+const LARGE_N_QUICK_FLAGS = ("--quick",)
+const LARGE_N_INT_LIST_FLAGS = ("--Ns", "--R-values", "--Dmax-values", "--trajectory-values")
+const LARGE_N_METHOD_LIST_FLAGS = ("--methods",)
+const LARGE_N_INT_VALUE_FLAGS = (
+    "--steps",
+    "--Dmax",
+    "--M-mcwf",
+    "--M-mpo",
+    "--seed",
+    "--mode-measurement-stride",
+    "--tdvp-outputlevel",
+    "--plan-julia-threads",
+    "--plan-blas-threads",
+    "--trajectory-index",
+)
+const LARGE_N_FLOAT_LIST_FLAGS = ("--te-values", "--g-values")
+const LARGE_N_FLOAT_VALUE_FLAGS = (
+    "--cutoff",
+    "--tau",
+    "--J",
+    "--h",
+    "--hx",
+    "--hz",
+    "--g",
+    "--te",
+    "--theta",
+    "--delta-max-factor",
+    "--delta-min",
+    "--delta-max",
+)
+const LARGE_N_STRING_VALUE_FLAGS = (
+    "--model",
+    "--bc",
+    "--coupling",
+    "--schedule",
+    "--outdir",
+    "--output",
+    "--progress-csv",
+)
+const LARGE_N_INIT_STATE_FLAGS = ("--init-state", "--init_state")
+const LARGE_N_EVOLUTION_METHOD_FLAGS = ("--evolution-method",)
+const LARGE_N_EVOLUTION_METHOD_LIST_FLAGS = ("--evolution-method-values",)
+const LARGE_N_BOOLEAN_FLAGS = (
+    "--verbose",
+    "--measure-modes",
+    "--measure_modes",
+    "--tdvp-sweep-progress",
+    "--stop-on-bond-cap",
+    "--randomize-times",
+    "--randomize_times",
+    "--print-parallel-plan",
+)
+const LARGE_N_CAMPAIGN_OPTION_FLAGS = (
+    LARGE_N_HELP_FLAGS...,
+    LARGE_N_QUICK_FLAGS...,
+    LARGE_N_INT_LIST_FLAGS...,
+    LARGE_N_METHOD_LIST_FLAGS...,
+    LARGE_N_INT_VALUE_FLAGS...,
+    LARGE_N_FLOAT_LIST_FLAGS...,
+    LARGE_N_FLOAT_VALUE_FLAGS...,
+    LARGE_N_STRING_VALUE_FLAGS...,
+    LARGE_N_INIT_STATE_FLAGS...,
+    LARGE_N_EVOLUTION_METHOD_FLAGS...,
+    LARGE_N_EVOLUTION_METHOD_LIST_FLAGS...,
+    LARGE_N_BOOLEAN_FLAGS...,
+)
+
+# Keep the parser categories disjoint so parser dispatch and help-token
+# recognition cannot drift as new flags are added.
+@assert length(unique(LARGE_N_CAMPAIGN_OPTION_FLAGS)) ==
+        length(LARGE_N_CAMPAIGN_OPTION_FLAGS)
+const _LARGE_N_OPTION_CATEGORIES = (
+    LARGE_N_HELP_FLAGS,
+    LARGE_N_QUICK_FLAGS,
+    LARGE_N_INT_LIST_FLAGS,
+    LARGE_N_METHOD_LIST_FLAGS,
+    LARGE_N_INT_VALUE_FLAGS,
+    LARGE_N_FLOAT_LIST_FLAGS,
+    LARGE_N_FLOAT_VALUE_FLAGS,
+    LARGE_N_STRING_VALUE_FLAGS,
+    LARGE_N_INIT_STATE_FLAGS,
+    LARGE_N_EVOLUTION_METHOD_FLAGS,
+    LARGE_N_EVOLUTION_METHOD_LIST_FLAGS,
+    LARGE_N_BOOLEAN_FLAGS,
+)
+@assert sum(length, _LARGE_N_OPTION_CATEGORIES) ==
+        length(LARGE_N_CAMPAIGN_OPTION_FLAGS)
+
+function largeN_campaign_usage(io=stdout)
+    println(io, "usage: julia --project=. --startup-file=no scripts/validation/run_largeN_multifrequency_tn_scaling.jl [options]")
+    println(io)
+    println(io, "Core campaign axes:")
+    println(io, "  --Ns LIST                    system sizes, default 64")
+    println(io, "  --R-values LIST              frequency counts, default 1,2,5,10")
+    println(io, "  --methods mpo|mcwf[,..]      tensor-network method, default mcwf")
+    println(io, "  --evolution-method METHOD    trotter or continuous, default trotter")
+    println(io, "  --steps INT                  cooling cycles, default 40")
+    println(io, "  --Dmax INT                   nominal bond cap, default 40")
+    println(io)
+    println(io, "Protocol controls:")
+    println(io, "  --delta-min FLOAT --delta-max FLOAT   fixed detuning interval")
+    println(io, "  --schedule NAME                       round_robin, descending, or random")
+    println(io, "  --randomize-times                     draw cycle times from Uniform(0,2te)")
+    println(io, "  --stop-on-bond-cap                    stop after the first cap diagnostic")
+    println(io, "  --measure-modes                       store Ising Bogoliubov diagnostics")
+    println(io)
+    println(io, "Planning and diagnostics:")
+    println(io, "  --quick                       small N=8 MPO/MCWF Trotter check")
+    println(io, "  --print-parallel-plan          print one command per planned job")
+    println(io, "  --progress-csv PATH            write observer progress rows")
+    println(io, "  --tdvp-sweep-progress          record TDVP sweep bond diagnostics")
+    println(io, "  --help, -h                     print this message and exit")
+    return nothing
+end
+
+function _largeN_arg_value(args, index::Integer, flag::AbstractString)
+    index < length(args) || error("$flag requires a value")
+    value = args[index + 1]
+    # Double-dash tokens in value position almost always mean that a value was
+    # omitted; single-dash numeric values such as -0.75 remain valid.
+    (startswith(value, "--") || value in LARGE_N_HELP_FLAGS) &&
+        error("$flag requires a value, got option token $value")
+    return value
+end
+
 parse_int_list(s::AbstractString) =
     [parse(Int, strip(x)) for x in split(s, ",") if !isempty(strip(x))]
 
@@ -287,7 +413,7 @@ function require_nonempty_values(values, flag::AbstractString)
     error("$flag must contain at least one value")
 end
 
-function parse_args(args)
+function parse_args(args; io=stdout)
     cfg = Dict{String,Any}(
         "Ns" => [64],
         "R_values" => [1, 2, 5, 10],
@@ -339,7 +465,10 @@ function parse_args(args)
     i = 1
     while i <= length(args)
         a = args[i]
-        if a == "--quick"
+        if a in LARGE_N_HELP_FLAGS
+            largeN_campaign_usage(io)
+            return nothing
+        elseif a in LARGE_N_QUICK_FLAGS
             # `--quick` is an argument-stream preset. It intentionally selects
             # the small-N MPO/MCWF channel comparison unless later flags
             # override the individual fields.
@@ -355,52 +484,38 @@ function parse_args(args)
             cfg["tdvp_outputlevel"] = 0
             cfg["tdvp_sweep_progress"] = false
             i += 1
-        elseif a == "--Ns"
-            cfg["Ns"] = parse_int_list(args[i + 1]); i += 2
-        elseif a == "--R-values"
-            cfg["R_values"] = parse_int_list(args[i + 1]); i += 2
-        elseif a == "--methods"
-            cfg["methods"] = parse_method_list(args[i + 1]); i += 2
-        elseif a in ("--steps", "--Dmax", "--M-mcwf", "--M-mpo", "--seed",
-                     "--mode-measurement-stride",
-                     "--tdvp-outputlevel", "--plan-julia-threads", "--plan-blas-threads")
+        elseif a in LARGE_N_INT_LIST_FLAGS
+            cfg[replace(a[3:end], "-" => "_")] =
+                parse_int_list(_largeN_arg_value(args, i, a))
+            i += 2
+        elseif a in LARGE_N_METHOD_LIST_FLAGS
+            cfg["methods"] = parse_method_list(_largeN_arg_value(args, i, a)); i += 2
+        elseif a in LARGE_N_INT_VALUE_FLAGS
             key = replace(a[3:end], "-" => "_")
-            cfg[key] = parse(Int, args[i + 1]); i += 2
-        elseif a == "--Dmax-values"
-            cfg["Dmax_values"] = parse_int_list(args[i + 1]); i += 2
-        elseif a == "--te-values"
-            cfg["te_values"] = parse_float_list(args[i + 1]); i += 2
-        elseif a == "--g-values"
-            cfg["g_values"] = parse_float_list(args[i + 1]); i += 2
-        elseif a == "--trajectory-index"
-            cfg["trajectory_index"] = parse(Int, args[i + 1]); i += 2
-        elseif a == "--trajectory-values"
-            cfg["trajectory_values"] = parse_int_list(args[i + 1]); i += 2
-        elseif a in ("--cutoff", "--tau", "--J", "--h", "--hx", "--hz", "--g", "--te", "--theta", "--delta-max-factor",
-                     "--delta-min", "--delta-max")
+            cfg[key] = parse(Int, _largeN_arg_value(args, i, a)); i += 2
+        elseif a in LARGE_N_FLOAT_LIST_FLAGS
+            cfg[replace(a[3:end], "-" => "_")] =
+                parse_float_list(_largeN_arg_value(args, i, a))
+            i += 2
+        elseif a in LARGE_N_FLOAT_VALUE_FLAGS
             key = replace(a[3:end], "-" => "_")
-            cfg[key] = parse(Float64, args[i + 1]); i += 2
-        elseif a in ("--model", "--bc", "--coupling", "--schedule", "--outdir", "--output",
-                     "--progress-csv")
-            cfg[replace(a[3:end], "-" => "_")] = args[i + 1]; i += 2
-        elseif a in ("--init-state", "--init_state")
-            cfg["init_state"] = canonical_initial_state_name(args[i + 1]); i += 2
-        elseif a == "--evolution-method"
-            cfg["evolution_method"] = parse_evolution_method_name(args[i + 1]); i += 2
-        elseif a == "--evolution-method-values"
-            cfg["evolution_method_values"] = parse_evolution_method_list(args[i + 1]); i += 2
-        elseif a == "--verbose"
-            cfg["verbose"] = true; i += 1
-        elseif a in ("--measure-modes", "--measure_modes")
-            cfg["measure_modes"] = true; i += 1
-        elseif a == "--tdvp-sweep-progress"
-            cfg["tdvp_sweep_progress"] = true; i += 1
-        elseif a == "--stop-on-bond-cap"
-            cfg["stop_on_bond_cap"] = true; i += 1
-        elseif a in ("--randomize-times", "--randomize_times")
-            cfg["randomize_times"] = true; i += 1
-        elseif a == "--print-parallel-plan"
-            cfg["print_parallel_plan"] = true; i += 1
+            cfg[key] = parse(Float64, _largeN_arg_value(args, i, a)); i += 2
+        elseif a in LARGE_N_STRING_VALUE_FLAGS
+            cfg[replace(a[3:end], "-" => "_")] = _largeN_arg_value(args, i, a); i += 2
+        elseif a in LARGE_N_INIT_STATE_FLAGS
+            cfg["init_state"] = canonical_initial_state_name(
+                _largeN_arg_value(args, i, a)
+            ); i += 2
+        elseif a in LARGE_N_EVOLUTION_METHOD_FLAGS
+            cfg["evolution_method"] = parse_evolution_method_name(
+                _largeN_arg_value(args, i, a)
+            ); i += 2
+        elseif a in LARGE_N_EVOLUTION_METHOD_LIST_FLAGS
+            cfg["evolution_method_values"] = parse_evolution_method_list(
+                _largeN_arg_value(args, i, a)
+            ); i += 2
+        elseif a in LARGE_N_BOOLEAN_FLAGS
+            cfg[replace(a[3:end], "-" => "_")] = true; i += 1
         else
             error("unknown argument: $a")
         end
@@ -2006,6 +2121,7 @@ end
 
 function run_largeN_multifrequency_tn_scaling_main()
     cfg = parse_args(ARGS)
+    cfg === nothing && return nothing
     if cfg["print_parallel_plan"]
         print_parallel_plan(cfg)
         return nothing
