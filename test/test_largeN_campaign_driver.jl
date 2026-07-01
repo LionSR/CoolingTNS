@@ -329,6 +329,19 @@ end
     short_period_plan = sprint(io -> print_parallel_plan(short_period_cfg; io=io))
     @test occursin("# Warning:", short_period_plan)
     @test occursin("R=5,10", short_period_plan)
+    partial_period_lines = filter(
+        line -> startswith(line, "# Partial-period diagnostic for "),
+        split(chomp(short_period_plan), '\n'),
+    )
+    @test length(partial_period_lines) == 2
+    @test any(line -> occursin("_R5_", line), partial_period_lines)
+    @test any(line -> occursin("_R10_", line), partial_period_lines)
+    @test all(
+        line -> occursin("requested 2-cycle window", line),
+        partial_period_lines,
+    )
+    @test !any(line -> occursin("_R1_", line) || occursin("_R2_", line),
+               partial_period_lines)
 
     round_robin_short_period_cfg = parse_args([
         "--R-values", "2,5",
@@ -352,6 +365,7 @@ end
         io -> print_parallel_plan(random_short_period_cfg; io=io)
     )
     @test !occursin("full-grid multi-frequency cooling evidence", random_short_period_plan)
+    @test !occursin("Partial-period diagnostic", random_short_period_plan)
 
     random_time_cfg = parse_args([
         "--randomize-times",

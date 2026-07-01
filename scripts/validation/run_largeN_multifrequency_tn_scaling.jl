@@ -875,8 +875,18 @@ function warn_if_incomplete_deterministic_schedule_period(cfg)
     return true
 end
 
+function partial_period_parallel_plan_comment(run_cfg)
+    message = incomplete_deterministic_schedule_period_message(run_cfg)
+    message === nothing && return nothing
+    output_name = run_cfg["output"] === nothing ?
+        default_output_filename(run_cfg) :
+        basename(run_cfg["output"])
+    return "# Partial-period diagnostic for $output_name: $message"
+end
+
 function print_parallel_plan(cfg; io=stdout)
-    commands = parallel_plan_commands(cfg)
+    run_cfgs = parallel_plan_configs(cfg)
+    commands = [parallel_plan_command(run_cfg) for run_cfg in run_cfgs]
     println(io, "# large-N campaign parallel job plan")
     println(io, "# jobs: $(length(commands))")
     println(io, "# This driver does not launch jobs concurrently.")
@@ -911,7 +921,11 @@ function print_parallel_plan(cfg; io=stdout)
     else
         println(io, "# With one job, a base --progress-csv path is kept unchanged.")
     end
-    for command in commands
+    for (run_cfg, command) in zip(run_cfgs, commands)
+        if length(commands) > 1
+            job_comment = partial_period_parallel_plan_comment(run_cfg)
+            job_comment === nothing || println(io, job_comment)
+        end
         println(io, command)
     end
     return commands
