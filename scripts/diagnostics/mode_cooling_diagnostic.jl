@@ -3,35 +3,162 @@
     mode_cooling_diagnostic.jl
 
 Standalone diagnostic script that:
-1. Sets up a small Ising chain (N=6, PBC) with reasonable parameters
-2. Runs ED DensityMatrix cooling for ~50 steps with mode measurement
+1. Sets up a small periodic or antiperiodic Ising chain.
+2. Runs ED DensityMatrix cooling with mode measurement.
 3. Prints a summary table of Bogoliubov occupations n_k^Bog at each step
 4. Verifies energy consistency: (Λ/2) Σ_k coeff_k · ⟨h_k⟩ ≈ ⟨H⟩
 5. Optionally generates a matplotlib plot
 
 Usage:
-    julia --project=. --startup-file=no scripts/diagnostics/mode_cooling_diagnostic.jl [--plot]
+    julia --project=. --startup-file=no scripts/diagnostics/mode_cooling_diagnostic.jl [options]
+
+Useful short exact control:
+    julia --project=. --startup-file=no scripts/diagnostics/mode_cooling_diagnostic.jl \
+        --N 4 --steps 3 --h -1.05 --te 1.0 --coupling XX
 """
 
 using CoolingTNS
 using Printf
 
 # ============================================================================
-# Parameters
+# Parameters and CLI parsing
 # ============================================================================
 
-const N = 6           # System size
-const J = 1.0         # Ising coupling
-const h = 0.5         # Transverse field
-const BC = :periodic   # Boundary condition
-const COUPLING = "XX"  # System-bath coupling
-const G_COUPLING = 0.3 # Coupling strength
-const TE = 2.0         # Evolution time per step
-const STEPS = 50       # Number of cooling steps
-const INIT_TYPE = "theta"
-const INIT_PRODUCT_ANGLE = pi / 4
-const INIT_THETA_CODE =
-    CoolingTNS.theta_code_from_initial_product_angle(INIT_PRODUCT_ANGLE)
+const DEFAULT_MODE_COOLING_DIAGNOSTIC_CONFIG = (
+    N=6,
+    J=1.0,
+    h=0.5,
+    bc=:periodic,
+    coupling="XX",
+    g=0.3,
+    te=2.0,
+    steps=50,
+    init_type="theta",
+    init_angle=π / 4,
+    theta_code=CoolingTNS.theta_code_from_initial_product_angle(π / 4),
+    do_plot=false,
+)
+
+const MODE_COOLING_DIAGNOSTIC_OPTION_FLAGS = (
+    "--help",
+    "-h",
+    "--plot",
+    "-p",
+    "--N",
+    "--steps",
+    "--J",
+    "--h",
+    "--bc",
+    "--coupling",
+    "--g",
+    "--te",
+    "--init-angle",
+    "--theta-code",
+)
+
+function mode_cooling_diagnostic_usage(io=stdout)
+    println(io, "usage: julia --project=. --startup-file=no scripts/diagnostics/mode_cooling_diagnostic.jl [options]")
+    println(io)
+    println(io, "Options:")
+    println(io, "  --N INT              even system size, default 6")
+    println(io, "  --steps INT          cooling cycles, default 50")
+    println(io, "  --J FLOAT            Ising coupling, default 1.0")
+    println(io, "  --h FLOAT            transverse field, default 0.5")
+    println(io, "  --bc periodic|antiperiodic")
+    println(io, "  --coupling AB        system-bath Pauli label in {X,Y,Z}^2, default XX")
+    println(io, "  --g FLOAT            system-bath coupling strength, default 0.3")
+    println(io, "  --te FLOAT           evolution time per cycle, default 2.0")
+    println(io, "  --init-angle FLOAT   per-site angle alpha for cos(alpha)|0>+sin(alpha)|1>")
+    println(io, "  --theta-code FLOAT   code theta parameter; mutually exclusive with --init-angle")
+    println(io, "  --plot, -p           also write a mode-occupation plot")
+    println(io, "  --help, -h           print this message")
+    return nothing
+end
+
+function _parse_mode_bc(value::AbstractString)
+    label = Symbol(strip(lowercase(value)))
+    label in (:periodic, :antiperiodic) && return label
+    throw(ArgumentError("--bc must be periodic or antiperiodic, got $(repr(value))"))
+end
+
+function _mode_arg_value(args, index::Integer, flag::AbstractString)
+    index < length(args) || throw(ArgumentError("$flag requires a value"))
+    value = args[index + 1]
+    value in MODE_COOLING_DIAGNOSTIC_OPTION_FLAGS &&
+        throw(ArgumentError("$flag requires a value"))
+    return value
+end
+
+function validate_mode_cooling_diagnostic_config(config)
+    config.N >= 2 && iseven(config.N) ||
+        throw(ArgumentError("--N must be an even integer at least 2"))
+    config.steps >= 1 || throw(ArgumentError("--steps must be at least 1"))
+    all(isfinite, (config.J, config.h, config.g, config.te, config.theta_code)) ||
+        throw(ArgumentError("--J, --h, --g, --te, and --theta-code must be finite"))
+    config.te >= 0 || throw(ArgumentError("--te must be non-negative"))
+    config.bc in (:periodic, :antiperiodic) ||
+        throw(ArgumentError("--bc must be periodic or antiperiodic"))
+    CoolingTNS.parse_coupling(config.coupling)
+    config.init_type == "theta" ||
+        throw(ArgumentError("mode cooling diagnostic currently uses init_type=\"theta\""))
+    return config
+end
+
+function parse_mode_cooling_diagnostic_args(args=ARGS; io=stdout)
+    config = Dict{Symbol,Any}(pairs(DEFAULT_MODE_COOLING_DIAGNOSTIC_CONFIG))
+    init_angle_seen = false
+    theta_code_seen = false
+
+    i = 1
+    while i <= length(args)
+        arg = args[i]
+        if arg in ("--help", "-h")
+            mode_cooling_diagnostic_usage(io)
+            return nothing
+        elseif arg in ("--plot", "-p")
+            config[:do_plot] = true
+            i += 1
+        elseif arg == "--N"
+            config[:N] = parse(Int, _mode_arg_value(args, i, arg))
+            i += 2
+        elseif arg == "--steps"
+            config[:steps] = parse(Int, _mode_arg_value(args, i, arg))
+            i += 2
+        elseif arg in ("--J", "--h", "--g", "--te")
+            key = Symbol(arg[3:end])
+            config[key] = parse(Float64, _mode_arg_value(args, i, arg))
+            i += 2
+        elseif arg == "--bc"
+            config[:bc] = _parse_mode_bc(_mode_arg_value(args, i, arg))
+            i += 2
+        elseif arg == "--coupling"
+            config[:coupling] = _mode_arg_value(args, i, arg)
+            i += 2
+        elseif arg == "--init-angle"
+            init_angle_seen = true
+            theta_code_seen && throw(ArgumentError(
+                "--init-angle and --theta-code are mutually exclusive"
+            ))
+            angle = parse(Float64, _mode_arg_value(args, i, arg))
+            config[:init_angle] = angle
+            config[:theta_code] = CoolingTNS.theta_code_from_initial_product_angle(angle)
+            i += 2
+        elseif arg == "--theta-code"
+            theta_code_seen = true
+            init_angle_seen && throw(ArgumentError(
+                "--init-angle and --theta-code are mutually exclusive"
+            ))
+            theta_code = parse(Float64, _mode_arg_value(args, i, arg))
+            config[:theta_code] = theta_code
+            config[:init_angle] = CoolingTNS.initial_product_angle(theta_code)
+            i += 2
+        else
+            throw(ArgumentError("unknown option: $arg"))
+        end
+    end
+
+    return validate_mode_cooling_diagnostic_config((; config...))
+end
 
 _mode_index_label(k) = k isa Rational ? "$(numerator(k))/$(denominator(k))" : "$(k)"
 
@@ -43,15 +170,31 @@ end
 # Setup
 # ============================================================================
 
-function run_diagnostic(; do_plot::Bool=false)
+function run_diagnostic(config=DEFAULT_MODE_COOLING_DIAGNOSTIC_CONFIG; do_plot=nothing)
+    config = validate_mode_cooling_diagnostic_config(config)
+    N = config.N
+    J = config.J
+    h = config.h
+    bc = config.bc
+    coupling = config.coupling
+    g_coupling = config.g
+    te = config.te
+    steps = config.steps
+    init_type = config.init_type
+    init_product_angle = config.init_angle
+    init_theta_code = config.theta_code
+    do_plot = do_plot === nothing ? config.do_plot : do_plot
+
     println("=" ^ 80)
     println("  Mode-Resolved Cooling Diagnostic")
     println("=" ^ 80)
     println()
 
     # Model parameters
-    ham_params = CoolingTNS.IsingParameters(N, J, h, BC)
-    coupling_params = CoolingTNS.BasicCouplingParameters(COUPLING, G_COUPLING, STEPS, TE, nothing)
+    ham_params = CoolingTNS.IsingParameters(N, J, h, bc)
+    coupling_params = CoolingTNS.BasicCouplingParameters(
+        coupling, g_coupling, steps, te, nothing
+    )
     sim_params = CoolingTNS.UnifiedSimulationParameters(
         CoolingTNS.DensityMatrix(), CoolingTNS.ContinuousEvolution()
     )
@@ -59,10 +202,10 @@ function run_diagnostic(; do_plot::Bool=false)
     # Print parameter summary
     θ = CoolingTNS.theta_from_Jh(J, h)
     Λ = CoolingTNS.energy_scale(J, h)
-    println("Model: Ising, N=$N, J=$J, h=$h, BC=$BC")
+    println("Model: Ising, N=$N, J=$J, h=$h, BC=$bc")
     println("θ = $(round(θ, digits=4)) rad = $(round(rad2deg(θ), digits=2))°")
     println("Λ = 2√(J²+h²) = $(round(Λ, digits=4))")
-    println("Coupling: $COUPLING, g=$G_COUPLING, te=$TE, steps=$STEPS")
+    println("Coupling: $coupling, g=$g_coupling, te=$te, steps=$steps")
     println()
 
     # Setup problem
@@ -76,7 +219,7 @@ function run_diagnostic(; do_plot::Bool=false)
     # Ground state parity and modes
     px = CoolingTNS.measure_state_parity(problem.ϕ₀, N)
     parity = CoolingTNS._reference_parity_sector(px)
-    gF = CoolingTNS.fermionic_bc(BC, parity)
+    gF = CoolingTNS.fermionic_bc(bc, parity)
     ks = CoolingTNS.allowed_k_indices(N, gF)
     println("Ground state parity ⟨Px⟩ = $(round(px, digits=6)), gF = $gF")
     println("Allowed k-indices: $ks")
@@ -103,10 +246,10 @@ function run_diagnostic(; do_plot::Bool=false)
 
     # Setup initial state and run cooling
     println(
-        "Setting up initial state ($INIT_TYPE, alpha=$(round(INIT_PRODUCT_ANGLE, digits=4)), " *
-        "theta_code=$(round(INIT_THETA_CODE, digits=4)))..."
+        "Setting up initial state ($init_type, alpha=$(round(init_product_angle, digits=4)), " *
+        "theta_code=$(round(init_theta_code, digits=4)))..."
     )
-    state0 = CoolingTNS.setup_initial_state(problem, sim_params, INIT_TYPE, INIT_THETA_CODE)
+    state0 = CoolingTNS.setup_initial_state(problem, sim_params, init_type, init_theta_code)
     px_init = CoolingTNS.measure_state_parity(state0.state, N)
     @printf("Initial state parity ⟨Px⟩ = %.6f\n", px_init)
     println()
@@ -240,7 +383,7 @@ function run_diagnostic(; do_plot::Bool=false)
             mkpath(dirname(savepath))
             fig = plot_mode_occupation_from_data(mode_nk, k_indices, εk_values;
                                                  delta=Δ, savepath=savepath,
-                                                 title="Mode occupation cooling: N=$N, J=$J, h=$h, $COUPLING coupling")
+                                                 title="Mode occupation cooling: N=$N, J=$J, h=$h, $coupling coupling")
             println("Plot saved to $savepath")
         catch e
             if isa(e, LoadError) || isa(e, MethodError)
@@ -268,6 +411,7 @@ end
 # ============================================================================
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    do_plot = "--plot" in ARGS || "-p" in ARGS
-    run_diagnostic(; do_plot=do_plot)
+    config = parse_mode_cooling_diagnostic_args(ARGS)
+    config === nothing && exit(0)
+    run_diagnostic(config)
 end
