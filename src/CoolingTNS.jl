@@ -111,6 +111,7 @@ export TRUNCATION_ERROR_HISTORY_LEGACY_MISSING, TRUNCATION_ERROR_HISTORY_MEASURE
 export TRUNCATION_ERROR_HISTORY_EMPTY
 export TRUNCATION_ERROR_HISTORY_STATUSES
 export require_truncation_error_history_status_label
+export truncation_error_history_status_label
 export RESULT_RENYI_ENTROPY, RESULT_FINAL_STATE
 export RESULT_KEYS
 # Dispersion relations used by plotting helpers; implementations follow mode_analysis.jl

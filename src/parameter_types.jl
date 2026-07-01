@@ -781,6 +781,11 @@ function to_dict(results::TensorNetworkResults)
     )
     _add_nonempty_result!(result, RESULT_BOND_DIMS, results.bond_dims)
     _add_nonempty_result!(result, RESULT_TRUNCATION_ERRORS, results.truncation_errors)
+    result[RESULT_TRUNCATION_ERROR_HISTORY_STATUS] =
+        truncation_error_history_status_label(
+            results.truncation_errors;
+            recorded=!isempty(results.truncation_errors),
+        )
     _add_nonempty_result!(result, RESULT_RENYI_ENTROPY, results.renyi_entropy)
     results.final_state !== nothing && (result[RESULT_FINAL_STATE] = results.final_state)
     return result

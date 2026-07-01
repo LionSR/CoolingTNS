@@ -90,6 +90,8 @@ using CoolingTNS
         @test !haskey(data, CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION)
         @test !haskey(data, CoolingTNS.RESULT_BOND_DIMS)
         @test !haskey(data, CoolingTNS.RESULT_TRUNCATION_ERRORS)
+        @test data[CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS] ==
+              CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED
         @test !haskey(data, CoolingTNS.RESULT_RENYI_ENTROPY)
         @test !haskey(data, "energy_list")
         @test !haskey(data, "gs_overlap_list")
@@ -116,6 +118,8 @@ using CoolingTNS
 
         @test full_data[CoolingTNS.RESULT_BOND_DIMS] === bond_dims
         @test full_data[CoolingTNS.RESULT_TRUNCATION_ERRORS] === truncation_errors
+        @test full_data[CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS] ==
+              CoolingTNS.TRUNCATION_ERROR_HISTORY_MEASURED
         @test full_data[CoolingTNS.RESULT_RENYI_ENTROPY] === renyi_entropy
         @test full_data[CoolingTNS.RESULT_BATH_MAGNETIZATION] === bath_mag
         @test full_data[CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION] === bath_sample_mag
@@ -229,6 +233,12 @@ using CoolingTNS
             CoolingTNS.TRUNCATION_ERROR_HISTORY_EMPTY,
         )
         @test CoolingTNS.require_truncation_error_history_status_label("measured") ==
+              CoolingTNS.TRUNCATION_ERROR_HISTORY_MEASURED
+        @test CoolingTNS.truncation_error_history_status_label(Float64[]) ==
+              CoolingTNS.TRUNCATION_ERROR_HISTORY_NOT_RECORDED
+        @test CoolingTNS.truncation_error_history_status_label(Float64[]; recorded=true) ==
+              CoolingTNS.TRUNCATION_ERROR_HISTORY_EMPTY
+        @test CoolingTNS.truncation_error_history_status_label([1e-12]; recorded=true) ==
               CoolingTNS.TRUNCATION_ERROR_HISTORY_MEASURED
         @test_throws ArgumentError CoolingTNS.require_truncation_error_history_status_label(
             "estimated",
