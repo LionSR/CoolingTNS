@@ -63,6 +63,22 @@ end
     @test_throws ArgumentError parse_args(["--unknown"])
 end
 
+@testset "Mode cooling diagnostic detuning markers distinguish resonance" begin
+    marker = ModeCoolingDiagnosticScript._mode_detuning_marker
+    script_text = read(
+        joinpath(@__DIR__, "..", "scripts", "diagnostics", "mode_cooling_diagnostic.jl"),
+        String,
+    )
+
+    @test marker(1.0, 1.0) == "  ← resonant"
+    @test marker(1.0 + 5e-9, 1.0) == "  ← resonant"
+    @test marker(1.1, 1.0) == "  ← nearest to |Δ|"
+    @test marker(1.1, nothing) == ""
+    @test marker(1.1, [1.0, 1.2]) == ""
+    @test occursin("modes nearest to |Δ| are marked by *", script_text)
+    @test !occursin("resonant modes are marked by *", script_text)
+end
+
 @testset "Mode cooling diagnostic runs a one-cycle exact control" begin
     parse_args = ModeCoolingDiagnosticScript.parse_mode_cooling_diagnostic_args
     cfg = parse_args([

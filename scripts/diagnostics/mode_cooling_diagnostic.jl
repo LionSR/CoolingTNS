@@ -162,6 +162,15 @@ end
 
 _mode_index_label(k) = k isa Rational ? "$(numerator(k))/$(denominator(k))" : "$(k)"
 
+function _mode_detuning_marker(εk_code, Δ; atol=1e-8)
+    δ_abs = CoolingTNS.bath_detuning_energy(Δ)
+    δ_abs === nothing && return ""
+    if isapprox(εk_code, δ_abs; atol=atol, rtol=sqrt(eps(Float64)))
+        return "  ← resonant"
+    end
+    return "  ← nearest to |Δ|"
+end
+
 function _mode_occupation_from_diagnostic_results(results)
     return CoolingTNS.mode_occupation_from_results(results; require_hk=true)
 end
@@ -229,7 +238,7 @@ function run_diagnostic(config=DEFAULT_MODE_COOLING_DIAGNOSTIC_CONFIG; do_plot=n
     println("─" ^ 60)
     println("  Mode Dispersion")
     println("─" ^ 60)
-    @printf("  %-8s  %-12s  %-12s  %-12s  %-8s\n", "k", "φ_k", "ε_k(code)", "ε_k(notes)", "|ε_k - Δ|")
+    @printf("  %-8s  %-12s  %-12s  %-12s  %-8s\n", "k", "φ_k", "ε_k(code)", "ε_k/Λ", "|ε_k-|Δ||")
     println("  " * "─" ^ 56)
     εk_all = [Λ * CoolingTNS.mode_energy(Float64(ki), θ, N) for ki in ks]
     res_disp_indices = Set(CoolingTNS.nearest_bath_resonance_indices(εk_all, Δ))
@@ -238,9 +247,10 @@ function run_diagnostic(config=DEFAULT_MODE_COOLING_DIAGNOSTIC_CONFIG; do_plot=n
         εk_code = Λ * εk_notes
         φk = 2π * Float64(k) / N
         k_str = _mode_index_label(k)
+        marker = idx in res_disp_indices ? _mode_detuning_marker(εk_code, Δ) : ""
         @printf("  %-8s  %12.6f  %12.6f  %12.6f  %8.4f%s\n",
                 k_str, φk, εk_code, εk_notes, abs(εk_code - abs(Δ)),
-                idx in res_disp_indices ? "  ← resonant" : "")
+                marker)
     end
     println()
 
@@ -281,7 +291,7 @@ function run_diagnostic(config=DEFAULT_MODE_COOLING_DIAGNOSTIC_CONFIG; do_plot=n
     println("=" ^ 80)
     println("  Cooling Summary Table: Bogoliubov occupations n_k^Bog")
     println("=" ^ 80)
-    println("  Table entries are quasiparticle occupations n_k^Bog; resonant modes are marked by *.")
+    println("  Table entries are quasiparticle occupations n_k^Bog; modes nearest to |Δ| are marked by *.")
     println()
 
     # Header
@@ -313,7 +323,7 @@ function run_diagnostic(config=DEFAULT_MODE_COOLING_DIAGNOSTIC_CONFIG; do_plot=n
         println()
     end
     println()
-    println("  * = resonant modes (closest to Δ = $(round(abs(Δ), digits=4)))")
+    println("  * = modes nearest to |Δ| = $(round(abs(Δ), digits=4)); exact resonance requires ε_k ≈ |Δ|.")
     println()
 
     # ========================================================================
@@ -356,7 +366,7 @@ function run_diagnostic(config=DEFAULT_MODE_COOLING_DIAGNOSTIC_CONFIG; do_plot=n
     println("  Mode Cooling Effectiveness: Bogoliubov occupations n_k^Bog")
     println("=" ^ 80)
     @printf("  %-10s  %-10s  %-12s  %-12s  %-10s  %-10s\n",
-            "k", "ε_k", "n_Bog(init)", "n_Bog(final)", "Δn_Bog", "|ε_k - Δ|")
+            "k", "ε_k", "n_Bog(init)", "n_Bog(final)", "Δn_Bog", "|ε_k-|Δ||")
     println("  " * "─" ^ 66)
 
     for i in 1:n_modes
@@ -364,7 +374,7 @@ function run_diagnostic(config=DEFAULT_MODE_COOLING_DIAGNOSTIC_CONFIG; do_plot=n
         k_str = _mode_index_label(k)
         nk_init = mode_nk[1, i]
         nk_final = mode_nk[end, i]
-        marker = i in res_indices ? "  ← resonant" : ""
+        marker = i in res_indices ? _mode_detuning_marker(εk_values[i], Δ) : ""
         @printf("  %-10s  %10.4f  %12.6f  %12.6f  %10.6f  %10.4f%s\n",
                 k_str, εk_values[i], nk_init, nk_final, nk_final - nk_init,
                 abs(εk_values[i] - abs(Δ)), marker)
