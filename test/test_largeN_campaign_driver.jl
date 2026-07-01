@@ -330,6 +330,15 @@ end
     @test occursin("# Warning:", short_period_plan)
     @test occursin("R=5,10", short_period_plan)
 
+    round_robin_short_period_cfg = parse_args([
+        "--R-values", "2,5",
+        "--steps", "2",
+        "--outdir", tempdir(),
+    ])
+    @test incomplete_deterministic_schedule_period_R_values(
+        round_robin_short_period_cfg
+    ) == [5]
+
     random_short_period_cfg = parse_args([
         "--R-values", "10",
         "--steps", "2",

@@ -862,7 +862,7 @@ end
 function incomplete_deterministic_schedule_period_message(cfg)
     partial_R_values = incomplete_deterministic_schedule_period_R_values(cfg)
     isempty(partial_R_values) && return nothing
-    return "requested $(cfg["steps"]) cooling cycles is shorter than one full " *
+    return "requested $(cfg["steps"])-cycle window is shorter than one full " *
            "deterministic detuning-grid period for R=$(join(partial_R_values, ",")); " *
            "these jobs are valid cap-pressure probes, but they cannot by " *
            "themselves establish full-grid multi-frequency cooling evidence."
