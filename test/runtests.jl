@@ -27,6 +27,7 @@ end
         include("test_largeN_artifact_provenance_script.jl")
         include("test_tdvp_progress_summary_script.jl")
         include("test_largeN_campaign_driver.jl")
+        include("test_physics_investigation_report.jl")
     end
 
     @testset "Correctness" begin
