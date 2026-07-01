@@ -16,6 +16,7 @@ using CoolingTNS
         @test data[CoolingTNS.RESULT_GROUND_STATE_OVERLAP] === overlap
         @test data[CoolingTNS.RESULT_PURITY] === purity
         @test !haskey(data, CoolingTNS.RESULT_BATH_MAGNETIZATION)
+        @test !haskey(data, CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS)
         @test !haskey(data, "energy_list")
         @test !haskey(data, "gs_overlap_list")
 
@@ -28,6 +29,7 @@ using CoolingTNS
         data_with_bath = CoolingTNS.to_dict(results_with_bath)
 
         @test data_with_bath[CoolingTNS.RESULT_BATH_MAGNETIZATION] === bath_mag
+        @test !haskey(data_with_bath, CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS)
         @test !haskey(data_with_bath, "bath_magnetization_list")
     end
 
@@ -58,6 +60,7 @@ using CoolingTNS
         @test data[CoolingTNS.RESULT_GROUND_STATE_OVERLAP_STD] === overlap_std
         @test !haskey(data, CoolingTNS.RESULT_BATH_MAGNETIZATION)
         @test !haskey(data, CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION)
+        @test !haskey(data, CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS)
 
         results_with_bath = CoolingTNS.MonteCarloResults(
             E,
@@ -75,6 +78,7 @@ using CoolingTNS
 
         @test data_with_bath[CoolingTNS.RESULT_BATH_MAGNETIZATION] === bath_mag
         @test data_with_bath[CoolingTNS.RESULT_BATH_SAMPLE_MAGNETIZATION] === bath_sample_mag
+        @test !haskey(data_with_bath, CoolingTNS.RESULT_TRUNCATION_ERROR_HISTORY_STATUS)
         @test !haskey(data_with_bath, "bath_magnetization_list")
         @test !haskey(data_with_bath, "bath_sample_magnetization_list")
     end
