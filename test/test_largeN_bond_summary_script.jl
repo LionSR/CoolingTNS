@@ -342,6 +342,55 @@ end
     end
 end
 
+@testset "Large-N summary rejects unknown explicit detuning protocol source metadata" begin
+    for source_level in (:method, :run)
+        path = tempname() * ".h5"
+        try
+            h5open(path, "w") do f
+                write(f, LARGE_N_ROOT_DMAX_KEY, 8)
+                gn = create_group(f, largeN_n_group_name(4))
+                write(gn, LARGE_N_SYSTEM_SIZE_KEY, 4)
+                gm = create_group(gn, "mcwf")
+                if source_level === :method
+                    write(gm, LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY, "adaptive_range")
+                else
+                    write(gm, LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY,
+                          LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE)
+                end
+                write(gm, LARGE_N_DETUNING_DELTA_MIN_KEY, 0.5)
+                write(gm, LARGE_N_DETUNING_DELTA_MAX_KEY, 3.0)
+                write(gm, LARGE_N_DETUNING_DELTA_MAX_FACTOR_KEY, NaN)
+                gr = create_group(gm, largeN_r_group_name(2))
+                source_level === :run &&
+                    write(gr, LARGE_N_DETUNING_PROTOCOL_SOURCE_KEY, "adaptive_range")
+
+                write(gr, LARGE_N_TRAJECTORY_COUNT_KEY, 1)
+                write(gr, CoolingTNS.RESULT_ENERGY, [-1.0, 0.0, 1.0])
+                write(gr, CoolingTNS.RESULT_RELATIVE_ENERGY, [0.0, 1.0, 2.0])
+                write(gr, LARGE_N_SYSTEM_MAX_BOND_KEY, [1, 2, 3])
+                write(gr, LARGE_N_SYSTEM_MEAN_BOND_KEY, [1.0, 2.0, 3.0])
+                write(gr, LARGE_N_EVOLVED_MAX_BOND_KEY, [0, 4, 8])
+                write(gr, LARGE_N_EVOLVED_MEAN_BOND_KEY, [NaN, 4.0, 8.0])
+            end
+
+            err = try
+                summarize_file(path)
+                nothing
+            catch caught
+                caught
+            end
+            @test err isa ArgumentError
+            message = sprint(showerror, err)
+            @test occursin("detuning protocol source", message)
+            @test occursin("gap_scaled_range", message)
+            @test occursin("fixed_range", message)
+            @test occursin("adaptive_range", message)
+        finally
+            rm(path; force=true)
+        end
+    end
+end
+
 @testset "Large-N bond-dimension summary script" begin
     path = tempname() * ".h5"
     try

@@ -22,6 +22,33 @@ const LARGE_N_DETUNING_REFERENCE_SETUP_GAP = "setup_gap"
 const LARGE_N_DETUNING_REFERENCE_ISING_MODE_PAIR = "ising_mode_pair_reference"
 const LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE = "gap_scaled_range"
 const LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE = "fixed_range"
+const LARGE_N_DETUNING_PROTOCOL_SOURCES = (
+    LARGE_N_DETUNING_PROTOCOL_GAP_SCALED_RANGE,
+    LARGE_N_DETUNING_PROTOCOL_FIXED_RANGE,
+)
+
+"""
+    require_largeN_detuning_protocol_source_label(source) -> String
+
+Validate a stored large-N detuning-protocol source label.  Missing legacy
+metadata is handled by readers before calling this function; an explicit
+source must be one of the writer vocabulary labels.
+"""
+function require_largeN_detuning_protocol_source_label(source)
+    label = if source isa AbstractString || source isa Symbol
+        String(source)
+    else
+        throw(ArgumentError(
+            "large-N detuning protocol source must be a string or Symbol, " *
+            "got $(repr(source))"
+        ))
+    end
+    label in LARGE_N_DETUNING_PROTOCOL_SOURCES && return label
+    throw(ArgumentError(
+        "unknown large-N detuning protocol source '$label'; expected one of " *
+        join(LARGE_N_DETUNING_PROTOCOL_SOURCES, ", ")
+    ))
+end
 
 # Generic reader-facing summary labels used by large-N validation tables.
 # These distinguish absent, unknown, empty, and legacy provenance without
