@@ -444,6 +444,9 @@ normalize_ws(s::AbstractString) = replace(s, r"\s+" => " ")
     @test occursin("Progress CSV files written before the coupling-strength scan axis do not contain a `g` column", evidence_flat)
     @test occursin("`legacy_missing` rather than leaving a blank coupling-strength cell", evidence_flat)
     @test occursin("If a file contains the `g` column but an individual field is empty, the summarizer uses the neutral label `missing`", evidence_flat)
+    @test occursin("The progress-CSV reader validates the header against the shared schema", evidence_flat)
+    @test occursin("`g` is the only schema column that may be omitted by legacy progress files", evidence_flat)
+    @test occursin("duplicate header columns are rejected", evidence_flat)
     @test occursin("only the generated TDVP commands carry the TDVP-only observer options", evidence_flat)
     end
 

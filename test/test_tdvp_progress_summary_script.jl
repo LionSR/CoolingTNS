@@ -86,6 +86,56 @@ end
           TDVPProgressCSVSummary.LARGE_N_DETUNING_COVERAGE_FULL_GRID
     @test TDVPProgressCSVSummary.visited_detunings_label_from_counts([2], 3) ==
           "2/3"
+    @test TDVPProgressCSVSummary.validate_progress_csv_header(
+        "current.csv",
+        collect(TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS),
+    ) === nothing
+    @test TDVPProgressCSVSummary.validate_progress_csv_header(
+        "future.csv",
+        vcat(collect(TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS),
+             ["future_observable"]),
+    ) === nothing
+    legacy_progress_columns = String[
+        column for column in TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS
+        if column != TDVPProgressCSVSummary.LARGE_N_PROGRESS_G_KEY
+    ]
+    @test TDVPProgressCSVSummary.validate_progress_csv_header(
+        "legacy.csv", legacy_progress_columns,
+    ) === nothing
+    missing_R_columns = String[
+        column for column in TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS
+        if column != TDVPProgressCSVSummary.LARGE_N_PROGRESS_R_KEY
+    ]
+    missing_R_err = try
+        TDVPProgressCSVSummary.validate_progress_csv_header(
+            "missing_R.csv", missing_R_columns,
+        )
+        nothing
+    catch err
+        err
+    end
+    @test missing_R_err isa ArgumentError
+    @test occursin("missing required column", sprint(showerror, missing_R_err))
+    @test occursin(TDVPProgressCSVSummary.LARGE_N_PROGRESS_R_KEY,
+                   sprint(showerror, missing_R_err))
+    @test occursin(TDVPProgressCSVSummary.LARGE_N_PROGRESS_G_KEY,
+                   sprint(showerror, missing_R_err))
+    duplicate_header_err = try
+        TDVPProgressCSVSummary.validate_progress_csv_header(
+            "duplicate.csv",
+            vcat(
+                collect(TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS),
+                [TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_KEY],
+            ),
+        )
+        nothing
+    catch err
+        err
+    end
+    @test duplicate_header_err isa ArgumentError
+    @test occursin("duplicate column", sprint(showerror, duplicate_header_err))
+    @test occursin(TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_KEY,
+                   sprint(showerror, duplicate_header_err))
     @test TDVPProgressCSVSummary.LARGE_N_PROGRESS_GROUP_COLUMNS == (
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_N_KEY,
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_METHOD_KEY,
@@ -509,6 +559,35 @@ end
         finally
             rm(bad_stage_path; force=true)
         end
+    end
+
+    missing_required_column_path = tempname() * ".csv"
+    try
+        missing_required_columns = String[
+            column for column in TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS
+            if column != TDVPProgressCSVSummary.LARGE_N_PROGRESS_R_KEY
+        ]
+        open(missing_required_column_path, "w") do io
+            println(io, join(missing_required_columns, ","))
+            println(io, tdvp_progress_line(
+                columns=missing_required_columns,
+                stage="initial", step=1, cycle=0, delta="NaN", te="NaN",
+                energy_per_site="1.0", relative_energy="2.0", overlap="0.0",
+                system_max_bond="1", evolved_max_bond="NaN", elapsed_seconds=0.5,
+            ))
+        end
+        err = try
+            TDVPProgressCSVSummary.read_progress_csv(missing_required_column_path)
+            nothing
+        catch caught
+            caught
+        end
+        @test err isa ArgumentError
+        @test occursin("missing required column", sprint(showerror, err))
+        @test occursin(TDVPProgressCSVSummary.LARGE_N_PROGRESS_R_KEY,
+                       sprint(showerror, err))
+    finally
+        rm(missing_required_column_path; force=true)
     end
 
     tdvp_only_path = tempname() * ".csv"

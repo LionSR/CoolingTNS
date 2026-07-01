@@ -32,10 +32,52 @@ end
 """Compatibility wrapper; the parser itself is defined in largeN_scaling_helpers.jl."""
 parse_csv_line(line::AbstractString) = parse_largeN_progress_csv_line(line)
 
+const LEGACY_OPTIONAL_PROGRESS_CSV_COLUMNS = (LARGE_N_PROGRESS_G_KEY,)
+
+function duplicate_progress_header_columns(header)
+    seen = Set{String}()
+    duplicates = String[]
+    for column in header
+        if column in seen && !(column in duplicates)
+            push!(duplicates, column)
+        end
+        push!(seen, column)
+    end
+    return duplicates
+end
+
+"""
+    validate_progress_csv_header(path, header)
+
+Require the progress CSV header to contain the current recovery schema, except
+for explicitly supported legacy omissions.  Extra columns are allowed so future
+writers can add fields without breaking old recovery tools.
+"""
+function validate_progress_csv_header(path::AbstractString, header)
+    duplicates = duplicate_progress_header_columns(header)
+    isempty(duplicates) || throw(ArgumentError(
+        "progress CSV header in $path contains duplicate column(s): " *
+        join(duplicates, ", ")
+    ))
+
+    missing_required = String[
+        column for column in LARGE_N_PROGRESS_CSV_COLUMNS
+        if !(column in header) && !(column in LEGACY_OPTIONAL_PROGRESS_CSV_COLUMNS)
+    ]
+    isempty(missing_required) || throw(ArgumentError(
+        "progress CSV header in $path is missing required column(s): " *
+        join(missing_required, ", ") *
+        ". Only $(join(LEGACY_OPTIONAL_PROGRESS_CSV_COLUMNS, ", ")) may be " *
+        "omitted by legacy progress files."
+    ))
+    return nothing
+end
+
 function read_progress_csv(path::AbstractString)
     lines = readlines(path)
     isempty(lines) && throw(ArgumentError("progress CSV is empty: $path"))
     header = parse_largeN_progress_csv_line(lines[1])
+    validate_progress_csv_header(path, header)
     rows = Vector{Dict{String,String}}()
     for (line_number, line) in enumerate(lines[2:end])
         isempty(line) && continue
@@ -45,9 +87,6 @@ function read_progress_csv(path::AbstractString)
             "but the header has $(length(header))"
         ))
         row = Dict(zip(header, values))
-        haskey(row, LARGE_N_PROGRESS_STAGE_KEY) || throw(ArgumentError(
-            "progress CSV header in $path is missing the required stage column"
-        ))
         require_largeN_progress_stage_label(row[LARGE_N_PROGRESS_STAGE_KEY])
         push!(rows, row)
     end
