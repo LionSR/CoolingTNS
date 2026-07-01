@@ -37,6 +37,7 @@ end
     @test parse_args(["--help"]; io=help_io) === nothing
     help_text = String(take!(help_io))
     @test occursin("run_largeN_multifrequency_tn_scaling.jl [options]", help_text)
+    @test occursin("quick reference; detailed protocol examples are in the script header", help_text)
     @test occursin("--Ns LIST", help_text)
     @test occursin("--delta-min FLOAT --delta-max FLOAT", help_text)
     @test occursin("--print-parallel-plan", help_text)

@@ -334,6 +334,8 @@ const _LARGE_N_OPTION_CATEGORIES = (
 function largeN_campaign_usage(io=stdout)
     println(io, "usage: julia --project=. --startup-file=no scripts/validation/run_largeN_multifrequency_tn_scaling.jl [options]")
     println(io)
+    println(io, "This is a quick reference; detailed protocol examples are in the script header.")
+    println(io)
     println(io, "Core campaign axes:")
     println(io, "  --Ns LIST                    system sizes, default 64")
     println(io, "  --R-values LIST              frequency counts, default 1,2,5,10")
