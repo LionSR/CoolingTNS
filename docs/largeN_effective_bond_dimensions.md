@@ -105,6 +105,11 @@ grid is labelled `partial_grid_observed`, while completed rows with no finite
 detuning values are labelled `missing_detuning_values`.  These CSV labels are
 therefore observation-based for the finite detunings present in the progress
 file; unlike the HDF5 summary, they are not gated by stored schedule metadata.
+The campaign driver now also warns before a direct run, and prints a note in a
+parallel plan, whenever a deterministic requested window has `steps < R`.
+Those jobs remain valid cap-pressure probes, but the warning means the
+requested protocol cannot by itself establish full-grid multi-frequency cooling
+evidence.
 Progress CSV files written before the coupling-strength scan axis do not
 contain a `g` column; the progress summarizer displays those entries as
 `legacy_missing` rather than leaving a blank coupling-strength cell.  If a

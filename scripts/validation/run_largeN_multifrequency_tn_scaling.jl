@@ -136,6 +136,12 @@ group also records `tdvp_sweep_max_bond` and
 `tdvp_sweep_saturation_cycle`, so sweep-level cap events are recoverable
 without the progress CSV.
 
+For deterministic schedules, a requested window with `steps < R` cannot cover
+one full detuning-grid period.  The driver warns, and parallel plans print the
+same note, but the job is still allowed because such short prefixes are useful
+cap-pressure probes.  Treat these outputs as partial-grid diagnostics unless
+the HDF5 summary later reports full detuning coverage.
+
 Add `--randomize-times` to draw each cycle time independently from
 `Uniform(0, 2te)`.  The HDF5 output records the resulting `te_list` or
 trajectory-resolved `te_lists`, and the default filename receives a `_randtime`
@@ -848,6 +854,27 @@ function warn_if_mode_progress_csv_recommended(cfg)
     return true
 end
 
+function incomplete_deterministic_schedule_period_R_values(cfg)
+    cfg["schedule_symbol"] in (:round_robin, :descending) || return Int[]
+    return Int[R for R in cfg["R_values"] if cfg["steps"] < R]
+end
+
+function incomplete_deterministic_schedule_period_message(cfg)
+    partial_R_values = incomplete_deterministic_schedule_period_R_values(cfg)
+    isempty(partial_R_values) && return nothing
+    return "requested $(cfg["steps"])-cycle window is shorter than one full " *
+           "deterministic detuning-grid period for R=$(join(partial_R_values, ",")); " *
+           "these jobs are valid cap-pressure probes, but they cannot by " *
+           "themselves establish full-grid multi-frequency cooling evidence."
+end
+
+function warn_if_incomplete_deterministic_schedule_period(cfg)
+    message = incomplete_deterministic_schedule_period_message(cfg)
+    message === nothing && return false
+    @warn message
+    return true
+end
+
 function print_parallel_plan(cfg; io=stdout)
     commands = parallel_plan_commands(cfg)
     println(io, "# large-N campaign parallel job plan")
@@ -867,6 +894,9 @@ function print_parallel_plan(cfg; io=stdout)
     if cfg["trajectory_values"] !== nothing
         println(io, "# Trajectory jobs use --M-mcwf 1 and the requested trajectory index in the stored seed rule.")
     end
+    period_message = incomplete_deterministic_schedule_period_message(cfg)
+    period_message === nothing ||
+        println(io, "# Warning: $period_message")
     if cfg["progress_csv"] === nothing
         println(io, "# No progress CSV path requested.")
         if mode_progress_csv_recommended(cfg)
@@ -1810,6 +1840,7 @@ function run_largeN_multifrequency_tn_scaling_main()
         return nothing
     end
     warn_if_mode_progress_csv_recommended(cfg)
+    warn_if_incomplete_deterministic_schedule_period(cfg)
     Dmax_values = campaign_dmax_values(cfg)
     g_values = campaign_g_values(cfg)
     te_values = campaign_te_values(cfg)
