@@ -218,15 +218,20 @@ For long-cycle diagnostics, the summary script reports the initial row together
 with three later energy readouts.  `initial E/N`, `initial relE`, and
 `initial overlap` are read from the stored cycle-0 energy and ground-state
 overlap histories; they make `--init-state ground` controls auditable from the
-same table as the bond diagnostics.  `final E/N` is the last recorded energy
-density, `best E/N` is the lowest recorded energy density, and `tail E/N` is the
-average over the last ten recorded rows, or over the whole trace if fewer than
-ten rows are present.  `best relE` is the smallest recorded relative energy;
-this is kept as a separate column because a severely truncated trajectory could
-in principle undershoot the ground-state reference in raw energy.  These fields
-separate initial-state provenance, monotone cooling, transient low-energy
-excursions, and late-time plateaus without assuming that a finite trajectory has
-reached a fixed point.
+same table as the bond diagnostics.  If an HDF5 file stores overlap histories,
+the summary path now requires finite ground-state overlaps in the physical
+interval `[0,1]`: MCWF/MPS overlaps use a roundoff-scale tolerance, while
+truncated MPO density-matrix overlaps use a looser compression-scale tolerance
+because MPO truncation need not preserve trace and positivity exactly.  Archived
+files with no overlap dataset still receive the explicit legacy `NaN` fallback.
+`final E/N` is the last recorded energy density, `best E/N` is the lowest
+recorded energy density, and `tail E/N` is the average over the last ten
+recorded rows, or over the whole trace if fewer than ten rows are present.
+`best relE` is the smallest recorded relative energy; this is kept as a separate
+column because a severely truncated trajectory could in principle undershoot the
+ground-state reference in raw energy.  These fields separate initial-state
+provenance, monotone cooling, transient low-energy excursions, and late-time
+plateaus without assuming that a finite trajectory has reached a fixed point.
 
 The current HDF5 summary table therefore contains the sweep-specific columns
 `Dtdvp_sweep_eff`, `peak tdvp sweep max`, and `tdvp sweep sat` in addition to

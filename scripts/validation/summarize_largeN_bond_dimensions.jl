@@ -67,6 +67,13 @@ include(joinpath(@__DIR__, "largeN_scaling_helpers.jl"))
 const LINK_QUANTILE_PROBABILITIES = [0.50, 0.75, 0.90, 0.95]
 const LINK_THRESHOLD_FRACTIONS = [0.50, 0.75, 0.90]
 const ENERGY_TAIL_WINDOW = 10
+const MCWF_OVERLAP_BOUND_ATOL = 1e-10
+const MPO_OVERLAP_BOUND_ATOL = 1e-3
+
+function overlap_bound_atol(method_name::AbstractString)
+    largeN_method_kind_from_name(method_name) == :mpo && return MPO_OVERLAP_BOUND_ATOL
+    return MCWF_OVERLAP_BOUND_ATOL
+end
 
 function usage()
     println(
@@ -552,14 +559,67 @@ function read_largeN_energy_mean_with_name(run_group)
 end
 
 """
-    read_overlap_trajectory_matrix(run_group, nsteps, M)
+    validate_overlap_values(values, dataset_name; bound_atol=MCWF_OVERLAP_BOUND_ATOL)
+
+Require a present ground-state-overlap dataset to contain finite probabilities
+in the physical interval `[0,1]`, up to roundoff.  `dataset_name` is used in
+error messages so malformed HDF5 artifacts can be traced to the offending
+overlap source.  MCWF/MPS overlaps use the default pure-state tolerance; callers
+summarizing truncated MPO density matrices pass a looser tolerance because MPO
+compression need not preserve trace and positivity to roundoff accuracy.
+"""
+function validate_overlap_values(values, dataset_name::AbstractString;
+                                 bound_atol::Real=MCWF_OVERLAP_BOUND_ATOL)
+    tolerance = Float64(bound_atol)
+    tolerance >= 0 || throw(ArgumentError(
+        "ground-state overlap bound tolerance must be non-negative"
+    ))
+    for value in values
+        if !isfinite(value)
+            throw(ArgumentError(
+                "$dataset_name contains non-finite ground-state overlap " *
+                "$(repr(value)); files without overlap data should omit overlap " *
+                "datasets rather than store non-finite values"
+            ))
+        end
+        if value < -tolerance || value > 1 + tolerance
+            throw(ArgumentError(
+                "$dataset_name contains ground-state overlap $(repr(value)) " *
+                "outside physical interval [0, 1]"
+            ))
+        end
+    end
+    return values
+end
+
+const OVERLAP_MEAN_DATASET_KEYS = (
+    RESULT_GROUND_STATE_OVERLAP,
+    LARGE_N_LEGACY_GROUND_STATE_OVERLAP_KEY,
+)
+
+function validate_present_overlap_mean_datasets(run_group; bound_atol::Real)
+    for dataset_name in OVERLAP_MEAN_DATASET_KEYS
+        haskey(run_group, dataset_name) || continue
+        validate_overlap_values(
+            Float64.(vec(read(run_group[dataset_name]))),
+            dataset_name;
+            bound_atol=bound_atol,
+        )
+    end
+    return nothing
+end
+
+"""
+    read_overlap_trajectory_matrix(run_group, nsteps, M; bound_atol)
 
 Return a `(nsteps, M)` matrix of ground-state overlaps.  Current campaign files
 store trajectory-resolved overlaps; older files may store only the aggregate
-overlap history.  Files without overlap data are summarized with `NaN` entries
-so legacy bond-dimension tables remain readable.
+overlap history.  Present overlap datasets are validated by
+`validate_overlap_values`.  Files without overlap data are summarized with
+`NaN` entries so legacy bond-dimension tables remain readable.
 """
-function read_overlap_trajectory_matrix(run_group, nsteps::Integer, M::Integer)
+function read_overlap_trajectory_matrix(run_group, nsteps::Integer, M::Integer;
+                                        bound_atol::Real=MCWF_OVERLAP_BOUND_ATOL)
     trajectory_key = if haskey(run_group, RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES)
         RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES
     elseif haskey(run_group, LARGE_N_LEGACY_GROUND_STATE_OVERLAP_TRAJECTORIES_KEY)
@@ -569,10 +629,15 @@ function read_overlap_trajectory_matrix(run_group, nsteps::Integer, M::Integer)
     end
     if trajectory_key !== nothing
         values = read(run_group[trajectory_key])
-        values isa AbstractVector && return reshape(Float64.(values), :, 1)
-        return Matrix{Float64}(values)
+        overlap_matrix = values isa AbstractVector ?
+            reshape(Float64.(values), :, 1) :
+            Matrix{Float64}(values)
+        validate_overlap_values(overlap_matrix, trajectory_key; bound_atol=bound_atol)
+        validate_present_overlap_mean_datasets(run_group; bound_atol=bound_atol)
+        return overlap_matrix
     end
 
+    validate_present_overlap_mean_datasets(run_group; bound_atol=bound_atol)
     overlap_mean = if haskey(run_group, RESULT_GROUND_STATE_OVERLAP)
         Float64.(vec(read(run_group[RESULT_GROUND_STATE_OVERLAP])))
     elseif haskey(run_group, LARGE_N_LEGACY_GROUND_STATE_OVERLAP_KEY)
@@ -657,7 +722,9 @@ function summarize_run(file_name::AbstractString, root, n_group_name::AbstractSt
             "match energy length $(length(energy_mean)) in " *
             "$(basename(file_name))/$n_group_name/$method_name/$r_group_name"
         )
-    overlap_trajectories = read_overlap_trajectory_matrix(run_group, length(energy_mean), M)
+    overlap_trajectories = read_overlap_trajectory_matrix(
+        run_group, length(energy_mean), M; bound_atol=overlap_bound_atol(method_name)
+    )
     size(overlap_trajectories, 2) == M ||
         error(
             "overlap trajectory column count $(size(overlap_trajectories, 2)) does not " *

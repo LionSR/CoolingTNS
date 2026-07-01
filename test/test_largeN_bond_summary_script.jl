@@ -498,6 +498,9 @@ end
         @test row.delta_range == "[0.50000000,3.00000000]"
         @test row.delta_factor == "n/a"
         @test row.threshold == 12
+        @test overlap_bound_atol("mcwf") == MCWF_OVERLAP_BOUND_ATOL
+        @test overlap_bound_atol("MPO") == MPO_OVERLAP_BOUND_ATOL
+        @test_throws ArgumentError overlap_bound_atol("ed")
         @test row.initial_e_over_n == -0.25
         @test row.initial_relative_energy == 0.0
         @test row.initial_overlap == 0.75
@@ -956,6 +959,9 @@ end
                                              energy_trajectories=nothing,
                                              stop_reasons=nothing,
                                              overlap_trajectories=nothing,
+                                             overlap_dataset=LARGE_N_LEGACY_GROUND_STATE_OVERLAP_TRAJECTORIES_KEY,
+                                             overlap_mean=nothing,
+                                             overlap_mean_dataset=CoolingTNS.RESULT_GROUND_STATE_OVERLAP,
                                              n_group_name=largeN_n_group_name(2),
                                              stored_N=2,
                                              method_name="mcwf",
@@ -981,8 +987,10 @@ end
                 write(gr, CoolingTNS.RESULT_ENERGY_TRAJECTORIES,
                       Float64.(energy_trajectories))
             overlap_trajectories === nothing ||
-                write(gr, LARGE_N_LEGACY_GROUND_STATE_OVERLAP_TRAJECTORIES_KEY,
+                write(gr, overlap_dataset,
                       Float64.(overlap_trajectories))
+            overlap_mean === nothing ||
+                write(gr, overlap_mean_dataset, Float64.(overlap_mean))
             stop_reasons === nothing ||
                 write(gr, LARGE_N_STOP_REASONS_KEY, String.(stop_reasons))
         end
@@ -993,6 +1001,14 @@ end
     bad_energy_columns_path = tempname() * ".h5"
     bad_energy_rows_path = tempname() * ".h5"
     legacy_overlap_path = tempname() * ".h5"
+    current_overlap_path = tempname() * ".h5"
+    bad_current_overlap_path = tempname() * ".h5"
+    bad_legacy_overlap_path = tempname() * ".h5"
+    bad_mean_overlap_path = tempname() * ".h5"
+    bad_mean_with_trajectory_path = tempname() * ".h5"
+    mpo_overlap_path = tempname() * ".h5"
+    bad_mpo_overlap_path = tempname() * ".h5"
+    nonfinite_overlap_path = tempname() * ".h5"
     bad_stop_reasons_path = tempname() * ".h5"
     bad_seeds_path = tempname() * ".h5"
     mpo_no_seeds_path = tempname() * ".h5"
@@ -1033,6 +1049,117 @@ end
         legacy_overlap_row = only(summarize_file(legacy_overlap_path))
         @test legacy_overlap_row.initial_overlap ≈ 0.85
         @test legacy_overlap_row.initial_overlap_values == [0.9, 0.8]
+
+        write_legacy_split_metadata_file(
+            current_overlap_path;
+            overlap_dataset=CoolingTNS.RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES,
+            overlap_trajectories=[1.0 + 5e-11 -5e-11; 0.7 0.6],
+        )
+        current_overlap_row = only(summarize_file(current_overlap_path))
+        @test current_overlap_row.initial_overlap ≈ 0.5
+        @test current_overlap_row.initial_overlap_values ≈ [1.0 + 5e-11, -5e-11]
+
+        write_legacy_split_metadata_file(
+            bad_current_overlap_path;
+            overlap_dataset=CoolingTNS.RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES,
+            overlap_trajectories=[1.0 + 1e-6 0.0; 0.7 0.6],
+        )
+        err = try
+            summarize_file(bad_current_overlap_path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        @test occursin(CoolingTNS.RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES, sprint(showerror, err))
+        @test occursin("physical interval [0, 1]", sprint(showerror, err))
+
+        write_legacy_split_metadata_file(
+            bad_legacy_overlap_path;
+            overlap_trajectories=[-1e-6 0.8; 0.7 0.6],
+        )
+        err = try
+            summarize_file(bad_legacy_overlap_path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        @test occursin(
+            LARGE_N_LEGACY_GROUND_STATE_OVERLAP_TRAJECTORIES_KEY,
+            sprint(showerror, err),
+        )
+        @test occursin("physical interval [0, 1]", sprint(showerror, err))
+
+        write_legacy_split_metadata_file(
+            bad_mean_overlap_path;
+            overlap_mean=[0.5, 1.0 + 1e-6],
+        )
+        err = try
+            summarize_file(bad_mean_overlap_path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        @test occursin(CoolingTNS.RESULT_GROUND_STATE_OVERLAP, sprint(showerror, err))
+        @test occursin("physical interval [0, 1]", sprint(showerror, err))
+
+        write_legacy_split_metadata_file(
+            bad_mean_with_trajectory_path;
+            overlap_dataset=CoolingTNS.RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES,
+            overlap_trajectories=[0.9 0.8; 0.7 0.6],
+            overlap_mean=[0.85, NaN],
+        )
+        err = try
+            summarize_file(bad_mean_with_trajectory_path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        @test occursin(CoolingTNS.RESULT_GROUND_STATE_OVERLAP, sprint(showerror, err))
+        @test occursin("non-finite ground-state overlap", sprint(showerror, err))
+
+        write_legacy_split_metadata_file(
+            mpo_overlap_path;
+            method_name="mpo",
+            overlap_mean=[0.5, 1.0 + 5e-4],
+        )
+        mpo_overlap_row = only(summarize_file(mpo_overlap_path))
+        @test mpo_overlap_row.method == "mpo"
+        @test mpo_overlap_row.final_e_over_n == -0.5
+        @test mpo_overlap_row.initial_overlap ≈ 0.5
+
+        write_legacy_split_metadata_file(
+            bad_mpo_overlap_path;
+            method_name="mpo",
+            overlap_mean=[0.5, 1.0 + 2e-3],
+        )
+        err = try
+            summarize_file(bad_mpo_overlap_path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        @test occursin(CoolingTNS.RESULT_GROUND_STATE_OVERLAP, sprint(showerror, err))
+        @test occursin("physical interval [0, 1]", sprint(showerror, err))
+
+        write_legacy_split_metadata_file(
+            nonfinite_overlap_path;
+            overlap_dataset=CoolingTNS.RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES,
+            overlap_trajectories=[0.5 NaN; 0.7 0.6],
+        )
+        err = try
+            summarize_file(nonfinite_overlap_path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        @test occursin(CoolingTNS.RESULT_GROUND_STATE_OVERLAP_TRAJECTORIES, sprint(showerror, err))
+        @test occursin("non-finite ground-state overlap", sprint(showerror, err))
 
         write_legacy_split_metadata_file(mpo_no_seeds_path; method_name="mpo")
         mpo_no_seeds_row = only(summarize_file(mpo_no_seeds_path))
@@ -1121,6 +1248,14 @@ end
         rm(bad_energy_columns_path; force=true)
         rm(bad_energy_rows_path; force=true)
         rm(legacy_overlap_path; force=true)
+        rm(current_overlap_path; force=true)
+        rm(bad_current_overlap_path; force=true)
+        rm(bad_legacy_overlap_path; force=true)
+        rm(bad_mean_overlap_path; force=true)
+        rm(bad_mean_with_trajectory_path; force=true)
+        rm(mpo_overlap_path; force=true)
+        rm(bad_mpo_overlap_path; force=true)
+        rm(nonfinite_overlap_path; force=true)
         rm(bad_stop_reasons_path; force=true)
         rm(bad_seeds_path; force=true)
         rm(mpo_no_seeds_path; force=true)
