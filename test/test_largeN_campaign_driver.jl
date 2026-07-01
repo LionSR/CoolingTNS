@@ -318,13 +318,15 @@ end
         "--outdir", tempdir(),
     ])
     @test incomplete_deterministic_schedule_period_R_values(short_period_cfg) == [5, 10]
+    @test campaign_job_count(short_period_cfg) == 4
+    @test incomplete_deterministic_schedule_period_direct_job_count(short_period_cfg) == 2
     short_period_message =
         incomplete_deterministic_schedule_period_message(short_period_cfg)
     @test short_period_message !== nothing
     @test occursin("R=5,10", short_period_message)
     @test occursin("these jobs are valid cap-pressure probes", short_period_message)
     @test occursin("full-grid multi-frequency cooling evidence", short_period_message)
-    @test_logs (:warn, r"shorter than one full deterministic detuning-grid period") begin
+    @test_logs (:warn, r"these jobs are valid cap-pressure probes") begin
         @test warn_if_incomplete_deterministic_schedule_period(short_period_cfg)
     end
     short_period_plan = sprint(io -> print_parallel_plan(short_period_cfg; io=io))
@@ -356,6 +358,15 @@ end
     @test incomplete_deterministic_schedule_period_R_values(
         round_robin_short_period_cfg
     ) == [5]
+    @test campaign_job_count(round_robin_short_period_cfg) == 2
+    @test incomplete_deterministic_schedule_period_direct_job_count(
+        round_robin_short_period_cfg
+    ) == 1
+    @test_logs (:warn, r"this job is a valid cap-pressure probe") begin
+        @test warn_if_incomplete_deterministic_schedule_period(
+            round_robin_short_period_cfg
+        )
+    end
     round_robin_short_period_plan = sprint(
         io -> print_parallel_plan(round_robin_short_period_cfg; io=io)
     )
@@ -373,6 +384,15 @@ end
         "--schedule", "descending",
         "--outdir", tempdir(),
     ])
+    @test campaign_job_count(single_job_short_period_cfg) == 1
+    @test incomplete_deterministic_schedule_period_direct_job_count(
+        single_job_short_period_cfg
+    ) == 1
+    @test_logs (:warn, r"this job is a valid cap-pressure probe") begin
+        @test warn_if_incomplete_deterministic_schedule_period(
+            single_job_short_period_cfg
+        )
+    end
     single_job_short_period_plan = sprint(
         io -> print_parallel_plan(single_job_short_period_cfg; io=io)
     )
