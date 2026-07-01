@@ -13,6 +13,8 @@ For legacy progress files that do not have the `stop_on_bond_cap` column, use
 `--stopped-on-cap` only for stop-on-cap diagnostics; then a cap-hit sub-grid
 deterministic prefix is labelled `stopped_partial_grid` rather than the default
 observation-only `partial_grid_observed`.  Modern files trust the stored column.
+Pass `--compact` when auditing many progress files and only the run-level
+summary table is needed.
 
 Example:
 
@@ -30,7 +32,8 @@ function usage(io=stdout)
     println(
         io,
         "usage: julia --project=. scripts/validation/summarize_tdvp_progress_csv.jl " *
-        "[--cap D] [--stopped-on-cap] [--help] PROGRESS.csv [PROGRESS2.csv ...]"
+        "[--cap D] [--stopped-on-cap] [--compact] [--help] " *
+        "PROGRESS.csv [PROGRESS2.csv ...]"
     )
 end
 
@@ -364,9 +367,10 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
         visited_detunings=visited_detunings_label_from_counts(
             [visited_detuning_count], R
         ),
-        # Progress CSVs do not store the requested cycle count or stop reason.
-        # Treat a cap hit as stop evidence only when the caller identifies the
-        # run as a stop-on-cap diagnostic.
+        # Progress CSVs do not store the requested cycle count.  Treat a cap-hit
+        # sub-grid prefix as stop evidence only when run provenance identifies
+        # a stop-on-cap diagnostic, either from the modern column or from the
+        # legacy CLI flag.
         detuning_coverage=progress_detuning_coverage_status(
             visited_detuning_count, R, completed_cycles;
             stopped=effective_stopped_on_cap &&
@@ -488,25 +492,35 @@ function print_energy_trace(rows)
     end
 end
 
-function print_markdown(rows)
+function print_markdown(rows; compact::Bool=false)
     print_summary_table(rows)
-    print_energy_trace(rows)
+    if !compact
+        print_energy_trace(rows)
+    end
+    return nothing
 end
 
 function parse_args(args)
     cap = nothing
     stopped_on_cap = false
+    compact = false
     paths = String[]
     i = 1
     while i <= length(args)
         if args[i] in ("--help", "-h")
-            return (paths=paths, cap=cap, stopped_on_cap=stopped_on_cap, help=true)
+            return (
+                paths=paths, cap=cap, stopped_on_cap=stopped_on_cap,
+                compact=compact, help=true,
+            )
         elseif args[i] == "--cap"
             cap = parse(Int, cap_arg_value(args, i))
             cap >= 1 || throw(ArgumentError("--cap must be positive"))
             i += 2
         elseif args[i] == "--stopped-on-cap"
             stopped_on_cap = true
+            i += 1
+        elseif args[i] == "--compact"
+            compact = true
             i += 1
         elseif startswith(args[i], "--")
             throw(ArgumentError("unknown option: $(args[i])"))
@@ -515,7 +529,10 @@ function parse_args(args)
             i += 1
         end
     end
-    return (paths=paths, cap=cap, stopped_on_cap=stopped_on_cap, help=false)
+    return (
+        paths=paths, cap=cap, stopped_on_cap=stopped_on_cap, compact=compact,
+        help=false,
+    )
 end
 
 function summarize_tdvp_progress_csv_main(args=ARGS)
@@ -531,7 +548,7 @@ function summarize_tdvp_progress_csv_main(args=ARGS)
     rows = summarize_progress_files(
         parsed.paths; cap=parsed.cap, stopped_on_cap=parsed.stopped_on_cap
     )
-    print_markdown(rows)
+    print_markdown(rows; compact=parsed.compact)
     return 0
 end
 
