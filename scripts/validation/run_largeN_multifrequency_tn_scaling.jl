@@ -906,7 +906,9 @@ function print_parallel_plan(cfg; io=stdout)
     if cfg["trajectory_values"] !== nothing
         println(io, "# Trajectory jobs use --M-mcwf 1 and the requested trajectory index in the stored seed rule.")
     end
-    period_message = incomplete_deterministic_schedule_period_message(cfg)
+    period_message = incomplete_deterministic_schedule_period_message(
+        cfg; single_job=length(commands) == 1
+    )
     period_message === nothing ||
         println(io, "# Warning: $period_message")
     if cfg["progress_csv"] === nothing

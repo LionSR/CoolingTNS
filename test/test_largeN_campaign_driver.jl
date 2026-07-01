@@ -367,6 +367,26 @@ end
     @test occursin("_R5_", round_robin_partial_period_lines[1])
     @test !occursin("_R2_", round_robin_partial_period_lines[1])
 
+    single_job_short_period_cfg = parse_args([
+        "--R-values", "5",
+        "--steps", "2",
+        "--schedule", "descending",
+        "--outdir", tempdir(),
+    ])
+    single_job_short_period_plan = sprint(
+        io -> print_parallel_plan(single_job_short_period_cfg; io=io)
+    )
+    @test occursin("# Warning:", single_job_short_period_plan)
+    @test occursin(
+        "this job is a valid cap-pressure probe",
+        single_job_short_period_plan,
+    )
+    @test !occursin(
+        "these jobs are valid cap-pressure probes",
+        single_job_short_period_plan,
+    )
+    @test !occursin("Partial-period diagnostic", single_job_short_period_plan)
+
     random_short_period_cfg = parse_args([
         "--R-values", "10",
         "--steps", "2",
