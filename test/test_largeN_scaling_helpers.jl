@@ -236,13 +236,14 @@ include(joinpath(@__DIR__, "..", "scripts", "validation", "largeN_scaling_helper
     @test largeN_progress_csv_cell("plain") == "plain"
     @test largeN_progress_csv_cell("with,comma") == "\"with,comma\""
     @test largeN_progress_csv_cell("with\"quote") == "\"with\"\"quote\""
-    @test largeN_progress_csv_cell("line\nbreak") == "\"line\nbreak\""
+    @test_throws ArgumentError largeN_progress_csv_cell("line\nbreak")
+    @test_throws ArgumentError largeN_progress_csv_cell("line\rbreak")
     @test parse_largeN_progress_csv_line(
         "\"contains,comma\",\"escaped \"\"quote\"\"\",plain",
     ) == ["contains,comma", "escaped \"quote\"", "plain"]
     @test parse_largeN_progress_csv_line("") == [""]
     @test_throws ArgumentError parse_largeN_progress_csv_line("\"unterminated")
-    progress_csv_values = ["plain", "with,comma", "with\"quote", "line\nbreak", ""]
+    progress_csv_values = ["plain", "with,comma", "with\"quote", ""]
     @test parse_largeN_progress_csv_line(
         join((largeN_progress_csv_cell(value) for value in progress_csv_values), ",")
     ) == progress_csv_values

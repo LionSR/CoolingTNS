@@ -315,12 +315,18 @@ const LARGE_N_PROGRESS_CSV_COLUMNS = (
     largeN_progress_csv_cell(x) -> String
 
 Return a single RFC-4180-compatible CSV cell for scalar large-N progress data.
-This is the writer-side counterpart of `parse_largeN_progress_csv_line`.
+Progress CSV files are line-oriented, so scalar values containing row
+delimiters are rejected rather than written as multi-line records.
 """
 function largeN_progress_csv_cell(x)
     x === nothing && return ""
     s = x isa AbstractFloat && isnan(x) ? "NaN" : string(x)
-    if occursin(',', s) || occursin('"', s) || occursin('\n', s) || occursin('\r', s)
+    if occursin('\n', s) || occursin('\r', s)
+        throw(ArgumentError(
+            "large-N progress CSV scalar values must not contain row delimiters"
+        ))
+    end
+    if occursin(',', s) || occursin('"', s)
         return "\"" * replace(s, "\"" => "\"\"") * "\""
     end
     return s
