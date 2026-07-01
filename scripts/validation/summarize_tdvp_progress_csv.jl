@@ -163,19 +163,14 @@ function cap_label(cycle::Integer, sweep)
 end
 
 function default_progress_cap(method::AbstractString, dmax::Integer)
-    kind = try
-        largeN_method_kind_from_name(method)
+    try
+        return largeN_method_maxdim_from_name(method, dmax)
     catch err
         err isa ArgumentError || rethrow()
         throw(ArgumentError(
             "unknown method '$method' in progress CSV; pass --cap D explicitly"
         ))
     end
-    # Keep this recovery CLI independent of the full CoolingTNS/ITensors stack.
-    # The factors are pinned against `tn_method_maxdim` in the test suite.
-    kind === :mcwf && return dmax
-    kind === :mpo && return 4 * dmax
-    error("unreachable large-N method kind '$kind'")
 end
 
 function peak_evolved_bond(rows)

@@ -632,6 +632,20 @@ function largeN_method_kind_from_name(method_name::AbstractString)
 end
 
 """
+    largeN_method_maxdim_from_name(method_name, Dmax) -> Integer
+
+Return the method-dependent tensor-network bond cap for a persisted large-N
+method label.  This mirrors `CoolingTNS.tn_method_maxdim` for the large-N
+validation method vocabulary while keeping recovery scripts lightweight.
+"""
+function largeN_method_maxdim_from_name(method_name::AbstractString, Dmax::Integer)
+    kind = largeN_method_kind_from_name(method_name)
+    kind === :mcwf && return Dmax
+    kind === :mpo && return 4 * Dmax
+    error("unreachable large-N method kind '$kind'")
+end
+
+"""
     write_largeN_detuning_protocol(parent, protocol)
 
 Write the on-disk HDF5 metadata contract for a large-N detuning protocol:

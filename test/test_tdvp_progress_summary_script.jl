@@ -61,10 +61,19 @@ end
           )
     @test TDVPProgressCSVSummary.largeN_method_kind_from_name("mcwf") === :mcwf
     @test TDVPProgressCSVSummary.largeN_method_kind_from_name("MPO") === :mpo
-    @test TDVPProgressCSVSummary.default_progress_cap("mcwf", 7) ==
+    @test TDVPProgressCSVSummary.largeN_method_maxdim_from_name("mcwf", 7) ==
           tn_method_maxdim(MonteCarloWavefunction(), 7)
-    @test TDVPProgressCSVSummary.default_progress_cap("mpo", 7) ==
+    @test TDVPProgressCSVSummary.largeN_method_maxdim_from_name("mpo", 7) ==
           tn_method_maxdim(DensityMatrix(), 7)
+    @test TDVPProgressCSVSummary.default_progress_cap("mcwf", 7) ==
+          TDVPProgressCSVSummary.largeN_method_maxdim_from_name("mcwf", 7)
+    @test TDVPProgressCSVSummary.default_progress_cap("mpo", 7) ==
+          TDVPProgressCSVSummary.largeN_method_maxdim_from_name("mpo", 7)
+    large_dmax = big(typemax(Int)) + 1
+    @test TDVPProgressCSVSummary.largeN_method_maxdim_from_name("mcwf", large_dmax) ==
+          large_dmax
+    @test TDVPProgressCSVSummary.largeN_method_maxdim_from_name("mpo", large_dmax) ==
+          4 * large_dmax
     @test TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGES == (
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_INITIAL,
         TDVPProgressCSVSummary.LARGE_N_PROGRESS_STAGE_PREPARED,
