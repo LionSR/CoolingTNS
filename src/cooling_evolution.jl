@@ -654,15 +654,18 @@ end
 
 """
     validate_mode_measurement_rows(mode_hk, mode_nk, measurement_cycles;
-                                   energy=nothing, energy_name=RESULT_ENERGY)
+                                   energy=nothing, energy_name=RESULT_ENERGY,
+                                   bound_atol=1e-10)
 
 Validate the row contract for a complete Bogoliubov mode-observable payload.
 The stored occupations must satisfy `mode_nk = mode_occupation_from_hk(mode_hk)`;
 the measured cycles must be sorted, unique, nonempty, and in range; and every
-measured row must contain finite `mode_hk` and `mode_nk` values.  If `energy` is
-given, it must have the same time dimension and be finite on the measured rows;
-`energy_name` controls the name used in error messages.  On success, return the
-same `(cycles, rows)` named tuple as `mode_measurement_cycle_rows`.
+measured row must contain finite, physically bounded `mode_hk` and `mode_nk`
+values.  The bounds are `mode_hk ∈ [-1,1]` and `mode_nk ∈ [0,1]`, with
+`bound_atol` allowed for roundoff.  If `energy` is given, it must have the same
+time dimension and be finite on the measured rows; `energy_name` controls the
+name used in error messages.  On success, return the same `(cycles, rows)` named
+tuple as `mode_measurement_cycle_rows`.
 """
 function validate_mode_measurement_rows(
     mode_hk,
@@ -670,6 +673,7 @@ function validate_mode_measurement_rows(
     measurement_cycles;
     energy=nothing,
     energy_name::AbstractString=RESULT_ENERGY,
+    bound_atol::Real=1e-10,
 )
     mode_hk isa AbstractMatrix ||
         throw(ArgumentError("$RESULT_MODE_HK must be a steps-by-modes matrix"))
@@ -704,15 +708,32 @@ function validate_mode_measurement_rows(
         end
     end
 
+    bound_tolerance = Float64(bound_atol)
+    bound_tolerance >= 0 || throw(ArgumentError(
+        "mode-observable bound tolerance must be non-negative; got $bound_atol"
+    ))
+
     for (cycle, row) in zip(measured.cycles, measured.rows)
-        all(isfinite, view(mode_hk, row, :)) || throw(ArgumentError(
+        hk_row = view(mode_hk, row, :)
+        nk_row = view(mode_nk, row, :)
+        all(isfinite, hk_row) || throw(ArgumentError(
             "$RESULT_MODE_HK contains non-finite values on measured cycle $cycle " *
             "(row $row)"
         ))
-        all(isfinite, view(mode_nk, row, :)) || throw(ArgumentError(
+        all(isfinite, nk_row) || throw(ArgumentError(
             "$RESULT_MODE_NK contains non-finite values on measured cycle $cycle " *
             "(row $row)"
         ))
+        all(hk -> -1 - bound_tolerance <= hk <= 1 + bound_tolerance, hk_row) ||
+            throw(ArgumentError(
+                "$RESULT_MODE_HK contains values outside the physical interval " *
+                "[-1, 1] on measured cycle $cycle (row $row)"
+            ))
+        all(nk -> -bound_tolerance <= nk <= 1 + bound_tolerance, nk_row) ||
+            throw(ArgumentError(
+                "$RESULT_MODE_NK contains occupation values outside the physical " *
+                "interval [0, 1] on measured cycle $cycle (row $row)"
+            ))
     end
 
     validate_mode_nk_matches_hk(mode_nk, mode_hk)

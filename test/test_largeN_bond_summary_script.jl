@@ -1440,6 +1440,29 @@ end
     finally
         rm(path; force=true)
     end
+
+    out_of_bounds_path = tempname() * ".h5"
+    try
+        bad_mode_hk = reshape([-1.0, -0.5, 0.0, 1.0 + 1e-6], 1, 4)
+        write_minimal_mode_summary_file(
+            out_of_bounds_path,
+            bad_mode_hk,
+            CoolingTNS.mode_occupation_from_hk(bad_mode_hk),
+        )
+
+        err = try
+            summarize_file(out_of_bounds_path)
+            nothing
+        catch err
+            err
+        end
+        @test err isa ArgumentError
+        message = sprint(showerror, err)
+        @test occursin(CoolingTNS.RESULT_MODE_HK, message)
+        @test occursin("physical interval [-1, 1]", message)
+    finally
+        rm(out_of_bounds_path; force=true)
+    end
 end
 
 @testset "Large-N summary rejects mode occupation shape mismatches" begin
