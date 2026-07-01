@@ -388,7 +388,10 @@ progress CSV filenames keep the requested CSV stem as a prefix and append the
 same HDF5 protocol stem; single-job plans keep the requested CSV path unchanged.
 Default HDF5 protocol stems include the canonical evolution-method token,
 including `trotter`, so paired Trotter/TDVP jobs do not rely on an implicit
-default in the filename.
+default in the filename.  They also include `_dmin..._dmax...` for explicit
+fixed detuning intervals and `_dmaxfac...` for non-default gap-scaled detuning
+factors, so two bath-frequency grids with the same `N`, `R`, `Dmax`, `g`, and
+`te` do not share one default HDF5 path.
 Thus process-level parallelism can be used without concurrent writes to the same
 output file.  To compare the MPS Trotter-gate route with MCWF+TDVP, use
 `--evolution-method-values trotter,continuous` together with an explicit
