@@ -173,22 +173,45 @@ function bsb_gate_count_and_depth(p::NativeGateCircuitParams)
     )
 end
 
+"""
+Accumulate the real phase of `native_zz_evolution_diag(θ, i, j, nq)` (i.e.
+`CP_ij(-4θ)·P_i(2θ)·P_j(2θ)`'s diagonal phase, before `cis`) into `phase` in
+place. Used by `native_chain_diagonal`/`native_pair_diagonal` to sum many
+pairs' contributions with a single `O(2^nq)`-sized array and a single `cis.`
+at the end, instead of allocating a fresh `2^nq`-sized diagonal per pair and
+multiplying them together (prohibitive once `2^nq` and the pair count both
+grow -- this dominated the per-cycle cost at N≳10).
+"""
+function _accumulate_zz_phase!(phase::Vector{Float64}, θ::Float64, i::Int, j::Int, nq::Int)
+    bi, bj = interleaved_bit_position(i), interleaved_bit_position(j)
+    γ, φ = -4θ, 2θ
+    for k in 0:(length(phase) - 1)
+        bit_i = (k >> bi) & 1 == 1
+        bit_j = (k >> bj) & 1 == 1
+        contribution = 0.0
+        bit_i && (contribution += φ)
+        bit_j && (contribution += φ)
+        bit_i && bit_j && (contribution += γ)
+        phase[k + 1] += contribution
+    end
+end
+
 """Diagonal of the native compilation of `exp(-idt·J·ΣZZ_chain)` (system chain bonds only)."""
 function native_chain_diagonal(p::NativeGateCircuitParams, dt::Float64, nq::Int)
-    d = ones(ComplexF64, 1 << nq)
+    phase = zeros(Float64, 1 << nq)
     for (i, j) in chain_gate_pairs(p.N)
-        d .*= native_zz_evolution_diag(p.J * dt, i, j, nq)
+        _accumulate_zz_phase!(phase, p.J * dt, i, j, nq)
     end
-    return d
+    return cis.(phase)
 end
 
 """Diagonal of the native compilation of `exp(-idt·g·ΣZZ_coupling)` (system-bath pairs only)."""
 function native_pair_diagonal(p::NativeGateCircuitParams, dt::Float64, nq::Int)
-    d = ones(ComplexF64, 1 << nq)
+    phase = zeros(Float64, 1 << nq)
     for (i, j) in coupling_gate_pairs(p.N)
-        d .*= native_zz_evolution_diag(p.g * dt, i, j, nq)
+        _accumulate_zz_phase!(phase, p.g * dt, i, j, nq)
     end
-    return d
+    return cis.(phase)
 end
 
 """Diagonal of the native compilation of `exp[-idt·(J·ΣZZ_chain + g·ΣZZ_coupling)]` for one Trotter slice."""
