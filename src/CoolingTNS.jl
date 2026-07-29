@@ -90,8 +90,10 @@ export interleaved_basis_state, interleaved_system_basis_state
 # Native-gate (Rydberg CP-gate compiled) cooling circuit, ED backend
 export NativeGateCircuitParams, gate_count_and_depth, two_qubit_gate_pairs, greedy_edge_coloring
 export native_cp_diag, native_local_phase_diag, native_zz_evolution_diag
-export collision_layers, apply_collision, run_native_gate_trajectory
+export native_chain_diagonal, native_pair_diagonal
+export collision_layers, bsb_collision_layers, bsb_gate_count_and_depth, apply_collision, run_native_gate_trajectory
 export initial_state_plus_cold, initial_state, bath_ground_state_product, bath_zero_state_product, bath_reset_state
+export system_plus_state_product
 export system_bath_matrix, build_interleaved_state, sample_bath_ed
 export exact_collision_operator, run_exact_continuous_trajectory
 # Result dictionary keys

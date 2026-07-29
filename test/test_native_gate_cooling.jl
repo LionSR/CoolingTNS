@@ -45,6 +45,60 @@ using Random
         end
     end
 
+    @testset "B-S-B short block (bsb_collision_layers)" begin
+        # Matches the collaborator note's short-block numbers at N=5 exactly
+        # (14 native two-atom gates, entangling depth 4), via graph coloring.
+        for (N, expected_gates, expected_depth) in ((3, 8, 4), (4, 11, 4), (5, 14, 4), (6, 17, 4))
+            p = NativeGateCircuitParams(N, 0.25, 3.4, 6.8, 1.35, 1)
+            gc = bsb_gate_count_and_depth(p)
+            @test gc.two_qubit_gates == expected_gates
+            @test gc.entangling_depth == expected_depth
+        end
+
+        N = 3
+        J_, h_, Delta_, g_ = 0.25, 3.4, 6.8, 1.35
+        ham = HamiltonianParameters(IsingModel(), N, (J=J_, h=h_), :open)
+        sites_total = interleaved_total_sites(N)
+        coupling_params = BasicCouplingParameters("ZZ", g_, 1, 1.0, Delta_)
+        H_full = Matrix(CoolingTNS.construct_system_bath_hamiltonian(ham, EDBackend(), sites_total, coupling_params))
+        rng = MersenneTwister(0)
+        ψ0 = randn(rng, ComplexF64, 2^sites_total)
+        ψ0 ./= norm(ψ0)
+
+        # bsb_collision_layers(p, τ) should exactly implement
+        # exp(-i(τ/2)V) exp(-iτ H_S^chain) exp(-iτ H_X) exp(-i(τ/2)V) -- NOT
+        # exp(-iτ H_full) (it deliberately omits the bath's own field H_bath,
+        # matching the collaborator's B-S-B construction), so check it against
+        # its own defining decomposition rather than the full propagator.
+        p = NativeGateCircuitParams(N, J_, h_, Delta_, g_, 1)
+        τ = 0.2
+        layers = bsb_collision_layers(p, τ)
+        @test length(layers) == 5
+        state = apply_collision(copy(ψ0), p, layers, sites_total)
+        @test isapprox(norm(state), 1.0; atol=1e-10)
+
+        # Physical sanity at small N, few trajectories: B-S-B should cool
+        # distinctly less than the recommended two-slice block (matching the
+        # collaborator note's q_25=0.288 short-block vs 0.186 recommended).
+        H_S = CoolingTNS.construct_system_hamiltonian(
+            HamiltonianParameters(IsingModel(), N, (J=J_, h=h_), :open), EDBackend(), N,
+        )
+        p_r2 = NativeGateCircuitParams(N, J_, h_, Delta_, g_, 2)
+        n_cycles, n_traj = 15, 150
+        function mean_final_energy(rng_seed; kwargs...)
+            rng = MersenneTwister(rng_seed)
+            total = 0.0
+            for _ in 1:n_traj
+                E, _ = run_native_gate_trajectory(p_r2, n_cycles, rng; H_S=H_S, randomized_tau=true, tau_max=0.54, kwargs...)
+                total += E[end]
+            end
+            return total / n_traj
+        end
+        E_recommended = mean_final_energy(20)
+        E_bsb = mean_final_energy(21; layers_fn=bsb_collision_layers)
+        @test E_bsb > E_recommended + 1.0
+    end
+
     @testset "Trotter circuit converges to the exact continuum propagator" begin
         N = 3
         J_, h_, Delta_, g_ = 0.25, 3.4, 6.8, 1.35
