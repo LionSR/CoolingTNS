@@ -30,8 +30,12 @@ control; `initial_sys=MaximallyMixedState()` the maximally-mixed-input control;
 and `layers_fn=bsb_collision_layers` the B-S-B short-block mechanism test
 (14 gates, depth 4 at N=5, matching the collaborator note exactly -- see
 `bsb_gate_count_and_depth`). The purity diagnostic (Tr(ρ_sys²), a secondary
-sanity check in the collaborator note, not the headline protocol, and O(8^N)
-to compute exactly with no cheaper shortcut) is not covered here.
+sanity check in the collaborator note, not the headline protocol) is
+available via the opt-in `compute_purity=true` keyword on both trajectory
+drivers (see `purity_from_matrix`) -- it is genuinely O(8^N) to compute
+exactly from a pure state with no cheaper shortcut, so it stays off by
+default and costs nothing unless requested, matching the existing
+`ground_state=nothing`/`fidelities` opt-in pattern.
 
 `NativeGateCircuitParams.residual_alpha` additionally models an *uncompensated*
 residual single-atom phase left over per real Rydberg pulse after imperfect
@@ -469,6 +473,25 @@ function system_bath_matrix(state::Vector{ComplexF64}, N::Int)
     return M
 end
 
+"""
+    purity_from_matrix(M) -> Float64
+
+Exact system purity `Tr(ρ_sys²)` from the system⊗bath amplitude matrix `M`
+(`system_bath_matrix`), where `ρ_sys = M*M'`. Since `ρ_sys` is Hermitian,
+`Tr(ρ_sys²) = ‖ρ_sys‖_F² = ‖M*M'‖_F²`; and since `M` is square (`dim_half ×
+dim_half`), `M*M'` and `M'*M` share the same eigenvalues, so `‖M'*M‖_F²` gives
+the identical answer. This computes it as one BLAS `M'*M` matrix product
+(`dim_half × dim_half`, `O(dim_half³) = O(8^N)` flops -- unavoidable for an
+*exact* purity from a pure state, the reason this is opt-in-only) followed by
+one `sum(abs2, ·)` Frobenius-norm-squared reduction (`O(dim_half²)`), rather
+than an explicit `tr(A*A)`/`tr(A^2)` on `A = M'*M`, which would cost a second
+`O(dim_half³)` matrix multiply for no benefit. Never call this by default --
+see `compute_purity` on `run_native_gate_trajectory`/`run_exact_continuous_trajectory`.
+"""
+function purity_from_matrix(M::AbstractMatrix{ComplexF64})
+    return real(sum(abs2, M' * M))
+end
+
 """Hot system state `|+⟩^N` with a cold bath -- the default protocol input, i.e. `initial_state(rng, N)`."""
 initial_state_plus_cold(N::Int) =
     build_interleaved_state(system_plus_state_product(N), bath_ground_state_product(N), N)
@@ -510,29 +533,38 @@ end
 Shared per-cycle tail of both trajectory drivers: normalize, measure the energy
 against `H_S` via the system-reduced density matrix `ρ_sys = M*M'`
 (`system_bath_matrix`; and the ground-state fidelity if `ground_state` is
-given), then reset the ancillas by measuring the bath register through the
-existing `process_bath_ed_monte_carlo`/`measure_ed!` (`cooling_evolution_ed_shared.jl`,
-`ed_backend.jl`) -- the same measurement-based collision-model bath collapse
-already used by the general ED MCWF cooling driver, rather than a parallel
-reimplementation. Measuring either half of a bipartite pure state in any fixed
-basis and discarding it reproduces the same ensemble-averaged reduced density
-matrix as an eigenbasis-weighted sample, so this is exact, not an
-approximation, and (via `measure_ed!`'s single O(4^N) pass) avoids the O(8^N)
-full Hermitian eigendecomposition that dominated the cost at N≳8. Keeping this
-tail in one place is what makes `run_native_gate_trajectory` and
-`run_exact_continuous_trajectory` differ only in how they propagate one collision.
+given, and the purity `Tr(ρ_sys²)` if `compute_purity` is true -- see
+`purity_from_matrix`), then reset the ancillas by measuring the bath register
+through the existing `process_bath_ed_monte_carlo`/`measure_ed!`
+(`cooling_evolution_ed_shared.jl`, `ed_backend.jl`) -- the same
+measurement-based collision-model bath collapse already used by the general ED
+MCWF cooling driver, rather than a parallel reimplementation. Measuring either
+half of a bipartite pure state in any fixed basis and discarding it reproduces
+the same ensemble-averaged reduced density matrix as an eigenbasis-weighted
+sample, so this is exact, not an approximation, and (via `measure_ed!`'s
+single O(4^N) pass) avoids the O(8^N) full Hermitian eigendecomposition that
+dominated the cost at N≳8. Keeping this tail in one place is what makes
+`run_native_gate_trajectory` and `run_exact_continuous_trajectory` differ only
+in how they propagate one collision.
+
+`compute_purity` defaults to `false` and, when so, does no extra work at all
+(not even an `if`-guarded cheap check -- `purity` is simply `NaN`), matching
+the `ground_state === nothing` short-circuit already used for `fidelity`: this
+diagnostic must never cost anything unless explicitly requested.
 """
 function _measure_and_reset(
     state::Vector{ComplexF64}, rng::AbstractRNG, N::Int, H_S::AbstractMatrix,
-    bath::Vector{ComplexF64}, ground_state::Union{Nothing,Vector{ComplexF64}},
+    bath::Vector{ComplexF64}, ground_state::Union{Nothing,Vector{ComplexF64}};
+    compute_purity::Bool=false,
 )
     state = state ./ norm(state)
     M = system_bath_matrix(state, N)
     HM = H_S * M
     energy = real(sum(conj(M) .* HM))
     fidelity = ground_state === nothing ? NaN : sum(abs2, ground_state' * M)
+    purity = compute_purity ? purity_from_matrix(M) : NaN
     ψ_sys, _ = process_bath_ed_monte_carlo(EDStateVector(state, 2N), N, rng)
-    return build_interleaved_state(ψ_sys.data, bath, N), energy, fidelity
+    return build_interleaved_state(ψ_sys.data, bath, N), energy, fidelity, purity
 end
 
 """System Hamiltonian used when a trajectory driver is called without `H_S` (sparse `IsingModel`, open BC)."""
@@ -542,9 +574,9 @@ function _default_system_hamiltonian(p::NativeGateCircuitParams)
 end
 
 """
-    run_native_gate_trajectory(p, n_cycles, rng; kwargs...) -> (energies, fidelities)
+    run_native_gate_trajectory(p, n_cycles, rng; kwargs...) -> (energies, fidelities, purities)
 
-Run one MCWF trajectory: `n_cycles` rounds of (collision, energy/fidelity
+Run one MCWF trajectory: `n_cycles` rounds of (collision, energy/fidelity/purity
 measurement, ancilla-selective reset via `_measure_and_reset`). `H_S` should be
 `SparseMatrixCSC` (as returned by `construct_system_hamiltonian` for
 `EDBackend`) so the energy measurement `Tr(ρ_sys H_S) = Σ_b M[:,b]'*(H_S*M[:,b])`
@@ -552,6 +584,15 @@ stays O(N·4^N) (sparse H_S times dense M) rather than densifying to O(8^N).
 `ground_state::Union{Nothing,Vector}` enables the ground-state fidelity
 `F_0 = |⟨ψ_0|ψ_sys⟩|^2`, matching the collaborator note's Table~2 diagnostic
 (pass `nothing`, the default, to skip it).
+
+`compute_purity::Bool=false` enables the secondary purity diagnostic
+`Tr(ρ_sys²)` (`purity_from_matrix`), the collaborator note's per-cycle
+non-unitality sanity check -- off by default since, unlike the energy and
+fidelity measurements above, it is genuinely O(8^N) to compute exactly (no
+O(4^N)-or-cheaper shortcut exists for an exact purity from a pure state) and
+must never cost anything unless explicitly requested. `purities` is `nothing`
+when not requested (matching the `fidelities`/`ground_state=nothing` pattern),
+else a `Vector{Float64}` of length `n_cycles`.
 
 Controls matching the collaborator note (see `notation_translation.md`):
 `initial_sys=MaximallyMixedState()` for the maximally-mixed-input control
@@ -569,22 +610,26 @@ function run_native_gate_trajectory(
     randomized_tau::Bool=false, tau_max::Float64=0.0,
     ground_state::Union{Nothing,Vector{ComplexF64}}=nothing,
     initial_sys::InitialSystemState=HotState(), reset_bath::ResetTarget=ColdReset(),
-    layers_fn::Function=collision_layers,
+    layers_fn::Function=collision_layers, compute_purity::Bool=false,
 )
     nq = n_qubits(p)
     H_S = something(H_S, _default_system_hamiltonian(p))
     state = initial_state(rng, p.N; sys=initial_sys, bath=ColdReset())
     energies = zeros(n_cycles)
     fidelities = ground_state === nothing ? nothing : zeros(n_cycles)
+    purities = compute_purity ? zeros(n_cycles) : nothing
     bath = bath_reset_state(reset_bath, p.N)
     for c in 1:n_cycles
         τ = randomized_tau ? rand(rng) * tau_max : tau_max
         layers = layers_fn(p, τ)
         state = apply_collision(state, p, layers, nq; noise_p=noise_p, rng=rng)
-        state, energies[c], fid = _measure_and_reset(state, rng, p.N, H_S, bath, ground_state)
+        state, energies[c], fid, pur = _measure_and_reset(
+            state, rng, p.N, H_S, bath, ground_state; compute_purity=compute_purity,
+        )
         ground_state !== nothing && (fidelities[c] = fid)
+        compute_purity && (purities[c] = pur)
     end
-    return energies, fidelities
+    return energies, fidelities, purities
 end
 
 """
@@ -613,14 +658,15 @@ function _exact_collision_propagate(state::Vector{ComplexF64}, τ::Float64, eval
 end
 
 """
-    run_exact_continuous_trajectory(p, n_cycles, rng; kwargs...) -> (energies, fidelities)
+    run_exact_continuous_trajectory(p, n_cycles, rng; kwargs...) -> (energies, fidelities, purities)
 
 Same MCWF collision-model driver as `run_native_gate_trajectory` (identical
-`_measure_and_reset` tail), but propagating each collision via the exact
-continuum Hamiltonian instead of the Trotterized native-gate circuit --
-isolates Trotter/discretization error from everything else (reset mechanism,
-noise, controls). Pass `evals, evecs` from a single `exact_collision_operator`
-call when running many trajectories, to avoid repeating the O(8^N)
+`_measure_and_reset` tail, including the opt-in `compute_purity` diagnostic --
+see its docstring), but propagating each collision via the exact continuum
+Hamiltonian instead of the Trotterized native-gate circuit -- isolates
+Trotter/discretization error from everything else (reset mechanism, noise,
+controls). Pass `evals, evecs` from a single `exact_collision_operator` call
+when running many trajectories, to avoid repeating the O(8^N)
 diagonalization.
 """
 function run_exact_continuous_trajectory(
@@ -629,7 +675,7 @@ function run_exact_continuous_trajectory(
     randomized_tau::Bool=false, tau_max::Float64=0.0,
     ground_state::Union{Nothing,Vector{ComplexF64}}=nothing,
     initial_sys::InitialSystemState=HotState(), reset_bath::ResetTarget=ColdReset(),
-    evals=nothing, evecs=nothing,
+    evals=nothing, evecs=nothing, compute_purity::Bool=false,
 )
     H_S = something(H_S, _default_system_hamiltonian(p))
     if evals === nothing || evecs === nothing
@@ -638,12 +684,16 @@ function run_exact_continuous_trajectory(
     state = initial_state(rng, p.N; sys=initial_sys, bath=ColdReset())
     energies = zeros(n_cycles)
     fidelities = ground_state === nothing ? nothing : zeros(n_cycles)
+    purities = compute_purity ? zeros(n_cycles) : nothing
     bath = bath_reset_state(reset_bath, p.N)
     for c in 1:n_cycles
         τ = randomized_tau ? rand(rng) * tau_max : tau_max
         state = _exact_collision_propagate(state, τ, evals, evecs)
-        state, energies[c], fid = _measure_and_reset(state, rng, p.N, H_S, bath, ground_state)
+        state, energies[c], fid, pur = _measure_and_reset(
+            state, rng, p.N, H_S, bath, ground_state; compute_purity=compute_purity,
+        )
         ground_state !== nothing && (fidelities[c] = fid)
+        compute_purity && (purities[c] = pur)
     end
-    return energies, fidelities
+    return energies, fidelities, purities
 end

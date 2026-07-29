@@ -97,7 +97,7 @@ export ResetTarget, ColdReset, ZeroReset
 export InitialSystemState, HotState, MaximallyMixedState
 export initial_state_plus_cold, initial_state, bath_ground_state_product, bath_zero_state_product, bath_reset_state
 export system_plus_state_product
-export system_bath_matrix, build_interleaved_state
+export system_bath_matrix, build_interleaved_state, purity_from_matrix
 export exact_collision_operator, run_exact_continuous_trajectory
 # Result dictionary keys
 export RESULT_ENERGY, RESULT_RELATIVE_ENERGY, RESULT_GROUND_STATE_OVERLAP, RESULT_PURITY
