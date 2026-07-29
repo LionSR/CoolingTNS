@@ -338,4 +338,90 @@ using Random
         # symmetry isn't asserted -- only that both directions hurt cooling).
         @test E_large_neg > E_zero + 1.0
     end
+
+    @testset "Purity diagnostic (compute_purity, opt-in)" begin
+        N = 3
+        J_, h_, Delta_, g_, tau_max = 0.25, 3.4, 6.8, 1.35, 0.54
+        p = NativeGateCircuitParams(N, J_, h_, Delta_, g_, 2)
+        H_S = CoolingTNS.construct_system_hamiltonian(
+            HamiltonianParameters(IsingModel(), N, (J=J_, h=h_), :open), EDBackend(), N,
+        )
+
+        @testset "Unentangled product state has purity 1 (exact/deterministic)" begin
+            # No collision has been applied yet: system and bath are still an
+            # exact product state, so ρ_sys is pure.
+            state = initial_state_plus_cold(N)
+            M = system_bath_matrix(state, N)
+            @test isapprox(purity_from_matrix(M), 1.0; atol=1e-10)
+
+            # ‖M*M'‖_F² and ‖M'*M‖_F² must agree exactly (M square ⟹ M*M'
+            # and M'*M share the same eigenvalues), confirming
+            # purity_from_matrix's M'*M shortcut is equivalent to Tr(ρ_sys²).
+            @test isapprox(real(sum(abs2, M * M')), real(sum(abs2, M' * M)); atol=1e-10)
+        end
+
+        @testset "A real collision creates genuine entanglement (purity < 1)" begin
+            rng = MersenneTwister(42)
+            state = initial_state_plus_cold(N)
+            nq = CoolingTNS.n_qubits(p)
+            layers = collision_layers(p, tau_max)
+            state = apply_collision(state, p, layers, nq)
+            state ./= norm(state)
+            M = system_bath_matrix(state, N)
+            pur = purity_from_matrix(M)
+            @test -1e-10 <= pur <= 1.0 + 1e-10
+            @test pur < 1.0 - 1e-6
+        end
+
+        @testset "compute_purity=false (default) returns nothing" begin
+            rng = MersenneTwister(9)
+            E, F, Pur = run_native_gate_trajectory(p, 5, rng; H_S=H_S, randomized_tau=true, tau_max=tau_max)
+            @test Pur === nothing
+            E2, F2, Pur2 = run_exact_continuous_trajectory(p, 5, rng; H_S=H_S, randomized_tau=true, tau_max=tau_max)
+            @test Pur2 === nothing
+        end
+
+        @testset "compute_purity=true: bounds and cooling-cycle trend (ensemble)" begin
+            n_cycles, n_traj = 15, 150
+            purity_sums = zeros(n_cycles)
+            rng = MersenneTwister(11)
+            for _ in 1:n_traj
+                E, F, Pur = run_native_gate_trajectory(
+                    p, n_cycles, rng; H_S=H_S, randomized_tau=true, tau_max=tau_max, compute_purity=true,
+                )
+                @test Pur !== nothing
+                @test length(Pur) == n_cycles
+                @test all(-1e-8 .<= Pur .<= 1.0 + 1e-8)
+                purity_sums .+= Pur
+            end
+            purity_mean = purity_sums ./ n_traj
+            println("\n  Native-gate purity evolution (ensemble mean, n_traj=$n_traj): $(round.(purity_mean, digits=6))")
+
+            # Trend, verified empirically (not assumed) across several RNG
+            # seeds at these parameters: purity dips sharply on the very
+            # first collision (the hot, maximally-symmetric |+⟩^N system gets
+            # strongly entangled with the bath -- confirms the channel is
+            # genuinely non-unital/mixing, the collaborator note's point in
+            # introducing this diagnostic), then *recovers upward* on
+            # ensemble average across subsequent cycles as the system is
+            # driven toward its pure ground-state attractor. This is the
+            # same direction as the "Exact-continuous fidelity tracking"
+            # testset above (ground-state fidelity F trends upward,
+            # `F[end] > F[1]`, as cooling proceeds): since the cooling target
+            # is a pure state, fidelity -> 1 necessarily drags purity -> 1
+            # alongside it, so a monotonic *decrease* in purity across full
+            # cooling cycles would be inconsistent with successful cooling,
+            # not a sign of it -- entropy being "extracted" from the system
+            # means the system purity goes up, not down. See CLAUDE.md's
+            # "Debugging Best Practices": this direction was confirmed
+            # numerically (see purity_trend_check2.jl-style scan across
+            # seeds 1/11/99/12345, all showing the same ~0.14-0.15 recovery
+            # gap) rather than assumed from the issue text's paraphrase.
+            @test purity_mean[1] < 0.9
+            half = n_cycles ÷ 2
+            early_mean = sum(purity_mean[1:half]) / half
+            late_mean = sum(purity_mean[(end - half + 1):end]) / half
+            @test late_mean > early_mean + 0.05
+        end
+    end
 end
