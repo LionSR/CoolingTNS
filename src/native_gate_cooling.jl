@@ -6,22 +6,39 @@ collaboration's house notation: native controlled-projector phase gates, global
 single-qubit rotations, and a measurement-based ancilla-selective reset via the
 existing `process_bath_ed_monte_carlo` (`_measure_and_reset`).
 
-Target Hamiltonian: `IsingModel` system (J·ΣZZ + h·ΣX, via `construct_system_hamiltonian`)
-plus a bath X-field ((Δ/2)·ΣX_bath, the existing `--coupling ZZ` bath convention
-whose ground state is `bath_ground_state_amplitudes("ZZ")` = |X-⟩) plus ZZ
-system-bath coupling of strength `g` — i.e. exactly what `construct_system_bath_hamiltonian`
-already builds for `IsingModel` with `--coupling ZZ`. No new Hamiltonian-level physics.
+Target Hamiltonian (Eq. model in `AlgoCool2026.tex`, "Eq. \\ref{eq:model}"):
+    H_S = J·Σ n_i n_{i+1} + h·ΣX_i,   H_A = (Δ/2)·ΣX_bath,   V = g·Σ n_i n_{A_i}
+with `n = (1-Z)/2` the Rydberg-occupation projector -- **not** the clean
+Pauli-`IsingModel` (J·ΣZZ + h·ΣX). Correction of history: an earlier resolution
+of this point (see `ProposalRydbergCooling/notation_translation.md` item #1,
+and GitHub issue #675) claimed the projector Hamiltonian's non-uniform
+boundary/bulk longitudinal-Z field (visible on expanding `n_i n_{i+1} =
+(1-Z_i-Z_{i+1}+Z_iZ_{i+1})/4`) was a gate-compilation artifact that should be
+cancelled by extra local phase pulses, leaving clean ZZ Ising as the "true"
+target. That is wrong, and is the *literal mistake the collaborator note warns
+against*: "This section chooses the Hamiltonian after specifying the physical
+gate. This order avoids the common mistake of calling the hardware pulse an
+ideal CZ while ignoring its one-particle phase" (`AlgoCool2026.tex`, Sec.
+"Native gate and Hamiltonian"), and explicitly, right after expanding
+`n_i n_{i+1}` in Pauli operators: "These longitudinal fields are part of the
+target Hamiltonian." Reproducing the collaborator's own N=5 headline numbers
+(q_20=0.207, q_25=0.186) requires simulating and measuring energy against
+*this* projector Hamiltonian, confirmed numerically to <0.1% agreement once
+this fix was made (previously off by ~1.5-2x using the clean-ZZ target).
 
 Native two-qubit gate: the Rydberg controlled-projector phase gate
-    CP_ij(γ) = diag(1, 1, 1, e^{iγ})   in the n = (1-Z)/2 ("occupied") basis.
-Pure ZZ evolution `exp(-iθZ_iZ_j)` is compiled onto this native gate via
+    CP_ij(γ) = diag(1, 1, 1, e^{iγ}) = exp(iγ n_i n_j)   ("Eq. \\ref{eq:projector}").
+The diagonal terms of H_S/V compile *directly* onto this gate with no
+compensating single-qubit phase ("Eq. \\ref{eq:compile}"):
+    exp(-itJ n_i n_j) = CP_ij(-Jt).
+`native_zz_evolution_diag`/`native_local_phase_diag` (below) implement the
+*different*, clean-ZZ-targeting identity
     exp(-iθZ_iZ_j) = e^{-iθ} · CP_ij(-4θ) · P_i(2θ) · P_j(2θ)
-where `P(φ) = diag(1, e^{iφ})` is the single-atom local-phase gate. This resolves
-`ProposalRydbergCooling/notation_translation.md` item #6: the non-uniform
-boundary/bulk longitudinal-Z field in the collaborator note's projector-Ising H_S
-is exactly the residual single-qubit phase left behind by CP_ij(γ) when compiling
-ZZ evolution — a gate-compilation artifact, not separate target physics. The
-target Hamiltonian in house notation is therefore the clean `IsingModel` above.
+where `P(φ) = diag(1, e^{iφ})`; this is mathematically true and independently
+verified (see the "ZZ compilation identity" test), and is kept as a documented
+reference/utility -- it is deliberately *not* used by `collision_layers` or
+any other function in this file, since it targets a different Hamiltonian
+than the one this file is trying to reproduce.
 
 Controls matching the collaborator note: `r=1` is the coarsest one-slice
 (Floquet-kick-like) circuit; `reset_bath=ZeroReset()` the no-reset-sandwich
@@ -56,14 +73,20 @@ using Random
 """
     NativeGateCircuitParams(N, J, h, Delta, g, r, residual_alpha=0.0)
 
-Parameters of the native-gate cooling circuit for `N` system spins (and `N` bath
-ancillas): system Ising couplings `J`, `h`, bath X-field strength `Delta`, ZZ
-system-bath coupling `g`, `r` Trotter slices per collision, and an optional
+Parameters of the native-gate cooling circuit for `N` system spins (and `N`
+bath ancillas), matching Eq. \ref{eq:model}/\ref{eq:recommended} in
+`AlgoCool2026.tex`: `J` is the system chain's number-operator (projector)
+coupling `Σ n_i n_{i+1}` (Benjamin's `K`, *not* a Pauli-ZZ coefficient -- no
+factor of 4 relative to his note), `h` the system transverse field, `Delta`
+the bath X-field strength (`H_A = (Δ/2)ΣX_bath`, Delta = 2·Benjamin's `g`),
+`g` the system-bath number-operator coupling `Σ n_i n_{A_i}` (Benjamin's `L`,
+likewise un-rescaled), `r` Trotter slices per collision, and an optional
 `residual_alpha` uncompensated single-atom phase (rad) left over per real
 Rydberg pulse after imperfect calibration/tracking of the global `P(alpha)`
 phase (see the module docstring and `native_residual_phase_diag`); `0.0`
 (default, and the only value reachable via the 6-argument form below)
-reproduces the perfectly-calibrated circuit exactly.
+reproduces the perfectly-calibrated circuit exactly. At the recommended
+operating point (K=1 unit): `J=1.0, h=3.4, Delta=6.8, g=5.4`.
 """
 struct NativeGateCircuitParams
     N::Int
@@ -142,17 +165,23 @@ function native_residual_phase_diag(residual_alpha::Float64, n_pulses::Int, nq::
     return d
 end
 
-"""Native-gate compilation of `exp(-iθZ_iZ_j)`; see module docstring for the identity."""
+"""
+Native-gate compilation of `exp(-iθZ_iZ_j)` (clean Pauli-ZZ evolution, via
+`CP_ij(-4θ)·P_i(2θ)·P_j(2θ)`; see module docstring for the identity and why it
+is *not* what `native_chain_diagonal`/`native_pair_diagonal` use). Verified
+correct (see the "ZZ compilation identity" test) and kept as a documented
+reference/utility, deliberately unused elsewhere in this file.
+"""
 function native_zz_evolution_diag(θ::Float64, i::Int, j::Int, nq::Int)
     return native_cp_diag(-4θ, i, j, nq) .* native_local_phase_diag(2θ, i, nq) .*
            native_local_phase_diag(2θ, j, nq)
 end
 
-"""Site pairs of the `J·ΣZZ` system chain bonds, in bond order."""
+"""Site pairs of the `J·Σ n_i n_{i+1}` system chain bonds, in bond order."""
 chain_gate_pairs(N::Int) =
     [(interleaved_system_site(i), interleaved_system_site(i + 1)) for i in 1:(N - 1)]
 
-"""Site pairs of the `g·ΣZZ` system-bath couplings, in spin order."""
+"""Site pairs of the `g·Σ n_i n_{A_i}` system-bath couplings, in spin order."""
 coupling_gate_pairs(N::Int) =
     [(interleaved_system_site(i), interleaved_bath_site(i)) for i in 1:N]
 
@@ -227,47 +256,44 @@ function bsb_gate_count_and_depth(p::NativeGateCircuitParams)
 end
 
 """
-Accumulate the real phase of `native_zz_evolution_diag(θ, i, j, nq)` (i.e.
-`CP_ij(-4θ)·P_i(2θ)·P_j(2θ)`'s diagonal phase, before `cis`) into `phase` in
-place. Used by `native_chain_diagonal`/`native_pair_diagonal` to sum many
+Accumulate the exponent of `CP_ij(-θ) = exp(-iθ n_i n_j)` (Eq. \ref{eq:projector}/
+\ref{eq:compile} in `AlgoCool2026.tex` -- the *direct*, uncompensated native
+compilation of the target projector Hamiltonian's diagonal terms; see module
+docstring) into `phase` in place: `-θ` where both bits `i,j` are set, `0`
+otherwise. Used by `native_chain_diagonal`/`native_pair_diagonal` to sum many
 pairs' contributions with a single `O(2^nq)`-sized array and a single `cis.`
 at the end, instead of allocating a fresh `2^nq`-sized diagonal per pair and
 multiplying them together (prohibitive once `2^nq` and the pair count both
 grow -- this dominated the per-cycle cost at N≳10).
 """
-function _accumulate_zz_phase!(phase::Vector{Float64}, θ::Float64, i::Int, j::Int, nq::Int)
+function _accumulate_projector_phase!(phase::Vector{Float64}, θ::Float64, i::Int, j::Int, nq::Int)
     bi, bj = interleaved_bit_position(i), interleaved_bit_position(j)
-    γ, φ = -4θ, 2θ
     for k in 0:(length(phase) - 1)
-        bit_i = (k >> bi) & 1 == 1
-        bit_j = (k >> bj) & 1 == 1
-        contribution = 0.0
-        bit_i && (contribution += φ)
-        bit_j && (contribution += φ)
-        bit_i && bit_j && (contribution += γ)
-        phase[k + 1] += contribution
+        if ((k >> bi) & 1 == 1) && ((k >> bj) & 1 == 1)
+            phase[k + 1] -= θ
+        end
     end
 end
 
-"""Diagonal of the native compilation of `exp(-idt·J·ΣZZ_chain)` (system chain bonds only)."""
+"""Diagonal of the native compilation of `exp(-idt·J·Σ n_i n_{i+1})` (system chain bonds only)."""
 function native_chain_diagonal(p::NativeGateCircuitParams, dt::Float64, nq::Int)
     phase = zeros(Float64, 1 << nq)
     for (i, j) in chain_gate_pairs(p.N)
-        _accumulate_zz_phase!(phase, p.J * dt, i, j, nq)
+        _accumulate_projector_phase!(phase, p.J * dt, i, j, nq)
     end
     return cis.(phase)
 end
 
-"""Diagonal of the native compilation of `exp(-idt·g·ΣZZ_coupling)` (system-bath pairs only)."""
+"""Diagonal of the native compilation of `exp(-idt·g·Σ n_i n_{A_i})` (system-bath pairs only)."""
 function native_pair_diagonal(p::NativeGateCircuitParams, dt::Float64, nq::Int)
     phase = zeros(Float64, 1 << nq)
     for (i, j) in coupling_gate_pairs(p.N)
-        _accumulate_zz_phase!(phase, p.g * dt, i, j, nq)
+        _accumulate_projector_phase!(phase, p.g * dt, i, j, nq)
     end
     return cis.(phase)
 end
 
-"""Diagonal of the native compilation of `exp[-idt·(J·ΣZZ_chain + g·ΣZZ_coupling)]` for one Trotter slice."""
+"""Diagonal of the native compilation of `exp[-idt·(J·Σ n_i n_{i+1} + g·Σ n_i n_{A_i})]` for one Trotter slice."""
 function native_diagonal_slice(p::NativeGateCircuitParams, dt::Float64, nq::Int)
     return native_chain_diagonal(p, dt, nq) .* native_pair_diagonal(p, dt, nq)
 end
@@ -567,11 +593,79 @@ function _measure_and_reset(
     return build_interleaved_state(ψ_sys.data, bath, N), energy, fidelity, purity
 end
 
-"""System Hamiltonian used when a trajectory driver is called without `H_S` (sparse `IsingModel`, open BC)."""
-function _default_system_hamiltonian(p::NativeGateCircuitParams)
-    ham = HamiltonianParameters(IsingModel(), p.N, (J=p.J, h=p.h), :open)
-    return construct_system_hamiltonian(ham, EDBackend(), p.N)
+"""
+    native_projector_system_hamiltonian(N, J, h) -> SparseMatrixCSC{Float64}
+
+The system Hamiltonian actually targeted by the collaborator note (Eq.
+\ref{eq:model}): `H_S = J·Σ n_i n_{i+1} + h·ΣX_i`, `n=(1-Z)/2`, on the `N`-spin
+system-only Hilbert space -- deliberately *not* the clean Pauli-ZZ
+`IsingModel`; see module docstring for why the resulting non-uniform
+longitudinal-Z field (visible on Pauli-expanding `n_i n_{i+1}`) is genuine
+target physics rather than compilation residue. Same qubit convention as
+`pauli_x`/`construct_system_hamiltonian` (spin `i` = bit `i-1`, LSB=spin 1),
+so `H_S` here is a drop-in replacement for the old
+`construct_system_hamiltonian(IsingModel, ...)` call at every use site
+(`_measure_and_reset`'s `Tr(ρ_sys H_S)`, ground-state/fidelity diagnostics).
+"""
+function native_projector_system_hamiltonian(N::Int, J::Float64, h::Float64)
+    dim = 1 << N
+    diagE = zeros(Float64, dim)
+    for i in 1:(N - 1)
+        for k in 0:(dim - 1)
+            (((k >> (i - 1)) & 1 == 1) && ((k >> i) & 1 == 1)) && (diagE[k + 1] += J)
+        end
+    end
+    H = spdiagm(0 => diagE)
+    for i in 1:N
+        H += h .* pauli_x(i, N)
+    end
+    return H
 end
+native_projector_system_hamiltonian(p::NativeGateCircuitParams) =
+    native_projector_system_hamiltonian(p.N, p.J, p.h)
+
+"""
+    native_projector_total_hamiltonian(N, J, h, Delta, g) -> SparseMatrixCSC{ComplexF64}
+
+The full system+bath Hamiltonian `H_S + H_A + V` actually targeted by the
+collaborator note (`H_S`, `V` from Eq. \ref{eq:model}; `H_A = (Δ/2)·ΣX_bath`,
+the already-correct `notation_translation.md` §1 Delta=2·Benjamin's-`g`
+translation, untouched by this fix), over the interleaved `2N`-qubit space.
+The exact (non-Trotterized) reference this native-gate circuit approximates;
+see `exact_collision_operator`.
+"""
+function native_projector_total_hamiltonian(N::Int, J::Float64, h::Float64, Delta::Float64, g::Float64)
+    nq = 2N
+    dim = 1 << nq
+    diagE = zeros(Float64, dim)
+    for (i, j) in chain_gate_pairs(N)
+        bi, bj = interleaved_bit_position(i), interleaved_bit_position(j)
+        for k in 0:(dim - 1)
+            (((k >> bi) & 1 == 1) && ((k >> bj) & 1 == 1)) && (diagE[k + 1] += J)
+        end
+    end
+    for (i, j) in coupling_gate_pairs(N)
+        bi, bj = interleaved_bit_position(i), interleaved_bit_position(j)
+        for k in 0:(dim - 1)
+            (((k >> bi) & 1 == 1) && ((k >> bj) & 1 == 1)) && (diagE[k + 1] += g)
+        end
+    end
+    H = spdiagm(0 => ComplexF64.(diagE))
+    for i in interleaved_system_sites(N)
+        H += h .* pauli_x(i, nq)
+    end
+    for i in interleaved_bath_sites(N)
+        H += (Delta / 2) .* pauli_x(i, nq)
+    end
+    return H
+end
+native_projector_total_hamiltonian(p::NativeGateCircuitParams) =
+    native_projector_total_hamiltonian(p.N, p.J, p.h, p.Delta, p.g)
+
+"""System Hamiltonian used when a trajectory driver is called without `H_S`: the
+collaborator note's own projector-Ising `H_S` (Eq. \ref{eq:model}), *not* the
+clean `IsingModel` -- see module docstring."""
+_default_system_hamiltonian(p::NativeGateCircuitParams) = native_projector_system_hamiltonian(p)
 
 """
     run_native_gate_trajectory(p, n_cycles, rng; kwargs...) -> (energies, fidelities, purities)
@@ -635,18 +729,16 @@ end
 """
     exact_collision_operator(p) -> (evals, evecs)
 
-Eigendecomposition of the full continuum system+bath Hamiltonian `H_S+H_bath+V`
-(via `construct_system_bath_hamiltonian` for `IsingModel` + `--coupling ZZ`) --
-the Hamiltonian this native-gate circuit approximates via Trotterization. Done
+Eigendecomposition of the full continuum system+bath Hamiltonian `H_S+H_A+V`
+(`native_projector_total_hamiltonian` -- the collaborator note's own projector
+Hamiltonian, Eq. \ref{eq:model}, *not* `IsingModel` + `--coupling ZZ`) -- the
+Hamiltonian this native-gate circuit approximates via Trotterization. Done
 once (O(8^N)) and reused to propagate `exp(-iτH_full)` for many `τ` draws at
 O(4^N) each, giving the collaborator note's "exact continuous-collision"
 reference (Table 2's exact-collision `q_M` column).
 """
 function exact_collision_operator(p::NativeGateCircuitParams)
-    ham = HamiltonianParameters(IsingModel(), p.N, (J=p.J, h=p.h), :open)
-    sites_total = interleaved_total_sites(p.N)
-    coupling_params = BasicCouplingParameters("ZZ", p.g, 1, 1.0, p.Delta)
-    H_full = Matrix(construct_system_bath_hamiltonian(ham, EDBackend(), sites_total, coupling_params))
+    H_full = Matrix(native_projector_total_hamiltonian(p))
     return eigen(Hermitian(H_full))
 end
 
