@@ -32,17 +32,34 @@ and `layers_fn=bsb_collision_layers` the B-S-B short-block mechanism test
 `bsb_gate_count_and_depth`). The purity diagnostic (Tr(ρ_sys²), a secondary
 sanity check in the collaborator note, not the headline protocol, and O(8^N)
 to compute exactly with no cheaper shortcut) is not covered here.
+
+`NativeGateCircuitParams.residual_alpha` additionally models an *uncompensated*
+residual single-atom phase left over per real Rydberg pulse after imperfect
+frame-tracking of the calibrated global `P(alpha)` (see the module docstring's
+`exp(-iθZ_iZ_j)` identity above: the compiled `P(2θ)` phases are physically
+realized by the Rydberg pulse's own single-particle phase accumulation, which
+in a real experiment may not be perfectly calibrated). This mirrors
+`residual_alpha_per_pulse` in the collaborator's `reproduce_native_note.py`
+(`native_diagonal_phase`) as closely as this codebase's own gate-application
+structure allows -- see `native_residual_phase_diag` and `collision_layers`.
+`scripts/native_phase_sensitivity_scan.jl` scans it, analogous to the
+collaborator note's `data/native_phase_sensitivity.csv`.
 """
 
 using LinearAlgebra
 using Random
 
 """
-    NativeGateCircuitParams(N, J, h, Delta, g, r)
+    NativeGateCircuitParams(N, J, h, Delta, g, r, residual_alpha=0.0)
 
 Parameters of the native-gate cooling circuit for `N` system spins (and `N` bath
 ancillas): system Ising couplings `J`, `h`, bath X-field strength `Delta`, ZZ
-system-bath coupling `g`, and `r` Trotter slices per collision.
+system-bath coupling `g`, `r` Trotter slices per collision, and an optional
+`residual_alpha` uncompensated single-atom phase (rad) left over per real
+Rydberg pulse after imperfect calibration/tracking of the global `P(alpha)`
+phase (see the module docstring and `native_residual_phase_diag`); `0.0`
+(default, and the only value reachable via the 6-argument form below)
+reproduces the perfectly-calibrated circuit exactly.
 """
 struct NativeGateCircuitParams
     N::Int
@@ -51,7 +68,11 @@ struct NativeGateCircuitParams
     Delta::Float64
     g::Float64
     r::Int
+    residual_alpha::Float64
 end
+
+NativeGateCircuitParams(N::Int, J::Float64, h::Float64, Delta::Float64, g::Float64, r::Int) =
+    NativeGateCircuitParams(N, J, h, Delta, g, r, 0.0)
 
 """Total qubit count (system + bath) of the interleaved chain."""
 n_qubits(p::NativeGateCircuitParams) = interleaved_total_sites(p.N)
@@ -85,6 +106,34 @@ function native_local_phase_diag(φ::Float64, i::Int, nq::Int)
         if (k >> bi) & 1 == 1
             d[k + 1] = phase
         end
+    end
+    return d
+end
+
+"""
+    native_residual_phase_diag(residual_alpha, n_pulses, nq) -> Vector{ComplexF64}
+
+Diagonal of the global uncompensated single-atom phase `P(n_pulses·residual_alpha)^{⊗nq}`
+accumulated by one native diagonal ('collision') step, mirroring
+`residual_alpha_per_pulse` in the collaborator's `reproduce_native_note.py`
+(`native_diagonal_phase`) as closely as this codebase's own gate-application
+structure allows: `n_pulses` real Rydberg-pulse (entangling-sublayer) events
+are folded into one diagonal step (`sublayers_per_diag_step` from
+`gate_count_and_depth` -- 3 for N≥3, chain-odd + chain-even + pair, matching
+the collaborator note's hardcoded "3" at its N=5 operating point exactly,
+rather than re-hardcoding it here), and global illumination means every atom
+(system *and* bath) picks up its own untracked `P(residual_alpha)` per pulse,
+so one diagonal step accumulates `exp(i·n_pulses·residual_alpha·n_total)`
+where `n_total = count_ones(k)` is the number of excited qubits summed over
+*every* atom in basis state `k`.
+"""
+function native_residual_phase_diag(residual_alpha::Float64, n_pulses::Int, nq::Int)
+    dim = 1 << nq
+    d = ones(ComplexF64, dim)
+    residual_alpha == 0.0 && return d
+    φ = n_pulses * residual_alpha
+    for k in 0:(dim - 1)
+        d[k + 1] = cis(φ * count_ones(k))
     end
     return d
 end
@@ -297,17 +346,30 @@ native gates: each slice is a Strang split `X(dt/2) - D(dt) - X(dt/2)`. Since
 `apply_global_x_rotation!` implements `exp(-i(θ/2)ΣX)`, the half-pulses need
 `θ = h·dt` for the system (H_X_sys = h·ΣX) and `θ = Δ·dt/2` for the bath
 (H_X_bath = (Δ/2)·ΣX), each being evaluated at physical time `dt/2`.
+
+If `p.residual_alpha != 0`, each slice's diagonal step additionally picks up
+`native_residual_phase_diag(p.residual_alpha, n_pulses, nq)` (see its
+docstring), matching the collaborator note's residual-phase modeling scope
+exactly: only the recommended r-slice collision models it (`bsb_collision_layers`
+does not, since the collaborator's own B-S-B construction, `native14_joint_basis`,
+has no `residual_alpha_per_pulse` parameter). `p.residual_alpha == 0.0` (the
+default) skips the extra diagonal entirely, reproducing the perfectly-calibrated
+circuit bit-for-bit.
 """
 function collision_layers(p::NativeGateCircuitParams, τ::Float64)
     dt = τ / p.r
     θ_sys_half = p.h * dt
     θ_bath_half = p.Delta * dt / 2
     nq = n_qubits(p)
+    residual_diag = p.residual_alpha == 0.0 ? nothing :
+        native_residual_phase_diag(p.residual_alpha, gate_count_and_depth(p).sublayers_per_diag_step, nq)
     layers = CircuitLayerUnion[]
     for _ in 1:p.r
         push!(layers, SystemRotationLayer(θ_sys_half))
         push!(layers, BathRotationLayer(θ_bath_half))
-        push!(layers, DiagonalLayer(native_diagonal_slice(p, dt, nq)))
+        diag_step = native_diagonal_slice(p, dt, nq)
+        residual_diag !== nothing && (diag_step = diag_step .* residual_diag)
+        push!(layers, DiagonalLayer(diag_step))
         push!(layers, SystemRotationLayer(θ_sys_half))
         push!(layers, BathRotationLayer(θ_bath_half))
     end
