@@ -112,17 +112,18 @@ function evolve_cooling_step_ed(H::AbstractMatrix, state::Union{EDStateVector, E
 end
 
 """
-    process_bath_ed_monte_carlo(state::EDStateVector, N_sys::Int, N_bath::Int)
+    process_bath_ed_monte_carlo(state::EDStateVector, N_bath::Int, rng::AbstractRNG=Random.default_rng())
 
 Shared function to measure and collapse bath for Monte Carlo methods.
-Returns (system_state, bath_outcomes).
+Returns (system_state, bath_outcomes). Pass `rng` for a reproducible
+trajectory; see `measure_ed!`.
 """
-function process_bath_ed_monte_carlo(state::EDStateVector, N_bath::Int)
+function process_bath_ed_monte_carlo(state::EDStateVector, N_bath::Int, rng::AbstractRNG=Random.default_rng())
     bath_qubits = interleaved_bath_sites(N_bath)
-    
+
     # Measure bath qubits and collapse
-    ψ_sys, bath_outcomes = measure_ed!(state, bath_qubits)
-    
+    ψ_sys, bath_outcomes = measure_ed!(state, bath_qubits, rng)
+
     return ψ_sys, bath_outcomes
 end
 

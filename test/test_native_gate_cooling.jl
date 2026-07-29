@@ -170,8 +170,8 @@ using Random
         end
 
         E_default = mean_final_energy(1)
-        E_nosandwich = mean_final_energy(2; reset_bath=:zero)
-        E_maxmixed = mean_final_energy(3; initial_sys=:maximally_mixed)
+        E_nosandwich = mean_final_energy(2; reset_bath=ZeroReset())
+        E_maxmixed = mean_final_energy(3; initial_sys=MaximallyMixedState())
 
         # No-sandwich (reset straight to |0>, not cold |X-> for the X-field
         # bath) must cool distinctly worse than the reset sandwich.
@@ -217,5 +217,55 @@ using Random
         # At r=4 the Trotter error should already be small relative to the
         # overall cooling scale.
         @test isapprox(E_trotter, E_exact; atol=2.0)
+    end
+
+    @testset "Noise path (apply_depolarizing_ed via apply_collision)" begin
+        N = 3
+        J_, h_, Delta_, g_, tau_max = 0.25, 3.4, 6.8, 1.35, 0.54
+        p = NativeGateCircuitParams(N, J_, h_, Delta_, g_, 2)
+        H_S = CoolingTNS.construct_system_hamiltonian(
+            HamiltonianParameters(IsingModel(), N, (J=J_, h=h_), :open), EDBackend(), N,
+        )
+
+        # Reproducibility: apply_depolarizing_ed is now RNG-threaded (was the
+        # global RNG before), so two runs seeded identically must match exactly.
+        rng_a = MersenneTwister(7)
+        Ea, _ = run_native_gate_trajectory(p, 10, rng_a; H_S=H_S, randomized_tau=true, tau_max=tau_max, noise_p=0.05)
+        rng_b = MersenneTwister(7)
+        Eb, _ = run_native_gate_trajectory(p, 10, rng_b; H_S=H_S, randomized_tau=true, tau_max=tau_max, noise_p=0.05)
+        @test Ea == Eb
+
+        # Physical sanity: noise should degrade cooling relative to the
+        # noiseless case, on ensemble average.
+        n_cycles, n_traj = 15, 150
+        function mean_final_energy(seed; kwargs...)
+            rng = MersenneTwister(seed)
+            total = 0.0
+            for _ in 1:n_traj
+                E, _ = run_native_gate_trajectory(p, n_cycles, rng; H_S=H_S, randomized_tau=true, tau_max=tau_max, kwargs...)
+                total += E[end]
+            end
+            return total / n_traj
+        end
+        E_noiseless = mean_final_energy(30)
+        E_noisy = mean_final_energy(31; noise_p=0.05)
+        @test E_noisy > E_noiseless
+    end
+
+    @testset "Exact-continuous fidelity tracking" begin
+        N = 3
+        J_, h_, Delta_, g_, tau_max = 0.25, 3.4, 6.8, 1.35, 0.3
+        p = NativeGateCircuitParams(N, J_, h_, Delta_, g_, 1)
+        H_S = CoolingTNS.construct_system_hamiltonian(
+            HamiltonianParameters(IsingModel(), N, (J=J_, h=h_), :open), EDBackend(), N,
+        )
+        E0, ψ0, _ = CoolingTNS.find_ground_state(H_S, EDBackend())
+        gs = ComplexF64.(ψ0.data)
+        rng = MersenneTwister(8)
+        E, F = run_exact_continuous_trajectory(p, 10, rng; H_S=H_S, randomized_tau=true, tau_max=tau_max, ground_state=gs)
+        @test F !== nothing
+        @test all(0.0 .<= F .<= 1.0 + 1e-9)
+        # Fidelity should trend upward as the system cools toward the ground state.
+        @test F[end] > F[1]
     end
 end

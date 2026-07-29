@@ -3,8 +3,8 @@
 
 Hardware-native Rydberg algorithmic-cooling circuit on the ED backend, in this
 collaboration's house notation: native controlled-projector phase gates, global
-single-qubit rotations, and a measurement-based ancilla-selective reset
-(`sample_bath_ed`).
+single-qubit rotations, and a measurement-based ancilla-selective reset via the
+existing `process_bath_ed_monte_carlo` (`_measure_and_reset`).
 
 Target Hamiltonian: `IsingModel` system (J·ΣZZ + h·ΣX, via `construct_system_hamiltonian`)
 plus a bath X-field ((Δ/2)·ΣX_bath, the existing `--coupling ZZ` bath convention
@@ -24,8 +24,8 @@ ZZ evolution — a gate-compilation artifact, not separate target physics. The
 target Hamiltonian in house notation is therefore the clean `IsingModel` above.
 
 Controls matching the collaborator note: `r=1` is the coarsest one-slice
-(Floquet-kick-like) circuit; `reset_bath=:zero` the no-reset-sandwich control;
-`initial_sys=:maximally_mixed` the maximally-mixed-input control;
+(Floquet-kick-like) circuit; `reset_bath=ZeroReset()` the no-reset-sandwich
+control; `initial_sys=MaximallyMixedState()` the maximally-mixed-input control;
 `run_exact_continuous_trajectory` the exact continuous-collision reference;
 and `layers_fn=bsb_collision_layers` the B-S-B short-block mechanism test
 (14 gates, depth 4 at N=5, matching the collaborator note exactly -- see
@@ -232,7 +232,42 @@ function apply_global_x_rotation!(state::Vector{ComplexF64}, θ::Float64, sites:
 end
 
 """
-    collision_layers(p, τ) -> Vector{Tuple{Symbol,Any}}
+Circuit layer kinds applied by `apply_collision`, dispatched via `apply_layer`
+rather than a `Symbol` tag (CLAUDE.md: type-based dispatch, not string/symbol
+branching for method selection). `collision_layers`/`bsb_collision_layers`
+build a `Vector{CircuitLayerUnion}`, a small (3-type) `Union` rather than the
+abstract `CircuitLayer` -- Julia unboxes small unions in arrays, so this keeps
+the hot MCWF loop free of the `Any`-boxing a `Vector{Tuple{Symbol,Any}}` would
+otherwise incur, while still giving each layer kind its own dispatch method.
+"""
+abstract type CircuitLayer end
+
+"""Native diagonal (entangling) phase layer; `phase` is a precomputed `2^nq`-length diagonal."""
+struct DiagonalLayer <: CircuitLayer
+    phase::Vector{ComplexF64}
+end
+
+"""Global `exp(-i(θ/2)ΣX)` rotation on the system register."""
+struct SystemRotationLayer <: CircuitLayer
+    θ::Float64
+end
+
+"""Global `exp(-i(θ/2)ΣX)` rotation on the bath register."""
+struct BathRotationLayer <: CircuitLayer
+    θ::Float64
+end
+
+const CircuitLayerUnion = Union{DiagonalLayer,SystemRotationLayer,BathRotationLayer}
+
+apply_layer(state::Vector{ComplexF64}, layer::DiagonalLayer, sys_sites::Vector{Int}, bath_sites::Vector{Int}) =
+    state .* layer.phase
+apply_layer(state::Vector{ComplexF64}, layer::SystemRotationLayer, sys_sites::Vector{Int}, bath_sites::Vector{Int}) =
+    apply_global_x_rotation!(state, layer.θ, sys_sites)
+apply_layer(state::Vector{ComplexF64}, layer::BathRotationLayer, sys_sites::Vector{Int}, bath_sites::Vector{Int}) =
+    apply_global_x_rotation!(state, layer.θ, bath_sites)
+
+"""
+    collision_layers(p, τ) -> Vector{CircuitLayerUnion}
 
 Symmetric r-slice Trotter decomposition of `exp[-iτ(H_X + H_D)]` compiled onto
 native gates: each slice is a Strang split `X(dt/2) - D(dt) - X(dt/2)`. Since
@@ -245,19 +280,19 @@ function collision_layers(p::NativeGateCircuitParams, τ::Float64)
     θ_sys_half = p.h * dt
     θ_bath_half = p.Delta * dt / 2
     nq = n_qubits(p)
-    layers = Tuple{Symbol,Any}[]
+    layers = CircuitLayerUnion[]
     for _ in 1:p.r
-        push!(layers, (:x_sys, θ_sys_half))
-        push!(layers, (:x_bath, θ_bath_half))
-        push!(layers, (:diag, native_diagonal_slice(p, dt, nq)))
-        push!(layers, (:x_sys, θ_sys_half))
-        push!(layers, (:x_bath, θ_bath_half))
+        push!(layers, SystemRotationLayer(θ_sys_half))
+        push!(layers, BathRotationLayer(θ_bath_half))
+        push!(layers, DiagonalLayer(native_diagonal_slice(p, dt, nq)))
+        push!(layers, SystemRotationLayer(θ_sys_half))
+        push!(layers, BathRotationLayer(θ_bath_half))
     end
     return layers
 end
 
 """
-    bsb_collision_layers(p, τ) -> Vector{Tuple{Symbol,Any}}
+    bsb_collision_layers(p, τ) -> Vector{CircuitLayerUnion}
 
 The collaborator note's "B-S-B" (bath-system-bath) short block: a single-pass
 (no r-slicing) Strang-like split around the *coupling* term instead of the
@@ -270,37 +305,35 @@ depth 4 (`bsb_gate_count_and_depth`), matching the note's numbers exactly.
 function bsb_collision_layers(p::NativeGateCircuitParams, τ::Float64)
     nq = n_qubits(p)
     half_pair = native_pair_diagonal(p, τ / 2, nq)
-    return [
-        (:diag, half_pair),
-        (:diag, native_chain_diagonal(p, τ, nq)),
-        (:x_sys, 2τ * p.h),
-        (:x_bath, τ * p.Delta),
-        (:diag, half_pair),
+    return CircuitLayerUnion[
+        DiagonalLayer(half_pair),
+        DiagonalLayer(native_chain_diagonal(p, τ, nq)),
+        SystemRotationLayer(2τ * p.h),
+        BathRotationLayer(τ * p.Delta),
+        DiagonalLayer(half_pair),
     ]
 end
 
 """
-    apply_collision(state, p, layers, nq; noise_p=0.0) -> state
+    apply_collision(state, p, layers, nq; noise_p=0.0, rng=Random.default_rng()) -> state
 
 Apply one collision's circuit `layers` (from `collision_layers` or
 `bsb_collision_layers`) to `state`, applying `apply_depolarizing_ed` noise after
-every layer if `noise_p > 0`. The rotation layers overwrite `state` in place, so
-callers that still need the input must pass a copy and always use the returned
-vector.
+every layer if `noise_p > 0`. Pass `rng` (the trajectory's own RNG) for a
+reproducible noisy run -- the default matches the previous, non-reproducible
+behavior. The rotation layers overwrite `state` in place, so callers that
+still need the input must pass a copy and always use the returned vector.
 """
-function apply_collision(state::Vector{ComplexF64}, p::NativeGateCircuitParams, layers, nq::Int; noise_p::Float64=0.0)
+function apply_collision(
+    state::Vector{ComplexF64}, p::NativeGateCircuitParams, layers, nq::Int;
+    noise_p::Float64=0.0, rng::AbstractRNG=Random.default_rng(),
+)
     sys_sites = interleaved_system_sites(p.N)
     bath_sites = interleaved_bath_sites(p.N)
-    for (kind, payload) in layers
-        if kind === :diag
-            state = state .* payload
-        elseif kind === :x_sys
-            state = apply_global_x_rotation!(state, payload, sys_sites)
-        elseif kind === :x_bath
-            state = apply_global_x_rotation!(state, payload, bath_sites)
-        end
+    for layer in layers
+        state = apply_layer(state, layer, sys_sites, bath_sites)
         if noise_p > 0
-            state = apply_depolarizing_ed(EDStateVector(state, nq), noise_p, collect(1:nq)).data
+            state = apply_depolarizing_ed(EDStateVector(state, nq), noise_p, collect(1:nq), rng).data
         end
     end
     return state
@@ -318,12 +351,18 @@ bath_zero_state_product(N::Int) = reduce(kron, fill(ComplexF64[1, 0], N))
 """N-fold Kronecker product of |+⟩ -- the hot initial system state of the collaborator note."""
 system_plus_state_product(N::Int) = reduce(kron, fill(ComplexF64[1, 1] / sqrt(2), N))
 
-"""Bath product state selected by `kind` (`:cold` -> |X-⟩ via `bath_ground_state_product`, `:zero` -> |0⟩^N, the no-sandwich control)."""
-function bath_reset_state(kind::Symbol, N::Int)
-    kind === :cold && return bath_ground_state_product(N)
-    kind === :zero && return bath_zero_state_product(N)
-    throw(ArgumentError("bath_reset_state: unknown kind $kind (expected :cold or :zero)"))
-end
+"""Ancilla-reset target selecting `bath_reset_state`, dispatched by type rather than a `Symbol` tag (CLAUDE.md)."""
+abstract type ResetTarget end
+
+"""Reset to the cold `|X-⟩^N` bath ground state -- the reset sandwich's intended target."""
+struct ColdReset <: ResetTarget end
+
+"""Reset straight to `|0⟩^N` -- the no-reset-sandwich control (not cold for the X-field bath)."""
+struct ZeroReset <: ResetTarget end
+
+"""Bath product state selected by `target` (`ColdReset()` -> |X-⟩, `ZeroReset()` -> |0⟩^N, the no-sandwich control)."""
+bath_reset_state(::ColdReset, N::Int) = bath_ground_state_product(N)
+bath_reset_state(::ZeroReset, N::Int) = bath_zero_state_product(N)
 
 """Build the full interleaved system+bath state from separate N-qubit system/bath amplitude vectors."""
 function build_interleaved_state(sys_amplitudes::Vector{ComplexF64}, bath_amplitudes::Vector{ComplexF64}, N::Int)
@@ -349,78 +388,54 @@ end
 initial_state_plus_cold(N::Int) =
     build_interleaved_state(system_plus_state_product(N), bath_ground_state_product(N), N)
 
-"""
-    initial_state(rng, N; sys=:plus, bath=:cold) -> Vector{ComplexF64}
+"""Initial system-state choice selecting `initial_system_amplitudes`, dispatched by type rather than a `Symbol` tag (CLAUDE.md)."""
+abstract type InitialSystemState end
 
-`sys=:plus` (the default) is the collaborator note's hot initial system state
-`|+⟩^N`, as built by `initial_state_plus_cold`. `sys=:maximally_mixed` is the
-"maximally mixed input" control: each MCWF trajectory draws a uniformly random
-computational basis state `|b⟩`, so the trajectory average is an *exact*
-unraveling of `I/2^N` (`E[|b⟩⟨b|] = I/2^N`), stronger than the note's stated
-"Pauli-randomized approximation".
-"""
-function initial_state(rng::AbstractRNG, N::Int; sys::Symbol=:plus, bath::Symbol=:cold)
-    sys_amplitudes = if sys === :plus
-        system_plus_state_product(N)
-    elseif sys === :maximally_mixed
-        b = rand(rng, 0:(1 << N - 1))
-        v = zeros(ComplexF64, 1 << N)
-        v[b + 1] = 1
-        v
-    else
-        throw(ArgumentError("initial_state: unknown sys $sys (expected :plus or :maximally_mixed)"))
-    end
-    return build_interleaved_state(sys_amplitudes, bath_reset_state(bath, N), N)
-end
+"""The collaborator note's hot initial system state `|+⟩^N`."""
+struct HotState <: InitialSystemState end
 
-"""Index drawn from the discrete distribution `probs`, consuming one `rand(rng)`."""
-function _sample_categorical(rng::AbstractRNG, probs::AbstractVector{Float64})
-    r = rand(rng)
-    cum = 0.0
-    for (i, pr) in enumerate(probs)
-        cum += pr
-        r <= cum && return i
-    end
-    return length(probs)
+"""
+The "maximally mixed input" control: each MCWF trajectory draws a uniformly
+random computational basis state `|b⟩`, so the trajectory average is an
+*exact* unraveling of `I/2^N` (`E[|b⟩⟨b|] = I/2^N`), stronger than the note's
+stated "Pauli-randomized approximation".
+"""
+struct MaximallyMixedState <: InitialSystemState end
+
+initial_system_amplitudes(::HotState, N::Int, rng::AbstractRNG) = system_plus_state_product(N)
+function initial_system_amplitudes(::MaximallyMixedState, N::Int, rng::AbstractRNG)
+    b = rand(rng, 0:(1 << N - 1))
+    v = zeros(ComplexF64, 1 << N)
+    v[b + 1] = 1
+    return v
 end
 
 """
-    sample_bath_ed(rng, M) -> (bath_outcome::Int, sys_state::Vector{ComplexF64})
-    sample_bath_ed(rng, state, N) -> (bath_outcome::Int, sys_state::Vector{ComplexF64})
+    initial_state(rng, N; sys=HotState(), bath=ColdReset()) -> Vector{ComplexF64}
 
-Measurement-based collision-model bath sampling for the ED backend, the same
-principle as the TN backend's `sample_bath` (`utils_mps.jl`): measure the bath
-register in the computational basis and collapse the joint state accordingly,
-rather than eigendecomposing the system-reduced density matrix. Measuring
-either half of a bipartite pure state in any fixed basis and discarding it
-reproduces the *same* ensemble-averaged reduced density matrix as an
-eigenbasis-weighted sample (`P(b) = ||M[:,b]||^2`, collapsed state
-`M[:,b]/||M[:,b]||`; averaged over `b` this sums to `M*M' = ρ_sys` exactly).
-This is O(4^N) instead of O(8^N) for a full Hermitian eigendecomposition, which
-dominated the cost at N≳8. The cost is dominated by the `system_bath_matrix`
-extraction, so callers that already hold `M` (the energy measurement needs it
-anyway) should pass it instead of `state, N`.
-
-The TN backend measures bath sites one at a time (an MPS-specific efficiency
-for its bond-dimension-limited tensor structure); here the whole bath register
-is measured in one vectorized batch, since a dense ED state has no such
-structure to preserve.
+Build the full interleaved initial state from an `InitialSystemState` choice
+(`sys`) and a `ResetTarget` bath choice (`bath`); see `initial_system_amplitudes`
+and `bath_reset_state`.
 """
-function sample_bath_ed(rng::AbstractRNG, M::AbstractMatrix{ComplexF64})
-    probs = vec(sum(abs2, M; dims=1))
-    b = _sample_categorical(rng, probs)
-    return b, M[:, b] ./ sqrt(probs[b])
+function initial_state(rng::AbstractRNG, N::Int; sys::InitialSystemState=HotState(), bath::ResetTarget=ColdReset())
+    return build_interleaved_state(initial_system_amplitudes(sys, N, rng), bath_reset_state(bath, N), N)
 end
-
-sample_bath_ed(rng::AbstractRNG, state::Vector{ComplexF64}, N::Int) =
-    sample_bath_ed(rng, system_bath_matrix(state, N))
 
 """
 Shared per-cycle tail of both trajectory drivers: normalize, measure the energy
-against `H_S` (and the ground-state fidelity if `ground_state` is given), then
-reset the ancillas via `sample_bath_ed`. Keeping it in one place is what makes
-`run_native_gate_trajectory` and `run_exact_continuous_trajectory` differ only
-in how they propagate one collision.
+against `H_S` via the system-reduced density matrix `ρ_sys = M*M'`
+(`system_bath_matrix`; and the ground-state fidelity if `ground_state` is
+given), then reset the ancillas by measuring the bath register through the
+existing `process_bath_ed_monte_carlo`/`measure_ed!` (`cooling_evolution_ed_shared.jl`,
+`ed_backend.jl`) -- the same measurement-based collision-model bath collapse
+already used by the general ED MCWF cooling driver, rather than a parallel
+reimplementation. Measuring either half of a bipartite pure state in any fixed
+basis and discarding it reproduces the same ensemble-averaged reduced density
+matrix as an eigenbasis-weighted sample, so this is exact, not an
+approximation, and (via `measure_ed!`'s single O(4^N) pass) avoids the O(8^N)
+full Hermitian eigendecomposition that dominated the cost at N≳8. Keeping this
+tail in one place is what makes `run_native_gate_trajectory` and
+`run_exact_continuous_trajectory` differ only in how they propagate one collision.
 """
 function _measure_and_reset(
     state::Vector{ComplexF64}, rng::AbstractRNG, N::Int, H_S::AbstractMatrix,
@@ -431,8 +446,8 @@ function _measure_and_reset(
     HM = H_S * M
     energy = real(sum(conj(M) .* HM))
     fidelity = ground_state === nothing ? NaN : sum(abs2, ground_state' * M)
-    _, sys_state = sample_bath_ed(rng, M)
-    return build_interleaved_state(sys_state, bath, N), energy, fidelity
+    ψ_sys, _ = process_bath_ed_monte_carlo(EDStateVector(state, 2N), N, rng)
+    return build_interleaved_state(ψ_sys.data, bath, N), energy, fidelity
 end
 
 """System Hamiltonian used when a trajectory driver is called without `H_S` (sparse `IsingModel`, open BC)."""
@@ -445,7 +460,7 @@ end
     run_native_gate_trajectory(p, n_cycles, rng; kwargs...) -> (energies, fidelities)
 
 Run one MCWF trajectory: `n_cycles` rounds of (collision, energy/fidelity
-measurement, ancilla-selective reset via `sample_bath_ed`). `H_S` should be
+measurement, ancilla-selective reset via `_measure_and_reset`). `H_S` should be
 `SparseMatrixCSC` (as returned by `construct_system_hamiltonian` for
 `EDBackend`) so the energy measurement `Tr(ρ_sys H_S) = Σ_b M[:,b]'*(H_S*M[:,b])`
 stays O(N·4^N) (sparse H_S times dense M) rather than densifying to O(8^N).
@@ -454,32 +469,33 @@ stays O(N·4^N) (sparse H_S times dense M) rather than densifying to O(8^N).
 (pass `nothing`, the default, to skip it).
 
 Controls matching the collaborator note (see `notation_translation.md`):
-`initial_sys=:maximally_mixed` for the maximally-mixed-input control (default
-`:plus`, the note's hot `|+⟩^N`); `reset_bath=:zero` for the no-reset-sandwich
-control -- reset straight to `|0⟩`, not cold for the X-field bath (default
-`:cold`, i.e. the reset sandwich's `|X-⟩`); `layers_fn=bsb_collision_layers`
-for the B-S-B short-block mechanism test (default `collision_layers`, the
-recommended r-slice collision). Note that `reset_bath` selects the per-cycle
-reset target only -- the bath always starts cold.
+`initial_sys=MaximallyMixedState()` for the maximally-mixed-input control
+(default `HotState()`, the note's hot `|+⟩^N`); `reset_bath=ZeroReset()` for
+the no-reset-sandwich control -- reset straight to `|0⟩`, not cold for the
+X-field bath (default `ColdReset()`, i.e. the reset sandwich's `|X-⟩`);
+`layers_fn=bsb_collision_layers` for the B-S-B short-block mechanism test
+(default `collision_layers`, the recommended r-slice collision). Note that
+`reset_bath` selects the per-cycle reset target only -- the bath always
+starts cold.
 """
 function run_native_gate_trajectory(
     p::NativeGateCircuitParams, n_cycles::Int, rng::AbstractRNG;
     H_S::Union{Nothing,AbstractMatrix}=nothing, noise_p::Float64=0.0,
     randomized_tau::Bool=false, tau_max::Float64=0.0,
     ground_state::Union{Nothing,Vector{ComplexF64}}=nothing,
-    initial_sys::Symbol=:plus, reset_bath::Symbol=:cold,
+    initial_sys::InitialSystemState=HotState(), reset_bath::ResetTarget=ColdReset(),
     layers_fn::Function=collision_layers,
 )
     nq = n_qubits(p)
     H_S = something(H_S, _default_system_hamiltonian(p))
-    state = initial_state(rng, p.N; sys=initial_sys, bath=:cold)
+    state = initial_state(rng, p.N; sys=initial_sys, bath=ColdReset())
     energies = zeros(n_cycles)
     fidelities = ground_state === nothing ? nothing : zeros(n_cycles)
     bath = bath_reset_state(reset_bath, p.N)
     for c in 1:n_cycles
         τ = randomized_tau ? rand(rng) * tau_max : tau_max
         layers = layers_fn(p, τ)
-        state = apply_collision(state, p, layers, nq; noise_p=noise_p)
+        state = apply_collision(state, p, layers, nq; noise_p=noise_p, rng=rng)
         state, energies[c], fid = _measure_and_reset(state, rng, p.N, H_S, bath, ground_state)
         ground_state !== nothing && (fidelities[c] = fid)
     end
@@ -527,14 +543,14 @@ function run_exact_continuous_trajectory(
     H_S::Union{Nothing,AbstractMatrix}=nothing,
     randomized_tau::Bool=false, tau_max::Float64=0.0,
     ground_state::Union{Nothing,Vector{ComplexF64}}=nothing,
-    initial_sys::Symbol=:plus, reset_bath::Symbol=:cold,
+    initial_sys::InitialSystemState=HotState(), reset_bath::ResetTarget=ColdReset(),
     evals=nothing, evecs=nothing,
 )
     H_S = something(H_S, _default_system_hamiltonian(p))
     if evals === nothing || evecs === nothing
         evals, evecs = exact_collision_operator(p)
     end
-    state = initial_state(rng, p.N; sys=initial_sys, bath=:cold)
+    state = initial_state(rng, p.N; sys=initial_sys, bath=ColdReset())
     energies = zeros(n_cycles)
     fidelities = ground_state === nothing ? nothing : zeros(n_cycles)
     bath = bath_reset_state(reset_bath, p.N)
