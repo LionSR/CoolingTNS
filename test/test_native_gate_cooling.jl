@@ -268,4 +268,74 @@ using Random
         # Fidelity should trend upward as the system cools toward the ground state.
         @test F[end] > F[1]
     end
+
+    @testset "Residual local-phase (residual_alpha) sensitivity" begin
+        # residual_alpha mirrors the collaborator note's residual_alpha_per_pulse
+        # in reproduce_native_note.py's native_diagonal_phase: an uncompensated
+        # single-atom phase left over per real Rydberg pulse after imperfect
+        # calibration/tracking of the global P(alpha) phase.
+        N = 3
+        J_, h_, Delta_, g_, tau_max = 0.25, 3.4, 6.8, 1.35, 0.54
+        H_S = CoolingTNS.construct_system_hamiltonian(
+            HamiltonianParameters(IsingModel(), N, (J=J_, h=h_), :open), EDBackend(), N,
+        )
+
+        # Regression: the 6-argument constructor (no residual_alpha) must be
+        # indistinguishable from the 7-argument form with residual_alpha=0.0 --
+        # same parameters, same compiled circuit layers, same trajectory.
+        p_default = NativeGateCircuitParams(N, J_, h_, Delta_, g_, 2)
+        p_explicit_zero = NativeGateCircuitParams(N, J_, h_, Delta_, g_, 2, 0.0)
+        @test p_default == p_explicit_zero
+
+        τ = 0.3
+        layers_default = collision_layers(p_default, τ)
+        layers_explicit_zero = collision_layers(p_explicit_zero, τ)
+        @test length(layers_default) == length(layers_explicit_zero)
+        for (a, b) in zip(layers_default, layers_explicit_zero)
+            @test typeof(a) == typeof(b)
+            if a isa DiagonalLayer
+                @test a.phase == b.phase
+            end
+        end
+
+        rng_a = MersenneTwister(40)
+        Ea, _ = run_native_gate_trajectory(p_default, 10, rng_a; H_S=H_S, randomized_tau=true, tau_max=tau_max)
+        rng_b = MersenneTwister(40)
+        Eb, _ = run_native_gate_trajectory(p_explicit_zero, 10, rng_b; H_S=H_S, randomized_tau=true, tau_max=tau_max)
+        @test Ea == Eb
+
+        # Physical sanity: cooling quality should measurably degrade (higher
+        # ensemble-averaged final energy) as |residual_alpha| grows away from
+        # 0, analogous to the collaborator note's q_25(alpha)/q_20(alpha)
+        # sensitivity curve (scripts/native_phase_sensitivity_scan.jl).
+        n_cycles, n_traj = 15, 150
+        function mean_final_energy(p, seed)
+            rng = MersenneTwister(seed)
+            total = 0.0
+            for _ in 1:n_traj
+                E, _ = run_native_gate_trajectory(p, n_cycles, rng; H_S=H_S, randomized_tau=true, tau_max=tau_max)
+                total += E[end]
+            end
+            return total / n_traj
+        end
+
+        p_zero = NativeGateCircuitParams(N, J_, h_, Delta_, g_, 2, 0.0)
+        p_small = NativeGateCircuitParams(N, J_, h_, Delta_, g_, 2, 0.05)
+        p_large = NativeGateCircuitParams(N, J_, h_, Delta_, g_, 2, 0.2)
+        p_large_neg = NativeGateCircuitParams(N, J_, h_, Delta_, g_, 2, -0.2)
+
+        E_zero = mean_final_energy(p_zero, 50)
+        E_small = mean_final_energy(p_small, 51)
+        E_large = mean_final_energy(p_large, 52)
+        E_large_neg = mean_final_energy(p_large_neg, 53)
+
+        @test E_small > E_zero
+        @test E_large > E_small
+        # Both signs of a large residual phase should degrade cooling relative
+        # to the perfectly-calibrated circuit (the phase enters through
+        # cis(n_pulses*residual_alpha*n_total), not an odd function of alpha
+        # alone once combined with the rest of the circuit, so exact +/-
+        # symmetry isn't asserted -- only that both directions hurt cooling).
+        @test E_large_neg > E_zero + 1.0
+    end
 end
