@@ -62,7 +62,7 @@ that determines whether the PR can be approved with outstanding issues.
    `.tex` / `.bib`): review the change as a mathematical physics change, not as
    prose. Verify signs, factors of two, Hermitian conjugation, boundary conditions,
    Jordan-Wigner strings, Fourier phases, momentum grids, and notation against
-   `CLAUDE.md`, adjacent equations, and any matching Julia/MATLAB implementation.
+   `CLAUDE.md`, adjacent equations, and any matching Julia implementation.
    Equation references must use `\ref{eq:label}` / `\cref{eq:label}`, never
    hardcoded equation numbers; labels should be descriptive (`eq:mode_energy`), not
    positional. Also check for LaTeX defects that affect reviewability or builds:
@@ -89,7 +89,8 @@ For each issue found, post an inline comment on the relevant line using the GitH
 At the end, post a summary comment on the PR with your overall assessment. Name the
 function, dispatch method, type, or observable directly. When you flag a physics
 discrepancy, cite the source — file path, line number, and a short quotation or
-precise paraphrase from `CLAUDE.md`, the `.tex` notes, or the MATLAB reference.
+precise paraphrase from `CLAUDE.md`, the `.tex` notes, or the TN-vs-ED
+cross-validation tests.
 
 **Reading existing feedback:**
 Before posting new comments, read ALL existing feedback on this PR using the GitHub MCP tools:

@@ -48,12 +48,12 @@ precompilation is far too slow for CI) — review statically.
   cross-backend (TN vs ED) / cross-method (DM vs MCWF) agreement are the primary
   correctness signals — they should match within the documented Trotter splitting
   error (~10⁻³). If a mathematical result looks wrong, too strong, or suspicious,
-  cite the analytical limit or the `.tex`/MATLAB source it contradicts.
+  cite the analytical limit or the `.tex` source it contradicts.
 - **LaTeX mathematical notes:** when the PR touches `Notes/`, `slides/`, `.tex`,
   or `.bib`, review it as mathematical physics. Check signs, factors of two,
   Hermitian conjugation, Jordan-Wigner strings, Fourier phases, parity-dependent
   boundary conditions, momentum grids, and notation against `CLAUDE.md`, adjacent
-  equations, and the matching Julia/MATLAB implementation. Also check LaTeX
+  equations, and the matching Julia implementation. Also check LaTeX
   build/readability hazards that affect correctness review: unbalanced
   environments, broken `\label`/`\ref`/`\cref` links, missing bibliography keys,
   and fragile RevTeX constructs such as consecutive `widetext` switches.
