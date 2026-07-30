@@ -17,7 +17,6 @@ Usage:
 
 using CoolingTNS
 using Random
-using Statistics
 using Printf
 
 """Run `f()` with stdout/stderr redirected to /dev/null."""
