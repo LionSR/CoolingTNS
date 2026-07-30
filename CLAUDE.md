@@ -113,14 +113,26 @@ timeout 60 julia --startup-file=no -t 1 Cooling.jl --N 4 --problem niIsing --bac
 
 ### HPC Cluster Submission
 
-In this repository the scripts live in `clusters/`, but they are **not** run from
-there. `clusters/upload_scripts_to_remote.sh` rsyncs the `.sh` files flat into
-the cluster's project root, so on the cluster `SubmitCooling.sh`, `config.sh`,
-`JobCooling.sh`, and `Cooling.jl` all sit side by side. Both the relative
-`source config.sh` in the submit script and the relative `Cooling.jl` in
-`JobCooling.sh`'s `srun` line depend on that flat layout — running the submit
-script from inside `clusters/` locally would make `$SLURM_SUBMIT_DIR` the wrong
-directory and the job would not find `Cooling.jl`.
+In this repository the scripts live in `clusters/`, but they run flat: the
+uploader rsyncs them into the cluster's project root, so on the cluster
+`SubmitCooling.sh`, `config.sh`, `JobCooling.sh`, and `Cooling.jl` all sit side
+by side. Both the relative `source config.sh` in the submit script and the
+relative `Cooling.jl` in `JobCooling.sh`'s `srun` line depend on that flat
+layout — submitting from a subdirectory would make `$SLURM_SUBMIT_DIR` wrong and
+the job would not find `Cooling.jl`.
+
+The two sides therefore have *opposite* working-directory requirements, and
+neither is the obvious one:
+
+- **Uploading (local):** run `upload_scripts_to_remote.sh` from **inside
+  `clusters/`**. Its rsync source is `./` — the caller's cwd — and
+  `--exclude="*"` stops it descending into subdirectories
+  (`clusters/upload_scripts_to_remote.sh:5`). Invoking it from the repository
+  root as `bash clusters/upload_scripts_to_remote.sh` matches no files at all
+  (there are no `.sh` files at the root) and silently uploads nothing, leaving
+  the remote copies stale.
+- **Submitting (cluster):** run from the **project root**, where the uploaded
+  scripts landed.
 
 `SubmitCooling.sh` is a driver: it loops over parameters and calls
 `sbatch --array=... JobCooling.sh` itself (`clusters/SubmitCooling.sh:25`), so it
