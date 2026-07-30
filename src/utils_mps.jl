@@ -7,22 +7,26 @@ end
 
 """
     appendzeros_MPS(ψ::MPS, sites::Vector{<:Index}, coupling::String="XX")
+    appendzeros_MPS(ψ::MPS, sites::Vector{<:Index}, bath_amps::Vector{ComplexF64})
 
 Append bath qubits in appropriate ground state to system MPS.
 Input: ψ is MPS on system sites (N sites) with arbitrary bond dimensions
-       coupling determines the bath field through `get_bath_operator`
+       coupling determines the bath field through `get_bath_operator`, or the
+       one-site bath amplitudes are given directly (for callers such as the
+       native-gate circuit, whose reset target is chosen by a `ResetTarget`
+       type rather than by a coupling string)
 Output: MPS on interleaved sites [sys₁, bath₁, sys₂, bath₂, ...] (2N sites)
 
 For product state input (D=1), creates proper interleaved product state.
 For entangled input (D>1), preserves entanglement within system while adding
 bath qubits in product state.
 """
-function appendzeros_MPS(ψ::MPS, sites::Vector{<:Index}, coupling::String="XX")
+appendzeros_MPS(ψ::MPS, sites::Vector{<:Index}, coupling::String="XX") =
+    appendzeros_MPS(ψ, sites, ComplexF64.(get_bath_ground_state(coupling)[2]))
+
+function appendzeros_MPS(ψ::MPS, sites::Vector{<:Index}, bath_amps::Vector{ComplexF64})
     N = length(ψ)  # Number of system sites
     @assert length(sites) == interleaved_total_sites(N) "sites must have 2N elements for N system qubits"
-
-    # Get bath ground state based on coupling type
-    _, bath_amps = get_bath_ground_state(coupling)
 
     # Get original site indices
     orig_sites = siteinds(ψ)

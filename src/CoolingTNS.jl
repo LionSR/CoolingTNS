@@ -42,7 +42,7 @@ include("system_hamiltonian.jl")    # System Hamiltonian construction
 include("ground_state.jl")          # Ground state computation
 include("setup_system.jl")          # System setup using the above
 include("system_bath_hamiltonian.jl") # System-bath coupling
-include("native_gate_cooling.jl")   # Hardware-native Rydberg gate-compiled cooling circuit (ED)
+include("native_gate_cooling.jl")   # Hardware-native Rydberg gate-compiled cooling circuit (ED+TN)
 include("trotter.jl")               # Trotter circuit construction
 include("initial_state.jl")         # Initial state preparation
 include("evolution.jl")             # Time evolution functions
@@ -87,18 +87,23 @@ export interleaved_bit_position
 export interleaved_system_bit, interleaved_bath_bit
 export interleaved_system_bits, interleaved_bath_bits
 export interleaved_basis_state, interleaved_system_basis_state
-# Native-gate (Rydberg CP-gate compiled) cooling circuit, ED backend
+# Native-gate (Rydberg CP-gate compiled) cooling circuit, ED and TN backends
 export NativeGateCircuitParams, gate_count_and_depth, two_qubit_gate_pairs, greedy_edge_coloring
 export native_cp_diag, native_local_phase_diag, native_zz_evolution_diag, native_residual_phase_diag
-export native_chain_diagonal, native_pair_diagonal
+export native_chain_diagonal, native_pair_diagonal, native_projector_diagonal
 export CircuitLayer, DiagonalLayer, SystemRotationLayer, BathRotationLayer, apply_layer
-export noise_passes, noise_sites
+export NativeDiagonalGateLayer, NativeDiagonalWindow, native_diagonal_windows, native_diagonal_layer
+export NativeGateMPS, native_product_mps, native_window_gate
+export NATIVE_GATE_TN_MAXDIM, NATIVE_GATE_TN_CUTOFF
+export NativeGateTrajectoryDiagnostics, record_diagnostics!
+export noise_passes, noise_sites, apply_native_depolarizing
 export collision_layers, bsb_collision_layers, bsb_gate_count_and_depth, apply_collision, run_native_gate_trajectory
 export native_projector_system_hamiltonian, native_projector_total_hamiltonian
 export ResetTarget, ColdReset, ZeroReset
 export InitialSystemState, HotState, MaximallyMixedState
-export initial_state_plus_cold, native_gate_initial_state, bath_ground_state_product, bath_zero_state_product, bath_reset_state
-export system_plus_state_product
+export initial_state_plus_cold, native_gate_initial_state, bath_ground_state_product, bath_zero_state_product
+export bath_reset_state, bath_reset_amplitudes, native_bath_reset_payload
+export system_plus_state_product, initial_system_site_amplitudes, kron_site_amplitudes
 export system_bath_matrix, build_interleaved_state, purity_from_matrix
 export exact_collision_operator, run_exact_continuous_trajectory
 # Result dictionary keys
