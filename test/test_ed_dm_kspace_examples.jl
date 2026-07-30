@@ -27,8 +27,6 @@ include(joinpath(@__DIR__, "..", "examples", "ed_dm_example_utils.jl"))
 
     example_files = [
         "run_dm_and_plot.jl",
-        "run_dm_simulation.jl",
-        "run_dm_simulation_final.jl",
     ]
     obsolete_filename_prefix = "Cooling_" * "HamIsingJ"
     obsolete_plot_scripts = [
