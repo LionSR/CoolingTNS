@@ -97,7 +97,9 @@ julia optCooling.jl --search_method Random --num_trials 20 --N 10 --problem niIs
   for integrable Ising k-space diagnostics with periodic or antiperiodic
   boundary conditions.
 - `--J`: Ising coupling strength (default 1.0)
-- `--h`: Transverse field strength (default 1.0)
+- `--h`: Transverse field strength (default -2.0). Note the default sits in the
+  paramagnetic phase (|h| > J at J = 1), not at the critical point; scripts that
+  assume h = 1.0 must pass it explicitly.
 
 ### Testing Commands
 
@@ -111,12 +113,19 @@ timeout 60 julia --startup-file=no -t 1 Cooling.jl --N 4 --problem niIsing --bac
 
 ### HPC Cluster Submission
 
+The submit scripts live in `clusters/` and `source config.sh` relatively, so run
+them from inside that directory. They are bash drivers that call `sbatch` on
+`JobCooling.sh` / `JobOptCooling.sh` themselves — do not `sbatch` the submit
+script itself.
+
 ```bash
+cd clusters
+
 # Submit cooling job to SLURM
-sbatch SubmitCooling.sh
+bash SubmitCooling.sh
 
 # Submit optimization job (DEPRECATED - needs refactoring)
-sbatch SubmitOptCooling.sh
+bash SubmitOptCooling.sh
 ```
 
 ## High-Level Architecture
@@ -140,6 +149,9 @@ The codebase uses a clean multiple dispatch architecture:
 
 ### Module Structure (Unified Dispatch Architecture)
 
+`src/CoolingTNS.jl` holds the authoritative include list and load order; the
+groupings below follow it.
+
 **Core Unified Files**:
 - `src/cooling_evolution.jl`: Main cooling evolution with unified TN+ED dispatch
 - `src/system_hamiltonian.jl`: System Hamiltonian construction (TN+ED unified)
@@ -147,15 +159,23 @@ The codebase uses a clean multiple dispatch architecture:
 - `src/ground_state.jl`: Unified ground state computation (TN+ED)
 - `src/initial_state.jl`: Initial state preparation (TN+ED unified)
 - `src/setup.jl`: Problem setup with backend dispatch
-- `src/ed_backend.jl`: Clean Float64-only ED backend (no Yao dependencies)
+- `src/native_gate_cooling.jl`: Hardware-native Rydberg gate-compiled cooling
+  circuit, unified across ED and TN (structure written once, backend-specific
+  steps reached by dispatch)
 
-**Support Files**:
+**Types and Schema**:
 - `src/parameter_types.jl`: Type definitions for parameters
 - `src/cooling_types.jl`: CoolingProblem and QuantumState types
+- `src/result_keys.jl`: Canonical result-dictionary keys and schema labels
+- `src/multi_frequency_schedules.jl`: Single source of truth for multi-frequency
+  detuning schedule names
+
+**Support Files**:
 - `src/coupling_utils.jl`: Coupling operator parsing
+- `src/interleaved_layout.jl`: Single source of truth for the interleaved
+  system-bath site convention (`s_i` at `2i-1`, `b_i` at `2i`)
 - `src/utils.jl`: General utilities and file I/O
 - `src/utils_mps.jl` / `src/utils_mpo.jl`: TN-specific utilities
-- `src/plotting.jl`: Visualization
 - `src/noise.jl`: Noise models
 - `src/argparse.jl`: Command-line argument parsing
 - `src/state_manipulation.jl`: Dispatched state operations
@@ -163,6 +183,33 @@ The codebase uses a clean multiple dispatch architecture:
 - `src/trotter.jl`: Trotter evolution support
 - `src/evolution.jl`: Evolution utilities
 - `src/setup_system.jl`: System setup utilities
+- `src/multi_frequency.jl`: Multi-frequency (multi-Δ) cooling helpers —
+  detuning selection and low-lying gap computation
+
+**Mode / k-space Analysis**:
+- `src/mode_analysis.jl`: Analytic Ising mode structure — parameter mapping
+  between the notes' θ-form and the code's (J, h), dispersion, and k-grids
+- `src/dispersion.jl`: Compatibility dispersion and k-space helpers used by the
+  plotting scripts, built on `mode_analysis.jl` conventions
+- `src/tn_mode_observables.jl`: MPS/MPO mode observables via split-string
+  correlators
+
+**ED Backend**:
+- `src/ed_backend.jl`: ED backend using complex state vectors and density
+  matrices (`ComplexF64`), built on LinearAlgebra + SparseArrays + KrylovKit
+- `src/ed_backend_complex_jw.jl`: The single source of truth for the complex
+  Jordan-Wigner transform in the `MapToSpin.tex` convention. It is a
+  domain-specific module, not an ED copy of a TN file — no TN counterpart
+  exists or should be created.
+- `src/cooling_evolution_ed_shared.jl`: Shared ED helper routines (bath ground
+  state, combined-state preparation, ED measurement recording) factored out for
+  DRY reuse *within* the ED path. The dispatch entry points that call them live
+  in the unified `cooling_evolution.jl`; this is not a per-backend twin of it.
+
+**Plotting** (outside `src/`, loaded on demand):
+- `scripts/plotting/plotting.jl`: Visualization. It is *not* part of the
+  `CoolingTNS` module — `Cooling.jl`, `optCooling.jl`, `plotCooling.jl`, and
+  `plotOptCooling.jl` `include` it at run time when plotting is requested.
 
 ### Physical Models
 
@@ -183,7 +230,9 @@ The framework uses alternating qubit layout: [s₁, b₁, s₂, b₂, ..., sₙ,
 
 1. Results are saved as HDF5 files with backend type in filename (SimTN or SimED)
 2. NO method names (MPS/MPO/TrotterMPS) in filenames anymore
-3. MATLAB reference implementations in `ExactDiagonalization/` validate tensor network results
+3. The ED backend is the reference that validates tensor network results:
+   `test/test_correctness.jl` and `test/test_ed_tn_density_channel.jl` are the
+   TN-vs-ED cross-validators
 4. Plotting scripts (`plotCooling.jl`, `plotOptCooling.jl`) generate publication-quality figures
 
 ### File Naming Convention
@@ -291,8 +340,14 @@ struct EDBackend <: CoolingBackend end
 ## Known Issues and TODOs
 
 - **Monte Carlo trajectories**: Cooling is stochastic; energy need not decrease trajectory-by-trajectory (TN and ED). Validate using ensemble averages (see `scripts/diagnostics/physics_investigation_report.jl`).
-- **TN Backend Measurements**: Missing measurement functions for some TN method combinations
-- **Precompilation**: Long precompilation times due to ITensors/Yao dependencies eating tokens during debugging
+- **TN density_matrix + continuous is unsupported**: `evolve_cooling_step` for
+  `CoolingProblem{TNBackend}` with
+  `UnifiedSimulationParameters{DensityMatrix,ContinuousEvolution}` raises an
+  error in `src/cooling_evolution.jl` — ITensors' TDVP does not evolve an MPO.
+  This is the one missing TN combination; the other three (MC+continuous,
+  MC+trotter, DM+trotter) have evolution and measurement methods. Use one of
+  those instead.
+- **Precompilation**: Long precompilation times due to ITensors dependencies eating tokens during debugging
 
 ## Platform-Specific Notes
 
@@ -330,13 +385,12 @@ struct EDBackend <: CoolingBackend end
 **File Organization:**
 - All legacy duplicate files removed (`system_hamiltonian_ed.jl`, `cooling_evolution_ed.jl`, etc.)
 - Single files with unified TN+ED dispatch: `system_hamiltonian.jl`, `cooling_evolution.jl`, `ground_state.jl`, `initial_state.jl`
-- Clean module structure with no Yao dependencies in ED backend
+- Clean module structure with no external circuit-simulator dependency in the ED backend
 
 ### ⚠️ Known Issues
 
 **Physics Problems:**
 - **ED Cooling Rate**: Cooling is very slow with current parameters - may need stronger coupling or longer evolution times
-- **TN Measurements**: Some TN backend measurement combinations missing
 
 **Performance:**
 - **Precompilation Time**: Long compilation due to ITensors dependencies
@@ -345,7 +399,8 @@ struct EDBackend <: CoolingBackend end
 ### 🔧 Development Guidelines
 
 **For ED Backend Usage:**
-- Use small systems (N ≤ 10) for reasonable performance
+- Recommended working range is N ≤ 10 for reasonable turnaround; N ≤ 12 is the
+  hard ceiling set by exponential scaling
 - Density matrix method more reliable than Monte Carlo for ED
 - Enable periodic/antiperiodic BC for k-space measurements
 - Use cached evolution operators for better performance

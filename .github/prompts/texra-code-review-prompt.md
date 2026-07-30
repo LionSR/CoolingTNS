@@ -34,10 +34,11 @@ Two structural facts drive most real bugs here:
 Investigate the change as thoroughly as it needs. Read the review context file
 first, then the commentable line anchors file and the previous TeXRA review
 threads file if one is provided. Inspect the changed files and surrounding code,
-tests, and `.tex` notes. The MATLAB reference in `ExactDiagonalization/` and the
-notes in `Notes/` / `slides/` are the ground truth for physics; consult them when
-a result looks wrong. Do **not** attempt to build or precompile the Julia project
-(ITensors/Yao precompilation is far too slow for CI) — review statically.
+tests, and `.tex` notes. The notes in `Notes/` / `slides/` are the ground truth
+for physics, and `test/test_correctness.jl` / `test/test_ed_tn_density_channel.jl`
+are the TN-vs-ED cross-validators; consult them when a result looks wrong. Do
+**not** attempt to build or precompile the Julia project (ITensors
+precompilation is far too slow for CI) — review statically.
 
 ## What to prioritize
 

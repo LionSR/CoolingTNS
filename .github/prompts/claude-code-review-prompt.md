@@ -26,7 +26,8 @@ that determines whether the PR can be approved with outstanding issues.
    Verify Hamiltonian construction, coupling-operator parsing, Trotter gate ordering
    and adjacency, and bath sampling. If a result looks physically wrong, cross-check
    against the analytical limits and `.tex` notes in `Notes/` / `slides/` and against
-   the MATLAB reference in `ExactDiagonalization/`.
+   the TN-vs-ED cross-validation tests `test/test_correctness.jl` and
+   `test/test_ed_tn_density_channel.jl`.
 
 2. 🔴 **Dispatch-architecture integrity**: This codebase is **pure multiple dispatch** —
    method selection happens through Julia's type system, never `if`/`else` or string
