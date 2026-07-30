@@ -2,12 +2,16 @@
     test_native_gate_cooling.jl
 
 Correctness tests for src/native_gate_cooling.jl: the hardware-native Rydberg
-algorithmic-cooling circuit (ED backend). See notation_translation.md in
-ProposalRydbergCooling for the physics/notation background.
+algorithmic-cooling circuit on the ED and TN backends. See
+notation_translation.md in ProposalRydbergCooling for the physics/notation
+background, and the "TN backend" testsets at the bottom for the TN-vs-ED
+cross-validation that licenses running this circuit at sizes ED cannot reach.
 """
 
 using Test
 using CoolingTNS
+using ITensors
+using ITensorMPS
 using LinearAlgebra
 using Random
 
@@ -596,5 +600,433 @@ using Random
         q_exact = q_trajectory(quadrature_channel(exact_propagate))
         @test isapprox(q_exact[20], 0.194; rtol=0.05)
         @test isapprox(q_exact[25], 0.164; rtol=0.05)
+    end
+
+    # ====================================================================
+    # TN (MPS) backend -- issue #678
+    # ====================================================================
+
+    # Dense ED-convention amplitude vector of an MPS: site `s` of the chain
+    # occupies bit `s-1` of the ED basis label, and ITensors' "S=1/2" index
+    # value `k` carries occupation `k-1` (Up, Dn). Used only in these tests, to
+    # compare a TN state against the ED state *amplitude by amplitude* rather
+    # than through an observable that could hide a convention error.
+    function dense_vector(psi::MPS, sites::Vector{<:Index})
+        n = length(sites)
+        arr = Array(reduce(*, [psi[i] for i in 1:n]), sites...)
+        v = zeros(ComplexF64, 1 << n)
+        for I in CartesianIndices(arr)
+            v[sum((I[s] - 1) << (s - 1) for s in 1:n) + 1] = arr[I]
+        end
+        return v
+    end
+
+    @testset "TN diagonal windows are contiguous and cover the ED gate set exactly once" begin
+        # The whole reason the TN diagonal step is decomposed into windows is
+        # that a chain bond (s_i, s_{i+1}) is *not* adjacent in the interleaved
+        # layout. These checks pin both halves of that claim: every window acts
+        # on a contiguous block (so `apply` never transports sites -- the
+        # historical interleaved-Trotter bug class), and the multiset of native
+        # two-qubit gates is exactly `two_qubit_gate_pairs`, no gate dropped and
+        # none applied twice.
+        for N in (2, 3, 5, 8)
+            p = NativeGateCircuitParams(N, 1.0, 3.4, 6.8, 5.4, 1)
+            windows = native_diagonal_windows(p, 0.3, 0.3)
+            emitted = Tuple{Int,Int}[]
+            for w in windows
+                @test w.sites == collect(w.sites[1]:w.sites[end])
+                for (a, b, _) in w.pairs
+                    push!(emitted, (w.sites[a], w.sites[b]))
+                end
+            end
+            @test sort(emitted) == sort(two_qubit_gate_pairs(N))
+
+            # A pair-only step (bsb's half-coupling layer) must fall back to
+            # two-site gates rather than paying three-site factorizations for a
+            # zero-angle chain term; a chain-only step keeps its three-site span.
+            pair_only = native_diagonal_windows(p, 0.0, 0.3)
+            @test all(length(w.sites) == 2 for w in pair_only)
+            @test sort([(w.sites[a], w.sites[b]) for w in pair_only for (a, b, _) in w.pairs]) ==
+                  sort(CoolingTNS.coupling_gate_pairs(N))
+            chain_only = native_diagonal_windows(p, 0.3, 0.0)
+            @test sort([(w.sites[a], w.sites[b]) for w in chain_only for (a, b, _) in w.pairs]) ==
+                  sort(CoolingTNS.chain_gate_pairs(N))
+        end
+    end
+
+    @testset "TN collision equals the ED collision amplitude by amplitude" begin
+        # The strongest available statement about the port: with a bond
+        # dimension large enough to be exact (2^N spans any bond of a 2N-site
+        # chain), the TN circuit and the ED circuit produce the *same state
+        # vector*, not merely the same observables -- across Trotter slice
+        # counts, collision times, residual phases and both schedules.
+        for N in (3, 4, 5)
+            sites = siteinds("S=1/2", interleaved_total_sites(N))
+            for r in (1, 2), τ in (0.17, 0.54), α in (0.0, 0.13)
+                p = NativeGateCircuitParams(N, 1.0, 3.4, 6.8, 5.4, r, α)
+                ed0 = native_gate_initial_state(MersenneTwister(7), N)
+                tn0 = native_gate_initial_state(MersenneTwister(7), N, TNBackend(), sites;
+                                                maxdim=1 << N, cutoff=0.0)
+                @test norm(dense_vector(tn0.psi, sites) - ed0) < 1e-12
+
+                ed = apply_collision(copy(ed0), p, collision_layers(p, τ, EDBackend()))
+                tn = apply_collision(tn0, p, collision_layers(p, τ, TNBackend()))
+                @test norm(dense_vector(tn.psi, sites) - ed) < 1e-10
+                @test tn.truncation_weight < 1e-12
+            end
+
+            # The B-S-B short block is a different schedule (and exercises the
+            # chain-only / pair-only window trimming), so port it too.
+            p = NativeGateCircuitParams(N, 1.0, 3.4, 6.8, 5.4, 1)
+            ed0 = native_gate_initial_state(MersenneTwister(3), N)
+            tn0 = native_gate_initial_state(MersenneTwister(3), N, TNBackend(), sites;
+                                            maxdim=1 << N, cutoff=0.0)
+            ed = apply_collision(copy(ed0), p, bsb_collision_layers(p, 0.3, EDBackend()))
+            tn = apply_collision(tn0, p, bsb_collision_layers(p, 0.3, TNBackend()))
+            @test norm(dense_vector(tn.psi, sites) - ed) < 1e-10
+        end
+    end
+
+    @testset "TN energy MPO reproduces the ED Tr(rho_sys H_S)" begin
+        # Both backends must report the *same* estimator, absolute value and
+        # all: the J(N-1)/4 constant from Pauli-expanding the projector is part
+        # of the target energy, and dropping it would leave the two backends
+        # agreeing only up to an N-dependent offset.
+        for N in (2, 3, 4, 5)
+            p = NativeGateCircuitParams(N, 1.0, 3.4, 6.8, 5.4, 2)
+            sites = siteinds("S=1/2", interleaved_total_sites(N))
+            H_ed = native_projector_system_hamiltonian(p, EDBackend())
+            H_tn = native_projector_system_hamiltonian(p, TNBackend(), sites)
+
+            ed = apply_collision(native_gate_initial_state(MersenneTwister(1), N), p,
+                                 collision_layers(p, 0.54, EDBackend()))
+            ed ./= norm(ed)
+            M = system_bath_matrix(ed, N)
+            E_ed = real(sum(conj(M) .* (H_ed * M)))
+
+            tn = apply_collision(
+                native_gate_initial_state(MersenneTwister(1), N, TNBackend(), sites;
+                                          maxdim=1 << N, cutoff=0.0),
+                p, collision_layers(p, 0.54, TNBackend()))
+            psi = normalize!(tn.psi)
+            @test isapprox(real(inner(psi', H_tn, psi)), E_ed; atol=1e-9)
+        end
+
+        # The same model definition, laid out on a system-only chain, is what a
+        # large-N run hands to DMRG for its E_0 reference: check it against the
+        # ED matrix spectrum rather than trusting the re-indexing.
+        let N = 5
+            p = NativeGateCircuitParams(N, 1.0, 3.4, 6.8, 5.4, 2)
+            sys_sites = siteinds("S=1/2", N)
+            H_sys = native_projector_system_hamiltonian(p, TNBackend(), sys_sites, collect(1:N))
+            E0_ed, _, _ = CoolingTNS.find_ground_state(
+                native_projector_system_hamiltonian(p, EDBackend()), EDBackend())
+            E0_tn, _, _ = CoolingTNS.find_ground_state(H_sys, TNBackend(), sys_sites)
+            @test isapprox(E0_tn, E0_ed; atol=1e-6)
+        end
+    end
+
+    @testset "TN measurement-based reset reproduces rho_sys (exact, not approximate)" begin
+        # The TN reset reuses `sample_bath!`, the same machinery the general TN
+        # MCWF cooling driver uses. Its ensemble of collapses must reproduce the
+        # ED reduced density matrix of the *same* post-collision state -- which
+        # simultaneously pins the TN site ordering against the ED bit ordering.
+        N = 3
+        p = NativeGateCircuitParams(N, 1.0, 3.4, 6.8, 5.4, 2)
+        sites = siteinds("S=1/2", interleaved_total_sites(N))
+        ed = apply_collision(native_gate_initial_state(MersenneTwister(1), N), p,
+                             collision_layers(p, 0.54, EDBackend()))
+        ed ./= norm(ed)
+        M = system_bath_matrix(ed, N)
+        rho_exact = M * M'
+
+        tn0 = native_gate_initial_state(MersenneTwister(1), N, TNBackend(), sites;
+                                        maxdim=1 << N, cutoff=0.0)
+        tn = apply_collision(tn0, p, collision_layers(p, 0.54, TNBackend()))
+        sys_sites = sites[1:2:end]
+        n_samples = 2000
+        rng = MersenneTwister(99)
+        rho_emp = zeros(ComplexF64, 1 << N, 1 << N)
+        for _ in 1:n_samples
+            _, psi_sys = CoolingTNS.sample_bath!(rng, normalize!(copy(tn.psi)))
+            normalize!(psi_sys)
+            v = dense_vector(psi_sys, sys_sites)
+            rho_emp .+= (v * v') ./ n_samples
+        end
+        @test opnorm(rho_emp - rho_exact) < 0.05
+        @test isapprox(tr(rho_emp), 1.0; atol=1e-10)
+    end
+
+    @testset "TN and ED cooling trajectories agree within Monte Carlo error" begin
+        # End-to-end cross-validation: the full MCWF driver (collision,
+        # Tr(rho_sys H_S) measurement, measurement-based reset, repeat) run on
+        # both backends. Per trajectory the two cannot match -- `sample_bath!`
+        # and `measure_ed!` consume randomness completely differently -- so the
+        # comparison is at the level the MCWF unraveling actually guarantees:
+        # the per-cycle ensemble means, judged against their own combined
+        # standard error. Bond dimension is set to 2^N, i.e. exact, so a
+        # failure here is a circuit or reset error and never truncation.
+        # Per-cycle ensemble mean and standard error of `n_traj` runs of `run`.
+        function ensemble(run, n_cycles::Int, n_traj::Int)
+            total = zeros(n_cycles)
+            total_sq = zeros(n_cycles)
+            for _ in 1:n_traj
+                E = run()
+                total .+= E
+                total_sq .+= E .^ 2
+            end
+            mean = total ./ n_traj
+            variance = max.(total_sq ./ n_traj .- mean .^ 2, 0.0)
+            return mean, sqrt.(variance ./ n_traj)
+        end
+
+        n_cycles = 6
+        for (N, n_traj) in ((3, 300), (4, 250), (5, 150))
+            J_, h_, Delta_, g_, tau_max = 1.0, 3.4, 6.8, 5.4, 0.54
+            p = NativeGateCircuitParams(N, J_, h_, Delta_, g_, 2)
+            sites = siteinds("S=1/2", interleaved_total_sites(N))
+            H_ed = native_projector_system_hamiltonian(p, EDBackend())
+            H_tn = native_projector_system_hamiltonian(p, TNBackend(), sites)
+
+            rng_ed = MersenneTwister(11)
+            m_ed, s_ed = ensemble(() -> run_native_gate_trajectory(
+                p, n_cycles, rng_ed; H_S=H_ed, randomized_tau=true, tau_max=tau_max)[1],
+                n_cycles, n_traj)
+            rng_tn = MersenneTwister(12)
+            m_tn, s_tn = ensemble(() -> run_native_gate_trajectory(
+                p, n_cycles, rng_tn, TNBackend(), sites; H_S=H_tn, maxdim=1 << N,
+                cutoff=1e-14, randomized_tau=true, tau_max=tau_max)[1],
+                n_cycles, n_traj)
+
+            for c in 1:n_cycles
+                combined_stderr = sqrt(s_ed[c]^2 + s_tn[c]^2)
+                # 4 sigma, with a small absolute floor so a cycle whose spread
+                # happens to be tiny cannot make this a hair-trigger test.
+                @test abs(m_ed[c] - m_tn[c]) < 4 * combined_stderr + 0.05
+            end
+            println("  N=$N TN-vs-ED cycle means (n_traj=$n_traj): ",
+                    "ED ", round.(m_ed, digits=4), " / TN ", round.(m_tn, digits=4))
+        end
+    end
+
+    @testset "TN controls (reset target, initial state, schedule) behave as on ED" begin
+        # The controls are shared code, but they reach the TN state through
+        # different constructors (`bath_reset_amplitudes` / product MPS rather
+        # than Kronecker products), so re-check the qualitative orderings the ED
+        # testsets assert, now on TN.
+        N = 3
+        J_, h_, Delta_, g_, tau_max = 1.0, 3.4, 6.8, 5.4, 0.54
+        p = NativeGateCircuitParams(N, J_, h_, Delta_, g_, 2)
+        sites = siteinds("S=1/2", interleaved_total_sites(N))
+        H_tn = native_projector_system_hamiltonian(p, TNBackend(), sites)
+        # ⟨+|^N H_S |+⟩^N exactly: ⟨+|n|+⟩ = 1/2 and ⟨+|X|+⟩ = 1 on a product state.
+        E_init = J_ * (N - 1) / 4 + h_ * N
+        n_cycles, n_traj = 12, 60
+
+        function mean_final_energy(seed; kwargs...)
+            rng = MersenneTwister(seed)
+            total = 0.0
+            for _ in 1:n_traj
+                E, _ = run_native_gate_trajectory(
+                    p, n_cycles, rng, TNBackend(), sites; H_S=H_tn, maxdim=1 << N,
+                    randomized_tau=true, tau_max=tau_max, kwargs...)
+                total += E[end]
+            end
+            return total / n_traj
+        end
+
+        E_default = mean_final_energy(21)
+        @test E_default < E_init                                             # it cools at all
+        @test mean_final_energy(22; reset_bath=ZeroReset()) > E_default + 1.0 # no-sandwich control
+        @test mean_final_energy(23; layers_fn=bsb_collision_layers) > E_default + 1.0
+        @test isapprox(mean_final_energy(24; initial_sys=MaximallyMixedState()),
+                       E_default; atol=3.0)                                  # same attractor
+    end
+
+    @testset "TN truncation diagnostics" begin
+        # A large-N claim is only as good as its evidence that maxdim was not
+        # binding, so the diagnostics must actually respond to maxdim: a
+        # deliberately starved bond dimension has to show up as both a capped
+        # bond dimension and a nonzero discarded weight, and a generous one as
+        # neither. Both series are running quantities, so both must be
+        # non-decreasing -- and the bond dimension in particular must be the
+        # peak reached *inside* a collision, not the post-reset value (which is
+        # only the system MPS's, the ancilla reset having discarded the peak).
+        N = 5
+        p = NativeGateCircuitParams(N, 1.0, 3.4, 6.8, 5.4, 2)
+        sites = siteinds("S=1/2", interleaved_total_sites(N))
+
+        starved = NativeGateTrajectoryDiagnostics()
+        run_native_gate_trajectory(p, 6, MersenneTwister(4), TNBackend(), sites;
+                                   maxdim=2, cutoff=0.0, randomized_tau=true,
+                                   tau_max=0.54, diagnostics=starved)
+        @test length(starved.bond_dims) == 6
+        @test maximum(starved.bond_dims) <= 2
+        @test starved.truncation_weights[end] > 1e-6
+        @test issorted(starved.truncation_weights)  # running total
+        @test issorted(starved.bond_dims)           # running maximum
+
+        exact = NativeGateTrajectoryDiagnostics()
+        run_native_gate_trajectory(p, 6, MersenneTwister(4), TNBackend(), sites;
+                                   maxdim=1 << N, cutoff=1e-14, randomized_tau=true,
+                                   tau_max=0.54, diagnostics=exact)
+        @test maximum(exact.bond_dims) <= 1 << N
+        @test maximum(exact.bond_dims) > maximum(starved.bond_dims)
+        @test issorted(exact.bond_dims)
+        @test exact.truncation_weights[end] < 1e-10
+        # The peak lives inside the collision: an interleaved 2N-site chain
+        # reaches bond dimensions the N-site post-reset system MPS cannot.
+        @test maximum(exact.bond_dims) > 1 << (N ÷ 2)
+
+        # Diagnostics are a tensor-network concept; asking for them on ED must
+        # be an error rather than a misleading row of zeros.
+        @test_throws ArgumentError run_native_gate_trajectory(
+            p, 2, MersenneTwister(1); randomized_tau=true, tau_max=0.54,
+            diagnostics=NativeGateTrajectoryDiagnostics())
+
+        # Exact purity needs the full reduced density matrix, which is the
+        # object this backend exists to avoid.
+        @test_throws ArgumentError run_native_gate_trajectory(
+            p, 2, MersenneTwister(1), TNBackend(), sites; randomized_tau=true,
+            tau_max=0.54, compute_purity=true)
+    end
+
+    @testset "TN noise path is reproducible and degrades cooling" begin
+        N = 3
+        p = NativeGateCircuitParams(N, 1.0, 3.4, 6.8, 5.4, 2)
+        sites = siteinds("S=1/2", interleaved_total_sites(N))
+        H_tn = native_projector_system_hamiltonian(p, TNBackend(), sites)
+
+        Ea, _ = run_native_gate_trajectory(p, 8, MersenneTwister(7), TNBackend(), sites;
+                                           H_S=H_tn, maxdim=1 << N, randomized_tau=true,
+                                           tau_max=0.54, noise_p=0.05)
+        Eb, _ = run_native_gate_trajectory(p, 8, MersenneTwister(7), TNBackend(), sites;
+                                           H_S=H_tn, maxdim=1 << N, randomized_tau=true,
+                                           tau_max=0.54, noise_p=0.05)
+        @test Ea == Eb
+
+        n_cycles, n_traj = 12, 60
+        function mean_final_energy(seed; kwargs...)
+            rng = MersenneTwister(seed)
+            total = 0.0
+            for _ in 1:n_traj
+                E, _ = run_native_gate_trajectory(
+                    p, n_cycles, rng, TNBackend(), sites; H_S=H_tn, maxdim=1 << N,
+                    randomized_tau=true, tau_max=0.54, kwargs...)
+                total += E[end]
+            end
+            return total / n_traj
+        end
+        @test mean_final_energy(31; noise_p=0.05) > mean_final_energy(30)
+    end
+
+    @testset "Shared one-site amplitude sources (single source of truth for ED and TN)" begin
+        # The two backends build their initial and reset states from the same
+        # one-site amplitudes; these checks pin the two places that could drift:
+        # the Kronecker *ordering* ED uses to densify them (spin 1 is the least
+        # significant bit, hence the last factor -- untestable through
+        # `|+⟩^N`, whose factors are all identical), and the equivalence of the
+        # `ResetTarget` amplitudes with the dense products they replaced.
+        for N in (2, 3, 5)
+            rng_seed = 5
+            dense = CoolingTNS.initial_system_amplitudes(
+                MaximallyMixedState(), N, MersenneTwister(rng_seed))
+            b = rand(MersenneTwister(rng_seed), 0:(1 << N - 1))
+            one_hot = zeros(ComplexF64, 1 << N)
+            one_hot[b + 1] = 1
+            @test dense == one_hot
+
+            @test system_plus_state_product(N) ==
+                  kron_site_amplitudes(CoolingTNS.initial_system_site_amplitudes(
+                      HotState(), N, MersenneTwister(1)))
+            @test bath_reset_state(ColdReset(), N) == bath_ground_state_product(N)
+            @test bath_reset_state(ZeroReset(), N) == bath_zero_state_product(N)
+            @test bath_reset_amplitudes(ColdReset()) ==
+                  ComplexF64.(bath_ground_state_amplitudes("ZZ")[2])
+            @test bath_reset_amplitudes(ZeroReset()) == ComplexF64[1, 0]
+
+            # And the TN product state of the same controls matches ED exactly.
+            sites = siteinds("S=1/2", interleaved_total_sites(N))
+            for sys in (HotState(), MaximallyMixedState()),
+                bath in (ColdReset(), ZeroReset())
+                tn = native_gate_initial_state(MersenneTwister(rng_seed), N, TNBackend(),
+                                               sites; sys=sys, bath=bath, maxdim=1 << N)
+                ed = native_gate_initial_state(MersenneTwister(rng_seed), N;
+                                               sys=sys, bath=bath)
+                @test norm(dense_vector(tn.psi, sites) - ed) < 1e-12
+            end
+        end
+    end
+
+    @testset "apply_collision validates its redundant qubit count" begin
+        p = NativeGateCircuitParams(3, 1.0, 3.4, 6.8, 5.4, 1)
+        state = native_gate_initial_state(MersenneTwister(1), 3)
+        layers = collision_layers(p, 0.3)
+        @test apply_collision(copy(state), p, layers, 6) ==
+              apply_collision(copy(state), p, layers)
+        @test_throws ArgumentError apply_collision(copy(state), p, layers, 7)
+    end
+
+    @testset "layers_fn accepts both the backend-aware and the legacy two-argument contract" begin
+        # `layers_fn` is a public extension point. The TN port made the built-in
+        # schedules take a third `backend` argument; a custom schedule written
+        # against the older `(p, τ)` contract must keep working on ED rather
+        # than dying with a MethodError on the first cycle. A two-argument
+        # schedule can only build ED layers, so on TN it must raise the explicit
+        # cross-backend error rather than being silently reinterpreted.
+        N = 3
+        p = NativeGateCircuitParams(N, 1.0, 3.4, 6.8, 5.4, 2)
+        sites = siteinds("S=1/2", interleaved_total_sites(N))
+        two_arg(pp, τ) = collision_layers(pp, τ)
+        three_arg(pp, τ, backend) = collision_layers(pp, τ, backend)
+
+        E_default, _ = run_native_gate_trajectory(p, 5, MersenneTwister(3);
+                                                  randomized_tau=true, tau_max=0.54)
+        E_two, _ = run_native_gate_trajectory(p, 5, MersenneTwister(3); layers_fn=two_arg,
+                                              randomized_tau=true, tau_max=0.54)
+        E_three, _ = run_native_gate_trajectory(p, 5, MersenneTwister(3); layers_fn=three_arg,
+                                                randomized_tau=true, tau_max=0.54)
+        @test E_two == E_default
+        @test E_three == E_default
+
+        E_tn, _ = run_native_gate_trajectory(p, 5, MersenneTwister(3), TNBackend(), sites;
+                                             layers_fn=three_arg, maxdim=1 << N,
+                                             randomized_tau=true, tau_max=0.54)
+        @test length(E_tn) == 5
+        @test_throws ArgumentError run_native_gate_trajectory(
+            p, 2, MersenneTwister(3), TNBackend(), sites; layers_fn=two_arg,
+            maxdim=1 << N, randomized_tau=true, tau_max=0.54)
+    end
+
+    @testset "Chain-only and pair-only diagonals skip the zero-angle family" begin
+        # native_chain_diagonal / native_pair_diagonal zero out the *other*
+        # interaction family; the accumulator must return immediately on a zero
+        # angle instead of sweeping all 2^nq amplitudes per edge to add nothing.
+        # Correctness of the skip: the results must be exactly what multiplying
+        # the two single-family diagonals gives.
+        for N in (2, 3, 4)
+            p = NativeGateCircuitParams(N, 1.0, 3.4, 6.8, 5.4, 1)
+            nq = interleaved_total_sites(N)
+            chain = native_chain_diagonal(p, 0.3, nq)
+            pair = native_pair_diagonal(p, 0.3, nq)
+            @test native_projector_diagonal(p, 0.3, 0.0, nq) == chain
+            @test native_projector_diagonal(p, 0.0, 0.3, nq) == pair
+            @test isapprox(CoolingTNS.native_diagonal_slice(p, 0.3, nq), chain .* pair; atol=1e-14)
+            # A wholly zero step is the identity diagonal.
+            @test native_projector_diagonal(p, 0.0, 0.0, nq) == ones(ComplexF64, 1 << nq)
+        end
+    end
+
+    @testset "Mixing a backend's schedule with the other backend's state errors clearly" begin
+        # The diagonal step is the only backend-specific part of a schedule, so
+        # running an ED schedule on an MPS (or vice versa) is a real mistake and
+        # must say so rather than surface as a bare MethodError.
+        N = 3
+        p = NativeGateCircuitParams(N, 1.0, 3.4, 6.8, 5.4, 1)
+        sites = siteinds("S=1/2", interleaved_total_sites(N))
+        tn = native_gate_initial_state(MersenneTwister(1), N, TNBackend(), sites)
+        ed = native_gate_initial_state(MersenneTwister(1), N)
+        @test_throws ArgumentError apply_collision(tn, p, collision_layers(p, 0.3, EDBackend()))
+        @test_throws ArgumentError apply_collision(ed, p, collision_layers(p, 0.3, TNBackend()))
     end
 end
