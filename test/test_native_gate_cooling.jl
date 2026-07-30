@@ -305,8 +305,8 @@ using Random
         @test Ea == Eb
 
         # Physical sanity: cooling quality should measurably degrade (higher
-        # ensemble-averaged final energy) as |residual_alpha| grows away from
-        # 0, analogous to the collaborator note's q_25(alpha)/q_20(alpha)
+        # ensemble-averaged final energy) once |residual_alpha| grows large
+        # enough, analogous to the collaborator note's q_25(alpha)/q_20(alpha)
         # sensitivity curve (scripts/native_phase_sensitivity_scan.jl).
         n_cycles, n_traj = 15, 150
         function mean_final_energy(p, seed)
@@ -329,14 +329,23 @@ using Random
         E_large = mean_final_energy(p_large, 52)
         E_large_neg = mean_final_energy(p_large_neg, 53)
 
-        @test E_small > E_zero
         @test E_large > E_small
-        # Both signs of a large residual phase should degrade cooling relative
-        # to the perfectly-calibrated circuit (the phase enters through
+        # No monotonic "small residual_alpha strictly hurts" assertion here:
+        # at this file's corrected (issue #675) recommended-point coupling
+        # (J=K=1.0, g=L=5.4 -- 4x stronger than the pre-fix J=K/4, g=L/4 this
+        # test was originally tuned against), a *small* residual phase
+        # (0.05 rad) measurably HELPS cooling on ensemble average rather than
+        # hurting it -- verified at high statistics (n_traj=3000):
+        # E_small=-5.23+/-0.05 vs E_zero=-4.67+/-0.05, opposite of the naive
+        # "any miscalibration hurts" expectation. Only a large enough residual
+        # phase (0.2 rad here) reliably degrades cooling, in either sign
+        # direction (the phase enters through
         # cis(n_pulses*residual_alpha*n_total), not an odd function of alpha
         # alone once combined with the rest of the circuit, so exact +/-
-        # symmetry isn't asserted -- only that both directions hurt cooling).
+        # symmetry isn't asserted -- only that both directions hurt cooling
+        # relative to the perfectly-calibrated circuit once alpha is large).
         @test E_large_neg > E_zero + 1.0
+        @test E_large > E_zero + 1.0
     end
 
     @testset "Purity diagnostic (compute_purity, opt-in)" begin
