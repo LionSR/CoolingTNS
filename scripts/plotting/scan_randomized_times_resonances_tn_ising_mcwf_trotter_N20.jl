@@ -17,7 +17,6 @@ Usage:
 
 using CoolingTNS
 using Random
-using Statistics
 using Printf
 
 """Run `f()` with stdout/stderr redirected to /dev/null."""
@@ -28,8 +27,6 @@ function _silence(f)
         end
     end
 end
-
-_mean_last(xs::AbstractVector, window::Int) = mean(xs[max(1, length(xs) - window + 1):end])
 
 backend = TNBackend()
 ham_params = IsingParameters(20, 1.0, -1.05)
@@ -105,7 +102,7 @@ function _run_once(; t_mean::Float64, randomize_times::Bool)
     st = setup_initial_state(prob, sim_params, init_type, theta)
     res = _silence(() -> run_cooling(prob, st, cp, sim_params, ham_params))
 
-    E_tail = _mean_last(res[CoolingTNS.RESULT_ENERGY], window)
+    E_tail = mean_last_window(res[CoolingTNS.RESULT_ENERGY], window)
     return relative_energy(Float64(E_tail), E0)
 end
 

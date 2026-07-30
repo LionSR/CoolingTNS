@@ -24,6 +24,9 @@ using PythonCall
 using LaTeXStrings
 using TimerOutputs
 
+# `get_pyplot` lives in the shared plotting helpers, not in CoolingTNS itself.
+include(joinpath(@__DIR__, "plotting", "PlotUtils.jl"))
+
 # ============================================================================
 # Configuration
 # ============================================================================
@@ -248,7 +251,7 @@ end
 # ============================================================================
 
 function plot_scaling_results(N_values, all_E_density, all_e0_density, all_per_traj, steps)
-    plt = CoolingTNS.get_pyplot()
+    plt = get_pyplot()
     mkpath("Results/Figs")
 
     completed = filter(N -> haskey(all_E_density, N), N_values)

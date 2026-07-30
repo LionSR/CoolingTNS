@@ -194,16 +194,6 @@ function unique_progress_file_labels(paths::AbstractVector{<:AbstractString})
     return labels
 end
 
-function format_float(value::Real, digits::Int=2)
-    !isfinite(value) && return "NaN"
-    digits == 1 && return @sprintf("%.1f", value)
-    digits == 2 && return @sprintf("%.2f", value)
-    digits == 3 && return @sprintf("%.3f", value)
-    digits == 5 && return @sprintf("%.5f", value)
-    digits == 8 && return @sprintf("%.8f", value)
-    return string(round(Float64(value); digits=digits))
-end
-
 function format_protocol_float(value::Real)
     !isfinite(value) && return "NaN"
     return @sprintf("%.8g", Float64(value))
