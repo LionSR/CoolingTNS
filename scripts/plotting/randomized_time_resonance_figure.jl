@@ -385,18 +385,7 @@ function plot_time_randomization_resonances(;
     # Plot
     plt = get_pyplot()
 
-    plt.rcParams.update(Dict(
-        "font.size" => 9,
-        "axes.labelsize" => 9,
-        "axes.titlesize" => 9,
-        "legend.fontsize" => 8,
-        "xtick.labelsize" => 8,
-        "ytick.labelsize" => 8,
-        "lines.linewidth" => 1.6,
-        "lines.markersize" => 3.5,
-        "pdf.fonttype" => 42,
-        "ps.fonttype" => 42,
-    ))
+    apply_house_plot_style!(plt; lines_linewidth=1.6, lines_markersize=3.5)
 
     fig, axs = plt.subplots(1, 2, figsize=(7.0, 3.1))
 

@@ -46,6 +46,44 @@ function get_pyplot()
 end
 
 """
+    apply_house_plot_style!(plt; overrides...)
+
+Apply this project's standard matplotlib figure style and return `plt`.
+
+This is the single definition of the style; it was previously copy-pasted
+verbatim into every plotting script, so a change to the house look required
+editing each one and the copies were free to drift. Pass `overrides` for the
+per-figure deviations that are genuinely intentional, e.g.
+
+    apply_house_plot_style!(plt; lines_linewidth=1.6, lines_markersize=3.5)
+
+Keyword names use `_` where the matplotlib rcParam uses `.`
+(`lines_linewidth` sets `"lines.linewidth"`), since `.` is not valid in a
+Julia keyword argument.
+
+`pdf.fonttype`/`ps.fonttype` are pinned to 42 (TrueType) so text in saved
+figures stays selectable and editable rather than being outlined.
+"""
+function apply_house_plot_style!(plt; overrides...)
+    style = Dict{String,Any}(
+        "font.size" => 9,
+        "axes.labelsize" => 9,
+        "axes.titlesize" => 9,
+        "legend.fontsize" => 8,
+        "xtick.labelsize" => 8,
+        "ytick.labelsize" => 8,
+        "lines.linewidth" => 1.8,
+        "pdf.fonttype" => 42,
+        "ps.fonttype" => 42,
+    )
+    for (key, value) in overrides
+        style[replace(String(key), "_" => ".")] = value
+    end
+    plt.rcParams.update(style)
+    return plt
+end
+
+"""
     read_h5_data(filename::String) -> Union{Dict{String, Any}, Nothing}
 
 Read all data from an HDF5 file into a dictionary.

@@ -125,17 +125,7 @@ E_multi = res_multi[CoolingTNS.RESULT_ENERGY] ./ N
 # -----------------------------------------------------------------------------
 
 plt = get_pyplot()
-plt.rcParams.update(Dict(
-    "font.size" => 9,
-    "axes.labelsize" => 9,
-    "axes.titlesize" => 9,
-    "legend.fontsize" => 8,
-    "xtick.labelsize" => 8,
-    "ytick.labelsize" => 8,
-    "lines.linewidth" => 1.8,
-    "pdf.fonttype" => 42,
-    "ps.fonttype" => 42,
-))
+apply_house_plot_style!(plt)
 
 fig, ax = plt.subplots(1, 1, figsize=(5.2, 3.2))
 steps_axis = collect(0:steps)

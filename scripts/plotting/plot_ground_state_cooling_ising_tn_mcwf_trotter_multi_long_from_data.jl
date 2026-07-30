@@ -33,17 +33,7 @@ E_over_N = E_list ./ N
 E0_over_N = E0 / N
 
 plt = get_pyplot()
-plt.rcParams.update(Dict(
-    "font.size" => 9,
-    "axes.labelsize" => 9,
-    "axes.titlesize" => 9,
-    "legend.fontsize" => 8,
-    "xtick.labelsize" => 8,
-    "ytick.labelsize" => 8,
-    "lines.linewidth" => 1.8,
-    "pdf.fonttype" => 42,
-    "ps.fonttype" => 42,
-))
+apply_house_plot_style!(plt)
 
 fig, axs = plt.subplots(1, 2, figsize=(7.0, 3.1))
 steps_axis = collect(0:steps)
