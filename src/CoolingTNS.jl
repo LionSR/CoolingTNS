@@ -64,12 +64,12 @@ export tn_method_maxdim, tn_trotter_maxdim
 export EvolutionMethod, ContinuousEvolution, TrotterEvolution
 # Export new parameter types and functions
 export CouplingParameters, SimulationParameters, CoolingResults
-export BasicCouplingParameters, MultiFrequencyCouplingParameters, OptimizationCouplingParameters
+export BasicCouplingParameters, MultiFrequencyCouplingParameters
 export UnifiedSimulationParameters
 export HamiltonianParameters, IsingParameters, NiIsingParameters, RydbergParameters
 export HamiltonianModel, IsingModel, NiIsingModel, RydbergModel
 export DensityMatrixResults, MonteCarloResults, TensorNetworkResults
-export create_coupling_params, create_sim_params, create_results
+export create_sim_params, compile_results
 export to_dict
 export setup_common_parameters, create_filename, save_results, HDF5_PARSED_ARGS_GROUP
 export canonical_method_token

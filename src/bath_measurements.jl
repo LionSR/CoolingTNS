@@ -79,6 +79,8 @@ function compute_bath_magnetization(::EDBackend, ::QuantumState{EDBackend,Densit
 
     # Each diagonal entry contributes its bath magnetization weighted by its
     # population; n_ones counts the down-spins in the basis-state bitstring.
+    # `1 - 2 * n_ones / N_bath` is the popcount form of averaging
+    # `_pauli_z_from_ed_bit` over the bits of `i - 1` (bit 0 -> +1, bit 1 -> -1).
     return sum(1:dim; init=0.0) do i
         n_ones = count_ones(i - 1)
         real(ρ_bath[i, i]) * (1 - 2 * n_ones / N_bath)
@@ -98,52 +100,4 @@ function compute_bath_magnetization(::TNBackend, ::QuantumState{TNBackend,Densit
     end
 
     return total_mag / N_bath
-end
-
-# ============================================================================
-# Bath State Extraction Dispatch
-# ============================================================================
-
-"""
-    extract_bath_state(backend::CoolingBackend, state::QuantumState, evolved_state, N_sys::Int, N_bath::Int)
-
-Extract bath state or measurement using dispatch.
-"""
-function extract_bath_state(backend::CoolingBackend, state::QuantumState, evolved_state, N_sys::Int, N_bath::Int)
-    error("extract_bath_state not implemented for backend=$(typeof(backend)), sim_method=$(typeof(state.sim_method))")
-end
-
-# --- ED + Density Matrix ---
-# Trace out system to get bath density matrix
-function extract_bath_state(::EDBackend, ::QuantumState{EDBackend,DensityMatrix,E},
-                          ρ_total::Matrix, N_sys::Int, N_bath::Int) where E
-    return tr_sys(ρ_total, N_sys, N_bath)
-end
-
-# --- ED + Monte Carlo ---
-# Already handled during measurement collapse - return the measurement result
-function extract_bath_state(::EDBackend, ::QuantumState{EDBackend,MonteCarloWavefunction,E},
-                          bath_result::Vector{Int}, N_sys::Int, N_bath::Int) where E
-    return bath_result
-end
-
-# --- TN + Monte Carlo ---
-# Already handled during bath sampling - return the sample
-function extract_bath_state(::TNBackend, ::QuantumState{TNBackend,MonteCarloWavefunction,E},
-                          bath_sample::Vector{Int}, N_sys::Int, N_bath::Int) where E
-    return bath_sample
-end
-
-# ============================================================================
-# Utility Functions
-# ============================================================================
-
-"""Trace out system degrees of freedom to get bath density matrix"""
-function tr_sys(ρ::Matrix, N_sys::Int, N_bath::Int)
-    N_sys == N_bath || throw(ArgumentError(
-        "ED bath extraction expects the interleaved one-bath-per-system layout; " *
-        "got N_sys=$N_sys and N_bath=$N_bath."
-    ))
-    ρ_total = EDDensityMatrix(Matrix{ComplexF64}(ρ), N_sys + N_bath)
-    return trace_out_system_ed(ρ_total, N_sys).data
 end
