@@ -272,6 +272,30 @@ end
     end
     @test err isa ArgumentError
     @test occursin("pass --cap D explicitly", sprint(showerror, err))
+    @test TDVPProgressCSVSummary.format_protocol_float(2.0) == "2"
+    @test TDVPProgressCSVSummary.format_protocol_float(0.5) == "0.5"
+    @test TDVPProgressCSVSummary.progress_te_audit_values([
+        Dict(TDVPProgressCSVSummary.LARGE_N_PROGRESS_TE_KEY => "NaN"),
+    ]) == Float64[]
+    @test TDVPProgressCSVSummary.progress_te_audit_values([
+        Dict(TDVPProgressCSVSummary.LARGE_N_PROGRESS_TE_KEY => "2.0"),
+        Dict(TDVPProgressCSVSummary.LARGE_N_PROGRESS_TE_KEY => "2.00"),
+    ]) == [2.0]
+    @test TDVPProgressCSVSummary.progress_te_audit_values([
+        Dict(TDVPProgressCSVSummary.LARGE_N_PROGRESS_TE_KEY => "1.25"),
+        Dict(TDVPProgressCSVSummary.LARGE_N_PROGRESS_TE_KEY => "0.5"),
+        Dict(TDVPProgressCSVSummary.LARGE_N_PROGRESS_TE_KEY => "0.75"),
+    ]) == [0.5, 1.25]
+    @test TDVPProgressCSVSummary.progress_te_label(Float64[]) ==
+          TDVPProgressCSVSummary.LARGE_N_LABEL_NA
+    @test TDVPProgressCSVSummary.progress_te_label([0.5]) == "0.5"
+    @test TDVPProgressCSVSummary.progress_te_label([0.5, 1.25]) == "0.5-1.25"
+    @test TDVPProgressCSVSummary.progress_time_protocol_label(Float64[]) ==
+          TDVPProgressCSVSummary.LARGE_N_LABEL_NA
+    @test TDVPProgressCSVSummary.progress_time_protocol_label([2.0]) ==
+          "fixed_observed"
+    @test TDVPProgressCSVSummary.progress_time_protocol_label([0.5, 1.25]) ==
+          "variable_observed"
 
     path = tempname() * ".csv"
     try
@@ -373,6 +397,8 @@ end
         @test row.N == 4
         @test row.R == 2
         @test row.g == "0.3"
+        @test row.time_protocol == "fixed_observed"
+        @test row.te == "2"
         @test row.threshold == 6
         @test row.completed_cycles == 2
         @test row.visited_detunings == "2/2"
@@ -444,8 +470,13 @@ end
         end
         summary_lines = split(chomp(output), "\n")
         @test count(==('|'), summary_lines[1]) == count(==('|'), summary_lines[2])
-        @test count(==('|'), summary_lines[1]) - 1 == 25
-        @test occursin("| file | N | method | evolution | R | g | traj |", output)
+        @test count(==('|'), summary_lines[1]) - 1 == 27
+        @test occursin(
+            "| file | N | method | evolution | time protocol | te values | R | g | traj |",
+            output,
+        )
+        @test occursin("| time protocol | te values |", output)
+        @test occursin("| continuous | fixed_observed | 2 | 2 | 0.3 |", output)
         @test occursin("| completed cycles | visited detunings | detuning coverage |", output)
         @test occursin("| sys cap | evolved cap | tdvp sweep cap | first transient cap |", output)
         @test occursin("| last step | last cycle | last stage |", output)
@@ -475,11 +506,58 @@ end
             read(output_path, String)
         end
         @test compact_return[] === nothing
-        @test occursin("| file | N | method | evolution | R | g | traj |",
-                       compact_output)
+        @test occursin(
+            "| file | N | method | evolution | time protocol | te values | R | g | traj |",
+            compact_output,
+        )
         @test !occursin("| R | g | traj | cycle | delta | E/N |", compact_output)
     finally
         rm(path; force=true)
+    end
+
+    variable_te_path = tempname() * ".csv"
+    try
+        open(variable_te_path, "w") do io
+            println(io, join(TDVPProgressCSVSummary.LARGE_N_PROGRESS_CSV_COLUMNS, ","))
+            println(io, tdvp_progress_line(
+                stage="initial", step=1, cycle=0, delta="NaN", te="NaN",
+                energy_per_site="1.0", relative_energy="2.0", overlap="0.0",
+                system_max_bond="1", evolved_max_bond="NaN", elapsed_seconds=0.5,
+            ))
+            println(io, tdvp_progress_line(
+                stage="updated", step=2, cycle=1, te="0.5",
+                energy_per_site="0.5", relative_energy="1.5", overlap="0.1",
+                system_max_bond="5", evolved_max_bond="6", elapsed_seconds=3.0,
+            ))
+            println(io, tdvp_progress_line(
+                stage="updated", step=3, cycle=2, te="1.25",
+                energy_per_site="0.25", relative_energy="1.25", overlap="0.2",
+                system_max_bond="6", evolved_max_bond="7", elapsed_seconds=6.0,
+            ))
+        end
+
+        variable_te_row = only(TDVPProgressCSVSummary.summarize_progress_file(
+            variable_te_path
+        ))
+        @test variable_te_row.time_protocol == "variable_observed"
+        @test variable_te_row.te == "0.5-1.25"
+        variable_te_output = mktemp() do output_path, io
+            close(io)
+            open(output_path, "w") do out
+                redirect_stdout(out) do
+                    TDVPProgressCSVSummary.print_markdown(
+                        [variable_te_row]; compact=true
+                    )
+                end
+            end
+            read(output_path, String)
+        end
+        @test occursin(
+            "| continuous | variable_observed | 0.5-1.25 | 2 | 0.3 |",
+            variable_te_output,
+        )
+    finally
+        rm(variable_te_path; force=true)
     end
 
     legacy_stop_path = tempname() * ".csv"

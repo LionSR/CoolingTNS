@@ -121,6 +121,15 @@ file; unlike the HDF5 summary, they are not gated by stored schedule metadata.
 The HDF5 and progress-CSV summaries share the same visited-detuning label
 helper for observed count labels such as `2/5`; only the HDF5 path can add an
 `unknownxq/M` term for missing stored detuning histories.
+The progress-CSV recovery table also reports a `time protocol` label and a
+`te values` entry inferred from the finite `te` fields in the recovered rows.
+These are audit labels for the flushed prefix.  A single finite value is shown
+as `fixed_observed`, while several finite values are shown as
+`variable_observed` together with their observed range.  The progress
+summarizer still does not use `te` as a grouping key, because randomized-time
+trajectories legitimately contain different cycle times within one physical
+trajectory, and fixed `--te-values` scans are emitted as distinct planned jobs
+with distinct progress CSV paths.
 The campaign driver now also warns before a direct run whenever a deterministic
 requested window has `steps < R`.  If that direct request contains one affected
 partial-period branch, the warning uses singular wording; if multiple generated
@@ -155,8 +164,8 @@ Partial stop reasons are reported with counts such as `bond_capx1/2`.  Use
 short table format used in the notes.  For interrupted or live TDVP traces
 where only the flushed progress CSV is available, use
 `scripts/validation/summarize_tdvp_progress_csv.jl --compact`; this prints the
-same run-level saturation and detuning-coverage audit without the detailed
-per-cycle energy trace.
+same run-level saturation, detuning-coverage, and observed-`te` audit without
+the detailed per-cycle energy trace.
 
 The nominal parameter `Dmax` is not always the actual Trotter truncation cap.
 The method-specific cap is

@@ -9,6 +9,10 @@ energy trace, detuning-grid coverage, cap onset, and per-sweep TDVP timing.
 Legacy progress CSV files that predate the `g` column are displayed with
 `legacy_missing` in the coupling column rather than with a blank cell.  Files
 with a present but empty `g` field are displayed as `missing`.
+The summary reports the finite `te` values observed in the progress rows.  This
+is an audit of the recovered prefix, not a grouping key: randomized-time runs
+may contain many `te` values in one trajectory, while fixed-`te` scans should
+write separate progress files.
 For legacy progress files that do not have the `stop_on_bond_cap` column, use
 `--stopped-on-cap` only for stop-on-cap diagnostics; then a cap-hit sub-grid
 deterministic prefix is labelled `stopped_partial_grid` rather than the default
@@ -200,6 +204,48 @@ function format_float(value::Real, digits::Int=2)
     return string(round(Float64(value); digits=digits))
 end
 
+function format_protocol_float(value::Real)
+    !isfinite(value) && return "NaN"
+    return @sprintf("%.8g", Float64(value))
+end
+
+function progress_te_audit_values(rows)
+    has_value = false
+    is_variable = false
+    reference = NaN
+    minimum_te = Inf
+    maximum_te = -Inf
+    for row in rows
+        value = progress_float(row, LARGE_N_PROGRESS_TE_KEY)
+        isfinite(value) || continue
+        if !has_value
+            reference = value
+            minimum_te = value
+            maximum_te = value
+            has_value = true
+        else
+            value != reference && (is_variable = true)
+            minimum_te = min(minimum_te, value)
+            maximum_te = max(maximum_te, value)
+        end
+    end
+    has_value || return Float64[]
+    is_variable || return [reference]
+    return [minimum_te, maximum_te]
+end
+
+function progress_te_label(values::AbstractVector{<:Real})
+    isempty(values) && return LARGE_N_LABEL_NA
+    length(values) == 1 && return format_protocol_float(only(values))
+    return "$(format_protocol_float(first(values)))-$(format_protocol_float(last(values)))"
+end
+
+function progress_time_protocol_label(values::AbstractVector{<:Real})
+    isempty(values) && return LARGE_N_LABEL_NA
+    length(values) == 1 && return "fixed_observed"
+    return "variable_observed"
+end
+
 function cap_label(cycle::Integer, sweep)
     cycle == 0 && return LARGE_N_LABEL_NONE
     sweep === nothing && return string(cycle)
@@ -311,6 +357,7 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
     end
 
     R = parse(Int, label.R)
+    te_values = progress_te_audit_values(rows)
     completed_cycles = isempty(updates) ?
         0 :
         maximum(progress_int(row, LARGE_N_PROGRESS_CYCLE_KEY) for row in updates)
@@ -358,6 +405,8 @@ function summarize_progress_group(file_label::AbstractString, key, rows;
         evolution=label.evolution,
         R=R,
         g=label.g,
+        time_protocol=progress_time_protocol_label(te_values),
+        te=progress_te_label(te_values),
         has_g_column=has_g_column,
         stop_on_bond_cap=effective_stopped_on_cap,
         trajectory=parse(Int, label.trajectory),
@@ -446,8 +495,8 @@ function summarize_progress_files(paths::AbstractVector{<:AbstractString};
 end
 
 function print_summary_table(rows)
-    println("| file | N | method | evolution | R | g | traj | seed | Dcap | completed cycles | visited detunings | detuning coverage | final E/N | Dsys_eff | Dsb_eff | bond_status | sys cap | evolved cap | tdvp sweep cap | first transient cap | max sweep dt | max sweep at | last step | last cycle | last stage |")
-    println("|---|---:|---|---|---:|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---|---|---|---|---|---:|---|---:|---:|---|")
+    println("| file | N | method | evolution | time protocol | te values | R | g | traj | seed | Dcap | completed cycles | visited detunings | detuning coverage | final E/N | Dsys_eff | Dsb_eff | bond_status | sys cap | evolved cap | tdvp sweep cap | first transient cap | max sweep dt | max sweep at | last step | last cycle | last stage |")
+    println("|---|---:|---|---|---|---|---:|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---|---|---|---|---|---:|---|---:|---:|---|")
     for row in rows
         max_sweep_label = row.max_sweep_cycle == 0 ?
             LARGE_N_LABEL_NONE :
@@ -455,7 +504,8 @@ function print_summary_table(rows)
         g_label = progress_coupling_label(row.g; column_present=row.has_g_column)
         println(
             "| $(row.file) | $(row.N) | $(row.method) | $(row.evolution) | " *
-            "$(row.R) | $(g_label) | $(row.trajectory) | $(row.seed) | $(row.threshold) | " *
+            "$(row.time_protocol) | $(row.te) | $(row.R) | $(g_label) | " *
+            "$(row.trajectory) | $(row.seed) | $(row.threshold) | " *
             "$(row.completed_cycles) | $(row.visited_detunings) | " *
             "$(row.detuning_coverage) | $(format_float(row.final_energy, 8)) | " *
             "$(row.system_effective_bond) | $(row.evolved_effective_bond) | " *
