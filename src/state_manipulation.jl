@@ -13,8 +13,5 @@ using ITensorMPS
 # Utility Functions
 # ============================================================================
 
-"""Create projector from EDStateVector"""
-projector(ψ::EDStateVector) = state_to_density_ed(ψ).data
-
 """Create MPO projector from MPS for TN backend"""
 projector_mpo(ψ::MPS) = outer(ψ', ψ)
