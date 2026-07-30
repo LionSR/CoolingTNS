@@ -1385,6 +1385,13 @@ measurement, ancilla-selective reset via `_measure_and_reset`), returning
 schedule and report the same energy estimator `Tr(ρ_sys H_S)` per cycle, so
 their trajectory ensembles are directly comparable.
 
+`fidelities` is **not** the same estimator on both backends: ED returns the
+exact pre-collapse `⟨ψ_0|ρ_sys|ψ_0⟩`, TN a post-collapse per-trajectory sample
+`|⟨ψ_0|ψ_sys⟩|²` whose *ensemble mean* is that same quantity. Compare
+fidelities across backends only after averaging; single trajectories will not
+match (see the TN `_measure_and_reset` docstring for why, and note that the
+energy return above does not have this caveat).
+
 On ED, `H_S` should be `SparseMatrixCSC` (as returned by
 `construct_system_hamiltonian` for `EDBackend`) so the energy measurement
 `Tr(ρ_sys H_S) = Σ_b M[:,b]'*(H_S*M[:,b])` stays O(N·4^N) (sparse H_S times
