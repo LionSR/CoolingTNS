@@ -1,7 +1,12 @@
+# These imports sit outside the include guard on purpose: the guard is a single
+# top-level `if` expression, so everything inside it is lowered (and its macros
+# expanded) before any `using` inside it has run.  A guarded `using Printf`
+# would therefore leave `@sprintf` undefined at expansion time.
+using Printf
+using Statistics
+
 if !isdefined(@__MODULE__, :_COOLINGTNS_LARGEN_SCALING_HELPERS_INCLUDED)
 const _COOLINGTNS_LARGEN_SCALING_HELPERS_INCLUDED = true
-
-using Statistics
 
 const LARGE_N_TRAJECTORY_SEED_N_STRIDE = 1_000_000
 const LARGE_N_TRAJECTORY_SEED_R_STRIDE = 10_000
@@ -453,6 +458,26 @@ function progress_detuning_coverage_status(
     visited_count >= R && return LARGE_N_DETUNING_COVERAGE_FULL_GRID
     stopped && return LARGE_N_DETUNING_COVERAGE_STOPPED_PARTIAL_GRID
     return LARGE_N_DETUNING_COVERAGE_PARTIAL_GRID_OBSERVED
+end
+
+"""
+    format_float(value, digits=2) -> String
+
+Render a float for the large-N evidence tables at a fixed number of decimals.
+
+The common column widths are enumerated so the hot path uses a compile-time
+`@sprintf` format string; any other width falls back to `round`.  Non-finite
+values are reported as `NaN` rather than as `Inf`/`-Inf`, because the tables
+treat every non-finite entry as "no usable number".
+"""
+function format_float(value::Real, digits::Int=2)
+    !isfinite(value) && return "NaN"
+    digits == 1 && return @sprintf("%.1f", value)
+    digits == 2 && return @sprintf("%.2f", value)
+    digits == 3 && return @sprintf("%.3f", value)
+    digits == 5 && return @sprintf("%.5f", value)
+    digits == 8 && return @sprintf("%.8f", value)
+    return string(round(Float64(value); digits=digits))
 end
 
 """

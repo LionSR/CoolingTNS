@@ -37,9 +37,6 @@ function _silence(f)
     end
 end
 
-"""Return mean over the last `window` entries of `xs` (expects `window ≥ 1`)."""
-_mean_last(xs::AbstractVector, window::Int) = mean(xs[max(1, length(xs) - window + 1):end])
-
 """
     _energy_metric(E, E0, N, metric) -> Float64
 
@@ -254,7 +251,7 @@ function plot_time_randomization_resonances(;
                     schedule=schedule,
                     silence=silence,
                 )
-                push!(Ef, _energy_metric(_mean_last(res_fixed[CoolingTNS.RESULT_ENERGY], window_size), E0, N, metric))
+                push!(Ef, _energy_metric(mean_last_window(res_fixed[CoolingTNS.RESULT_ENERGY], window_size), E0, N, metric))
             end
             E_fixed_mean[i] = mean(Ef)
             E_fixed_std[i] = std(Ef)
@@ -273,7 +270,7 @@ function plot_time_randomization_resonances(;
                 schedule=schedule,
                 silence=silence,
             )
-            E_fixed_mean[i] = _energy_metric(_mean_last(res_fixed[CoolingTNS.RESULT_ENERGY], window_size), E0, N, metric)
+            E_fixed_mean[i] = _energy_metric(mean_last_window(res_fixed[CoolingTNS.RESULT_ENERGY], window_size), E0, N, metric)
             E_fixed_std[i] = 0.0
         end
 
@@ -297,7 +294,7 @@ function plot_time_randomization_resonances(;
                 schedule=schedule,
                 silence=silence,
             )
-            push!(Es, _energy_metric(_mean_last(res_rand[CoolingTNS.RESULT_ENERGY], window_size), E0, N, metric))
+            push!(Es, _energy_metric(mean_last_window(res_rand[CoolingTNS.RESULT_ENERGY], window_size), E0, N, metric))
         end
 
         E_rand_mean[i] = mean(Es)

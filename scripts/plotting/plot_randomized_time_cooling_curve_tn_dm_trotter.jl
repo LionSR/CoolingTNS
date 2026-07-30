@@ -45,8 +45,6 @@ function _silence(f)
     end
 end
 
-_mean_last(xs::AbstractVector, window::Int) = mean(xs[max(1, length(xs) - window + 1):end])
-
 
 # -----------------------------------------------------------------------------
 # Config (keep moderate so it runs locally)
@@ -112,7 +110,7 @@ for t̄ in t_values
         run_cooling(prob, st, cp, sim_params, ham_params)
     end
 
-    eend = _mean_last(res[CoolingTNS.RESULT_ENERGY], window_size) / N
+    eend = mean_last_window(res[CoolingTNS.RESULT_ENERGY], window_size) / N
     push!(E_fixed_end, eend)
     @printf("scan t=%.3f  fixed mean-last(E/N)=%.6f\n", t̄, eend)
 end

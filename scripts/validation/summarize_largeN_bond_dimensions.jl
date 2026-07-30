@@ -82,16 +82,6 @@ function usage()
     )
 end
 
-function format_float(value::Real, digits::Int=2)
-    !isfinite(value) && return "NaN"
-    digits == 1 && return @sprintf("%.1f", value)
-    digits == 2 && return @sprintf("%.2f", value)
-    digits == 3 && return @sprintf("%.3f", value)
-    digits == 5 && return @sprintf("%.5f", value)
-    digits == 8 && return @sprintf("%.8f", value)
-    return string(round(Float64(value); digits=digits))
-end
-
 format_integer_or_na(value::Integer) = string(value)
 format_integer_or_na(::Missing) = LARGE_N_LABEL_NA
 format_float_or_na(value::Real, digits::Int=2) = format_float(value, digits)
