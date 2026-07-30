@@ -113,18 +113,26 @@ timeout 60 julia --startup-file=no -t 1 Cooling.jl --N 4 --problem niIsing --bac
 
 ### HPC Cluster Submission
 
-The submit scripts live in `clusters/` and `source config.sh` relatively, so run
-them from inside that directory. They are bash drivers that call `sbatch` on
-`JobCooling.sh` / `JobOptCooling.sh` themselves — do not `sbatch` the submit
-script itself.
+In this repository the scripts live in `clusters/`, but they are **not** run from
+there. `clusters/upload_scripts_to_remote.sh` rsyncs the `.sh` files flat into
+the cluster's project root, so on the cluster `SubmitCooling.sh`, `config.sh`,
+`JobCooling.sh`, and `Cooling.jl` all sit side by side. Both the relative
+`source config.sh` in the submit script and the relative `Cooling.jl` in
+`JobCooling.sh`'s `srun` line depend on that flat layout — running the submit
+script from inside `clusters/` locally would make `$SLURM_SUBMIT_DIR` the wrong
+directory and the job would not find `Cooling.jl`.
+
+`SubmitCooling.sh` is a driver: it loops over parameters and calls
+`sbatch --array=... JobCooling.sh` itself, so run it directly on the login node
+rather than submitting it.
 
 ```bash
-cd clusters
+# On the cluster, from the project root (see clusters/upload_scripts_to_remote.sh)
 
-# Submit cooling job to SLURM
+# Submit cooling jobs to SLURM
 bash SubmitCooling.sh
 
-# Submit optimization job (DEPRECATED - needs refactoring)
+# Submit optimization jobs (DEPRECATED - needs refactoring)
 bash SubmitOptCooling.sh
 ```
 
