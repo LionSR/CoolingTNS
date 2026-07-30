@@ -967,6 +967,56 @@ using Random
         @test_throws ArgumentError apply_collision(copy(state), p, layers, 7)
     end
 
+    @testset "layers_fn accepts both the backend-aware and the legacy two-argument contract" begin
+        # `layers_fn` is a public extension point. The TN port made the built-in
+        # schedules take a third `backend` argument; a custom schedule written
+        # against the older `(p, τ)` contract must keep working on ED rather
+        # than dying with a MethodError on the first cycle. A two-argument
+        # schedule can only build ED layers, so on TN it must raise the explicit
+        # cross-backend error rather than being silently reinterpreted.
+        N = 3
+        p = NativeGateCircuitParams(N, 1.0, 3.4, 6.8, 5.4, 2)
+        sites = siteinds("S=1/2", interleaved_total_sites(N))
+        two_arg(pp, τ) = collision_layers(pp, τ)
+        three_arg(pp, τ, backend) = collision_layers(pp, τ, backend)
+
+        E_default, _ = run_native_gate_trajectory(p, 5, MersenneTwister(3);
+                                                  randomized_tau=true, tau_max=0.54)
+        E_two, _ = run_native_gate_trajectory(p, 5, MersenneTwister(3); layers_fn=two_arg,
+                                              randomized_tau=true, tau_max=0.54)
+        E_three, _ = run_native_gate_trajectory(p, 5, MersenneTwister(3); layers_fn=three_arg,
+                                                randomized_tau=true, tau_max=0.54)
+        @test E_two == E_default
+        @test E_three == E_default
+
+        E_tn, _ = run_native_gate_trajectory(p, 5, MersenneTwister(3), TNBackend(), sites;
+                                             layers_fn=three_arg, maxdim=1 << N,
+                                             randomized_tau=true, tau_max=0.54)
+        @test length(E_tn) == 5
+        @test_throws ArgumentError run_native_gate_trajectory(
+            p, 2, MersenneTwister(3), TNBackend(), sites; layers_fn=two_arg,
+            maxdim=1 << N, randomized_tau=true, tau_max=0.54)
+    end
+
+    @testset "Chain-only and pair-only diagonals skip the zero-angle family" begin
+        # native_chain_diagonal / native_pair_diagonal zero out the *other*
+        # interaction family; the accumulator must return immediately on a zero
+        # angle instead of sweeping all 2^nq amplitudes per edge to add nothing.
+        # Correctness of the skip: the results must be exactly what multiplying
+        # the two single-family diagonals gives.
+        for N in (2, 3, 4)
+            p = NativeGateCircuitParams(N, 1.0, 3.4, 6.8, 5.4, 1)
+            nq = interleaved_total_sites(N)
+            chain = native_chain_diagonal(p, 0.3, nq)
+            pair = native_pair_diagonal(p, 0.3, nq)
+            @test native_projector_diagonal(p, 0.3, 0.0, nq) == chain
+            @test native_projector_diagonal(p, 0.0, 0.3, nq) == pair
+            @test isapprox(CoolingTNS.native_diagonal_slice(p, 0.3, nq), chain .* pair; atol=1e-14)
+            # A wholly zero step is the identity diagonal.
+            @test native_projector_diagonal(p, 0.0, 0.0, nq) == ones(ComplexF64, 1 << nq)
+        end
+    end
+
     @testset "Mixing a backend's schedule with the other backend's state errors clearly" begin
         # The diagonal step is the only backend-specific part of a schedule, so
         # running an ED schedule on an MPS (or vice versa) is a real mistake and

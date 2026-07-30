@@ -306,14 +306,23 @@ pairs' contributions with a single `O(2^nq)`-sized array and a single `cis.`
 at the end, instead of allocating a fresh `2^nq`-sized diagonal per pair and
 multiplying them together (prohibitive once `2^nq` and the pair count both
 grow -- this dominated the per-cycle cost at N≳10).
+
+A zero angle returns immediately rather than sweeping all `2^nq` amplitudes to
+add zero. This is not a micro-optimization: `native_chain_diagonal` and
+`native_pair_diagonal` deliberately zero out the *other* interaction family, so
+without the early-out every chain-only or pair-only step -- both of
+`bsb_collision_layers`' distinct diagonal constructions among them -- would pay
+a full exponential pass per edge of a family that contributes nothing.
 """
 function _accumulate_projector_phase!(phase::Vector{Float64}, θ::Float64, i::Int, j::Int, nq::Int)
+    iszero(θ) && return nothing
     bi, bj = interleaved_bit_position(i), interleaved_bit_position(j)
     for k in 0:(length(phase) - 1)
         if ((k >> bi) & 1 == 1) && ((k >> bj) & 1 == 1)
             phase[k + 1] -= θ
         end
     end
+    return nothing
 end
 
 """
@@ -1015,8 +1024,8 @@ states, which is exactly why one description serves both backends.
 
 `MaximallyMixedState` draws its basis label with a single
 `rand(rng, 0:(2^N - 1))`, deliberately the same one draw the dense-only
-implementation used, so a seeded ED run is bit-for-bit unchanged by this
-refactor.
+implementation used, so a seeded ED run draws the same basis states from the
+same RNG stream as before this refactor.
 """
 initial_system_site_amplitudes(::HotState, N::Int, rng::AbstractRNG) =
     [_plus_amplitudes() for _ in 1:N]
@@ -1350,8 +1359,12 @@ exact continuum reference, and the state's own type is the only thing that
 distinguishes ED from TN, so this loop needs to know neither.
 
 The RNG is consumed in a fixed order -- `τ` draw, then any noise draws inside
-`propagate`, then the bath measurement -- so a seeded ED trajectory is
-reproducible and unchanged by this refactor.
+`propagate`, then the bath measurement -- identical to the order the two
+separate ED loops this replaced used, so a seeded ED trajectory sees exactly
+the same random stream as before. (Its *numbers* shift by ~1e-16, from
+`native_projector_diagonal` now exponentiating a summed phase instead of
+multiplying separately exponentiated ones -- strictly better conditioned, but
+not bit-for-bit identical.)
 """
 function _run_native_gate_cycles(
     state, p::NativeGateCircuitParams, n_cycles::Int, rng::AbstractRNG, propagate,
@@ -1428,6 +1441,14 @@ sandwich's `|X-⟩`); `layers_fn=bsb_collision_layers` for the B-S-B short-block
 mechanism test (default `collision_layers`, the recommended r-slice collision).
 Note that `reset_bath` selects the per-cycle reset target only -- the bath
 always starts cold.
+
+A custom `layers_fn` should take `(p, τ, backend)` and return a
+`Vector{CircuitLayerUnion}` realized for `backend` -- the contract the built-in
+schedules follow, with `backend` a defaulted third positional argument. The
+older two-argument `(p, τ)` form is still accepted (see
+`_backend_aware_schedule`); being unable to see the backend, it can only build
+ED layers, so passing one on `TNBackend` raises `apply_layer`'s cross-backend
+`ArgumentError`.
 """
 function run_native_gate_trajectory(
     p::NativeGateCircuitParams, n_cycles::Int, rng::AbstractRNG, backend::EDBackend=EDBackend();
@@ -1473,17 +1494,40 @@ function run_native_gate_trajectory(
 end
 
 """
+    _backend_aware_schedule(layers_fn, backend) -> (p, τ) -> layers
+
+Bind `backend` into a schedule callback, accepting both the backend-aware
+`(p, τ, backend)` contract the built-in schedules use and the two-argument
+`(p, τ)` contract that was `layers_fn`'s public contract before the TN port --
+a custom ED schedule written against the old signature keeps working instead of
+raising a `MethodError` on the first cycle.
+
+The arity is resolved once here, per trajectory, never inside the cycle loop.
+A two-argument schedule can only build ED layers, so on `TNBackend` it will hit
+`apply_layer`'s explicit cross-backend `ArgumentError` rather than being
+silently reinterpreted -- which is the correct outcome: such a schedule has no
+TN realization to offer.
+"""
+function _backend_aware_schedule(layers_fn::Function, backend::CoolingBackend)
+    hasmethod(layers_fn, Tuple{NativeGateCircuitParams,Float64,typeof(backend)}) &&
+        return (p, τ) -> layers_fn(p, τ, backend)
+    return (p, τ) -> layers_fn(p, τ)
+end
+
+"""
     _native_gate_propagator(p, backend, layers_fn, noise_p, rng) -> (state, τ) -> state
 
 One-collision propagator of the Trotterized native-gate circuit: compile the
-schedule for this `τ` on `backend`, then run it through the shared
-`apply_collision`. Returned as a closure so `_run_native_gate_cycles` never has
-to know which schedule, backend or noise level it is driving.
+schedule for this `τ` on `backend` (see `_backend_aware_schedule`), then run it
+through the shared `apply_collision`. Returned as a closure so
+`_run_native_gate_cycles` never has to know which schedule, backend or noise
+level it is driving.
 """
-_native_gate_propagator(p::NativeGateCircuitParams, backend::CoolingBackend,
-                        layers_fn::Function, noise_p::Float64, rng::AbstractRNG) =
-    (state, τ) -> apply_collision(state, p, layers_fn(p, τ, backend);
-                                  noise_p=noise_p, rng=rng)
+function _native_gate_propagator(p::NativeGateCircuitParams, backend::CoolingBackend,
+                                 layers_fn::Function, noise_p::Float64, rng::AbstractRNG)
+    schedule = _backend_aware_schedule(layers_fn, backend)
+    return (state, τ) -> apply_collision(state, p, schedule(p, τ); noise_p=noise_p, rng=rng)
+end
 
 """
     exact_collision_operator(p) -> (evals, evecs)
