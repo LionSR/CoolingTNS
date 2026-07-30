@@ -344,9 +344,17 @@ otherwise incur, while still giving each layer kind its own dispatch method.
 """
 abstract type CircuitLayer end
 
-"""Native diagonal (entangling) phase layer; `phase` is a precomputed `2^nq`-length diagonal."""
+"""
+Native diagonal (entangling) phase layer; `phase` is a precomputed `2^nq`-length
+diagonal, and `sublayers` the number of graph-colored hardware pulse sublayers
+(`greedy_edge_coloring` color classes) the layer's gates fire in -- the same
+schedule `gate_count_and_depth`/`bsb_gate_count_and_depth` count entangling
+depth by, so the depolarizing-noise clock (`noise_passes`) stays consistent
+with the reported depth.
+"""
 struct DiagonalLayer <: CircuitLayer
     phase::Vector{ComplexF64}
+    sublayers::Int
 end
 
 """Global `exp(-i(θ/2)ΣX)` rotation on the system register."""
@@ -362,11 +370,38 @@ end
 const CircuitLayerUnion = Union{DiagonalLayer,SystemRotationLayer,BathRotationLayer}
 
 apply_layer(state::Vector{ComplexF64}, layer::DiagonalLayer, sys_sites::Vector{Int}, bath_sites::Vector{Int}) =
-    state .* layer.phase
+    (state .*= layer.phase; state)
 apply_layer(state::Vector{ComplexF64}, layer::SystemRotationLayer, sys_sites::Vector{Int}, bath_sites::Vector{Int}) =
     apply_global_x_rotation!(state, layer.θ, sys_sites)
 apply_layer(state::Vector{ComplexF64}, layer::BathRotationLayer, sys_sites::Vector{Int}, bath_sites::Vector{Int}) =
     apply_global_x_rotation!(state, layer.θ, bath_sites)
+
+"""
+    noise_passes(layer::CircuitLayer) -> Int
+
+Number of depolarizing passes `apply_collision` applies after `layer`: one per
+hardware pulse sublayer. A `DiagonalLayer` fires its gates in
+`layer.sublayers` graph-colored entangling sublayers (the unit
+`gate_count_and_depth` reports depth in), so it draws that many noise passes;
+each global rotation layer is a single pulse.
+"""
+noise_passes(layer::DiagonalLayer) = layer.sublayers
+noise_passes(::SystemRotationLayer) = 1
+noise_passes(::BathRotationLayer) = 1
+
+"""
+    noise_sites(layer::CircuitLayer, registers) -> Vector{Int}
+
+Qubits depolarized per noise pass after `layer`, from `registers =
+(sys=..., bath=..., all=...)`: an entangling sublayer's global Rydberg
+illumination exposes every atom (`registers.all`), while each global
+single-qubit rotation pulses only its own register -- system and bath
+rotations act on disjoint atoms and must not double-noise each other's
+register.
+"""
+noise_sites(::DiagonalLayer, registers) = registers.all
+noise_sites(::SystemRotationLayer, registers) = registers.sys
+noise_sites(::BathRotationLayer, registers) = registers.bath
 
 """
     collision_layers(p, τ) -> Vector{CircuitLayerUnion}
@@ -391,15 +426,16 @@ function collision_layers(p::NativeGateCircuitParams, τ::Float64)
     θ_sys_half = p.h * dt
     θ_bath_half = p.Delta * dt / 2
     nq = n_qubits(p)
+    sublayers = gate_count_and_depth(p).sublayers_per_diag_step
     residual_diag = p.residual_alpha == 0.0 ? nothing :
-        native_residual_phase_diag(p.residual_alpha, gate_count_and_depth(p).sublayers_per_diag_step, nq)
+        native_residual_phase_diag(p.residual_alpha, sublayers, nq)
     layers = CircuitLayerUnion[]
     for _ in 1:p.r
         push!(layers, SystemRotationLayer(θ_sys_half))
         push!(layers, BathRotationLayer(θ_bath_half))
         diag_step = native_diagonal_slice(p, dt, nq)
         residual_diag !== nothing && (diag_step = diag_step .* residual_diag)
-        push!(layers, DiagonalLayer(diag_step))
+        push!(layers, DiagonalLayer(diag_step, sublayers))
         push!(layers, SystemRotationLayer(θ_sys_half))
         push!(layers, BathRotationLayer(θ_bath_half))
     end
@@ -420,12 +456,14 @@ depth 4 (`bsb_gate_count_and_depth`), matching the note's numbers exactly.
 function bsb_collision_layers(p::NativeGateCircuitParams, τ::Float64)
     nq = n_qubits(p)
     half_pair = native_pair_diagonal(p, τ / 2, nq)
+    pair_sublayers = length(greedy_edge_coloring(coupling_gate_pairs(p.N)))
+    chain_sublayers = length(greedy_edge_coloring(chain_gate_pairs(p.N)))
     return CircuitLayerUnion[
-        DiagonalLayer(half_pair),
-        DiagonalLayer(native_chain_diagonal(p, τ, nq)),
+        DiagonalLayer(half_pair, pair_sublayers),
+        DiagonalLayer(native_chain_diagonal(p, τ, nq), chain_sublayers),
         SystemRotationLayer(2τ * p.h),
         BathRotationLayer(τ * p.Delta),
-        DiagonalLayer(half_pair),
+        DiagonalLayer(half_pair, pair_sublayers),
     ]
 end
 
@@ -433,11 +471,17 @@ end
     apply_collision(state, p, layers, nq; noise_p=0.0, rng=Random.default_rng()) -> state
 
 Apply one collision's circuit `layers` (from `collision_layers` or
-`bsb_collision_layers`) to `state`, applying `apply_depolarizing_ed` noise after
-every layer if `noise_p > 0`. Pass `rng` (the trajectory's own RNG) for a
-reproducible noisy run -- the default matches the previous, non-reproducible
-behavior. The rotation layers overwrite `state` in place, so callers that
-still need the input must pass a copy and always use the returned vector.
+`bsb_collision_layers`) to `state`. If `noise_p > 0`, each layer is followed by
+`noise_passes(layer)` `apply_depolarizing_ed` passes on `noise_sites(layer, …)`
+-- one all-qubit pass per graph-colored entangling sublayer for a
+`DiagonalLayer` (the same sublayer schedule `gate_count_and_depth` reports
+entangling depth in, so noise applications track the printed depth), and one
+own-register-only pass per global rotation pulse (system and bath rotations
+act on disjoint atoms and do not double-noise each other's register). Pass
+`rng` (the trajectory's own RNG) for a reproducible noisy run -- the default
+matches the previous, non-reproducible behavior. All layers overwrite `state`
+in place, so callers that still need the input must pass a copy and always use
+the returned vector.
 """
 function apply_collision(
     state::Vector{ComplexF64}, p::NativeGateCircuitParams, layers, nq::Int;
@@ -445,10 +489,14 @@ function apply_collision(
 )
     sys_sites = interleaved_system_sites(p.N)
     bath_sites = interleaved_bath_sites(p.N)
+    registers = (sys=sys_sites, bath=bath_sites, all=collect(1:nq))
     for layer in layers
         state = apply_layer(state, layer, sys_sites, bath_sites)
         if noise_p > 0
-            state = apply_depolarizing_ed(EDStateVector(state, nq), noise_p, collect(1:nq), rng).data
+            sites = noise_sites(layer, registers)
+            for _ in 1:noise_passes(layer)
+                state = apply_depolarizing_ed(EDStateVector(state, nq), noise_p, sites, rng).data
+            end
         end
     end
     return state
@@ -518,7 +566,7 @@ function purity_from_matrix(M::AbstractMatrix{ComplexF64})
     return real(sum(abs2, M' * M))
 end
 
-"""Hot system state `|+⟩^N` with a cold bath -- the default protocol input, i.e. `initial_state(rng, N)`."""
+"""Hot system state `|+⟩^N` with a cold bath -- the default protocol input, i.e. `native_gate_initial_state(rng, N)`."""
 initial_state_plus_cold(N::Int) =
     build_interleaved_state(system_plus_state_product(N), bath_ground_state_product(N), N)
 
@@ -545,13 +593,15 @@ function initial_system_amplitudes(::MaximallyMixedState, N::Int, rng::AbstractR
 end
 
 """
-    initial_state(rng, N; sys=HotState(), bath=ColdReset()) -> Vector{ComplexF64}
+    native_gate_initial_state(rng, N; sys=HotState(), bath=ColdReset()) -> Vector{ComplexF64}
 
 Build the full interleaved initial state from an `InitialSystemState` choice
 (`sys`) and a `ResetTarget` bath choice (`bath`); see `initial_system_amplitudes`
-and `bath_reset_state`.
+and `bath_reset_state`. The `native_gate_` prefix keeps this module-local
+helper distinct from the general `initial_state.jl`/`setup_initial_state`
+machinery on the package's exported surface.
 """
-function initial_state(rng::AbstractRNG, N::Int; sys::InitialSystemState=HotState(), bath::ResetTarget=ColdReset())
+function native_gate_initial_state(rng::AbstractRNG, N::Int; sys::InitialSystemState=HotState(), bath::ResetTarget=ColdReset())
     return build_interleaved_state(initial_system_amplitudes(sys, N, rng), bath_reset_state(bath, N), N)
 end
 
@@ -707,8 +757,8 @@ function run_native_gate_trajectory(
     layers_fn::Function=collision_layers, compute_purity::Bool=false,
 )
     nq = n_qubits(p)
-    H_S = something(H_S, _default_system_hamiltonian(p))
-    state = initial_state(rng, p.N; sys=initial_sys, bath=ColdReset())
+    H_S = H_S === nothing ? _default_system_hamiltonian(p) : H_S
+    state = native_gate_initial_state(rng, p.N; sys=initial_sys, bath=ColdReset())
     energies = zeros(n_cycles)
     fidelities = ground_state === nothing ? nothing : zeros(n_cycles)
     purities = compute_purity ? zeros(n_cycles) : nothing
@@ -769,11 +819,11 @@ function run_exact_continuous_trajectory(
     initial_sys::InitialSystemState=HotState(), reset_bath::ResetTarget=ColdReset(),
     evals=nothing, evecs=nothing, compute_purity::Bool=false,
 )
-    H_S = something(H_S, _default_system_hamiltonian(p))
+    H_S = H_S === nothing ? _default_system_hamiltonian(p) : H_S
     if evals === nothing || evecs === nothing
         evals, evecs = exact_collision_operator(p)
     end
-    state = initial_state(rng, p.N; sys=initial_sys, bath=ColdReset())
+    state = native_gate_initial_state(rng, p.N; sys=initial_sys, bath=ColdReset())
     energies = zeros(n_cycles)
     fidelities = ground_state === nothing ? nothing : zeros(n_cycles)
     purities = compute_purity ? zeros(n_cycles) : nothing

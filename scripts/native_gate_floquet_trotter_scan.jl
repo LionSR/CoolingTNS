@@ -15,9 +15,13 @@ and ProposalRydbergCooling/notation_translation.md (issue #675).
 For each r (number of Trotter slices per collision -- r=1 is the coarsest,
 most Floquet-kick-like circuit; larger r approaches the continuum limit), reports
 the real (graph-colored) gate count / entangling depth, the noiseless cooling
-trajectory, and the trajectory under a per-qubit-per-gate-layer depolarizing
-channel with the MPQ Sr-88 Rydberg-CZ infidelity (arXiv:2506.10714, fidelity
-0.9945) as the reference error rate -- the noise-modeling methodology follows
+trajectory, and the trajectory under a per-qubit-per-hardware-sublayer
+depolarizing channel (one all-qubit pass per graph-colored entangling sublayer
+-- the same sublayer schedule the printed depth counts -- plus one
+own-register pass per global rotation pulse; see `noise_passes`/`noise_sites`
+in src/native_gate_cooling.jl) with the MPQ Sr-88 Rydberg-CZ infidelity
+(arXiv:2506.10714, fidelity 0.9945) as the reference error rate -- the
+noise-modeling methodology follows
 arXiv:2303.08461 (Yang, Christianen, ..., Cirac), which studies exactly this
 question (how coarse can a Trotter/Floquet step be before noise, not
 discretization error, is the limiting factor).
@@ -82,7 +86,7 @@ function floquet_trotter_scan(N::Int; n_cycles::Int=25, n_traj::Int=200, r_value
         q_noiseless = relative_residual(E_noiseless, E0, E_init)
         E_noisy = run_batch(p, H_S, n_cycles, n_traj, 200 + r; noise_p=P_TWO_QUBIT)
         q_noisy = relative_residual(E_noisy, E0, E_init)
-        @printf("r=%2d (gates/round=%3d, depth/round=%2d): noiseless q_final=%.4f  |  with MPQ-CZ-fidelity noise (p=%.4f/qubit/layer) q_final=%.4f   [%.1fs]\n",
+        @printf("r=%2d (gates/round=%3d, depth/round=%2d): noiseless q_final=%.4f  |  with MPQ-CZ-fidelity noise (p=%.4f/qubit/sublayer) q_final=%.4f   [%.1fs]\n",
                 r, gc.two_qubit_gates_per_round, gc.entangling_depth_per_round,
                 q_noiseless[end], P_TWO_QUBIT, q_noisy[end], time() - t0)
     end

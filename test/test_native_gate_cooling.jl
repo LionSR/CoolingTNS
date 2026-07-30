@@ -135,13 +135,9 @@ using Random
         @test infidelities[end] < 1e-5
     end
 
-    @testset "sample_bath_ed reproduces ρ_sys exactly (deterministic identity, no RNG)" begin
-        # Σ_b P(b) * |M[:,b]/√P(b)⟩⟨M[:,b]/√P(b)| = M*M' exactly -- this is an
-        # exact algebraic identity (not a Monte Carlo statement), since it sums
-        # over *every* possible bath outcome rather than sampling one.
+    @testset "Measurement-based reset (process_bath_ed_monte_carlo) reproduces ρ_sys" begin
         N = 3
         p = NativeGateCircuitParams(N, 1.0, 3.4, 6.8, 5.4, 2)
-        rng = MersenneTwister(1)
         state = initial_state_plus_cold(N)
         nq = CoolingTNS.n_qubits(p)
         layers = collision_layers(p, 0.4)
@@ -151,12 +147,74 @@ using Random
         M = system_bath_matrix(state, N)
         ρ_exact = M * M'
         dim_half = 2^N
+
+        # (a) Exact algebraic identity, no RNG: Σ_b M[:,b]*M[:,b]' = M*M' --
+        # summing every bath outcome's unnormalized collapse reproduces ρ_sys,
+        # the algebraic reason the measurement-based reset is exact rather
+        # than approximate.
         ρ_reconstructed = zeros(ComplexF64, dim_half, dim_half)
         for b in 1:dim_half
             col = M[:, b]
             ρ_reconstructed .+= col * col'
         end
         @test isapprox(ρ_reconstructed, ρ_exact; atol=1e-10)
+
+        # (b)-(d) The production reset path itself (`_measure_and_reset` ->
+        # process_bath_ed_monte_carlo -> measure_ed!), not just the identity
+        # above: (b) every collapse must return exactly the *normalized* M
+        # column of its sampled bath outcome, with no relative-phase
+        # corruption (`EDStateVector` normalizes on construction), pinning the
+        # interleaved bit-ordering conventions of measure_ed! against
+        # system_bath_matrix -- the [s1,b1]-vs-[s1,s2] partial-trace bug
+        # class; (c) sampled outcome frequencies must follow the Born weights
+        # ‖M[:,b]‖²; (d) the ensemble average of the collapses must reproduce
+        # ρ_sys within Monte Carlo error (seeded, so deterministic in CI).
+        n_samples = 4000
+        rng = MersenneTwister(2)
+        counts = zeros(Int, dim_half)
+        ρ_emp = zeros(ComplexF64, dim_half, dim_half)
+        worst_column_mismatch = 0.0
+        for _ in 1:n_samples
+            ψ_sys, outcomes = CoolingTNS.process_bath_ed_monte_carlo(
+                CoolingTNS.EDStateVector(copy(state), 2N), N, rng)
+            b = sum(outcomes[i] << (i - 1) for i in 1:N)  # bath spin i at bit i-1
+            counts[b + 1] += 1
+            col = M[:, b + 1]
+            worst_column_mismatch =
+                max(worst_column_mismatch, norm(ψ_sys.data .- col ./ norm(col)))
+            v = ψ_sys.data
+            ρ_emp .+= (v * v') ./ n_samples
+        end
+        @test worst_column_mismatch < 1e-10
+        born_weights = [sum(abs2, M[:, b]) for b in 1:dim_half]
+        @test isapprox(counts ./ n_samples, born_weights; atol=0.05)
+        @test opnorm(ρ_emp - ρ_exact) < 0.05
+    end
+
+    @testset "Noise clock matches the reported entangling depth (noise_passes/noise_sites)" begin
+        # The depolarizing-noise applications must track the same graph-colored
+        # sublayer schedule that gate_count_and_depth/bsb_gate_count_and_depth
+        # report entangling depth in -- one all-qubit pass per entangling
+        # sublayer -- rather than one pass per bookkeeping layer object.
+        for N in (2, 3, 5), r in (1, 2)
+            p = NativeGateCircuitParams(N, 1.0, 3.4, 6.8, 5.4, r)
+            diag_passes = sum(noise_passes(l) for l in collision_layers(p, 0.3) if l isa DiagonalLayer)
+            @test diag_passes == gate_count_and_depth(p).entangling_depth_per_round
+            bsb_diag_passes = sum(noise_passes(l) for l in bsb_collision_layers(p, 0.3) if l isa DiagonalLayer)
+            @test bsb_diag_passes == bsb_gate_count_and_depth(p).entangling_depth
+        end
+        # Global rotation pulses noise only their own register (system and
+        # bath rotations act on disjoint atoms); entangling sublayers expose
+        # every atom to the global Rydberg illumination.
+        N = 3
+        registers = (sys=interleaved_system_sites(N), bath=interleaved_bath_sites(N),
+                     all=collect(1:interleaved_total_sites(N)))
+        @test noise_sites(SystemRotationLayer(0.1), registers) == registers.sys
+        @test noise_sites(BathRotationLayer(0.1), registers) == registers.bath
+        @test noise_sites(DiagonalLayer(ones(ComplexF64, 1 << 2N), 3), registers) == registers.all
+        @test noise_passes(SystemRotationLayer(0.1)) == 1
+        @test noise_passes(BathRotationLayer(0.1)) == 1
+        @test noise_passes(DiagonalLayer(ones(ComplexF64, 1 << 2N), 3)) == 3
     end
 
     @testset "Physical sanity of controls (small N, few trajectories)" begin
