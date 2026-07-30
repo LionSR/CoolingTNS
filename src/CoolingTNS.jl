@@ -93,6 +93,7 @@ export native_cp_diag, native_local_phase_diag, native_zz_evolution_diag, native
 export native_chain_diagonal, native_pair_diagonal
 export CircuitLayer, DiagonalLayer, SystemRotationLayer, BathRotationLayer, apply_layer
 export collision_layers, bsb_collision_layers, bsb_gate_count_and_depth, apply_collision, run_native_gate_trajectory
+export native_projector_system_hamiltonian, native_projector_total_hamiltonian
 export ResetTarget, ColdReset, ZeroReset
 export InitialSystemState, HotState, MaximallyMixedState
 export initial_state_plus_cold, initial_state, bath_ground_state_product, bath_zero_state_product, bath_reset_state

@@ -7,8 +7,10 @@ total qubits), using MCWF trajectories on the ED backend.
 
 House-notation parameters are the direct translation of the collaborator note's
 recommended operating point (h/K=g_theirs/K=3.4, L/K=5.4, K*tau_m~Uniform[0,0.54]):
-J=K/4, h=3.4, Delta=2*g_theirs=6.8, g=L/4=1.35, tau_max=0.54 (K=1 unit); see
-ProposalRydbergCooling/notation_translation.md.
+J=K=1.0, h=3.4, Delta=2*g_theirs=6.8, g=L=5.4, tau_max=0.54 (K=1 unit). `J`/`g`
+are the number-operator (projector) couplings of Eq. \ref{eq:model} directly,
+*not* Pauli-ZZ coefficients -- see src/native_gate_cooling.jl module docstring
+and ProposalRydbergCooling/notation_translation.md (issue #675).
 
 For each r (number of Trotter slices per collision -- r=1 is the coarsest,
 most Floquet-kick-like circuit; larger r approaches the continuum limit), reports
@@ -26,7 +28,7 @@ using LinearAlgebra
 using Random
 using Printf
 
-const J_, h_, DELTA_, G_, TAU_MAX = 0.25, 3.4, 6.8, 1.35, 0.54
+const J_, h_, DELTA_, G_, TAU_MAX = 1.0, 3.4, 6.8, 5.4, 0.54
 const P_TWO_QUBIT = 1 - 0.9945  # MPQ Rydberg CZ infidelity, arXiv:2506.10714
 
 function relative_residual(E_traj, E0, E_init)
@@ -34,8 +36,7 @@ function relative_residual(E_traj, E0, E_init)
 end
 
 function system_energetics(N::Int)
-    ham = HamiltonianParameters(IsingModel(), N, (J=J_, h=h_), :open)
-    H_S = CoolingTNS.construct_system_hamiltonian(ham, EDBackend(), N)  # keep sparse
+    H_S = native_projector_system_hamiltonian(N, J_, h_)  # keep sparse
     E0, _, _ = CoolingTNS.find_ground_state(H_S, EDBackend())
     plus = ComplexF64[1, 1] / sqrt(2)
     sys_plus = reduce(kron, fill(plus, N))

@@ -23,8 +23,11 @@ of) the depolarizing-noise-channel robustness study already covered by
 `noise_p` in `native_gate_floquet_trotter_scan.jl`.
 
 House-notation operating point matches native_gate_floquet_trotter_scan.jl:
-J=K/4, h=3.4, Delta=2*g_theirs=6.8, g=L/4=1.35, tau_max=0.54 (K=1 unit), and
-r=2 (the collaborator note's recommended two-slice collision).
+J=K=1.0, h=3.4, Delta=2*g_theirs=6.8, g=L=5.4, tau_max=0.54 (K=1 unit), and
+r=2 (the collaborator note's recommended two-slice collision). `J`/`g` are the
+number-operator (projector) couplings of Eq. \ref{eq:model} directly, *not*
+Pauli-ZZ coefficients -- see src/native_gate_cooling.jl module docstring and
+ProposalRydbergCooling/notation_translation.md (issue #675).
 """
 
 using CoolingTNS
@@ -32,7 +35,7 @@ using LinearAlgebra
 using Random
 using Printf
 
-const J_, h_, DELTA_, G_, TAU_MAX = 0.25, 3.4, 6.8, 1.35, 0.54
+const J_, h_, DELTA_, G_, TAU_MAX = 1.0, 3.4, 6.8, 5.4, 0.54
 const R_SLICES = 2  # the collaborator note's recommended two-slice collision
 
 """Normalized residual energy `(E-E0)/(E_init-E0)`: 1 at the hot initial state, 0 at the ground state."""
@@ -41,8 +44,7 @@ function normalized_residual_energy(E_traj, E0, E_init)
 end
 
 function system_energetics(N::Int)
-    ham = HamiltonianParameters(IsingModel(), N, (J=J_, h=h_), :open)
-    H_S = CoolingTNS.construct_system_hamiltonian(ham, EDBackend(), N)  # keep sparse
+    H_S = native_projector_system_hamiltonian(N, J_, h_)  # keep sparse
     E0, _, _ = CoolingTNS.find_ground_state(H_S, EDBackend())
     plus = ComplexF64[1, 1] / sqrt(2)
     sys_plus = reduce(kron, fill(plus, N))
