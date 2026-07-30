@@ -250,7 +250,9 @@ The framework uses alternating qubit layout: [s₁, b₁, s₂, b₂, ..., sₙ,
 
 ### Data Flow
 
-1. Results are saved as HDF5 files with backend type in filename (SimTN or SimED)
+1. Results are saved as HDF5 files with backend and simulation method in the
+   filename (`SimTNDM`, `SimTNMC`, `SimEDDM`, `SimEDMC` — see File Naming
+   Convention below)
 2. NO method names (MPS/MPO/TrotterMPS) in filenames anymore
 3. The ED backend is the reference that validates tensor network results:
    `test/test_correctness.jl` and `test/test_ed_tn_density_channel.jl` are the
@@ -259,9 +261,14 @@ The framework uses alternating qubit layout: [s₁, b₁, s₂, b₂, ..., sₙ,
 
 ### File Naming Convention
 
-Files are named: `Cooling_Ham{model}_Coupling{type}_Sim{backend}Dmax{D}`
-- Backend: SimTN or SimED (NOT SimMPS/SimMPO/SimTrotterMPS)
-- No method information in filenames
+Built by `create_filename` in `src/utils.jl` — read it for the authoritative rule.
+The sim group is `Sim{backend}{sim_method}`, where backend is `TN`/`ED` and
+sim_method is `DM`/`MC`, so the four values are `SimTNDM`, `SimTNMC`, `SimEDDM`,
+`SimEDMC`. `Dmax{D}` is appended for TN only, and only when non-default.
+
+- The retired `SimMPS` / `SimMPO` / `SimTrotterMPS` names are gone.
+- **Simulation method is still in the name** (the `DM`/`MC` suffix). What was
+  dropped is the *evolution* method — continuous vs Trotter does not appear.
 
 ### Adding New Features
 
@@ -416,13 +423,32 @@ struct EDBackend <: CoolingBackend end
 
 **Performance:**
 - **Precompilation Time**: Long compilation due to ITensors dependencies
-- **ED Scaling**: ED backend limited to small systems (N ≤ 12) due to exponential scaling
+- **ED Scaling**: The binding constraint is memory, and it is far tighter than
+  the "N ≤ 12" this file used to claim. The system-bath layout doubles the qubit
+  count, so ED works in dimension `2^(2N)`, and the hot structures are *dense*:
+  `prepare_combined_state_ed` allocates `zeros(ComplexF64, 2^(2N), 2^(2N))` for
+  the density-matrix path, and `_get_eigendecomp` calls `eigen(Hermitian(Matrix(H)))`
+  on the same dimension for every evolution path (ED "Trotter" also uses the full
+  `exp(-iHt)` in sub-steps). One such matrix costs:
+
+  | N | dim `2^(2N)` | dense ComplexF64 matrix |
+  |---|---|---|
+  | 6 | 4096 | 0.25 GiB |
+  | 7 | 16384 | 4 GiB |
+  | 8 | 65536 | 64 GiB |
+  | 10 | 1048576 | 16 TiB |
+  | 12 | 16777216 | 4 PiB |
+
+  Nothing in the code enforces a ceiling, so an oversized run simply exhausts
+  memory.
 
 ### 🔧 Development Guidelines
 
 **For ED Backend Usage:**
-- Recommended working range is N ≤ 10 for reasonable turnaround; N ≤ 12 is the
-  hard ceiling set by exponential scaling
+- N ≤ 6 is the comfortable working range (0.25 GiB per dense matrix); N = 7
+  (4 GiB) is the practical limit on a workstation and N = 8 (64 GiB) needs a
+  large-memory node. Do not follow the old "N ≤ 10 / N ≤ 12" guidance — see
+  **ED Scaling** above for the derivation. Use the TN backend beyond this.
 - Density matrix method more reliable than Monte Carlo for ED
 - Enable periodic/antiperiodic BC for k-space measurements
 - Use cached evolution operators for better performance
