@@ -983,7 +983,14 @@ function print_cooling_status(step::Int, measurements, ham_params, state::Quantu
     println(status)
 end
 
-"""Compile results into standard format"""
+"""
+    compile_results(measurements, sim_params)
+
+Compile results into the standard format. CoolingTNS represents simulation
+outputs as a `Dict{String,Any}` of measurement arrays; this copies the
+dictionary and adds lightweight metadata (e.g. `n_trajectories` for Monte
+Carlo runs).
+"""
 function compile_results(measurements, sim_params)
     results = copy(measurements)
     
@@ -996,15 +1003,6 @@ function compile_results(measurements, sim_params)
     
     return results
 end
-
-"""
-    create_results(measurements, sim_params)
-
-Public alias for `compile_results`. CoolingTNS represents simulation outputs as a
-`Dict{String,Any}` of measurement arrays; this helper copies the dictionary and
-adds lightweight metadata (e.g. `n_trajectories` for Monte Carlo runs).
-"""
-create_results(measurements, sim_params) = compile_results(measurements, sim_params)
 
 # ============================================================================
 # Backend-Specific Implementations

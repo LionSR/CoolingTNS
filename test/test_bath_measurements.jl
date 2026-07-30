@@ -190,14 +190,10 @@ using LinearAlgebra
             state0,
             sim_params,
         )
-        processed_system, bath_info = CoolingTNS.process_bath(
-            backend,
-            CoolingTNS.DensityMatrix(),
-            ρ_sb,
-            N,
-            N,
-        )
-        traced_system = CoolingTNS.trace_out_bath(backend, ρ_sb, N, N)
+        # `process_bath_and_update` and `_reduced_system_density_mpo` are the two
+        # TN reduced-density entry points; both must land on the same interleaved
+        # system sites.
+        expected_system_sites = CoolingTNS.interleaved_system_indices(sites, N)
         expected_bath = CoolingTNS._reduced_bath_density_mpo(ρ_sb, sites, N)
         expected_bath_mag = CoolingTNS.compute_bath_magnetization(
             backend,
@@ -207,9 +203,11 @@ using LinearAlgebra
         )
 
         @test test_mpo_to_matrix(state1.state) ≈ expected_system_matrix atol=1e-12
-        @test test_mpo_to_matrix(processed_system) ≈ expected_system_matrix atol=1e-12
-        @test test_mpo_to_matrix(traced_system) ≈ expected_system_matrix atol=1e-12
-        @test bath_info === nothing
+        @test [siteind(expected_system, i) for i in eachindex(expected_system)] ==
+            expected_system_sites
+        @test [siteind(state1.state, i) for i in eachindex(state1.state)] ==
+            expected_system_sites
+        @test length(expected_system) == N
         @test bath_mag ≈ expected_bath_mag atol=1e-12
         @test ishermitian(expected_system_matrix)
         @test tr(expected_system_matrix) ≈ 1.0 atol=1e-12

@@ -377,23 +377,6 @@ function MultiFrequencyCouplingParameters(
 end
 
 """
-    OptimizationCouplingParameters
-
-Extended coupling parameters for optimization tasks.
-"""
-struct OptimizationCouplingParameters <: CouplingParameters
-    coupling::String
-    g::Float64
-    steps::Int
-    te::Float64
-    delta::Union{Float64, Nothing} # Bath detuning (computed automatically if nothing)
-    # Optimization-specific parameters
-    search_method::String   # "Random", "Bayesian", etc.
-    num_trials::Int
-    bounds::Dict{String, Tuple{Float64, Float64}}
-end
-
-"""
     SimulationMethod
 
 Base abstract type for simulation methods (orthogonal to backend choice).
@@ -627,32 +610,6 @@ function TensorNetworkResults(
         bath_sample_magnetization_list,
         final_state,
     )
-end
-
-# ============================================================================
-# Constructor Functions
-# ============================================================================
-
-"""
-    create_coupling_params(coupling, g, steps, te; kwargs...)
-
-Create appropriate CouplingParameters struct.
-"""
-function create_coupling_params(coupling::String, g::Float64, steps::Int, te::Float64; 
-                               optimization::Bool=false, kwargs...)
-    delta = get(kwargs, :delta, nothing)
-    
-    if optimization
-        # Extract optimization parameters
-        search_method = get(kwargs, :search_method, "Bayesian")
-        num_trials = get(kwargs, :num_trials, 20)
-        bounds = get(kwargs, :bounds, Dict("g" => (0.01, 1.0), "te" => (0.1, 10.0)))
-        
-        return OptimizationCouplingParameters(coupling, g, steps, te, delta, 
-                                            search_method, num_trials, bounds)
-    else
-        return BasicCouplingParameters(coupling, g, steps, te, delta)
-    end
 end
 
 # Note: create_sim_params with backend dispatch is defined in utils.jl

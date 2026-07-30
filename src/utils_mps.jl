@@ -1,10 +1,6 @@
 using ITensors
 using Random: AbstractRNG, default_rng
 
-function energy(ψ::MPS, H::MPO)
-    return real(inner(ψ', H, ψ) / inner(ψ, ψ))
-end
-
 """
     appendzeros_MPS(ψ::MPS, sites::Vector{<:Index}, coupling::String="XX")
     appendzeros_MPS(ψ::MPS, sites::Vector{<:Index}, bath_amps::Vector{ComplexF64})
