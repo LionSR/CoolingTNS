@@ -123,17 +123,31 @@ script from inside `clusters/` locally would make `$SLURM_SUBMIT_DIR` the wrong
 directory and the job would not find `Cooling.jl`.
 
 `SubmitCooling.sh` is a driver: it loops over parameters and calls
-`sbatch --array=... JobCooling.sh` itself, so run it directly on the login node
-rather than submitting it.
+`sbatch --array=... JobCooling.sh` itself (`clusters/SubmitCooling.sh:25`), so it
+is run directly on the login node rather than submitted.
+
+⚠️ **The cluster scripts are stale and will not run as-is.** They predate two
+refactors and have not been updated:
+
+1. `clusters/JobCooling.sh` (lines 30 and 36) passes `--method=$METHOD`, but
+   `src/argparse.jl` has no `--method`; it takes the typed triple `--backend`,
+   `--sim_method`, `--evolution_method`. ArgParse rejects the job before the
+   simulation starts.
+2. `METHOD` still carries the retired names (`config.sh` defaults it to `MPS`;
+   `SubmitCooling.sh` branches on `MPO` / `TrotterMPS`), and `config.sh:19`
+   builds `Sim${METHOD}Dmax...` filenames — the `SimMPS`/`SimMPO`/`SimTrotterMPS`
+   convention that the File Naming Convention section below says was replaced by
+   `SimTN` / `SimED`.
+
+Fixing this means deciding how the old `METHOD` values map onto the typed triple,
+which is a product decision — do not treat the snippet below as a working recipe
+until `clusters/` is updated.
 
 ```bash
 # On the cluster, from the project root (see clusters/upload_scripts_to_remote.sh)
-
-# Submit cooling jobs to SLURM
+# — currently broken, see the two points above.
 bash SubmitCooling.sh
-
-# Submit optimization jobs (DEPRECATED - needs refactoring)
-bash SubmitOptCooling.sh
+bash SubmitOptCooling.sh   # optimization driver (DEPRECATED - needs refactoring)
 ```
 
 ## High-Level Architecture
