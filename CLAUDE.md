@@ -261,14 +261,26 @@ The framework uses alternating qubit layout: [s₁, b₁, s₂, b₂, ..., sₙ,
 
 ### File Naming Convention
 
-Built by `create_filename` in `src/utils.jl` — read it for the authoritative rule.
-The sim group is `Sim{backend}{sim_method}`, where backend is `TN`/`ED` and
-sim_method is `DM`/`MC`, so the four values are `SimTNDM`, `SimTNMC`, `SimEDDM`,
-`SimEDMC`. `Dmax{D}` is appended for TN only, and only when non-default.
+Built by `create_filename` in `src/utils.jl` — read it for the authoritative
+rule; do not hand-construct paths from this summary. The name is three
+underscore-joined groups, `Cooling_{ham}_{coupling}_{sim}`, with no underscores
+inside a group.
+
+The sim group starts `Sim{backend}{sim_method}` — backend `TN`/`ED`, sim_method
+`DM`/`MC` — so the four stems are `SimTNDM`, `SimTNMC`, `SimEDDM`, `SimEDMC`.
+Suffixes are then appended **conditionally**, which is what makes exact paths
+hard to guess:
+
+| Suffix | Appended when |
+|---|---|
+| `Dmax{D}` | TN backend **and** `Dmax != 100` (the default is omitted) |
+| `tau{τ}` | `evolution_method isa TrotterEvolution` |
+| `pe{n}` | `pe > 0`, as `round(pe * 1000)` |
 
 - The retired `SimMPS` / `SimMPO` / `SimTrotterMPS` names are gone.
-- **Simulation method is still in the name** (the `DM`/`MC` suffix). What was
-  dropped is the *evolution* method — continuous vs Trotter does not appear.
+- **Simulation method is still in the name** (`DM`/`MC`).
+- The evolution method has no literal name in the filename, but it is still
+  distinguishable: Trotter runs carry a `tau` suffix and continuous runs do not.
 
 ### Adding New Features
 
