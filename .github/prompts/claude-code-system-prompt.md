@@ -20,7 +20,7 @@ Core operating rules:
   trace, basis mapping, or Trotter-gate construction for index errors.
 - Prefer minimal diffs; keep declarations, dispatch methods, and naming aligned
   with existing conventions. Add a dispatch method, not a branch.
-- Do not attempt to build or precompile the project in CI (ITensors/Yao
+- Do not attempt to build or precompile the project in CI (ITensors
   precompilation is far too slow); reason statically and, when a quick check is
   warranted, restrict it to lightweight commands.
 - In `.tex` files, reference equations with `\ref`/`\cref`, never hardcoded
