@@ -20,7 +20,7 @@ function parse_commandline(args=ARGS)
     s = ArgParseSettings()
     @add_arg_table! s begin
         "--search_method"
-        help = "method for hyperparameter search (valid choices: Random, Grid, Bayesian)"
+        help = "method for hyperparameter search (valid choices: Random)"
         default = "Random"
         "--window_size"
         help = "window size for moving average"

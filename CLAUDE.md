@@ -65,7 +65,8 @@ julia Cooling.jl --N 6 --problem Ising --backend ED --bc periodic --sim_method d
 julia --sysimage /u/siruilu/.julia/sysimages/sys_itensors.so Cooling.jl [args]
 
 # Hyperparameter optimization (DEPRECATED - needs refactoring)
-julia optCooling.jl --search_method Bayesian --num_trials 20 --N 10 --problem niIsing
+# Only `--search_method Random` is implemented; other values fall back with a warning.
+julia optCooling.jl --search_method Random --num_trials 20 --N 10 --problem niIsing
 ```
 
 ### Current Parameters
@@ -156,7 +157,6 @@ The codebase uses a clean multiple dispatch architecture:
 - `src/utils_mps.jl` / `src/utils_mpo.jl`: TN-specific utilities
 - `src/plotting.jl`: Visualization
 - `src/noise.jl`: Noise models
-- `src/policy.jl`: Time-dependent policies
 - `src/argparse.jl`: Command-line argument parsing
 - `src/state_manipulation.jl`: Dispatched state operations
 - `src/bath_measurements.jl`: Bath measurement functions

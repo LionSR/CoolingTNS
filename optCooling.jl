@@ -72,7 +72,7 @@ function run_optimization(parsed_args)
 
     search_space = Dict("g" => range(0.1, 0.5, length=5), "te" => range(1.0, 3.0, length=5))
 
-    # Simple optimization implementation (can be enhanced with Hyperopt later)
+    # Simple inline random search; no external hyperparameter-search dependency
     best_coupling_params = Dict("g" => init_coupling_params.g, "te" => init_coupling_params.te)
     best_objective = objective_function(best_coupling_params)
     
@@ -89,7 +89,7 @@ function run_optimization(parsed_args)
             end
         end
     else
-        @warn "Only Random search implemented for now. Other methods need Hyperopt integration."
+        @warn "Only Random search is implemented; falling back to the initial parameters." search_method
     end
 
     println("Optimization Result:")
