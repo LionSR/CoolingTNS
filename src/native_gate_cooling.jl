@@ -1,0 +1,841 @@
+"""
+    native_gate_cooling.jl
+
+Hardware-native Rydberg algorithmic-cooling circuit on the ED backend, in this
+collaboration's house notation: native controlled-projector phase gates, global
+single-qubit rotations, and a measurement-based ancilla-selective reset via the
+existing `process_bath_ed_monte_carlo` (`_measure_and_reset`).
+
+Target Hamiltonian (Eq. model in `AlgoCool2026.tex`, "Eq. \\ref{eq:model}"):
+    H_S = J·Σ n_i n_{i+1} + h·ΣX_i,   H_A = (Δ/2)·ΣX_bath,   V = g·Σ n_i n_{A_i}
+with `n = (1-Z)/2` the Rydberg-occupation projector -- **not** the clean
+Pauli-`IsingModel` (J·ΣZZ + h·ΣX). Correction of history: an earlier resolution
+of this point (see `ProposalRydbergCooling/notation_translation.md` item #1,
+and GitHub issue #675) claimed the projector Hamiltonian's non-uniform
+boundary/bulk longitudinal-Z field (visible on expanding `n_i n_{i+1} =
+(1-Z_i-Z_{i+1}+Z_iZ_{i+1})/4`) was a gate-compilation artifact that should be
+cancelled by extra local phase pulses, leaving clean ZZ Ising as the "true"
+target. That is wrong, and is the *literal mistake the collaborator note warns
+against*: "This section chooses the Hamiltonian after specifying the physical
+gate. This order avoids the common mistake of calling the hardware pulse an
+ideal CZ while ignoring its one-particle phase" (`AlgoCool2026.tex`, Sec.
+"Native gate and Hamiltonian"), and explicitly, right after expanding
+`n_i n_{i+1}` in Pauli operators: "These longitudinal fields are part of the
+target Hamiltonian." Reproducing the collaborator's own N=5 headline numbers
+(q_20=0.207, q_25=0.186) requires simulating and measuring energy against
+*this* projector Hamiltonian, confirmed numerically to <0.1% agreement once
+this fix was made (previously off by ~1.5-2x using the clean-ZZ target).
+
+Native two-qubit gate: the Rydberg controlled-projector phase gate
+    CP_ij(γ) = diag(1, 1, 1, e^{iγ}) = exp(iγ n_i n_j)   ("Eq. \\ref{eq:projector}").
+The diagonal terms of H_S/V compile *directly* onto this gate with no
+compensating single-qubit phase ("Eq. \\ref{eq:compile}"):
+    exp(-itJ n_i n_j) = CP_ij(-Jt).
+`native_zz_evolution_diag`/`native_local_phase_diag` (below) implement the
+*different*, clean-ZZ-targeting identity
+    exp(-iθZ_iZ_j) = e^{-iθ} · CP_ij(-4θ) · P_i(2θ) · P_j(2θ)
+where `P(φ) = diag(1, e^{iφ})`; this is mathematically true and independently
+verified (see the "ZZ compilation identity" test), and is kept as a documented
+reference/utility -- it is deliberately *not* used by `collision_layers` or
+any other function in this file, since it targets a different Hamiltonian
+than the one this file is trying to reproduce.
+
+Controls matching the collaborator note: `r=1` is the coarsest one-slice
+(Floquet-kick-like) circuit; `reset_bath=ZeroReset()` the no-reset-sandwich
+control; `initial_sys=MaximallyMixedState()` the maximally-mixed-input control;
+`run_exact_continuous_trajectory` the exact continuous-collision reference;
+and `layers_fn=bsb_collision_layers` the B-S-B short-block mechanism test
+(14 gates, depth 4 at N=5, matching the collaborator note exactly -- see
+`bsb_gate_count_and_depth`). The purity diagnostic (Tr(ρ_sys²), a secondary
+sanity check in the collaborator note, not the headline protocol) is
+available via the opt-in `compute_purity=true` keyword on both trajectory
+drivers (see `purity_from_matrix`) -- it is genuinely O(8^N) to compute
+exactly from a pure state with no cheaper shortcut, so it stays off by
+default and costs nothing unless requested, matching the existing
+`ground_state=nothing`/`fidelities` opt-in pattern.
+
+`NativeGateCircuitParams.residual_alpha` additionally models an *uncompensated*
+residual single-atom phase left over per real Rydberg pulse after imperfect
+frame-tracking of the calibrated global `P(alpha)` (see the module docstring's
+`exp(-iθZ_iZ_j)` identity above: the compiled `P(2θ)` phases are physically
+realized by the Rydberg pulse's own single-particle phase accumulation, which
+in a real experiment may not be perfectly calibrated). This mirrors
+`residual_alpha_per_pulse` in the collaborator's `reproduce_native_note.py`
+(`native_diagonal_phase`) as closely as this codebase's own gate-application
+structure allows -- see `native_residual_phase_diag` and `collision_layers`.
+`scripts/native_phase_sensitivity_scan.jl` scans it, analogous to the
+collaborator note's `data/native_phase_sensitivity.csv`.
+"""
+
+using LinearAlgebra
+using Random
+
+"""
+    NativeGateCircuitParams(N, J, h, Delta, g, r, residual_alpha=0.0)
+
+Parameters of the native-gate cooling circuit for `N` system spins (and `N`
+bath ancillas), matching Eq. \ref{eq:model}/\ref{eq:recommended} in
+`AlgoCool2026.tex`: `J` is the system chain's number-operator (projector)
+coupling `Σ n_i n_{i+1}` (Benjamin's `K`, *not* a Pauli-ZZ coefficient -- no
+factor of 4 relative to his note), `h` the system transverse field, `Delta`
+the bath X-field strength (`H_A = (Δ/2)ΣX_bath`, Delta = 2·Benjamin's `g`),
+`g` the system-bath number-operator coupling `Σ n_i n_{A_i}` (Benjamin's `L`,
+likewise un-rescaled), `r` Trotter slices per collision, and an optional
+`residual_alpha` uncompensated single-atom phase (rad) left over per real
+Rydberg pulse after imperfect calibration/tracking of the global `P(alpha)`
+phase (see the module docstring and `native_residual_phase_diag`); `0.0`
+(default, and the only value reachable via the 6-argument form below)
+reproduces the perfectly-calibrated circuit exactly. At the recommended
+operating point (K=1 unit): `J=1.0, h=3.4, Delta=6.8, g=5.4`.
+"""
+struct NativeGateCircuitParams
+    N::Int
+    J::Float64
+    h::Float64
+    Delta::Float64
+    g::Float64
+    r::Int
+    residual_alpha::Float64
+end
+
+NativeGateCircuitParams(N::Int, J::Float64, h::Float64, Delta::Float64, g::Float64, r::Int) =
+    NativeGateCircuitParams(N, J, h, Delta, g, r, 0.0)
+
+"""Total qubit count (system + bath) of the interleaved chain."""
+n_qubits(p::NativeGateCircuitParams) = interleaved_total_sites(p.N)
+
+"""
+    native_cp_diag(γ, i, j, nq) -> Vector{ComplexF64}
+
+Diagonal of the native controlled-projector phase gate `CP_ij(γ) = exp(iγ n_i n_j)`
+on sites `i, j` (1-indexed, matching `interleaved_layout.jl`).
+"""
+function native_cp_diag(γ::Float64, i::Int, j::Int, nq::Int)
+    dim = 1 << nq
+    bi, bj = interleaved_bit_position(i), interleaved_bit_position(j)
+    d = ones(ComplexF64, dim)
+    phase = cis(γ)
+    for k in 0:(dim - 1)
+        if ((k >> bi) & 1 == 1) && ((k >> bj) & 1 == 1)
+            d[k + 1] = phase
+        end
+    end
+    return d
+end
+
+"""Diagonal of the single-atom local-phase gate `P(φ) = diag(1, e^{iφ})` on site `i`."""
+function native_local_phase_diag(φ::Float64, i::Int, nq::Int)
+    dim = 1 << nq
+    bi = interleaved_bit_position(i)
+    d = ones(ComplexF64, dim)
+    phase = cis(φ)
+    for k in 0:(dim - 1)
+        if (k >> bi) & 1 == 1
+            d[k + 1] = phase
+        end
+    end
+    return d
+end
+
+"""
+    native_residual_phase_diag(residual_alpha, n_pulses, nq) -> Vector{ComplexF64}
+
+Diagonal of the global uncompensated single-atom phase `P(n_pulses·residual_alpha)^{⊗nq}`
+accumulated by one native diagonal ('collision') step, mirroring
+`residual_alpha_per_pulse` in the collaborator's `reproduce_native_note.py`
+(`native_diagonal_phase`) as closely as this codebase's own gate-application
+structure allows: `n_pulses` real Rydberg-pulse (entangling-sublayer) events
+are folded into one diagonal step (`sublayers_per_diag_step` from
+`gate_count_and_depth` -- 3 for N≥3, chain-odd + chain-even + pair, matching
+the collaborator note's hardcoded "3" at its N=5 operating point exactly,
+rather than re-hardcoding it here), and global illumination means every atom
+(system *and* bath) picks up its own untracked `P(residual_alpha)` per pulse,
+so one diagonal step accumulates `exp(i·n_pulses·residual_alpha·n_total)`
+where `n_total = count_ones(k)` is the number of excited qubits summed over
+*every* atom in basis state `k`.
+"""
+function native_residual_phase_diag(residual_alpha::Float64, n_pulses::Int, nq::Int)
+    dim = 1 << nq
+    d = ones(ComplexF64, dim)
+    residual_alpha == 0.0 && return d
+    φ = n_pulses * residual_alpha
+    for k in 0:(dim - 1)
+        d[k + 1] = cis(φ * count_ones(k))
+    end
+    return d
+end
+
+"""
+Native-gate compilation of `exp(-iθZ_iZ_j)` (clean Pauli-ZZ evolution, via
+`CP_ij(-4θ)·P_i(2θ)·P_j(2θ)`; see module docstring for the identity and why it
+is *not* what `native_chain_diagonal`/`native_pair_diagonal` use). Verified
+correct (see the "ZZ compilation identity" test) and kept as a documented
+reference/utility, deliberately unused elsewhere in this file.
+"""
+function native_zz_evolution_diag(θ::Float64, i::Int, j::Int, nq::Int)
+    return native_cp_diag(-4θ, i, j, nq) .* native_local_phase_diag(2θ, i, nq) .*
+           native_local_phase_diag(2θ, j, nq)
+end
+
+"""Site pairs of the `J·Σ n_i n_{i+1}` system chain bonds, in bond order."""
+chain_gate_pairs(N::Int) =
+    [(interleaved_system_site(i), interleaved_system_site(i + 1)) for i in 1:(N - 1)]
+
+"""Site pairs of the `g·Σ n_i n_{A_i}` system-bath couplings, in spin order."""
+coupling_gate_pairs(N::Int) =
+    [(interleaved_system_site(i), interleaved_bath_site(i)) for i in 1:N]
+
+"""All native two-qubit gate pairs applied in one diagonal ('collision') phase step."""
+two_qubit_gate_pairs(N::Int) = vcat(chain_gate_pairs(N), coupling_gate_pairs(N))
+
+"""
+    greedy_edge_coloring(pairs) -> Vector{Vector{Tuple{Int,Int}}}
+
+Greedy proper edge-coloring of the interaction graph: each color class is a set
+of vertex-disjoint pairs that can fire as one simultaneous hardware sublayer
+(no atom in two gates at once), so the number of classes is the entangling
+depth of one diagonal step.
+"""
+function greedy_edge_coloring(pairs::Vector{Tuple{Int,Int}})
+    color_of = Dict{Tuple{Int,Int},Int}()
+    used_colors = Dict{Int,Set{Int}}()
+    for (i, j) in pairs
+        used = union(get(used_colors, i, Set{Int}()), get(used_colors, j, Set{Int}()))
+        c = 0
+        while c in used
+            c += 1
+        end
+        color_of[(i, j)] = c
+        push!(get!(Set{Int}, used_colors, i), c)
+        push!(get!(Set{Int}, used_colors, j), c)
+    end
+    n_colors = isempty(color_of) ? 0 : maximum(values(color_of)) + 1
+    classes = [Tuple{Int,Int}[] for _ in 1:n_colors]
+    for (edge, c) in color_of
+        push!(classes[c + 1], edge)
+    end
+    return classes
+end
+
+"""
+    gate_count_and_depth(p) -> NamedTuple
+
+Native two-qubit gate count and entangling depth of one full `collision_layers`
+round (`r` Trotter slices), computed from the `greedy_edge_coloring` schedule of
+`two_qubit_gate_pairs`.
+"""
+function gate_count_and_depth(p::NativeGateCircuitParams)
+    pairs = two_qubit_gate_pairs(p.N)
+    classes = greedy_edge_coloring(pairs)
+    return (
+        two_qubit_gates_per_round=p.r * length(pairs),
+        entangling_depth_per_round=p.r * length(classes),
+        gates_per_diag_step=length(pairs),
+        sublayers_per_diag_step=length(classes),
+        color_classes=classes,
+    )
+end
+
+"""
+    bsb_gate_count_and_depth(p) -> NamedTuple
+
+Native two-qubit gate count and entangling depth of one `bsb_collision_layers`
+block: two pair sublayers (N mutually-disjoint gates each, 1 sublayer each)
+sandwiching one chain sublayer pair (N-1 gates, 2 sublayers from odd/even
+edge-coloring) -- gates = 2N+(N-1) = 3N-1, depth = 1+2+1 = 4 for any N. Matches
+the collaborator note's N=5 numbers (14, 4).
+"""
+function bsb_gate_count_and_depth(p::NativeGateCircuitParams)
+    chain = chain_gate_pairs(p.N)
+    coupling = coupling_gate_pairs(p.N)
+    return (
+        two_qubit_gates=2 * length(coupling) + length(chain),
+        entangling_depth=2 * length(greedy_edge_coloring(coupling)) +
+                         length(greedy_edge_coloring(chain)),
+    )
+end
+
+"""
+Accumulate the exponent of `CP_ij(-θ) = exp(-iθ n_i n_j)` (Eq. \ref{eq:projector}/
+\ref{eq:compile} in `AlgoCool2026.tex` -- the *direct*, uncompensated native
+compilation of the target projector Hamiltonian's diagonal terms; see module
+docstring) into `phase` in place: `-θ` where both bits `i,j` are set, `0`
+otherwise. Used by `native_chain_diagonal`/`native_pair_diagonal` to sum many
+pairs' contributions with a single `O(2^nq)`-sized array and a single `cis.`
+at the end, instead of allocating a fresh `2^nq`-sized diagonal per pair and
+multiplying them together (prohibitive once `2^nq` and the pair count both
+grow -- this dominated the per-cycle cost at N≳10).
+"""
+function _accumulate_projector_phase!(phase::Vector{Float64}, θ::Float64, i::Int, j::Int, nq::Int)
+    bi, bj = interleaved_bit_position(i), interleaved_bit_position(j)
+    for k in 0:(length(phase) - 1)
+        if ((k >> bi) & 1 == 1) && ((k >> bj) & 1 == 1)
+            phase[k + 1] -= θ
+        end
+    end
+end
+
+"""Diagonal of the native compilation of `exp(-idt·J·Σ n_i n_{i+1})` (system chain bonds only)."""
+function native_chain_diagonal(p::NativeGateCircuitParams, dt::Float64, nq::Int)
+    phase = zeros(Float64, 1 << nq)
+    for (i, j) in chain_gate_pairs(p.N)
+        _accumulate_projector_phase!(phase, p.J * dt, i, j, nq)
+    end
+    return cis.(phase)
+end
+
+"""Diagonal of the native compilation of `exp(-idt·g·Σ n_i n_{A_i})` (system-bath pairs only)."""
+function native_pair_diagonal(p::NativeGateCircuitParams, dt::Float64, nq::Int)
+    phase = zeros(Float64, 1 << nq)
+    for (i, j) in coupling_gate_pairs(p.N)
+        _accumulate_projector_phase!(phase, p.g * dt, i, j, nq)
+    end
+    return cis.(phase)
+end
+
+"""Diagonal of the native compilation of `exp[-idt·(J·Σ n_i n_{i+1} + g·Σ n_i n_{A_i})]` for one Trotter slice."""
+function native_diagonal_slice(p::NativeGateCircuitParams, dt::Float64, nq::Int)
+    return native_chain_diagonal(p, dt, nq) .* native_pair_diagonal(p, dt, nq)
+end
+
+"""
+    apply_single_site_rotation_x!(state, θ, site) -> state
+
+Apply `exp(-i(θ/2)X)` to one site of `state` in place, by pairing the basis
+amplitudes that differ in the site's bit (linear in `length(state)`, no matrix
+ever constructed). `single_site_operator` is deliberately not used here: it
+rebuilds a full embedded operator via `kron` on every call, which is fine for
+one-time Hamiltonian construction but prohibitive per-qubit, per-layer,
+per-cycle, per-trajectory inside the MCWF loop.
+"""
+function apply_single_site_rotation_x!(state::Vector{ComplexF64}, θ::Float64, site::Int)
+    θ == 0.0 && return state
+    a = cos(θ / 2)
+    b = -im * sin(θ / 2)
+    stride = 1 << interleaved_bit_position(site)
+    for block_start in 0:(2 * stride):(length(state) - 1)
+        for m in block_start:(block_start + stride - 1)
+            i0, i1 = m + 1, m + stride + 1
+            x, y = state[i0], state[i1]
+            state[i0] = a * x + b * y
+            state[i1] = b * x + a * y
+        end
+    end
+    return state
+end
+
+"""Apply `exp(-i(θ/2)ΣX)` to `sites` of `state` in place, via sequential single-site rotations (exact, since they commute)."""
+function apply_global_x_rotation!(state::Vector{ComplexF64}, θ::Float64, sites::Vector{Int})
+    θ == 0.0 && return state
+    for site in sites
+        apply_single_site_rotation_x!(state, θ, site)
+    end
+    return state
+end
+
+"""
+Circuit layer kinds applied by `apply_collision`, dispatched via `apply_layer`
+rather than a `Symbol` tag (CLAUDE.md: type-based dispatch, not string/symbol
+branching for method selection). `collision_layers`/`bsb_collision_layers`
+build a `Vector{CircuitLayerUnion}`, a small (3-type) `Union` rather than the
+abstract `CircuitLayer` -- Julia unboxes small unions in arrays, so this keeps
+the hot MCWF loop free of the `Any`-boxing a `Vector{Tuple{Symbol,Any}}` would
+otherwise incur, while still giving each layer kind its own dispatch method.
+"""
+abstract type CircuitLayer end
+
+"""
+Native diagonal (entangling) phase layer; `phase` is a precomputed `2^nq`-length
+diagonal, and `sublayers` the number of graph-colored hardware pulse sublayers
+(`greedy_edge_coloring` color classes) the layer's gates fire in -- the same
+schedule `gate_count_and_depth`/`bsb_gate_count_and_depth` count entangling
+depth by, so the depolarizing-noise clock (`noise_passes`) stays consistent
+with the reported depth.
+"""
+struct DiagonalLayer <: CircuitLayer
+    phase::Vector{ComplexF64}
+    sublayers::Int
+end
+
+"""Global `exp(-i(θ/2)ΣX)` rotation on the system register."""
+struct SystemRotationLayer <: CircuitLayer
+    θ::Float64
+end
+
+"""Global `exp(-i(θ/2)ΣX)` rotation on the bath register."""
+struct BathRotationLayer <: CircuitLayer
+    θ::Float64
+end
+
+const CircuitLayerUnion = Union{DiagonalLayer,SystemRotationLayer,BathRotationLayer}
+
+apply_layer(state::Vector{ComplexF64}, layer::DiagonalLayer, sys_sites::Vector{Int}, bath_sites::Vector{Int}) =
+    (state .*= layer.phase; state)
+apply_layer(state::Vector{ComplexF64}, layer::SystemRotationLayer, sys_sites::Vector{Int}, bath_sites::Vector{Int}) =
+    apply_global_x_rotation!(state, layer.θ, sys_sites)
+apply_layer(state::Vector{ComplexF64}, layer::BathRotationLayer, sys_sites::Vector{Int}, bath_sites::Vector{Int}) =
+    apply_global_x_rotation!(state, layer.θ, bath_sites)
+
+"""
+    noise_passes(layer::CircuitLayer) -> Int
+
+Number of depolarizing passes `apply_collision` applies after `layer`: one per
+hardware pulse sublayer. A `DiagonalLayer` fires its gates in
+`layer.sublayers` graph-colored entangling sublayers (the unit
+`gate_count_and_depth` reports depth in), so it draws that many noise passes;
+each global rotation layer is a single pulse.
+"""
+noise_passes(layer::DiagonalLayer) = layer.sublayers
+noise_passes(::SystemRotationLayer) = 1
+noise_passes(::BathRotationLayer) = 1
+
+"""
+    noise_sites(layer::CircuitLayer, registers) -> Vector{Int}
+
+Qubits depolarized per noise pass after `layer`, from `registers =
+(sys=..., bath=..., all=...)`: an entangling sublayer's global Rydberg
+illumination exposes every atom (`registers.all`), while each global
+single-qubit rotation pulses only its own register -- system and bath
+rotations act on disjoint atoms and must not double-noise each other's
+register.
+"""
+noise_sites(::DiagonalLayer, registers) = registers.all
+noise_sites(::SystemRotationLayer, registers) = registers.sys
+noise_sites(::BathRotationLayer, registers) = registers.bath
+
+"""
+    collision_layers(p, τ) -> Vector{CircuitLayerUnion}
+
+Symmetric r-slice Trotter decomposition of `exp[-iτ(H_X + H_D)]` compiled onto
+native gates: each slice is a Strang split `X(dt/2) - D(dt) - X(dt/2)`. Since
+`apply_global_x_rotation!` implements `exp(-i(θ/2)ΣX)`, the half-pulses need
+`θ = h·dt` for the system (H_X_sys = h·ΣX) and `θ = Δ·dt/2` for the bath
+(H_X_bath = (Δ/2)·ΣX), each being evaluated at physical time `dt/2`.
+
+If `p.residual_alpha != 0`, each slice's diagonal step additionally picks up
+`native_residual_phase_diag(p.residual_alpha, n_pulses, nq)` (see its
+docstring), matching the collaborator note's residual-phase modeling scope
+exactly: only the recommended r-slice collision models it (`bsb_collision_layers`
+does not, since the collaborator's own B-S-B construction, `native14_joint_basis`,
+has no `residual_alpha_per_pulse` parameter). `p.residual_alpha == 0.0` (the
+default) skips the extra diagonal entirely, reproducing the perfectly-calibrated
+circuit bit-for-bit.
+"""
+function collision_layers(p::NativeGateCircuitParams, τ::Float64)
+    dt = τ / p.r
+    θ_sys_half = p.h * dt
+    θ_bath_half = p.Delta * dt / 2
+    nq = n_qubits(p)
+    sublayers = gate_count_and_depth(p).sublayers_per_diag_step
+    residual_diag = p.residual_alpha == 0.0 ? nothing :
+        native_residual_phase_diag(p.residual_alpha, sublayers, nq)
+    layers = CircuitLayerUnion[]
+    for _ in 1:p.r
+        push!(layers, SystemRotationLayer(θ_sys_half))
+        push!(layers, BathRotationLayer(θ_bath_half))
+        diag_step = native_diagonal_slice(p, dt, nq)
+        residual_diag !== nothing && (diag_step = diag_step .* residual_diag)
+        push!(layers, DiagonalLayer(diag_step, sublayers))
+        push!(layers, SystemRotationLayer(θ_sys_half))
+        push!(layers, BathRotationLayer(θ_bath_half))
+    end
+    return layers
+end
+
+"""
+    bsb_collision_layers(p, τ) -> Vector{CircuitLayerUnion}
+
+The collaborator note's "B-S-B" (bath-system-bath) short block: a single-pass
+(no r-slicing) Strang-like split around the *coupling* term instead of the
+free/X term (contrast `collision_layers`): pair/2 -> chain(full τ) ->
+global-X(full τ) -> pair/2. Reverse-engineered from `native14_joint_basis()`
+in the collaborator's `reproduce_native_note.py`, which is not derivable from
+the note's prose alone. At N=5 this gives 14 native two-qubit gates, entangling
+depth 4 (`bsb_gate_count_and_depth`), matching the note's numbers exactly.
+"""
+function bsb_collision_layers(p::NativeGateCircuitParams, τ::Float64)
+    nq = n_qubits(p)
+    half_pair = native_pair_diagonal(p, τ / 2, nq)
+    pair_sublayers = length(greedy_edge_coloring(coupling_gate_pairs(p.N)))
+    chain_sublayers = length(greedy_edge_coloring(chain_gate_pairs(p.N)))
+    return CircuitLayerUnion[
+        DiagonalLayer(half_pair, pair_sublayers),
+        DiagonalLayer(native_chain_diagonal(p, τ, nq), chain_sublayers),
+        SystemRotationLayer(2τ * p.h),
+        BathRotationLayer(τ * p.Delta),
+        DiagonalLayer(half_pair, pair_sublayers),
+    ]
+end
+
+"""
+    apply_collision(state, p, layers, nq; noise_p=0.0, rng=Random.default_rng()) -> state
+
+Apply one collision's circuit `layers` (from `collision_layers` or
+`bsb_collision_layers`) to `state`. If `noise_p > 0`, each layer is followed by
+`noise_passes(layer)` `apply_depolarizing_ed` passes on `noise_sites(layer, …)`
+-- one all-qubit pass per graph-colored entangling sublayer for a
+`DiagonalLayer` (the same sublayer schedule `gate_count_and_depth` reports
+entangling depth in, so noise applications track the printed depth), and one
+own-register-only pass per global rotation pulse (system and bath rotations
+act on disjoint atoms and do not double-noise each other's register). Pass
+`rng` (the trajectory's own RNG) for a reproducible noisy run -- the default
+matches the previous, non-reproducible behavior. All layers overwrite `state`
+in place, so callers that still need the input must pass a copy and always use
+the returned vector.
+"""
+function apply_collision(
+    state::Vector{ComplexF64}, p::NativeGateCircuitParams, layers, nq::Int;
+    noise_p::Float64=0.0, rng::AbstractRNG=Random.default_rng(),
+)
+    sys_sites = interleaved_system_sites(p.N)
+    bath_sites = interleaved_bath_sites(p.N)
+    registers = (sys=sys_sites, bath=bath_sites, all=collect(1:nq))
+    for layer in layers
+        state = apply_layer(state, layer, sys_sites, bath_sites)
+        if noise_p > 0
+            sites = noise_sites(layer, registers)
+            for _ in 1:noise_passes(layer)
+                state = apply_depolarizing_ed(EDStateVector(state, nq), noise_p, sites, rng).data
+            end
+        end
+    end
+    return state
+end
+
+"""N-fold Kronecker product of the ZZ-coupling bath ground state, `bath_ground_state_amplitudes("ZZ")` = |X-⟩."""
+function bath_ground_state_product(N::Int)
+    _, amps = bath_ground_state_amplitudes("ZZ")
+    return reduce(kron, fill(ComplexF64.(amps), N))
+end
+
+"""N-fold Kronecker product of |0⟩ -- the "no reset sandwich" control's bath state (not cold for an X-field bath)."""
+bath_zero_state_product(N::Int) = reduce(kron, fill(ComplexF64[1, 0], N))
+
+"""N-fold Kronecker product of |+⟩ -- the hot initial system state of the collaborator note."""
+system_plus_state_product(N::Int) = reduce(kron, fill(ComplexF64[1, 1] / sqrt(2), N))
+
+"""Ancilla-reset target selecting `bath_reset_state`, dispatched by type rather than a `Symbol` tag (CLAUDE.md)."""
+abstract type ResetTarget end
+
+"""Reset to the cold `|X-⟩^N` bath ground state -- the reset sandwich's intended target."""
+struct ColdReset <: ResetTarget end
+
+"""Reset straight to `|0⟩^N` -- the no-reset-sandwich control (not cold for the X-field bath)."""
+struct ZeroReset <: ResetTarget end
+
+"""Bath product state selected by `target` (`ColdReset()` -> |X-⟩, `ZeroReset()` -> |0⟩^N, the no-sandwich control)."""
+bath_reset_state(::ColdReset, N::Int) = bath_ground_state_product(N)
+bath_reset_state(::ZeroReset, N::Int) = bath_zero_state_product(N)
+
+"""Build the full interleaved system+bath state from separate N-qubit system/bath amplitude vectors."""
+function build_interleaved_state(sys_amplitudes::Vector{ComplexF64}, bath_amplitudes::Vector{ComplexF64}, N::Int)
+    dim_half = 1 << N
+    full = zeros(ComplexF64, 1 << (2N))
+    for s in 0:(dim_half - 1), b in 0:(dim_half - 1)
+        full[interleaved_basis_state(s, b, N) + 1] = sys_amplitudes[s + 1] * bath_amplitudes[b + 1]
+    end
+    return full
+end
+
+"""System⊗bath amplitude matrix `M[s,b] = ⟨s,b|ψ⟩`, so `M*M'` is the system-reduced density matrix."""
+function system_bath_matrix(state::Vector{ComplexF64}, N::Int)
+    dim_half = 1 << N
+    M = zeros(ComplexF64, dim_half, dim_half)
+    for s in 0:(dim_half - 1), b in 0:(dim_half - 1)
+        M[s + 1, b + 1] = state[interleaved_basis_state(s, b, N) + 1]
+    end
+    return M
+end
+
+"""
+    purity_from_matrix(M) -> Float64
+
+Exact system purity `Tr(ρ_sys²)` from the system⊗bath amplitude matrix `M`
+(`system_bath_matrix`), where `ρ_sys = M*M'`. Since `ρ_sys` is Hermitian,
+`Tr(ρ_sys²) = ‖ρ_sys‖_F² = ‖M*M'‖_F²`; and since `M` is square (`dim_half ×
+dim_half`), `M*M'` and `M'*M` share the same eigenvalues, so `‖M'*M‖_F²` gives
+the identical answer. This computes it as one BLAS `M'*M` matrix product
+(`dim_half × dim_half`, `O(dim_half³) = O(8^N)` flops -- unavoidable for an
+*exact* purity from a pure state, the reason this is opt-in-only) followed by
+one `sum(abs2, ·)` Frobenius-norm-squared reduction (`O(dim_half²)`), rather
+than an explicit `tr(A*A)`/`tr(A^2)` on `A = M'*M`, which would cost a second
+`O(dim_half³)` matrix multiply for no benefit. Never call this by default --
+see `compute_purity` on `run_native_gate_trajectory`/`run_exact_continuous_trajectory`.
+"""
+function purity_from_matrix(M::AbstractMatrix{ComplexF64})
+    return real(sum(abs2, M' * M))
+end
+
+"""Hot system state `|+⟩^N` with a cold bath -- the default protocol input, i.e. `native_gate_initial_state(rng, N)`."""
+initial_state_plus_cold(N::Int) =
+    build_interleaved_state(system_plus_state_product(N), bath_ground_state_product(N), N)
+
+"""Initial system-state choice selecting `initial_system_amplitudes`, dispatched by type rather than a `Symbol` tag (CLAUDE.md)."""
+abstract type InitialSystemState end
+
+"""The collaborator note's hot initial system state `|+⟩^N`."""
+struct HotState <: InitialSystemState end
+
+"""
+The "maximally mixed input" control: each MCWF trajectory draws a uniformly
+random computational basis state `|b⟩`, so the trajectory average is an
+*exact* unraveling of `I/2^N` (`E[|b⟩⟨b|] = I/2^N`), stronger than the note's
+stated "Pauli-randomized approximation".
+"""
+struct MaximallyMixedState <: InitialSystemState end
+
+initial_system_amplitudes(::HotState, N::Int, rng::AbstractRNG) = system_plus_state_product(N)
+function initial_system_amplitudes(::MaximallyMixedState, N::Int, rng::AbstractRNG)
+    b = rand(rng, 0:(1 << N - 1))
+    v = zeros(ComplexF64, 1 << N)
+    v[b + 1] = 1
+    return v
+end
+
+"""
+    native_gate_initial_state(rng, N; sys=HotState(), bath=ColdReset()) -> Vector{ComplexF64}
+
+Build the full interleaved initial state from an `InitialSystemState` choice
+(`sys`) and a `ResetTarget` bath choice (`bath`); see `initial_system_amplitudes`
+and `bath_reset_state`. The `native_gate_` prefix keeps this module-local
+helper distinct from the general `initial_state.jl`/`setup_initial_state`
+machinery on the package's exported surface.
+"""
+function native_gate_initial_state(rng::AbstractRNG, N::Int; sys::InitialSystemState=HotState(), bath::ResetTarget=ColdReset())
+    return build_interleaved_state(initial_system_amplitudes(sys, N, rng), bath_reset_state(bath, N), N)
+end
+
+"""
+Shared per-cycle tail of both trajectory drivers: normalize, measure the energy
+against `H_S` via the system-reduced density matrix `ρ_sys = M*M'`
+(`system_bath_matrix`; and the ground-state fidelity if `ground_state` is
+given, and the purity `Tr(ρ_sys²)` if `compute_purity` is true -- see
+`purity_from_matrix`), then reset the ancillas by measuring the bath register
+through the existing `process_bath_ed_monte_carlo`/`measure_ed!`
+(`cooling_evolution_ed_shared.jl`, `ed_backend.jl`) -- the same
+measurement-based collision-model bath collapse already used by the general ED
+MCWF cooling driver, rather than a parallel reimplementation. Measuring either
+half of a bipartite pure state in any fixed basis and discarding it reproduces
+the same ensemble-averaged reduced density matrix as an eigenbasis-weighted
+sample, so this is exact, not an approximation, and (via `measure_ed!`'s
+single O(4^N) pass) avoids the O(8^N) full Hermitian eigendecomposition that
+dominated the cost at N≳8. Keeping this tail in one place is what makes
+`run_native_gate_trajectory` and `run_exact_continuous_trajectory` differ only
+in how they propagate one collision.
+
+`compute_purity` defaults to `false` and, when so, does no extra work at all
+(not even an `if`-guarded cheap check -- `purity` is simply `NaN`), matching
+the `ground_state === nothing` short-circuit already used for `fidelity`: this
+diagnostic must never cost anything unless explicitly requested.
+"""
+function _measure_and_reset(
+    state::Vector{ComplexF64}, rng::AbstractRNG, N::Int, H_S::AbstractMatrix,
+    bath::Vector{ComplexF64}, ground_state::Union{Nothing,Vector{ComplexF64}};
+    compute_purity::Bool=false,
+)
+    state = state ./ norm(state)
+    M = system_bath_matrix(state, N)
+    HM = H_S * M
+    energy = real(sum(conj(M) .* HM))
+    fidelity = ground_state === nothing ? NaN : sum(abs2, ground_state' * M)
+    purity = compute_purity ? purity_from_matrix(M) : NaN
+    ψ_sys, _ = process_bath_ed_monte_carlo(EDStateVector(state, 2N), N, rng)
+    return build_interleaved_state(ψ_sys.data, bath, N), energy, fidelity, purity
+end
+
+"""
+    native_projector_system_hamiltonian(N, J, h) -> SparseMatrixCSC{Float64}
+
+The system Hamiltonian actually targeted by the collaborator note (Eq.
+\ref{eq:model}): `H_S = J·Σ n_i n_{i+1} + h·ΣX_i`, `n=(1-Z)/2`, on the `N`-spin
+system-only Hilbert space -- deliberately *not* the clean Pauli-ZZ
+`IsingModel`; see module docstring for why the resulting non-uniform
+longitudinal-Z field (visible on Pauli-expanding `n_i n_{i+1}`) is genuine
+target physics rather than compilation residue. Same qubit convention as
+`pauli_x`/`construct_system_hamiltonian` (spin `i` = bit `i-1`, LSB=spin 1),
+so `H_S` here is a drop-in replacement for the old
+`construct_system_hamiltonian(IsingModel, ...)` call at every use site
+(`_measure_and_reset`'s `Tr(ρ_sys H_S)`, ground-state/fidelity diagnostics).
+"""
+function native_projector_system_hamiltonian(N::Int, J::Float64, h::Float64)
+    dim = 1 << N
+    diagE = zeros(Float64, dim)
+    for i in 1:(N - 1)
+        for k in 0:(dim - 1)
+            (((k >> (i - 1)) & 1 == 1) && ((k >> i) & 1 == 1)) && (diagE[k + 1] += J)
+        end
+    end
+    H = spdiagm(0 => diagE)
+    for i in 1:N
+        H += h .* pauli_x(i, N)
+    end
+    return H
+end
+native_projector_system_hamiltonian(p::NativeGateCircuitParams) =
+    native_projector_system_hamiltonian(p.N, p.J, p.h)
+
+"""
+    native_projector_total_hamiltonian(N, J, h, Delta, g) -> SparseMatrixCSC{ComplexF64}
+
+The full system+bath Hamiltonian `H_S + H_A + V` actually targeted by the
+collaborator note (`H_S`, `V` from Eq. \ref{eq:model}; `H_A = (Δ/2)·ΣX_bath`,
+the already-correct `notation_translation.md` §1 Delta=2·Benjamin's-`g`
+translation, untouched by this fix), over the interleaved `2N`-qubit space.
+The exact (non-Trotterized) reference this native-gate circuit approximates;
+see `exact_collision_operator`.
+"""
+function native_projector_total_hamiltonian(N::Int, J::Float64, h::Float64, Delta::Float64, g::Float64)
+    nq = 2N
+    dim = 1 << nq
+    diagE = zeros(Float64, dim)
+    for (i, j) in chain_gate_pairs(N)
+        bi, bj = interleaved_bit_position(i), interleaved_bit_position(j)
+        for k in 0:(dim - 1)
+            (((k >> bi) & 1 == 1) && ((k >> bj) & 1 == 1)) && (diagE[k + 1] += J)
+        end
+    end
+    for (i, j) in coupling_gate_pairs(N)
+        bi, bj = interleaved_bit_position(i), interleaved_bit_position(j)
+        for k in 0:(dim - 1)
+            (((k >> bi) & 1 == 1) && ((k >> bj) & 1 == 1)) && (diagE[k + 1] += g)
+        end
+    end
+    H = spdiagm(0 => ComplexF64.(diagE))
+    for i in interleaved_system_sites(N)
+        H += h .* pauli_x(i, nq)
+    end
+    for i in interleaved_bath_sites(N)
+        H += (Delta / 2) .* pauli_x(i, nq)
+    end
+    return H
+end
+native_projector_total_hamiltonian(p::NativeGateCircuitParams) =
+    native_projector_total_hamiltonian(p.N, p.J, p.h, p.Delta, p.g)
+
+"""System Hamiltonian used when a trajectory driver is called without `H_S`: the
+collaborator note's own projector-Ising `H_S` (Eq. \ref{eq:model}), *not* the
+clean `IsingModel` -- see module docstring."""
+_default_system_hamiltonian(p::NativeGateCircuitParams) = native_projector_system_hamiltonian(p)
+
+"""
+    run_native_gate_trajectory(p, n_cycles, rng; kwargs...) -> (energies, fidelities, purities)
+
+Run one MCWF trajectory: `n_cycles` rounds of (collision, energy/fidelity/purity
+measurement, ancilla-selective reset via `_measure_and_reset`). `H_S` should be
+`SparseMatrixCSC` (as returned by `construct_system_hamiltonian` for
+`EDBackend`) so the energy measurement `Tr(ρ_sys H_S) = Σ_b M[:,b]'*(H_S*M[:,b])`
+stays O(N·4^N) (sparse H_S times dense M) rather than densifying to O(8^N).
+`ground_state::Union{Nothing,Vector}` enables the ground-state fidelity
+`F_0 = |⟨ψ_0|ψ_sys⟩|^2`, matching the collaborator note's Table~2 diagnostic
+(pass `nothing`, the default, to skip it).
+
+`compute_purity::Bool=false` enables the secondary purity diagnostic
+`Tr(ρ_sys²)` (`purity_from_matrix`), the collaborator note's per-cycle
+non-unitality sanity check -- off by default since, unlike the energy and
+fidelity measurements above, it is genuinely O(8^N) to compute exactly (no
+O(4^N)-or-cheaper shortcut exists for an exact purity from a pure state) and
+must never cost anything unless explicitly requested. `purities` is `nothing`
+when not requested (matching the `fidelities`/`ground_state=nothing` pattern),
+else a `Vector{Float64}` of length `n_cycles`.
+
+Controls matching the collaborator note (see `notation_translation.md`):
+`initial_sys=MaximallyMixedState()` for the maximally-mixed-input control
+(default `HotState()`, the note's hot `|+⟩^N`); `reset_bath=ZeroReset()` for
+the no-reset-sandwich control -- reset straight to `|0⟩`, not cold for the
+X-field bath (default `ColdReset()`, i.e. the reset sandwich's `|X-⟩`);
+`layers_fn=bsb_collision_layers` for the B-S-B short-block mechanism test
+(default `collision_layers`, the recommended r-slice collision). Note that
+`reset_bath` selects the per-cycle reset target only -- the bath always
+starts cold.
+"""
+function run_native_gate_trajectory(
+    p::NativeGateCircuitParams, n_cycles::Int, rng::AbstractRNG;
+    H_S::Union{Nothing,AbstractMatrix}=nothing, noise_p::Float64=0.0,
+    randomized_tau::Bool=false, tau_max::Float64=0.0,
+    ground_state::Union{Nothing,Vector{ComplexF64}}=nothing,
+    initial_sys::InitialSystemState=HotState(), reset_bath::ResetTarget=ColdReset(),
+    layers_fn::Function=collision_layers, compute_purity::Bool=false,
+)
+    nq = n_qubits(p)
+    H_S = H_S === nothing ? _default_system_hamiltonian(p) : H_S
+    state = native_gate_initial_state(rng, p.N; sys=initial_sys, bath=ColdReset())
+    energies = zeros(n_cycles)
+    fidelities = ground_state === nothing ? nothing : zeros(n_cycles)
+    purities = compute_purity ? zeros(n_cycles) : nothing
+    bath = bath_reset_state(reset_bath, p.N)
+    for c in 1:n_cycles
+        τ = randomized_tau ? rand(rng) * tau_max : tau_max
+        layers = layers_fn(p, τ)
+        state = apply_collision(state, p, layers, nq; noise_p=noise_p, rng=rng)
+        state, energies[c], fid, pur = _measure_and_reset(
+            state, rng, p.N, H_S, bath, ground_state; compute_purity=compute_purity,
+        )
+        ground_state !== nothing && (fidelities[c] = fid)
+        compute_purity && (purities[c] = pur)
+    end
+    return energies, fidelities, purities
+end
+
+"""
+    exact_collision_operator(p) -> (evals, evecs)
+
+Eigendecomposition of the full continuum system+bath Hamiltonian `H_S+H_A+V`
+(`native_projector_total_hamiltonian` -- the collaborator note's own projector
+Hamiltonian, Eq. \ref{eq:model}, *not* `IsingModel` + `--coupling ZZ`) -- the
+Hamiltonian this native-gate circuit approximates via Trotterization. Done
+once (O(8^N)) and reused to propagate `exp(-iτH_full)` for many `τ` draws at
+O(4^N) each, giving the collaborator note's "exact continuous-collision"
+reference (Table 2's exact-collision `q_M` column).
+"""
+function exact_collision_operator(p::NativeGateCircuitParams)
+    H_full = Matrix(native_projector_total_hamiltonian(p))
+    return eigen(Hermitian(H_full))
+end
+
+"""Propagate `state` by `exp(-iτH_full)` in the eigenbasis from `exact_collision_operator`."""
+function _exact_collision_propagate(state::Vector{ComplexF64}, τ::Float64, evals, evecs)
+    coeffs = evecs' * state
+    coeffs = cis.(-τ .* evals) .* coeffs
+    return evecs * coeffs
+end
+
+"""
+    run_exact_continuous_trajectory(p, n_cycles, rng; kwargs...) -> (energies, fidelities, purities)
+
+Same MCWF collision-model driver as `run_native_gate_trajectory` (identical
+`_measure_and_reset` tail, including the opt-in `compute_purity` diagnostic --
+see its docstring), but propagating each collision via the exact continuum
+Hamiltonian instead of the Trotterized native-gate circuit -- isolates
+Trotter/discretization error from everything else (reset mechanism, noise,
+controls). Pass `evals, evecs` from a single `exact_collision_operator` call
+when running many trajectories, to avoid repeating the O(8^N)
+diagonalization.
+"""
+function run_exact_continuous_trajectory(
+    p::NativeGateCircuitParams, n_cycles::Int, rng::AbstractRNG;
+    H_S::Union{Nothing,AbstractMatrix}=nothing,
+    randomized_tau::Bool=false, tau_max::Float64=0.0,
+    ground_state::Union{Nothing,Vector{ComplexF64}}=nothing,
+    initial_sys::InitialSystemState=HotState(), reset_bath::ResetTarget=ColdReset(),
+    evals=nothing, evecs=nothing, compute_purity::Bool=false,
+)
+    H_S = H_S === nothing ? _default_system_hamiltonian(p) : H_S
+    if evals === nothing || evecs === nothing
+        evals, evecs = exact_collision_operator(p)
+    end
+    state = native_gate_initial_state(rng, p.N; sys=initial_sys, bath=ColdReset())
+    energies = zeros(n_cycles)
+    fidelities = ground_state === nothing ? nothing : zeros(n_cycles)
+    purities = compute_purity ? zeros(n_cycles) : nothing
+    bath = bath_reset_state(reset_bath, p.N)
+    for c in 1:n_cycles
+        τ = randomized_tau ? rand(rng) * tau_max : tau_max
+        state = _exact_collision_propagate(state, τ, evals, evecs)
+        state, energies[c], fid, pur = _measure_and_reset(
+            state, rng, p.N, H_S, bath, ground_state; compute_purity=compute_purity,
+        )
+        ground_state !== nothing && (fidelities[c] = fid)
+        compute_purity && (purities[c] = pur)
+    end
+    return energies, fidelities, purities
+end
