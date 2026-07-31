@@ -489,6 +489,26 @@ end
 # Pauli operator selectors for random sampling
 const PAULI_OPERATORS = (pauli_x, pauli_y, pauli_z)
 
+# Built single-site Pauli triples, keyed by `(qubit, n_qubits)`. Rebuilding them
+# means `n_qubits` `kron`s each, and the density-matrix channel below asks for
+# the same triple on every step of a noisy run. Nothing in this package uses
+# `@threads`/`@spawn`, so an unsynchronized `Dict` is race-free here.
+const LOCAL_PAULI_TRIPLE_CACHE =
+    Dict{Tuple{Int,Int}, NTuple{3, SparseMatrixCSC{Float64, Int}}}()
+
+"""
+    local_pauli_triple(q::Int, n_qubits::Int) -> NTuple{3,SparseMatrixCSC}
+
+The `(X, Y, Z)` operators on qubit `q` of an `n_qubits` register, in
+`PAULI_OPERATORS` order and memoized. `Y` is the real representation
+`Y_real = [0 -1; 1 0]`, matching `pauli_y`.
+"""
+function local_pauli_triple(q::Int, n_qubits::Int)
+    return get!(LOCAL_PAULI_TRIPLE_CACHE, (q, n_qubits)) do
+        map(build -> build(q, n_qubits), PAULI_OPERATORS)
+    end
+end
+
 """
     apply_depolarizing_ed(ψ::EDStateVector, p::Float64, qubits::Vector{Int}, rng::AbstractRNG=Random.default_rng()) -> EDStateVector
 
@@ -526,14 +546,24 @@ channel is
 ```
 
 The channels are applied independently across qubits.
+
+The three conjugations accumulate through two reused buffers rather than a fresh
+pair of dense temporaries each: a single-site Pauli has exactly one nonzero per
+row and per column, so `op * ρ * op'` is a signed permutation and every entry of
+`pauli_average` receives exactly one addend per Pauli. That makes the in-place
+accumulation bit-for-bit equal to the allocating form. The closing expression is
+deliberately left as `(1-p)*ρ + (p/3)*pauli_average`: folding it into the same
+loop would reassociate the sum and move the result.
 """
 function apply_depolarizing_ed(ρ::EDDensityMatrix, p::Float64, qubits=1:ρ.n_qubits)
     ρ_noisy_data = copy(ρ.data)
+    pauli_average = similar(ρ_noisy_data)
+    conjugated = similar(ρ_noisy_data)
     for q in qubits
-        pauli_average = zero(ρ_noisy_data)
-        for pauli in PAULI_OPERATORS
-            op = pauli(q, ρ.n_qubits)
-            pauli_average .+= op * ρ_noisy_data * op'
+        fill!(pauli_average, zero(eltype(pauli_average)))
+        for op in local_pauli_triple(q, ρ.n_qubits)
+            mul!(conjugated, op, ρ_noisy_data)
+            mul!(pauli_average, conjugated, op', true, true)
         end
         ρ_noisy_data = (1 - p) * ρ_noisy_data + (p / 3) * pauli_average
     end
