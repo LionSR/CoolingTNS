@@ -450,24 +450,15 @@ function _reject_unsupported_tn_mode_observable(state::Union{MPS,MPO}, ham_param
 end
 
 """
-    measure_state_parity(ψ::MPS, N::Int) -> Float64
+    measure_state_parity(state::Union{MPS,MPO}, N::Int) -> Float64
 
-Measure the code-basis Ising parity ``P_x = ∏_i σ^x_i`` on an MPS.
+Measure the code-basis Ising parity ``P_x = ∏_i σ^x_i`` on an MPS wavefunction
+or on a density matrix represented as an MPO. The `X` Pauli string is contracted
+by `_expect_pauli_string`, which dispatches on the state type.
 """
-function measure_state_parity(ψ::MPS, N::Int)
-    length(ψ) == N || throw(ArgumentError("MPS length $(length(ψ)) does not match N=$N"))
-    return real(_expect_pauli_string(ψ, 1.0 + 0.0im, fill(:X, N)))
-end
-
-"""
-    measure_state_parity(ρ::MPO, N::Int) -> Float64
-
-Measure the code-basis Ising parity ``P_x = ∏_i σ^x_i`` on a density matrix
-represented as an MPO.
-"""
-function measure_state_parity(ρ::MPO, N::Int)
-    length(ρ) == N || throw(ArgumentError("MPO length $(length(ρ)) does not match N=$N"))
-    return real(_expect_pauli_string(ρ, 1.0 + 0.0im, fill(:X, N)))
+function measure_state_parity(state::Union{MPS,MPO}, N::Int)
+    _validate_tn_mode_state_length(state, N)
+    return real(_expect_pauli_string(state, 1.0 + 0.0im, fill(:X, N)))
 end
 
 """
@@ -482,10 +473,7 @@ function _measure_hk_from_correlators(correlators, k, ham_params::HamiltonianPar
     θ = theta_from_Jh(J, h)
     φk = 2π * Float64(k) / N
 
-    varphi_bogo = bogoliubov_angle(Float64(k), θ, N)
-    c2 = cos(varphi_bogo)^2
-    s2 = sin(varphi_bogo)^2
-    sc = sin(varphi_bogo) * cos(varphi_bogo)
+    c2, s2, sc = bogoliubov_mode_coefficients(k, θ, N)
 
     nk_sum = 0.0 + 0.0im
     nmk_sum = 0.0 + 0.0im
@@ -519,12 +507,14 @@ function _measure_hk_from_correlators(correlators, k, ham_params::HamiltonianPar
 end
 
 """
-    measure_hk(ψ::MPS, k, ham_params) -> Float64
+    measure_hk(state::Union{MPS,MPO}, k, ham_params) -> Float64
 
-Measure the Bogoliubov mode observable ``⟨h_k⟩`` from an MPS for the transverse
-field Ising model. The implementation evaluates the split-string correlator
-formula from `Notes/NotesED/MapToSpin.tex`, using the same conventions as the
-ED routine `measure_hk`.
+Measure the Bogoliubov mode observable ``⟨h_k⟩`` from an MPS wavefunction, or
+from a density matrix represented as an MPO, for the transverse field Ising
+model. The implementation evaluates the split-string correlator formula from
+`Notes/NotesED/MapToSpin.tex`, using the same conventions as the ED routine
+`measure_hk`; `_split_string_correlators` dispatches on the state type, so the
+MPO path evaluates the same Pauli strings as ``Tr(ρ O_k)``.
 
 The returned quantity matches the ED convention used in this package: for each
 allowed momentum index it is the individual-mode observable
@@ -532,67 +522,36 @@ allowed momentum index it is the individual-mode observable
 `ising_energy_from_mode_hk`, which sums over the full fermionic grid with the
 signed special-mode coefficients.
 """
-function measure_hk(ψ::MPS, k, ham_params::HamiltonianParameters{IsingModel})
-    _validate_tn_mode_state(ψ, ham_params)
-    correlators = _split_string_correlators(ψ)
+function measure_hk(state::Union{MPS,MPO}, k, ham_params::HamiltonianParameters{IsingModel})
+    _validate_tn_mode_state(state, ham_params)
+    correlators = _split_string_correlators(state)
     return _measure_hk_from_correlators(correlators, k, ham_params)
 end
 
-function measure_hk(ψ::MPS, k, ham_params::HamiltonianParameters)
-    return _reject_unsupported_tn_mode_observable(ψ, ham_params)
+function measure_hk(state::Union{MPS,MPO}, k, ham_params::HamiltonianParameters)
+    return _reject_unsupported_tn_mode_observable(state, ham_params)
 end
 
 """
-    measure_hk(ρ::MPO, k, ham_params) -> Float64
+    measure_all_mode_observables(state::Union{MPS,MPO}, ham_params; gF=nothing)
 
-Density-matrix analogue of [`measure_hk(::MPS, k, ham_params)`](@ref). The
-same split-string Pauli formula is evaluated as ``Tr(ρ O_k)``.
-"""
-function measure_hk(ρ::MPO, k, ham_params::HamiltonianParameters{IsingModel})
-    _validate_tn_mode_state(ρ, ham_params)
-    correlators = _split_string_correlators(ρ)
-    return _measure_hk_from_correlators(correlators, k, ham_params)
-end
-
-function measure_hk(ρ::MPO, k, ham_params::HamiltonianParameters)
-    return _reject_unsupported_tn_mode_observable(ρ, ham_params)
-end
-
-"""
-    measure_all_mode_observables(ψ::MPS, ham_params; gF=nothing)
-
-MPS analogue of the ED mode measurement. Returns allowed k-indices, ``⟨h_k⟩``,
-and the corresponding positive code-unit quasiparticle gaps used for resonance
+Tensor-network analogue of the ED mode measurement, for an MPS wavefunction or
+an MPO density matrix. Returns allowed k-indices, ``⟨h_k⟩``, and the
+corresponding positive code-unit quasiparticle gaps used for resonance
 diagnostics. Energy reconstruction should use `ising_energy_from_mode_hk`, which
 keeps the signed special-mode coefficients.
+
+All momenta share one evaluation of the split-string correlators, which is the
+expensive part of the measurement.
 """
-function measure_all_mode_observables(ψ::MPS, ham_params::HamiltonianParameters{IsingModel};
+function measure_all_mode_observables(state::Union{MPS,MPO},
+                                      ham_params::HamiltonianParameters{IsingModel};
                                       gF=nothing)
-    return _measure_all_mode_observables_tn(ψ, ham_params; gF=gF)
-end
-
-function measure_all_mode_observables(ψ::MPS, ham_params::HamiltonianParameters;
-                                      gF=nothing)
-    return _reject_unsupported_tn_mode_observable(ψ, ham_params)
-end
-
-function _measure_all_mode_observables_tn(state::Union{MPS,MPO}, ham_params::HamiltonianParameters{IsingModel};
-                                          gF=nothing)
     _validate_tn_mode_state(state, ham_params)
     N = ham_params.N
-
     J, h = ham_params.params.J, ham_params.params.h
-
-    if isnothing(gF)
-        px = measure_state_parity(state, N)
-        sector = _reference_parity_sector_with_source(px)
-        parity = sector.parity
-        if sector.source === :reference
-            @warn "measure_all_mode_observables: state has no definite P_x parity " *
-                  "(⟨P_x⟩ = $px); using the P_x = $parity reference grid"
-        end
-        gF = fermionic_bc(ham_params.bc, parity)
-    end
+    gF = _measurement_fermionic_bc(
+        state, ham_params, "measure_all_mode_observables"; gF=gF)
 
     correlators = _split_string_correlators(state)
     ks = allowed_k_indices(N, gF)
@@ -601,44 +560,23 @@ function _measure_all_mode_observables_tn(state::Union{MPS,MPO}, ham_params::Ham
     return ks, hk_values, εk_values
 end
 
-"""
-    measure_all_mode_observables(ρ::MPO, ham_params; gF=nothing)
-
-MPO analogue of the ED mode measurement. Returns allowed k-indices,
-``⟨h_k⟩``, and the corresponding positive code-unit quasiparticle gaps used for
-resonance diagnostics. Energy reconstruction should use
-`ising_energy_from_mode_hk`, which keeps the signed special-mode coefficients.
-"""
-function measure_all_mode_observables(ρ::MPO, ham_params::HamiltonianParameters{IsingModel};
+function measure_all_mode_observables(state::Union{MPS,MPO},
+                                      ham_params::HamiltonianParameters;
                                       gF=nothing)
-    return _measure_all_mode_observables_tn(ρ, ham_params; gF=gF)
-end
-
-function measure_all_mode_observables(ρ::MPO, ham_params::HamiltonianParameters;
-                                      gF=nothing)
-    return _reject_unsupported_tn_mode_observable(ρ, ham_params)
+    return _reject_unsupported_tn_mode_observable(state, ham_params)
 end
 
 """
     measure_all_mode_energies(ψ_or_ρ, ham_params; gF=nothing)
 
-Compatibility wrapper for [`measure_all_mode_observables`](@ref).
+Compatibility wrapper for [`measure_all_mode_observables`](@ref), which resolves
+the supported and unsupported Hamiltonian models itself.
 
 The historical name is retained for existing callers.  New code should prefer
 `measure_all_mode_observables`, because the measured quantity is ``h_k`` and
 the returned ``ε_k`` values are positive quasiparticle gaps for resonance
 labels, not signed energy-reconstruction coefficients.
 """
-measure_all_mode_energies(ψ::MPS, ham_params::HamiltonianParameters{IsingModel};
+measure_all_mode_energies(state::Union{MPS,MPO}, ham_params::HamiltonianParameters;
                           gF=nothing) =
-    measure_all_mode_observables(ψ, ham_params; gF=gF)
-
-measure_all_mode_energies(ρ::MPO, ham_params::HamiltonianParameters{IsingModel};
-                          gF=nothing) =
-    measure_all_mode_observables(ρ, ham_params; gF=gF)
-
-measure_all_mode_energies(ψ::MPS, ham_params::HamiltonianParameters; gF=nothing) =
-    measure_all_mode_observables(ψ, ham_params; gF=gF)
-
-measure_all_mode_energies(ρ::MPO, ham_params::HamiltonianParameters; gF=nothing) =
-    measure_all_mode_observables(ρ, ham_params; gF=gF)
+    measure_all_mode_observables(state, ham_params; gF=gF)
