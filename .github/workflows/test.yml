@@ -1,0 +1,67 @@
+# Julia test suite: fast gated run on every push/PR, full run nightly.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+  schedule:
+    # 03:17 UTC daily. Off-peak, and not on the hour to dodge scheduler backlog.
+    - cron: "17 3 * * *"
+
+concurrency:
+  # Keep schedule/push/PR runs in separate groups so they cannot cancel each other.
+  group: tests-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (fast)
+    # Repository variable kill switch:
+    #   TEST_CI_ENABLED=false disables the test suite workflow.
+    #   unset or any other value preserves the default enabled behavior.
+    if: ${{ vars.TEST_CI_ENABLED != 'false' && github.event_name != 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # The plot tests default to ON so local runs keep full coverage; a bare
+      # runner has no Python, so CI is the place that opts out. The nightly
+      # job below turns them back on with matplotlib provisioned.
+      COOLINGTNS_PLOT_TESTS: "0"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1"
+      # Caches ~/.julia keyed on Project.toml. Manifest.toml is deliberately
+      # gitignored (Project.toml declares name/uuid/version, so this is a
+      # package): the cache action does not need it, and committing it would
+      # pin CI to one machine's resolve.
+      - uses: julia-actions/cache@v2
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-runtest@v1
+
+  nightly:
+    name: test (full)
+    if: ${{ vars.TEST_CI_ENABLED != 'false' && github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      # Slow multi-step TN tests, hidden from every default run.
+      COOLINGTNS_FULL_TESTS: "1"
+      # PythonCall/matplotlib tests. CondaPkg provisions matplotlib from
+      # CondaPkg.toml on first `using PythonCall`; MPLBACKEND keeps it headless.
+      COOLINGTNS_PLOT_TESTS: "1"
+      MPLBACKEND: "Agg"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1"
+      - uses: julia-actions/cache@v2
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-runtest@v1
