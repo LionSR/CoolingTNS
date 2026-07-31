@@ -7,9 +7,14 @@ The default test suite is designed to run quickly. Slow/stochastic tests
 (Monte Carlo trajectory averaging, long tensor-network cooling runs, etc.)
 are gated behind the environment variable `COOLINGTNS_FULL_TESTS`.
 
+Tests that reach `PythonCall`/matplotlib — directly or transitively through
+`scripts/plotting/PlotUtils.jl` — are gated behind `COOLINGTNS_PLOT_TESTS`,
+so the suite runs on a machine with no Python environment provisioned.
+
 Set, for example:
 
     COOLINGTNS_FULL_TESTS=1 julia --project=. -e 'using Pkg; Pkg.test()'
+    COOLINGTNS_PLOT_TESTS=1 julia --project=. test/runtests.jl
 """
 
 using Test
@@ -37,6 +42,22 @@ end
 
 """Whether slow/stochastic tests should run."""
 full_tests_enabled() = env_bool("COOLINGTNS_FULL_TESTS"; default=false)
+
+"""Whether tests that need `PythonCall`/matplotlib should run.
+
+`using PythonCall` resolves the CondaPkg environment at module initialization,
+so it fails (or downloads a conda environment) on a machine that has no Python
+provisioned. Gating keeps `julia --project=. test/runtests.jl` runnable there.
+
+Unlike `COOLINGTNS_FULL_TESTS` this defaults to **on**, because the two gates
+exist for different reasons. The full-tests gate hides tests that are slow
+everywhere, so opting in is the right default. These tests are fast; they are
+only unrunnable where Python is absent. A developer working from this repo has
+the environment (it is provisioned from `CondaPkg.toml`), so defaulting off
+would silently drop 139 assertions from every local run to buy nothing. CI
+sets `COOLINGTNS_PLOT_TESTS=0` explicitly, and the nightly job turns it back on.
+"""
+plot_tests_enabled() = env_bool("COOLINGTNS_PLOT_TESTS"; default=true)
 
 """Whether tests should print verbose simulation output."""
 test_verbose() = env_bool("COOLINGTNS_TEST_VERBOSE"; default=false)

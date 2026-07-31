@@ -4,9 +4,14 @@ using CoolingTNS
 include("test_helpers.jl")
 
 const RUN_FULL_TESTS = full_tests_enabled()
+const RUN_PLOT_TESTS = plot_tests_enabled()
 
 if !RUN_FULL_TESTS
     @info "Skipping slow/stochastic tests (set COOLINGTNS_FULL_TESTS=1 to enable)."
+end
+
+if !RUN_PLOT_TESTS
+    @info "Skipping PythonCall/matplotlib tests (set COOLINGTNS_PLOT_TESTS=1 to enable)."
 end
 
 @testset "CoolingTNS" begin
@@ -18,8 +23,6 @@ end
         include("test_noise.jl")
         include("test_result_structs.jl")
         include("test_cooling_interface.jl")
-        include("test_optimization_lookup.jl")
-        include("test_plotting_include_guards.jl")
         include("test_ed_tn_density_channel.jl")
         include("test_native_gate_cooling.jl")
         include("test_multi_frequency.jl")
@@ -41,11 +44,7 @@ end
         include("test_mode_analysis.jl")
         include("test_measure_hk.jl")
         include("test_tn_mode_observables.jl")
-        include("test_plot_mode_cooling.jl")
         include("test_mode_cooling_diagnostic.jl")
-        include("test_plot_ek_evolution.jl")
-        include("test_dispersion_detuning_markers.jl")
-        include("test_plot_momentum_distribution.jl")
         include("test_ed_dm_kspace_examples.jl")
         include("test_ed_kspace_smoke_example.jl")
     end
@@ -62,6 +61,21 @@ end
         include("test_validation_script_text.jl")
         include("test_gaussianpaper_bibliography_text.jl")
         include("test_repo_hygiene_text.jl")
+    end
+
+    # Every test below reaches PythonCall, either directly (`using PythonCall`)
+    # or transitively: including any `scripts/plotting/*.jl` pulls in
+    # `PlotUtils.jl`, whose top-level `using PythonCall` sits outside its
+    # include guard and so resolves the CondaPkg environment at load time.
+    if RUN_PLOT_TESTS
+        @testset "Plotting (PythonCall)" begin
+            include("test_optimization_lookup.jl")       # -> plotting.jl -> PlotUtils.jl
+            include("test_plotting_include_guards.jl")   # -> PlotUtils.jl directly
+            include("test_plot_mode_cooling.jl")
+            include("test_plot_ek_evolution.jl")
+            include("test_dispersion_detuning_markers.jl")
+            include("test_plot_momentum_distribution.jl")
+        end
     end
 
     if RUN_FULL_TESTS
