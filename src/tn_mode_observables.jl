@@ -500,7 +500,7 @@ function _measure_hk_from_correlators(correlators, k, ham_params::HamiltonianPar
 
     bogo_nk = c2 * nk + s2 * (1 - nmk) + im * sc * pair
     hk = 2 * bogo_nk - 1
-    if abs(imag(hk)) > 1e-8
+    if abs(imag(hk)) > MODE_OBSERVABLE_IMAG_TOL
         @warn "measure_hk(TN): significant imaginary part $(imag(hk)) for k=$k"
     end
     return real(hk)

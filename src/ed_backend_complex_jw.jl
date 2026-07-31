@@ -424,7 +424,7 @@ function measure_hk(state::Union{EDStateVector, EDDensityMatrix}, k, ham_params)
     hk_op = _build_hk_operator(k, θ, N, a_ops, a_dag_ops)
     hk_val = _expect_complex(hk_op, notes_state)
 
-    if abs(imag(hk_val)) > 1e-8
+    if abs(imag(hk_val)) > MODE_OBSERVABLE_IMAG_TOL
         @warn "measure_hk: significant imaginary part $(imag(hk_val)) for k=$k"
     end
 
@@ -487,7 +487,7 @@ function measure_all_mode_observables(state::Union{EDStateVector, EDDensityMatri
         # Compute expectation value
         hk_val = _expect_complex(hk_op, notes_state)
 
-        if abs(imag(hk_val)) > 1e-8
+        if abs(imag(hk_val)) > MODE_OBSERVABLE_IMAG_TOL
             @warn "measure_all_mode_observables: significant imaginary part " *
                   "$(imag(hk_val)) for k=$k"
         end

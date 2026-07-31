@@ -60,6 +60,21 @@ For **spin PBC** (``g_I = +1``) with the code's parity ``P_x``:
 For **spin APBC** (``g_I = -1``): the assignment is swapped.
 """
 
+"""
+    MODE_OBSERVABLE_IMAG_TOL
+
+Tolerance above which a computed ``⟨h_k⟩`` is reported as suspiciously complex.
+
+``h_k`` is the expectation of a Hermitian operator, so its imaginary part is
+pure roundoff; anything larger signals a broken operator construction or a
+non-Hermitian state. Every `measure_hk`-family routine — the two ED paths in
+`ed_backend_complex_jw.jl` and the TN correlator path in
+`tn_mode_observables.jl` — must warn at the *same* threshold, or the two
+backends disagree about what counts as a warning while `test_tn_mode_observables.jl`
+pins their values against each other.
+"""
+const MODE_OBSERVABLE_IMAG_TOL = 1e-8
+
 # ============================================================================
 # Parameter Mapping
 # ============================================================================
