@@ -26,42 +26,26 @@ struct TNBackend <: CoolingBackend end  # Tensor Network Backend
     canonical_initial_state_name(init_state::AbstractString) -> String
 
 Return the canonical form of string-valued CLI choices. The generic
-`canonical_method_token` trims and lowercases; the typed helpers then validate
-and return the canonical backend, simulation-method, evolution-method, or
-initial-state name. These helpers are the source of truth for normalizing these
-tokens before they enter typed dispatch, metadata, or generated command lines.
+`canonical_method_token` trims and lowercases; the typed helpers then route the
+token through the string-to-type constructors ([`get_backend`](@ref),
+[`get_sim_method`](@ref), [`get_evolution_method`](@ref) and
+[`initial_state_kind`](@ref)), which validate it, and name the resulting type.
+The constructors therefore hold the only token tables, so a new backend,
+simulation method, evolution method, or initial-state kind is spelled out once.
+These helpers are the source of truth for normalizing these tokens before they
+enter typed dispatch, metadata, or generated command lines.
 """
 canonical_method_token(method::AbstractString) = lowercase(strip(String(method)))
 
-function canonical_backend_name(method::AbstractString)
-    token = canonical_method_token(method)
-    token == "ed" && return "ED"
-    token == "tn" && return "TN"
-    error("Unknown backend: $method. Use 'ED' for exact diagonalization or 'TN' for tensor network")
-end
+canonical_backend_name(method::AbstractString) = backend_name(get_backend(method))
 
-function canonical_sim_method_name(method::AbstractString)
-    token = canonical_method_token(method)
-    token == "density_matrix" && return "density_matrix"
-    token == "monte_carlo" && return "monte_carlo"
-    error("Unknown simulation method: $method. Use 'density_matrix' or 'monte_carlo'")
-end
+canonical_sim_method_name(method::AbstractString) = sim_method_name(get_sim_method(method))
 
-function canonical_evolution_method_name(method::AbstractString)
-    token = canonical_method_token(method)
-    token == "continuous" && return "continuous"
-    token == "trotter" && return "trotter"
-    error("Unknown evolution method: $method. Use 'continuous' or 'trotter'")
-end
+canonical_evolution_method_name(method::AbstractString) =
+    evolution_method_name(get_evolution_method(method))
 
-function canonical_initial_state_name(init_state::AbstractString)
-    token = canonical_method_token(init_state)
-    token == "product" && return "product"
-    token == "theta" && return "theta"
-    token == "identity" && return "identity"
-    token == "ground" && return "ground"
-    error("Unknown initial state: $init_state. Use 'product', 'theta', 'identity', or 'ground'")
-end
+canonical_initial_state_name(init_state::AbstractString) =
+    initial_state_name(initial_state_kind(init_state))
 
 """
     normalize_method_token_args!(parsed_args)
@@ -97,37 +81,51 @@ end
 """
     get_backend(method::AbstractString) -> CoolingBackend
 
-Convert string method name to backend type.
+Convert string method name to backend type.  This is the single backend token
+table; the canonical spelling of the result comes back from
+[`backend_name`](@ref).
 """
 function get_backend(method::AbstractString)
-    canonical = canonical_backend_name(method)
-    canonical == "ED" && return EDBackend()
-    canonical == "TN" && return TNBackend()
-    error("internal: unrecognized canonical backend token '$canonical'")
+    token = canonical_method_token(method)
+    token == "ed" && return EDBackend()
+    token == "tn" && return TNBackend()
+    error("Unknown backend: $method. Use 'ED' for exact diagonalization or 'TN' for tensor network")
 end
+
+"""
+    backend_name(backend::CoolingBackend) -> String
+
+Canonical command-line and metadata spelling of a backend type.
+"""
+backend_name(::EDBackend) = "ED"
+backend_name(::TNBackend) = "TN"
 
 """
     get_sim_method(method::AbstractString) -> SimulationMethod
 
-Convert string to SimulationMethod type.
+Convert string to SimulationMethod type.  This is the single simulation-method
+token table; the canonical spelling of the result comes back from
+[`sim_method_name`](@ref).
 """
 function get_sim_method(method::AbstractString)
-    canonical = canonical_sim_method_name(method)
-    canonical == "density_matrix" && return DensityMatrix()
-    canonical == "monte_carlo" && return MonteCarloWavefunction()
-    error("internal: unrecognized canonical simulation-method token '$canonical'")
+    token = canonical_method_token(method)
+    token == "density_matrix" && return DensityMatrix()
+    token == "monte_carlo" && return MonteCarloWavefunction()
+    error("Unknown simulation method: $method. Use 'density_matrix' or 'monte_carlo'")
 end
 
 """
     get_evolution_method(method::AbstractString) -> EvolutionMethod
 
-Convert string to EvolutionMethod type.
+Convert string to EvolutionMethod type.  This is the single evolution-method
+token table; the canonical spelling of the result comes back from
+[`evolution_method_name`](@ref).
 """
 function get_evolution_method(method::AbstractString)
-    canonical = canonical_evolution_method_name(method)
-    canonical == "continuous" && return ContinuousEvolution()
-    canonical == "trotter" && return TrotterEvolution()
-    error("internal: unrecognized canonical evolution-method token '$canonical'")
+    token = canonical_method_token(method)
+    token == "continuous" && return ContinuousEvolution()
+    token == "trotter" && return TrotterEvolution()
+    error("Unknown evolution method: $method. Use 'continuous' or 'trotter'")
 end
 
 # Default simulation methods for backends
@@ -386,6 +384,14 @@ struct DensityMatrix <: SimulationMethod end     # Can be used with MPO, or MPS+
 struct MonteCarloWavefunction <: SimulationMethod end  # Used with MPS, TrotterMPS, or ED trajectories
 
 """
+    sim_method_name(sim_method::SimulationMethod) -> String
+
+Canonical command-line and metadata spelling of a simulation-method type.
+"""
+sim_method_name(::DensityMatrix) = "density_matrix"
+sim_method_name(::MonteCarloWavefunction) = "monte_carlo"
+
+"""
     tn_method_maxdim(sim_method, Dmax)
 
 Return the method-dependent tensor-network `maxdim` cap used for truncation
@@ -413,6 +419,54 @@ Base abstract type for time evolution methods.
 abstract type EvolutionMethod end
 struct ContinuousEvolution <: EvolutionMethod end  # TDVP, matrix exponentiation
 struct TrotterEvolution <: EvolutionMethod end     # Gate-based Trotter decomposition
+
+"""
+    evolution_method_name(evolution_method::EvolutionMethod) -> String
+
+Canonical command-line and metadata spelling of an evolution-method type.
+"""
+evolution_method_name(::ContinuousEvolution) = "continuous"
+evolution_method_name(::TrotterEvolution) = "trotter"
+
+"""
+    InitialStateKind
+
+Base abstract type for the initial states a cooling run can be started from
+(orthogonal to backend, simulation method, and evolution method).  The concrete
+types select how the state is prepared, so `setup_initial_state` and the ED
+state constructors dispatch on them instead of comparing strings.
+"""
+abstract type InitialStateKind end
+struct ProductInitialState <: InitialStateKind end   # |0...0>
+struct ThetaInitialState <: InitialStateKind end     # theta-parameterized product state
+struct IdentityInitialState <: InitialStateKind end  # maximally mixed density matrix
+struct GroundInitialState <: InitialStateKind end    # system ground state
+
+"""
+    initial_state_kind(init_state::AbstractString) -> InitialStateKind
+
+Convert a string initial-state name to the type that selects its preparation.
+This is the single initial-state token table; the canonical spelling of the
+result comes back from [`initial_state_name`](@ref).
+"""
+function initial_state_kind(init_state::AbstractString)
+    token = canonical_method_token(init_state)
+    token == "product" && return ProductInitialState()
+    token == "theta" && return ThetaInitialState()
+    token == "identity" && return IdentityInitialState()
+    token == "ground" && return GroundInitialState()
+    error("Unknown initial state: $init_state. Use 'product', 'theta', 'identity', or 'ground'")
+end
+
+"""
+    initial_state_name(kind::InitialStateKind) -> String
+
+Canonical command-line and metadata spelling of an initial-state kind.
+"""
+initial_state_name(::ProductInitialState) = "product"
+initial_state_name(::ThetaInitialState) = "theta"
+initial_state_name(::IdentityInitialState) = "identity"
+initial_state_name(::GroundInitialState) = "ground"
 
 """
     SimulationParameters
