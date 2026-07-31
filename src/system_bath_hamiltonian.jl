@@ -134,6 +134,12 @@ function map_system_bath_to_full_basis_ed(sys_state::Int, bath_state::Int, N::In
     return interleaved_basis_state(sys_state, bath_state, N)
 end
 
+# Load order: unlike most of this file, the right-hand side is evaluated at
+# *load* time, and it evaluates function bindings rather than calling them --
+# `pauli_x`/`pauli_z` from `ed_backend.jl` and `pauli_y_complex` from
+# `ed_backend_complex_jw.jl`. Both must already be included when
+# `system_bath_hamiltonian.jl` is, so this file cannot be moved above them in
+# `CoolingTNS.jl`'s include list.
 const ED_HAMILTONIAN_PAULI_MAP = Dict(
     "X" => pauli_x,
     "Y" => pauli_y_complex,
