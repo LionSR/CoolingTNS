@@ -41,6 +41,20 @@ full_tests_enabled() = env_bool("COOLINGTNS_FULL_TESTS"; default=false)
 """Whether tests should print verbose simulation output."""
 test_verbose() = env_bool("COOLINGTNS_TEST_VERBOSE"; default=false)
 
+"""Run `f` with the simulation's own stdout/stderr chatter muted.
+
+Honours `test_verbose()`, which the bare `redirect_stdout(devnull) do ... end`
+blocks this replaces did not: `COOLINGTNS_TEST_VERBOSE=1` now actually shows the
+cooling output. `quiet` consumes no randomness, so it is safe to wrap a run that
+sits directly under a `Random.seed!` pin.
+"""
+function quiet(f)
+    test_verbose() && return f()
+    return redirect_stdout(devnull) do
+        redirect_stderr(f, devnull)
+    end
+end
+
 """Assert that a required phrase occurs in flattened text."""
 function require_phrase(text::AbstractString, phrase::AbstractString)
     @test occursin(phrase, text)
@@ -122,6 +136,8 @@ function run_cooling_case(
     n_trajectories=1,
     init_type="product",
     theta=0.0,
+    measure_modes=false,
+    mode_measurement_stride=nothing,
 )
     sim_params = CoolingTNS.UnifiedSimulationParameters(
         sim_method,
@@ -135,14 +151,12 @@ function run_cooling_case(
 
     problem = CoolingTNS.setup_problem(backend, ham_params, coupling_params, sim_params)
     state0 = CoolingTNS.setup_initial_state(problem, sim_params, init_type, theta)
-    results = if test_verbose()
-        CoolingTNS.run_cooling(problem, state0, coupling_params, sim_params, ham_params)
-    else
-        redirect_stdout(devnull) do
-            redirect_stderr(devnull) do
-                CoolingTNS.run_cooling(problem, state0, coupling_params, sim_params, ham_params)
-            end
-        end
+    results = quiet() do
+        CoolingTNS.run_cooling(
+            problem, state0, coupling_params, sim_params, ham_params;
+            measure_modes=measure_modes,
+            mode_measurement_stride=mode_measurement_stride,
+        )
     end
 
     return results, problem, sim_params

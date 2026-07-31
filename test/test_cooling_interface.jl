@@ -1,7 +1,12 @@
 using Test
 using CoolingTNS
+using ITensors
+using ITensorMPS
+using LinearAlgebra
 using Random
 using HDF5
+
+@isdefined(quiet) || include("test_helpers.jl")
 
 @testset "Cooling Interface Tests" begin
     # Test parameters
@@ -621,7 +626,7 @@ using HDF5
             "product",
             0.0,
         )
-        results_odd = redirect_stdout(devnull) do
+        results_odd = quiet() do
             CoolingTNS.run_cooling(
                 problem_odd,
                 state_odd,
@@ -672,6 +677,55 @@ using HDF5
             sim_params,
             test_ham_params,
         )
+
+        @test length(results[CoolingTNS.RESULT_ENERGY]) == noisy_coupling_params.steps + 1
+        @test all(isfinite, results[CoolingTNS.RESULT_ENERGY])
+        @test all(isfinite, results[CoolingTNS.RESULT_GROUND_STATE_OVERLAP])
+    end
+
+    @testset "TN Monte Carlo Noise Dispatch" begin
+        Random.seed!(1234)
+
+        backend = CoolingTNS.TNBackend()
+        test_N = 2
+        test_ham_params = CoolingTNS.IsingParameters(test_N, 1.0, -2.0)
+        noisy_coupling_params = CoolingTNS.BasicCouplingParameters("XX", 0.05, 1, 0.2, nothing)
+        sim_params = CoolingTNS.UnifiedSimulationParameters(
+            CoolingTNS.MonteCarloWavefunction(),
+            CoolingTNS.ContinuousEvolution();
+            Dmax=20,
+            cutoff=1e-10,
+            pe=0.2,
+            n_trajectories=1,
+        )
+
+        problem_setup = CoolingTNS.setup_problem(
+            backend, test_ham_params, noisy_coupling_params, sim_params
+        )
+        initial_state = CoolingTNS.setup_initial_state(
+            problem_setup, sim_params, "product", 0.0
+        )
+
+        # `apply_noise(::MPS, ::CoolingProblem{TNBackend}, ::Float64)` is the TN
+        # half of the noise dispatch; with pe=1.0 every site is guaranteed to
+        # take a Pauli, so the call is exercised rather than merely reached.
+        combined_state = CoolingTNS.prepare_combined_state(problem_setup, initial_state)
+        noisy_combined = CoolingTNS.apply_noise(combined_state, problem_setup, 1.0)
+
+        @test noisy_combined isa MPS
+        @test length(noisy_combined) == 2 * test_N
+        @test siteinds(noisy_combined) == siteinds(combined_state)
+        @test norm(noisy_combined) ≈ 1.0 atol=1e-10
+
+        results = quiet() do
+            CoolingTNS.run_cooling(
+                problem_setup,
+                initial_state,
+                problem_setup.extra.coupling_params,
+                sim_params,
+                test_ham_params,
+            )
+        end
 
         @test length(results[CoolingTNS.RESULT_ENERGY]) == noisy_coupling_params.steps + 1
         @test all(isfinite, results[CoolingTNS.RESULT_ENERGY])
