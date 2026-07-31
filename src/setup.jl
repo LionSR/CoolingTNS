@@ -170,19 +170,26 @@ function setup_problem(
     )
 end
 
+"""
+    _resolve_bath_detuning(coupling_params::BasicCouplingParameters, gap)
+
+Return `coupling_params` with the bath detuning filled in: a caller that left
+`delta` unset gets resonant cooling at the `gap` computed by `setup_system`,
+and an explicit detuning is passed through untouched.
+"""
+_resolve_bath_detuning(coupling_params::BasicCouplingParameters, gap) =
+    coupling_params.delta === nothing ?
+    BasicCouplingParameters(coupling_params.coupling, coupling_params.g,
+                            coupling_params.steps, coupling_params.te, gap) :
+    coupling_params
+
 # ED Backend - Direct implementation with substance
 function setup_problem(backend::EDBackend, ham_params::HamiltonianParameters, coupling_params, sim_params)
     # Use unified setup_system dispatch for both Hamiltonian and ground state
     H_sys, Δ_ed, e₀, ϕ₀ = setup_system(ham_params, backend)
-    
-    # Set resonant cooling if Δ not specified
-    updated_coupling_params = if coupling_params.delta === nothing
-        # Use computed gap from setup_system
-        BasicCouplingParameters(coupling_params.coupling, coupling_params.g, coupling_params.steps, coupling_params.te, Δ_ed)
-    else
-        coupling_params
-    end
-    
+
+    updated_coupling_params = _resolve_bath_detuning(coupling_params, Δ_ed)
+
     # Build full system+bath Hamiltonian using dispatch
     H_full = construct_system_bath_hamiltonian(ham_params, backend, 2*ham_params.N, updated_coupling_params)
     
@@ -203,23 +210,26 @@ function setup_problem(backend::TNBackend, ham_params::HamiltonianParameters, co
     H_sys, Δ_dmrg, e₀, ϕ₀ = setup_system(ham_params, backend, sites_sys)
     
     # Update coupling parameters with computed delta
-    updated_coupling_params = if coupling_params.delta === nothing
-        BasicCouplingParameters(coupling_params.coupling, coupling_params.g, coupling_params.steps, coupling_params.te, Δ_dmrg)
-    else
-        coupling_params
-    end
-    
+    updated_coupling_params = _resolve_bath_detuning(coupling_params, Δ_dmrg)
+
     # Dispatch based on simulation method and evolution method
     return setup_tn_specific(backend, sim_params.sim_method, sim_params.evolution_method, 
                             ham_params, sites, sites_sys, sites_bath, H_sys, e₀, ϕ₀, updated_coupling_params, sim_params)
 end
 
-# Monte Carlo + Continuous Evolution - Direct substance
-function setup_tn_specific(backend::TNBackend, ::MonteCarloWavefunction, ::ContinuousEvolution,
+"""
+    setup_tn_specific(backend::TNBackend, ::SimulationMethod, ::ContinuousEvolution, ...)
+
+Continuous (TDVP / matrix-exponential) tensor-network setup.  Continuous
+evolution consumes the system-bath MPO itself, so the problem is built the same
+way for a wavefunction as for a density matrix; the simulation method only
+decides how that Hamiltonian is applied later.
+"""
+function setup_tn_specific(backend::TNBackend, ::SimulationMethod, ::ContinuousEvolution,
                           ham_params, sites, sites_sys, sites_bath, H_sys, e₀, ϕ₀, coupling_params, sim_params)
     H_sys_bath = construct_system_bath_hamiltonian(ham_params, backend, sites, coupling_params)
     return CoolingProblem(backend, H_sys, H_sys_bath, ϕ₀, e₀,
-                         (H_sys_bath=H_sys_bath, coupling_params=coupling_params, 
+                         (H_sys_bath=H_sys_bath, coupling_params=coupling_params,
                           coupling=coupling_params.coupling, g=coupling_params.g, sites=sites))
 end
 
@@ -244,13 +254,4 @@ function setup_tn_specific(backend::TNBackend, ::MonteCarloWavefunction, ::Trott
                          (interleaved_gates=interleaved_gates, H_sys_bath=H_total, ham_param_struct=ham_params, coupling_params=coupling_params,
                           coupling=coupling_params.coupling, g=coupling_params.g, sites=sites,
                           trotter_step_gates_cache=Dict{Any, Any}()))
-end
-
-# Density Matrix + Continuous Evolution (less common) - Direct substance
-function setup_tn_specific(backend::TNBackend, ::DensityMatrix, ::ContinuousEvolution,
-                          ham_params, sites, sites_sys, sites_bath, H_sys, e₀, ϕ₀, coupling_params, sim_params)
-    H_sys_bath = construct_system_bath_hamiltonian(ham_params, backend, sites, coupling_params)
-    return CoolingProblem(backend, H_sys, H_sys_bath, ϕ₀, e₀,
-                         (H_sys_bath=H_sys_bath, coupling_params=coupling_params, 
-                          coupling=coupling_params.coupling, g=coupling_params.g, sites=sites))
 end
