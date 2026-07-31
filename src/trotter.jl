@@ -114,73 +114,70 @@ function _tn_coupling_operator(sys_site::Index, bath_site::Index, coupling::Stri
     )
 end
 
-function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{IsingModel},
-                                           ::TNBackend, sites::Vector{<:Index},
-                                           coupling_params::CouplingParameters,
-                                           sim_params::UnifiedSimulationParameters)
-    ham_params.bc == :open || throw(ArgumentError(
+"""
+    require_open_trotter_boundary(ham_params)
+
+Throw an `ArgumentError` unless `ham_params` uses open boundaries. The
+interleaved gate layers close no `Z_N Z_1` bond, so a periodic or antiperiodic
+chain would silently drop its boundary term.
+"""
+function require_open_trotter_boundary(ham_params::HamiltonianParameters)
+    ham_params.bc == :open && return nothing
+    throw(ArgumentError(
         "TN Trotter evolution currently supports only open boundary conditions; " *
         "got $(ham_params.bc). Use ContinuousEvolution with an MPO Hamiltonian, " *
         "or implement an explicit boundary gate for the interleaved layout."
     ))
-
-    N = ham_params.N
-    J, h = ham_params.params.J, ham_params.params.h
-    g, delta, coupling, tau = coupling_params.g, coupling_params.delta, coupling_params.coupling, sim_params.tau
-    bath_op = get_bath_operator(coupling)
-
-    forward_gates = ITensor[]
-
-    # Layer 1: 2-site gates on (s_i, b_i).
-    # Contains: h*X_{si} + (Δ/2)*bath_op_{bi} + g*op1_{si}*op2_{bi}
-    for i in 1:N
-        si = sites[interleaved_system_site(i)]
-        bi = sites[interleaved_bath_site(i)]
-        h_local = h * op("X", si) * op("I", bi) +
-                  delta / 2 * op("I", si) * op(bath_op, bi) +
-                  _tn_coupling_operator(si, bi, coupling, g)
-        push!(forward_gates, exp(-1.0im * tau / 2 * h_local))
-    end
-
-    # Layer 2: 3-site gates on (s_i, b_i, s_{i+1}).
-    # Contains: J * Z_{si} ⊗ I_{bi} ⊗ Z_{s_{i+1}}
-    for i in 1:N-1
-        si = sites[interleaved_system_site(i)]
-        bi = sites[interleaved_bath_site(i)]
-        si1 = sites[interleaved_system_site(i+1)]
-        h_zz = J * op("Z", si) * op("I", bi) * op("Z", si1)
-        push!(forward_gates, exp(-1.0im * tau / 2 * h_zz))
-    end
-
-    # Symmetric 2nd-order: forward + reverse
-    gates = vcat(forward_gates, reverse(forward_gates))
-    return gates
 end
 
-function build_trotter_circuit_interleaved(ham_params::HamiltonianParameters{NiIsingModel},
+"""
+    _tn_local_system_operator(ham_params, sys_site, bath_site)
+
+Return the single-site system field of `ham_params` as a two-site operator on
+`(sys_site, bath_site)`, with the identity on the bath site. This is the only
+model-dependent piece of the interleaved Trotter circuit.
+"""
+function _tn_local_system_operator(ham_params::HamiltonianParameters, ::Index, ::Index)
+    error("TN Trotter local system operator not implemented for model $(typeof(ham_params.model))")
+end
+
+"""Ising single-site field `h X_s`, matching the `h, "X", i` MPO term."""
+_tn_local_system_operator(ham_params::HamiltonianParameters{IsingModel},
+                          sys_site::Index, bath_site::Index) =
+    ham_params.params.h * op("X", sys_site) * op("I", bath_site)
+
+"""Non-integrable Ising single-site field `hx X_s + hz Z_s`, matching the MPO terms."""
+function _tn_local_system_operator(ham_params::HamiltonianParameters{NiIsingModel},
+                                   sys_site::Index, bath_site::Index)
+    hx, hz = ham_params.params.hx, ham_params.params.hz
+    return hx * op("X", sys_site) * op("I", bath_site) +
+           hz * op("Z", sys_site) * op("I", bath_site)
+end
+
+"""
+Build the interleaved Trotter circuit for the Ising family. The `ZZ` chain, the
+bath field, and the system-bath coupling are shared; the single-site system
+field is reached by dispatch through [`_tn_local_system_operator`](@ref).
+"""
+function build_trotter_circuit_interleaved(ham_params::IsingFamilyParameters,
                                            ::TNBackend, sites::Vector{<:Index},
                                            coupling_params::CouplingParameters,
                                            sim_params::UnifiedSimulationParameters)
-    ham_params.bc == :open || throw(ArgumentError(
-        "TN Trotter evolution currently supports only open boundary conditions; " *
-        "got $(ham_params.bc). Use ContinuousEvolution with an MPO Hamiltonian, " *
-        "or implement an explicit boundary gate for the interleaved layout."
-    ))
+    require_open_trotter_boundary(ham_params)
 
     N = ham_params.N
-    J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
+    J = ham_params.params.J
     g, delta, coupling, tau = coupling_params.g, coupling_params.delta, coupling_params.coupling, sim_params.tau
     bath_op = get_bath_operator(coupling)
 
     forward_gates = ITensor[]
 
     # Layer 1: 2-site gates on (s_i, b_i).
-    # Contains: hx*X_{si} + hz*Z_{si} + (Δ/2)*bath_op_{bi} + g*op1_{si}*op2_{bi}
+    # Contains: system field on s_i + (Δ/2)*bath_op_{bi} + g*op1_{si}*op2_{bi}
     for i in 1:N
         si = sites[interleaved_system_site(i)]
         bi = sites[interleaved_bath_site(i)]
-        h_local = hx * op("X", si) * op("I", bi) +
-                  hz * op("Z", si) * op("I", bi) +
+        h_local = _tn_local_system_operator(ham_params, si, bi) +
                   delta / 2 * op("I", si) * op(bath_op, bi) +
                   _tn_coupling_operator(si, bi, coupling, g)
         push!(forward_gates, exp(-1.0im * tau / 2 * h_local))

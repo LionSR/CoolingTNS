@@ -101,20 +101,6 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     return H_sb
 end
 
-"""
-    construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters, backend::CoolingBackend, sites)
-
-Create Hamiltonian with zero coupling for Trotter evolution using double dispatch.
-"""
-function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters, backend::CoolingBackend, sites)
-    error("construct_zero_coupling_hamiltonian not implemented for model $(typeof(ham_params.model)) and backend $(typeof(backend))")
-end
-
-function construct_zero_coupling_hamiltonian(ham_params::HamiltonianParameters, backend::TNBackend, sites::Vector{<:Index})
-    zero_coupling_params = BasicCouplingParameters("XX", 0.0, 1, 0.0, 0.0)  # coupling, g, steps, te, delta
-    return construct_system_bath_hamiltonian(ham_params, backend, sites, zero_coupling_params)
-end
-
 # ============================================================================
 # ED Helper Functions
 # ============================================================================
@@ -137,15 +123,6 @@ function add_system_hamiltonian_ed!(H_sb, H_sys, N, N_total)
             end
         end
     end
-end
-
-"""
-    map_system_to_full_basis_ed(sys_state::Int, N::Int) -> Int
-
-Map a system basis state to the full system+bath basis (bath bits set to 0).
-"""
-function map_system_to_full_basis_ed(sys_state::Int, N::Int)
-    return interleaved_system_basis_state(sys_state, N)
 end
 
 """

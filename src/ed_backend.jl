@@ -1,9 +1,12 @@
 """
     ed_backend.jl
 
-Efficient ED backend implementation without Yao.jl dependencies.
-Uses only linear algebra, sparse arrays, and Krylov methods.
-All parameters are kept real (Float64) as per requirement.
+ED backend built only on linear algebra, sparse arrays, and Krylov methods.
+
+Quantum states are `ComplexF64` (`EDStateVector`, `EDDensityMatrix`); the Pauli
+operator builders here stay real and sparse, using the real representation
+`Y_real = [0 -1; 1 0]`. Couplings that need the Hermitian complex `Y` use
+`pauli_y_complex` from `ed_backend_complex_jw.jl`.
 """
 
 using LinearAlgebra
@@ -105,17 +108,6 @@ Create the all-zero state |00...0⟩.
 zero_state_ed(n_qubits::Int) = product_state_ed(n_qubits, 0)
 
 """
-    random_state_ed(n_qubits::Int) -> EDStateVector
-
-Create a random normalized pure state with real amplitudes.
-"""
-function random_state_ed(n_qubits::Int)
-    # Generate random complex state
-    data = randn(ComplexF64, 2^n_qubits)
-    return EDStateVector(data, n_qubits)
-end
-
-"""
     maximally_mixed_ed(n_qubits::Int) -> EDDensityMatrix
 
 Create the maximally mixed state I/2^n.
@@ -130,24 +122,6 @@ end
 # ============================================================================
 
 """
-    kron_states_ed(ψ1::EDStateVector, ψ2::EDStateVector) -> EDStateVector
-
-Kronecker product of two state vectors.
-"""
-function kron_states_ed(ψ1::EDStateVector, ψ2::EDStateVector)
-    return EDStateVector(kron(ψ1.data, ψ2.data), ψ1.n_qubits + ψ2.n_qubits)
-end
-
-"""
-    kron_density_ed(ρ1::EDDensityMatrix, ρ2::EDDensityMatrix) -> EDDensityMatrix
-
-Kronecker product of two density matrices.
-"""
-function kron_density_ed(ρ1::EDDensityMatrix, ρ2::EDDensityMatrix)
-    return EDDensityMatrix(kron(ρ1.data, ρ2.data), ρ1.n_qubits + ρ2.n_qubits)
-end
-
-"""
     state_to_density_ed(ψ::EDStateVector) -> EDDensityMatrix
 
 Convert pure state to density matrix: |ψ⟩⟨ψ|.
@@ -156,6 +130,43 @@ function state_to_density_ed(ψ::EDStateVector)
     # |ψ⟩⟨ψ| is automatically Hermitian
     ρ = ψ.data * ψ.data'
     return EDDensityMatrix(ρ, ψ.n_qubits)
+end
+
+# ============================================================================
+# Basis-Index Bit Helpers
+# ============================================================================
+
+"""
+    _gather_bits(state_idx::Int, positions) -> Int
+
+Collect the bits of the full basis index `state_idx` that sit at the
+zero-indexed bit `positions` into a compact index, in the order given by
+`positions`. Inverse of [`_scatter_bits`](@ref).
+"""
+function _gather_bits(state_idx::Int, positions)
+    compact_idx = 0
+    for (i, q) in enumerate(positions)
+        if (state_idx >> q) & 1 == 1
+            compact_idx |= (1 << (i - 1))
+        end
+    end
+    return compact_idx
+end
+
+"""
+    _scatter_bits(compact_idx::Int, positions) -> Int
+
+Spread the bits of a compact index out to the zero-indexed bit `positions` of a
+full basis index. Inverse of [`_gather_bits`](@ref).
+"""
+function _scatter_bits(compact_idx::Int, positions)
+    full_idx = 0
+    for (i, q) in enumerate(positions)
+        if (compact_idx >> (i - 1)) & 1 == 1
+            full_idx |= (1 << q)
+        end
+    end
+    return full_idx
 end
 
 # ============================================================================
@@ -182,56 +193,28 @@ function measure_ed!(ψ::EDStateVector, qubits::Vector{Int}, rng::AbstractRNG=Ra
     probs = zeros(Float64, 2^n_measure)
 
     for state_idx in 0:(2^n_total - 1)
-        # Extract measurement bits. Deliberately NOT named `outcome`: reusing
-        # that name for both this per-iteration accumulator and the sampled
-        # outcome below made Julia box it (Core.Box, confirmed via
-        # @code_warntype) -- ~75 MB / call at N=10 bath qubits, dropping to a
-        # few KB once the two uses have distinct names, no output change.
-        bits = 0
-        for (i, q) in enumerate(qubits_0)
-            if (state_idx >> q) & 1 == 1
-                bits |= (1 << (i-1))
-            end
-        end
-
-        probs[bits + 1] += abs2(data[state_idx + 1])
+        probs[_gather_bits(state_idx, qubits_0) + 1] += abs2(data[state_idx + 1])
     end
 
     # Sample outcome based on probabilities
     outcome = sample_outcome(probs, rng) - 1  # Convert to 0-based
-    
+
     # Extract measurement results as bit array
     results = [(outcome >> i) & 1 for i in 0:(n_measure-1)]
-    
+
     # Collapse state and trace out measured qubits
     collapsed_data = zeros(ComplexF64, 2^n_remaining)
-    
+
     # Create mask for remaining qubits
     remaining_qubits = setdiff(0:(n_total-1), qubits_0)
-    
+
     for state_idx in 0:(2^n_total - 1)
-        # Check if this state matches the measurement outcome
-        matches = true
-        for (i, q) in enumerate(qubits_0)
-            if ((state_idx >> q) & 1) != results[i]
-                matches = false
-                break
-            end
-        end
-        
-        if matches
-            # Extract index for remaining qubits
-            remaining_idx = 0
-            for (i, q) in enumerate(remaining_qubits)
-                if (state_idx >> q) & 1 == 1
-                    remaining_idx |= (1 << (i-1))
-                end
-            end
-            
-            collapsed_data[remaining_idx + 1] += data[state_idx + 1]
-        end
+        # Keep only the basis states consistent with the sampled outcome, and
+        # re-index them on the surviving qubits.
+        _gather_bits(state_idx, qubits_0) == outcome || continue
+        collapsed_data[_gather_bits(state_idx, remaining_qubits) + 1] += data[state_idx + 1]
     end
-    
+
     return EDStateVector(collapsed_data, n_remaining), results
 end
 
@@ -317,23 +300,7 @@ end
 Construct the full index from partial indices.
 """
 function construct_index(keep_idx::Int, trace_idx::Int, keep_qubits::Vector{Int}, trace_qubits::Vector{Int})
-    full_idx = 0
-    
-    # Set bits for kept qubits
-    for (i, q) in enumerate(keep_qubits)
-        if (keep_idx >> (i-1)) & 1 == 1
-            full_idx |= (1 << q)
-        end
-    end
-    
-    # Set bits for traced qubits
-    for (i, q) in enumerate(trace_qubits)
-        if (trace_idx >> (i-1)) & 1 == 1
-            full_idx |= (1 << q)
-        end
-    end
-    
-    return full_idx
+    return _scatter_bits(keep_idx, keep_qubits) | _scatter_bits(trace_idx, trace_qubits)
 end
 
 """
@@ -519,6 +486,9 @@ end
 # Noise Functions
 # ============================================================================
 
+# Pauli operator selectors for random sampling
+const PAULI_OPERATORS = (pauli_x, pauli_y, pauli_z)
+
 """
     apply_depolarizing_ed(ψ::EDStateVector, p::Float64, qubits::Vector{Int}, rng::AbstractRNG=Random.default_rng()) -> EDStateVector
 
@@ -527,9 +497,6 @@ errors on the specified qubits.  Each qubit receives no error with probability
 `1-p`, and receives `X`, `Y`, or `Z` with probability `p/3` each. Pass `rng`
 for a reproducible trajectory; the default matches the previous behavior.
 """
-# Pauli operator selectors for random sampling
-const PAULI_OPERATORS = (pauli_x, pauli_y, pauli_z)
-
 function apply_depolarizing_ed(ψ::EDStateVector, p::Float64, qubits::Vector{Int}, rng::AbstractRNG=Random.default_rng())
     ψ_noisy_data = copy(ψ.data)
 
@@ -582,31 +549,6 @@ function purity_ed(ρ::EDDensityMatrix)
     return real(tr(ρ.data^2))
 end
 
-"""
-    overlap_ed(ψ1::EDStateVector, ψ2::EDStateVector) -> Float64
-
-Compute overlap |⟨ψ1|ψ2⟩|².
-"""
-function overlap_ed(ψ1::EDStateVector, ψ2::EDStateVector)
-    @assert ψ1.n_qubits == ψ2.n_qubits "States must have same number of qubits"
-    return abs2(dot(ψ1.data, ψ2.data))
-end
-
-"""
-    fidelity_ed(ρ1::EDDensityMatrix, ρ2::EDDensityMatrix) -> Float64
-
-Compute fidelity between two density matrices.
-For pure states this reduces to |⟨ψ1|ψ2⟩|².
-"""
-function fidelity_ed(ρ1::EDDensityMatrix, ρ2::EDDensityMatrix)
-    @assert ρ1.n_qubits == ρ2.n_qubits "States must have same number of qubits"
-    
-    # For general mixed states: F = Tr(sqrt(sqrt(ρ1) ρ2 sqrt(ρ1)))²
-    # For pure states or when one is pure, this simplifies
-    sqrt_ρ1 = sqrt(ρ1.data)
-    return real(tr(sqrt(sqrt_ρ1 * ρ2.data * sqrt_ρ1)))^2
-end
-
 # ============================================================================
 # K-Space Measurement Functions (for PBC/APBC)
 # ============================================================================
@@ -625,17 +567,4 @@ silently use a second convention. New code should call
 """
 function measure_momentum_distribution_ed(state::Union{EDStateVector, EDDensityMatrix}, ham_params::HamiltonianParameters)
     return measure_raw_fourier_occupation_ed(state, ham_params)
-end
-
-"""
-    projector_ed(bit::Int, qubit::Int, n_qubits::Int) -> SparseMatrixCSC{Float64, Int}
-
-Create projector onto |bit⟩ (0 or 1) for specified qubit.
-|0⟩⟨0| = (I + Z)/2, |1⟩⟨1| = (I - Z)/2
-"""
-function projector_ed(bit::Int, qubit::Int, n_qubits::Int)
-    @assert bit in (0, 1) "bit must be 0 or 1"
-    @assert 1 <= qubit <= n_qubits "qubit must be in range 1:n_qubits"
-    sign = 1 - 2 * bit  # +1 for bit=0, -1 for bit=1
-    return (I + sign * pauli_z(qubit, n_qubits)) / 2
 end

@@ -205,16 +205,62 @@ function create_search_name_part(search_params)
     return "Search$(search_params["search_method"])trials$(search_params["num_trials"])"
 end
 
+"""Filename token for the backend: `TN` or `ED`."""
+filename_backend_token(::TNBackend) = "TN"
+filename_backend_token(::EDBackend) = "ED"
+
+"""Filename token for the simulation method: `DM` or `MC`."""
+filename_sim_method_token(::DensityMatrix) = "DM"
+filename_sim_method_token(::MonteCarloWavefunction) = "MC"
+
+"""Default `Dmax`, omitted from filenames so that default TN runs stay short."""
+const FILENAME_DEFAULT_DMAX = 100
+
+"""Bond-dimension suffix; ED filenames never carry one."""
+filename_dmax_suffix(::EDBackend, ::Int) = ""
+filename_dmax_suffix(::TNBackend, Dmax::Int) =
+    Dmax == FILENAME_DEFAULT_DMAX ? "" : "Dmax$(Dmax)"
+
+"""Trotter-step suffix; continuous-evolution filenames never carry one."""
+filename_tau_suffix(::ContinuousEvolution, ::Float64) = ""
+filename_tau_suffix(::TrotterEvolution, tau::Float64) = "tau$(tau)"
+
+"""
+    _filename_ham_group(ham_params) -> String
+
+Hamiltonian group of a result filename, e.g. `HamIsingJ1.0h1.0`. Contains no
+underscores, because underscores separate the three filename groups.
+"""
+_filename_ham_group(ham_params::HamiltonianParameters) = "Ham$(hamiltonian_name(ham_params))"
+
+"""
+    _filename_sim_group(sim_params, backend) -> String
+
+Simulation group of a result filename, e.g. `SimTNDM`, plus the conditional
+`Dmax`, `tau`, and `pe` suffixes. Shared by every `create_filename` method so
+that the single-Δ and multi-Δ names cannot drift apart.
+"""
+function _filename_sim_group(sim_params::UnifiedSimulationParameters, backend::CoolingBackend)
+    sim_group = "Sim" * filename_backend_token(backend) *
+                filename_sim_method_token(sim_params.sim_method)
+
+    sim_group *= filename_dmax_suffix(backend, sim_params.Dmax)
+    sim_group *= filename_tau_suffix(sim_params.evolution_method, sim_params.tau)
+
+    if sim_params.pe > 0
+        pe_int = Int(round(sim_params.pe * 1000))
+        sim_group *= "pe$(pe_int)"
+    end
+
+    return sim_group
+end
+
 function create_filename(
     ham_params::HamiltonianParameters,
     coupling_params::MultiFrequencyCouplingParameters,
     sim_params::UnifiedSimulationParameters,
     backend::CoolingBackend,
 )
-    # Ham group: HamIsingJ1.0h1.0 (no underscores within group)
-    ham_name = hamiltonian_name(ham_params)
-    ham_group = "Ham$(ham_name)"
-
     # Coupling group: include only summary info about the Δ-grid (to keep names short)
     R = length(coupling_params.delta_values)
     δmin = minimum(coupling_params.delta_values)
@@ -232,63 +278,20 @@ function create_filename(
         coupling_group *= "randt"
     end
 
-    # Sim group: SimTNDmax100 or SimED (no underscores within group)
-    backend_str = backend isa TNBackend ? "TN" : "ED"
-    sim_method_str = sim_params.sim_method isa DensityMatrix ? "DM" : "MC"
-    sim_group = "Sim$(backend_str)$(sim_method_str)"
-
-    if backend isa TNBackend && sim_params.Dmax != 100
-        sim_group *= "Dmax$(sim_params.Dmax)"
-    end
-
-    if sim_params.evolution_method isa TrotterEvolution
-        sim_group *= "tau$(sim_params.tau)"
-    end
-
-    if sim_params.pe > 0
-        pe_int = Int(round(sim_params.pe * 1000))
-        sim_group *= "pe$(pe_int)"
-    end
-
-    return "Cooling_$(ham_group)_$(coupling_group)_$(sim_group)"
+    return "Cooling_$(_filename_ham_group(ham_params))_$(coupling_group)_$(_filename_sim_group(sim_params, backend))"
 end
 
 function create_filename(ham_params::HamiltonianParameters, coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters, backend::CoolingBackend)
-    # Ham group: HamIsingJ1.0h1.0 (no underscores within group)
-    ham_name = hamiltonian_name(ham_params)
-    ham_group = "Ham$(ham_name)"
-    
     # Coupling group: CouplingXXg0.1te10.0steps100 (no underscores within group)
     coupling_group = "Coupling$(coupling_params.coupling)g$(coupling_params.g)te$(coupling_params.te)steps$(coupling_params.steps)"
-    
+
     # Add delta if specified
     if !isnothing(coupling_params.delta)
         delta_str = @sprintf("%.3f", coupling_params.delta)
         coupling_group *= "delta$(delta_str)"
     end
-    
-    # Sim group: SimTNDmax100 or SimED (no underscores within group)
-    backend_str = backend isa TNBackend ? "TN" : "ED"
-    sim_method_str = sim_params.sim_method isa DensityMatrix ? "DM" : "MC"
-    sim_group = "Sim$(backend_str)$(sim_method_str)"
-    
-    # Add key method parameters to sim group
-    if backend isa TNBackend && sim_params.Dmax != 100  # Only add if not default
-        sim_group *= "Dmax$(sim_params.Dmax)"
-    end
-    
-    # Add other sim parameters if non-default
-    if sim_params.evolution_method isa TrotterEvolution
-        sim_group *= "tau$(sim_params.tau)"
-    end
-    
-    if sim_params.pe > 0
-        pe_int = Int(round(sim_params.pe * 1000))
-        sim_group *= "pe$(pe_int)"
-    end
-    
-    # Join the three groups with underscores
-    return "Cooling_$(ham_group)_$(coupling_group)_$(sim_group)"
+
+    return "Cooling_$(_filename_ham_group(ham_params))_$(coupling_group)_$(_filename_sim_group(sim_params, backend))"
 end
 
 # Backward-compatible overload for plotting workflows that only have `ham_name`
@@ -341,9 +344,5 @@ function create_filename(
         n_trajectories=get(sim_params, "n_trajectories", 1),
     )
 
-    template = parse_hamiltonian_name(ham_name)
-    actual_N = N isa Vector ? N[1] : N
-    ham_params = HamiltonianParameters(template.model, actual_N, template.params, template.bc)
-
-    return create_filename(ham_params, coupling, sim, backend)
+    return create_filename(ham_name, N, coupling, sim, backend)
 end

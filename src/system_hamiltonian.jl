@@ -19,6 +19,18 @@ function construct_system_hamiltonian(ham_params::HamiltonianParameters, backend
 end
 
 """
+    IsingFamilyParameters
+
+Hamiltonian parameters that are a `J`-weighted `ZZ` chain plus purely
+single-site system fields: `IsingModel` and `NiIsingModel`. Only the
+single-site part differs, so each construction path (TN `OpSum`, ED sparse
+matrix, and the interleaved Trotter circuit in `trotter.jl`) writes the shared
+`ZZ` skeleton once and reaches the fields by dispatch.
+"""
+const IsingFamilyParameters =
+    Union{HamiltonianParameters{IsingModel}, HamiltonianParameters{NiIsingModel}}
+
+"""
     rydberg_rabi_x_coefficient(Ω)
 
 Return the coefficient multiplying `σˣ` in the Rydberg Hamiltonian. The input
@@ -112,35 +124,36 @@ function append_zz_chain_terms_tn(terms::OpSum, J::Real, N::Int, bc::Symbol, sit
     return terms
 end
 
-function append_system_terms_tn(
-    terms::OpSum,
-    ham_params::HamiltonianParameters{IsingModel},
-    site_of,
-)
-    J, h = ham_params.params.J, ham_params.params.h
-    N, bc = ham_params.N, ham_params.bc
-
-    terms = append_zz_chain_terms_tn(terms, J, N, bc, site_of)
-    for i in 1:N
+"""Append the Ising transverse field `h X_i`."""
+function append_single_site_fields_tn(terms::OpSum,
+        ham_params::HamiltonianParameters{IsingModel}, site_of)
+    h = ham_params.params.h
+    for i in 1:ham_params.N
         terms += h, "X", site_of(i)
     end
     return terms
 end
 
-function append_system_terms_tn(
-    terms::OpSum,
-    ham_params::HamiltonianParameters{NiIsingModel},
-    site_of,
-)
-    J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
-    N, bc = ham_params.N, ham_params.bc
-
-    terms = append_zz_chain_terms_tn(terms, J, N, bc, site_of)
-    for i in 1:N
+"""Append the non-integrable Ising fields `hx X_i + hz Z_i`."""
+function append_single_site_fields_tn(terms::OpSum,
+        ham_params::HamiltonianParameters{NiIsingModel}, site_of)
+    hx, hz = ham_params.params.hx, ham_params.params.hz
+    for i in 1:ham_params.N
         terms += hx, "X", site_of(i)
         terms += hz, "Z", site_of(i)
     end
     return terms
+end
+
+"""
+Append the Ising-family system terms: the shared `ZZ` chain, then the
+model-dependent single-site fields from [`append_single_site_fields_tn`](@ref).
+"""
+function append_system_terms_tn(terms::OpSum, ham_params::IsingFamilyParameters, site_of)
+    terms = append_zz_chain_terms_tn(
+        terms, ham_params.params.J, ham_params.N, ham_params.bc, site_of
+    )
+    return append_single_site_fields_tn(terms, ham_params, site_of)
 end
 
 function append_system_terms_tn(
@@ -189,31 +202,35 @@ function add_zz_chain_ed!(H::SparseMatrixCSC, J::Float64, N::Int, bc::Symbol)
     return H
 end
 
-function construct_system_hamiltonian(ham_params::HamiltonianParameters{IsingModel}, ::EDBackend, ::Int)
-    J, h = ham_params.params.J, ham_params.params.h
-    N, bc = ham_params.N, ham_params.bc
-
-    H_sys = spzeros(Float64, 2^N, 2^N)
-    add_zz_chain_ed!(H_sys, J, N, bc)
-
+"""Add the Ising transverse field `h X_i`."""
+function add_single_site_fields_ed!(H::SparseMatrixCSC, ham_params::HamiltonianParameters{IsingModel})
+    N, h = ham_params.N, ham_params.params.h
     for i in 1:N
-        H_sys .+= h * pauli_x(i, N)
+        H .+= h * pauli_x(i, N)
     end
-    return H_sys
+    return H
 end
 
-function construct_system_hamiltonian(ham_params::HamiltonianParameters{NiIsingModel}, ::EDBackend, ::Int)
-    J, hx, hz = ham_params.params.J, ham_params.params.hx, ham_params.params.hz
-    N, bc = ham_params.N, ham_params.bc
-
-    H_sys = spzeros(Float64, 2^N, 2^N)
-    add_zz_chain_ed!(H_sys, J, N, bc)
-
+"""Add the non-integrable Ising fields `hx X_i + hz Z_i`."""
+function add_single_site_fields_ed!(H::SparseMatrixCSC, ham_params::HamiltonianParameters{NiIsingModel})
+    N = ham_params.N
+    hx, hz = ham_params.params.hx, ham_params.params.hz
     for i in 1:N
-        H_sys .+= hx * pauli_x(i, N)
-        H_sys .+= hz * pauli_z(i, N)
+        H .+= hx * pauli_x(i, N)
+        H .+= hz * pauli_z(i, N)
     end
-    return H_sys
+    return H
+end
+
+"""
+Build the Ising-family ED system Hamiltonian: the shared `ZZ` chain, then the
+model-dependent single-site fields from [`add_single_site_fields_ed!`](@ref).
+"""
+function construct_system_hamiltonian(ham_params::IsingFamilyParameters, ::EDBackend, ::Int)
+    N = ham_params.N
+    H_sys = spzeros(Float64, 2^N, 2^N)
+    add_zz_chain_ed!(H_sys, ham_params.params.J, N, ham_params.bc)
+    return add_single_site_fields_ed!(H_sys, ham_params)
 end
 
 function construct_system_hamiltonian(ham_params::HamiltonianParameters{RydbergModel}, ::EDBackend, ::Int)
