@@ -309,8 +309,12 @@ function _build_fourier_ops(a_ops, a_dag_ops, k, N)
     akd = zeros(ComplexF64, dim, dim)
     for n in 1:N
         phase = exp(2π * im * k * n / N) / sqrt(N)
-        ak .+= phase * a_ops[n]
-        akd .+= conj(phase) * a_dag_ops[n]
+        # Dot-fused: `_dense_jw_operators` guarantees dense `Matrix{ComplexF64}`
+        # operands, so this is the same scalar multiply and the same add in the
+        # same order as the unfused form -- bitwise identical -- without
+        # materializing a 4^N temporary per term.
+        ak .+= phase .* a_ops[n]
+        akd .+= conj(phase) .* a_dag_ops[n]
     end
     return ak, akd
 end
