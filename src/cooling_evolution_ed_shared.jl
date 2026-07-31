@@ -156,14 +156,12 @@ function _momentum_measurement_gF!(measurements,
 end
 
 """
-    _system_state_for_measurement(state, N_sys)
+    _system_state_for_measurement(ρ, N_sys)
 
-Return the ED system state used for system observables. System-only states are
-returned unchanged; an interleaved system-bath density matrix is reduced by
-tracing out the bath.
+Return the ED system density matrix used for system observables. A system-only
+density matrix is returned unchanged; an interleaved system-bath density matrix
+is reduced by tracing out the bath.
 """
-_system_state_for_measurement(state::EDStateVector, ::Int) = state
-
 function _system_state_for_measurement(ρ::EDDensityMatrix, N_sys::Int)
     if ρ.n_qubits == interleaved_total_sites(N_sys)
         return trace_out_bath_ed(ρ, N_sys)
@@ -219,58 +217,17 @@ function _ensure_momentum_storage!(measurements, k_values, n_k)
 end
 
 """
-    perform_measurements_ed!(measurements, step::Int, problem::CoolingProblem{EDBackend},
-                            state::Union{EDStateVector, EDDensityMatrix}, is_monte_carlo::Bool,
-                            ham_params, bath_info=nothing)
+    _record_ed_fourier_measurements!(measurements, step, sys_state, ham_params)
 
-Shared measurement function for ED backend.
+Record the ED k-space diagnostics shared by both simulation methods: the raw
+Fourier occupation ñ_k when momentum storage was requested, and the Bogoliubov
+mode observables ⟨h_k⟩ when `measure_modes=true` allocated their slots. Both are
+defined only for the integrable Ising chain with periodic/antiperiodic
+boundaries, which `_record_ising_mode_measurements!` checks for itself.
 """
-function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVector, EDDensityMatrix},
-                                H_sys_mat::AbstractMatrix, ϕ₀::EDStateVector,
-                                ham_params, bath_info=nothing)
-    N_sys = ham_params.N
-    N_bath = ham_params.N
-    sys_state = _system_state_for_measurement(state, N_sys)
-    
-    if isa(sys_state, EDStateVector)
-        # Monte Carlo: state is a wave function (system only)
-        ψ_s = sys_state
-        
-        # Energy: <ψ|H|ψ>
-        measurements[RESULT_ENERGY][step] = expect_ed(H_sys_mat, ψ_s)
-        
-        # Ground state overlap: |<ϕ₀|ψ>|²
-        overlap = abs2(dot(ϕ₀.data, ψ_s.data))
-        measurements[RESULT_GROUND_STATE_OVERLAP][step] = overlap
-        
-        # MCWF bath observations are sampled outcomes, not density-matrix
-        # expectation values.
-        if haskey(measurements, RESULT_BATH_SAMPLE_MAGNETIZATION) && bath_info !== nothing
-            measurements[RESULT_BATH_SAMPLE_MAGNETIZATION][step] =
-                _bath_sample_magnetization(
-                    bath_info, N_bath, "ED bath measurement", _pauli_z_from_ed_bit)
-        end
-    else
-        # Density matrix measurements are performed on the reduced system state.
-        ρ_sys = sys_state
-        
-        # Energy
-        measurements[RESULT_ENERGY][step] = expect_ed(H_sys_mat, ρ_sys)
-        
-        # Ground state overlap: <ϕ₀|ρ|ϕ₀>
-        measurements[RESULT_GROUND_STATE_OVERLAP][step] = real(ϕ₀.data' * ρ_sys.data * ϕ₀.data)
-        
-        # Purity
-        if haskey(measurements, RESULT_PURITY)
-            measurements[RESULT_PURITY][step] = purity_ed(ρ_sys)
-        end
-        
-        if haskey(measurements, RESULT_BATH_MAGNETIZATION) && bath_info !== nothing
-            measurements[RESULT_BATH_MAGNETIZATION][step] = Float64(bath_info)
-        end
-    end
-    
-    # K-space measurements for ED with periodic/antiperiodic even Ising chains.
+function _record_ed_fourier_measurements!(measurements, step::Int,
+                                          sys_state::Union{EDStateVector, EDDensityMatrix},
+                                          ham_params)
     if haskey(measurements, RESULT_MOMENTUM_DISTRIBUTION) && supports_ising_fourier_observables(ham_params)
         gF = _momentum_measurement_gF!(measurements, sys_state, ham_params)
         k_values, tilde_n_k = measure_raw_fourier_occupation_ed(sys_state, ham_params; gF=gF)
@@ -278,9 +235,65 @@ function perform_measurements_ed(measurements, step::Int, state::Union{EDStateVe
         measurements[RESULT_MOMENTUM_DISTRIBUTION][step, :] .= tilde_n_k
     end
 
-    # Bogoliubov mode-observable measurements ⟨h_k⟩
-    # (requires measure_modes=true in run_cooling)
-    if haskey(measurements, RESULT_MODE_HK) && supports_ising_fourier_observables(ham_params)
-        _record_ising_mode_measurements!(measurements, step, sys_state, ham_params)
+    _record_ising_mode_measurements!(measurements, step, sys_state, ham_params)
+    return nothing
+end
+
+"""
+    perform_measurements_ed!(measurements, step, state::QuantumState{EDBackend,MonteCarloWavefunction},
+                             H_sys_mat, ϕ₀, ham_params, bath_info=nothing)
+
+Record ED Monte Carlo wavefunction observables for cooling `step`: the system
+energy ⟨ψ|H|ψ⟩, the ground-state overlap |⟨ϕ₀|ψ⟩|², the sampled bath
+magnetization, and the shared k-space diagnostics.
+"""
+function perform_measurements_ed!(measurements, step::Int,
+                                 state::QuantumState{EDBackend,MonteCarloWavefunction},
+                                 H_sys_mat::AbstractMatrix, ϕ₀::EDStateVector,
+                                 ham_params, bath_info=nothing)
+    ψ_s = state.state
+
+    measurements[RESULT_ENERGY][step] = expect_ed(H_sys_mat, ψ_s)
+    measurements[RESULT_GROUND_STATE_OVERLAP][step] = abs2(dot(ϕ₀.data, ψ_s.data))
+
+    # MCWF bath observations are sampled outcomes, not density-matrix
+    # expectation values.
+    if haskey(measurements, RESULT_BATH_SAMPLE_MAGNETIZATION) && bath_info !== nothing
+        measurements[RESULT_BATH_SAMPLE_MAGNETIZATION][step] =
+            compute_bath_magnetization(state.backend, state, bath_info, ham_params.N)
     end
+
+    _record_ed_fourier_measurements!(measurements, step, ψ_s, ham_params)
+    return nothing
+end
+
+"""
+    perform_measurements_ed!(measurements, step, state::QuantumState{EDBackend,DensityMatrix},
+                             H_sys_mat, ϕ₀, ham_params, bath_info=nothing)
+
+Record ED density-matrix observables for cooling `step` on the reduced system
+state: energy, ground-state overlap ⟨ϕ₀|ρ|ϕ₀⟩, purity, the bath magnetization
+already computed by `process_bath_and_update`, and the shared k-space
+diagnostics. The stored state may still be the interleaved system-bath density
+matrix, so it is reduced by `_system_state_for_measurement` first.
+"""
+function perform_measurements_ed!(measurements, step::Int,
+                                 state::QuantumState{EDBackend,DensityMatrix},
+                                 H_sys_mat::AbstractMatrix, ϕ₀::EDStateVector,
+                                 ham_params, bath_info=nothing)
+    ρ_sys = _system_state_for_measurement(state.state, ham_params.N)
+
+    measurements[RESULT_ENERGY][step] = expect_ed(H_sys_mat, ρ_sys)
+    measurements[RESULT_GROUND_STATE_OVERLAP][step] = real(ϕ₀.data' * ρ_sys.data * ϕ₀.data)
+
+    if haskey(measurements, RESULT_PURITY)
+        measurements[RESULT_PURITY][step] = purity_ed(ρ_sys)
+    end
+
+    if haskey(measurements, RESULT_BATH_MAGNETIZATION) && bath_info !== nothing
+        measurements[RESULT_BATH_MAGNETIZATION][step] = Float64(bath_info)
+    end
+
+    _record_ed_fourier_measurements!(measurements, step, ρ_sys, ham_params)
+    return nothing
 end
