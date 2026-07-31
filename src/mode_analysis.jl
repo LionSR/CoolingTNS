@@ -288,7 +288,11 @@ need the latter should separately check whether `ε_k ≈ |Δ|`.
 function nearest_bath_detuning_indices(εk_values, delta; atol=1e-12)
     δ_abs = bath_detuning_energy(delta)
     δ_abs === nothing && return Int[]
-    return _nearest_energy_detuning_indices(εk_values, δ_abs; atol=atol)
+    isempty(εk_values) && return Int[]
+
+    distances = abs.(εk_values .- δ_abs)
+    dmin = minimum(distances)
+    return findall(d -> isapprox(d, dmin; atol=atol, rtol=sqrt(eps(Float64))), distances)
 end
 
 """
@@ -300,14 +304,6 @@ that exact resonance is not confused with the nearest discrete mode.
 """
 function nearest_bath_resonance_indices(εk_values, delta; atol=1e-12)
     return nearest_bath_detuning_indices(εk_values, delta; atol=atol)
-end
-
-function _nearest_energy_detuning_indices(εk_values, δ_abs::Real; atol=1e-12)
-    isempty(εk_values) && return Int[]
-
-    distances = abs.(εk_values .- δ_abs)
-    dmin = minimum(distances)
-    return findall(d -> isapprox(d, dmin; atol=atol, rtol=sqrt(eps(Float64))), distances)
 end
 
 """
@@ -652,6 +648,26 @@ function bogoliubov_angle(k, θ, N)
 end
 
 """
+    bogoliubov_mode_coefficients(k, θ, N) -> (c2, s2, sc)
+
+Return the three Bogoliubov weights
+``(\\cos^2 varphi_k, \\sin^2 varphi_k, \\sin varphi_k \\cos varphi_k)``
+that build ``\\hat a_k^† \\hat a_k`` out of the Fourier bilinears
+``tilde a_k^† tilde a_k``, ``tilde a_{-k}^† tilde a_{-k}`` and the pairing term,
+with `varphi_k` the [`bogoliubov_angle`](@ref).
+
+Both the ED operator construction (`_build_hk_operator` in
+`ed_backend_complex_jw.jl`) and the TN correlator contraction
+(`_measure_hk_from_correlators` in `tn_mode_observables.jl`) build ``h_k`` from
+these same weights, so the two backends share one definition of the angle
+convention.
+"""
+function bogoliubov_mode_coefficients(k, θ, N)
+    varphi_bogo = bogoliubov_angle(Float64(k), θ, N)
+    return (cos(varphi_bogo)^2, sin(varphi_bogo)^2, sin(varphi_bogo) * cos(varphi_bogo))
+end
+
+"""
     coeff_k(k, θ, N) -> coefficient
 
 The symmetrized-form coefficient for mode ``k`` in the notes' decomposition
@@ -909,6 +925,30 @@ function _reference_fermionic_bc(spin_bc::Symbol, px::Real; atol=0.1, default_pa
         spin_bc,
         _reference_parity_sector_with_source(px; atol=atol, default=default_parity).parity,
     )
+end
+
+"""
+    _measurement_fermionic_bc(state, ham_params, context; gF=nothing)
+
+Return the fermionic boundary condition a mode measurement should use.
+
+An explicit `gF` is passed through unchanged.  Otherwise the state's ``⟨P_x⟩``
+is measured — `measure_state_parity` dispatches on the ED or TN state type — and
+[`_reference_parity_sector_with_source`](@ref) turns it into a parity sector.
+States with no definite parity fall back to the deterministic reference sector
+and warn, tagged by `context` so the message names the calling measurement.
+"""
+function _measurement_fermionic_bc(state, ham_params, context::AbstractString; gF=nothing)
+    isnothing(gF) || return gF
+
+    px = measure_state_parity(state, ham_params.N)
+    sector = _reference_parity_sector_with_source(px)
+    parity = sector.parity
+    if sector.source === :reference
+        @warn "$context: state has no definite P_x parity " *
+              "(⟨P_x⟩ = $px); using the P_x = $parity reference grid"
+    end
+    return fermionic_bc(ham_params.bc, parity)
 end
 
 # ============================================================================

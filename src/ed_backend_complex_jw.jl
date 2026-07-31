@@ -60,6 +60,29 @@ function jordan_wigner_transform_complex(site::Int, N::Int)
 end
 
 """
+    _jw_operators(N) -> (a_ops, a_dag_ops)
+
+Sparse notes-basis Jordan-Wigner operators ``a_n`` and ``a_n^†`` for every site
+of an `N`-site chain. These are the expensive ``2^N × 2^N`` objects shared by
+every momentum in a single measurement.
+"""
+function _jw_operators(N::Int)
+    ops = [jordan_wigner_transform_complex(n, N) for n in 1:N]
+    return first.(ops), last.(ops)
+end
+
+"""
+    _dense_jw_operators(N) -> (a_ops, a_dag_ops)
+
+Dense `Matrix{ComplexF64}` form of [`_jw_operators`](@ref), used by the ``h_k``
+construction, which combines them into dense Fourier and Bogoliubov operators.
+"""
+function _dense_jw_operators(N::Int)
+    a_ops, a_dag_ops = _jw_operators(N)
+    return Matrix.(a_ops), Matrix.(a_dag_ops)
+end
+
+"""
     pauli_y_complex(i::Int, n_qubits::Int) -> SparseMatrixCSC{ComplexF64}
 
 Complex Pauli Y operator ``σ_y = [0, -i; i, 0]`` acting on qubit `i`.
@@ -86,68 +109,11 @@ function single_site_operator(local_op::SparseMatrixCSC{ComplexF64, Int}, i::Int
 end
 
 # -----------------------------------------------------------------------------
-# Momentum distribution (shared implementation)
+# Momentum distribution
 # -----------------------------------------------------------------------------
 
 _expect_amdag_an(ψ::EDStateVector, a_m_dag, a_n) = dot(ψ.data, a_m_dag * a_n * ψ.data)
 _expect_amdag_an(ρ::EDDensityMatrix, a_m_dag, a_n) = tr(ρ.data * a_m_dag * a_n)
-
-function _measure_raw_fourier_occupation_ed(state, ham_params; gF=nothing)
-    require_ising_fourier_observables(ham_params; observable="ED raw Fourier occupation")
-    N = ham_params.N
-
-    # Determine k-grid: parity-aware if gF not specified
-    if isnothing(gF)
-        px = measure_state_parity(state, N)
-        sector = _reference_parity_sector_with_source(px)
-        parity = sector.parity
-        if sector.source === :reference
-            @warn "measure_raw_fourier_occupation_ed: state has no definite P_x parity " *
-                  "(⟨P_x⟩ = $px); using the P_x = $parity reference grid"
-        end
-        gF = fermionic_bc(ham_params.bc, parity)
-    end
-
-    k_indices = allowed_k_indices(N, gF)
-    tilde_n_k = zeros(Float64, length(k_indices))
-
-    # Rotate state to notes basis (JW operators are defined in computational/notes basis)
-    if state isa EDStateVector
-        ψ_notes = _rotate_state_to_notes(state)
-        notes_state = EDStateVector(ψ_notes, N)
-    else
-        ρ_notes = _rotate_dm_to_notes(state)
-        notes_state = EDDensityMatrix(ρ_notes, N)
-    end
-
-    # Precompute all JW operators once (these are expensive 2^N × 2^N matrices)
-    a1, a1_dag = jordan_wigner_transform_complex(1, N)
-    a_ops = Vector{typeof(a1)}(undef, N)
-    a_dag_ops = Vector{typeof(a1_dag)}(undef, N)
-    a_ops[1] = a1
-    a_dag_ops[1] = a1_dag
-    for j in 2:N
-        a_ops[j], a_dag_ops[j] = jordan_wigner_transform_complex(j, N)
-    end
-
-    for (ki, k) in enumerate(k_indices)
-        nk = 0.0 + 0.0im
-        kf = Float64(k)
-
-        # ⟨ã†_k ã_k⟩ with the notes Fourier convention
-        # ã_k = (1/√N) Σ_j exp(-i n φ_k) a_j.
-        # Therefore ã†_k ã_k carries exp(+i (m-n) φ_k).
-        for m in 1:N, n in 1:N
-            phase = exp(2π * im * kf * (m - n) / N) / N
-            nk += phase * _expect_amdag_an(notes_state, a_dag_ops[m], a_ops[n])
-        end
-
-        tilde_n_k[ki] = real(nk)
-    end
-
-    k_momentum = [2π * Float64(k) / N for k in k_indices]
-    return k_momentum, tilde_n_k
-end
 
 """
     measure_raw_fourier_occupation_ed(state, ham_params; gF=nothing) -> (k_values, tilde_n_k)
@@ -179,11 +145,40 @@ eigenstates use their physical sector. States with no definite ``P_x`` parity
 have no unique fermionic boundary condition, so the function uses the even
 reference sector shared by the cooling diagnostics. Pass `gF=±1` to override.
 """
-measure_raw_fourier_occupation_ed(ψ::EDStateVector, ham_params; gF=nothing) =
-    _measure_raw_fourier_occupation_ed(ψ, ham_params; gF=gF)
+function measure_raw_fourier_occupation_ed(state::Union{EDStateVector, EDDensityMatrix},
+                                           ham_params; gF=nothing)
+    require_ising_fourier_observables(ham_params; observable="ED raw Fourier occupation")
+    N = ham_params.N
+    gF = _measurement_fermionic_bc(
+        state, ham_params, "measure_raw_fourier_occupation_ed"; gF=gF)
 
-measure_raw_fourier_occupation_ed(ρ::EDDensityMatrix, ham_params; gF=nothing) =
-    _measure_raw_fourier_occupation_ed(ρ, ham_params; gF=gF)
+    k_indices = allowed_k_indices(N, gF)
+    tilde_n_k = zeros(Float64, length(k_indices))
+
+    # Rotate state to notes basis (JW operators are defined in computational/notes basis)
+    notes_state = _notes_basis_state(state, N)
+
+    # Precompute all JW operators once (these are expensive 2^N × 2^N matrices)
+    a_ops, a_dag_ops = _jw_operators(N)
+
+    for (ki, k) in enumerate(k_indices)
+        nk = 0.0 + 0.0im
+        kf = Float64(k)
+
+        # ⟨ã†_k ã_k⟩ with the notes Fourier convention
+        # ã_k = (1/√N) Σ_j exp(-i n φ_k) a_j.
+        # Therefore ã†_k ã_k carries exp(+i (m-n) φ_k).
+        for m in 1:N, n in 1:N
+            phase = exp(2π * im * kf * (m - n) / N) / N
+            nk += phase * _expect_amdag_an(notes_state, a_dag_ops[m], a_ops[n])
+        end
+
+        tilde_n_k[ki] = real(nk)
+    end
+
+    k_momentum = [2π * Float64(k) / N for k in k_indices]
+    return k_momentum, tilde_n_k
+end
 
 """
     measure_momentum_distribution_ed_clean(state, ham_params; gF=nothing) -> (k_values, tilde_n_k)
@@ -195,11 +190,9 @@ scripts. New code should prefer `measure_raw_fourier_occupation_ed`, because the
 returned quantity is the raw Fourier occupation ``tilde n_k`` and should not be
 read as the Bogoliubov occupation ``n_k^{Bog}``.
 """
-measure_momentum_distribution_ed_clean(ψ::EDStateVector, ham_params; gF=nothing) =
-    measure_raw_fourier_occupation_ed(ψ, ham_params; gF=gF)
-
-measure_momentum_distribution_ed_clean(ρ::EDDensityMatrix, ham_params; gF=nothing) =
-    measure_raw_fourier_occupation_ed(ρ, ham_params; gF=gF)
+measure_momentum_distribution_ed_clean(state::Union{EDStateVector, EDDensityMatrix},
+                                       ham_params; gF=nothing) =
+    measure_raw_fourier_occupation_ed(state, ham_params; gF=gF)
 
 # =============================================================================
 # Basis rotation: code ↔ notes
@@ -230,25 +223,38 @@ function _rotation_code_to_notes(N::Int)
 end
 
 """
-    _rotate_state_to_notes(state::EDStateVector) -> Vector{ComplexF64}
+    _rotate_to_notes(state::EDStateVector) -> Vector{ComplexF64}
 
 Rotate a code-basis state vector to the notes basis.
 """
-function _rotate_state_to_notes(state::EDStateVector)
+function _rotate_to_notes(state::EDStateVector)
     U = _rotation_code_to_notes(state.n_qubits)
     return U * state.data
 end
 
 """
-    _rotate_dm_to_notes(state::EDDensityMatrix) -> Matrix{ComplexF64}
+    _rotate_to_notes(state::EDDensityMatrix) -> Matrix{ComplexF64}
 
-Rotate a code-basis density matrix to the notes basis.
+Rotate a code-basis density matrix to the notes basis, resymmetrized so that
+the rounding of the similarity transform cannot break Hermiticity.
 """
-function _rotate_dm_to_notes(state::EDDensityMatrix)
+function _rotate_to_notes(state::EDDensityMatrix)
     U = _rotation_code_to_notes(state.n_qubits)
     ρ_notes = U * state.data * U'
     return (ρ_notes + ρ_notes') / 2
 end
+
+"""
+    _notes_basis_state(state, N) -> EDStateVector or EDDensityMatrix
+
+Rotate a code-basis state to the notes basis and rewrap it in its own ED state
+type, so that notes-basis expectation values can be taken through the same
+`_expect_amdag_an` dispatch as code-basis ones. The rewrap is not
+cosmetic: the ED state constructors renormalize, which is what keeps the raw
+Fourier occupations exactly normalized after the rotation.
+"""
+_notes_basis_state(ψ::EDStateVector, N::Int) = EDStateVector(_rotate_to_notes(ψ), N)
+_notes_basis_state(ρ::EDDensityMatrix, N::Int) = EDDensityMatrix(_rotate_to_notes(ρ), N)
 
 # =============================================================================
 # Parity measurement
@@ -343,10 +349,7 @@ function _build_hk_operator(k, θ, N, a_ops, a_dag_ops)
         return 2 * nk_op - II
     else
         # Generic mode: use full Bogoliubov transformation
-        varphi_bogo = bogoliubov_angle(Float64(k), θ, N)
-        c2 = cos(varphi_bogo)^2
-        s2 = sin(varphi_bogo)^2
-        sc = sin(varphi_bogo) * cos(varphi_bogo)
+        c2, s2, sc = bogoliubov_mode_coefficients(k, θ, N)
         ãmk, ãmkd = _build_fourier_ops(a_ops, a_dag_ops, -k, N)
 
         nk_op = ãkd * ãk       # ã†_k ã_k
@@ -407,65 +410,20 @@ allows that occupation.
 - `ham_params`: integrable Ising Hamiltonian parameters with even `N` and spin
   `:periodic` or `:antiperiodic` boundary conditions
 """
-function measure_hk(state::EDStateVector, k, ham_params)
+function measure_hk(state::Union{EDStateVector, EDDensityMatrix}, k, ham_params)
     require_ising_fourier_observables(ham_params; observable="ED measure_hk mode observables")
     N = ham_params.N
     J = ham_params.params.J
     h = ham_params.params.h
     θ = theta_from_Jh(J, h)
 
-    # Rotate state to notes basis
-    ψ_notes = _rotate_state_to_notes(state)
+    # Rotate to the notes basis, where the JW operators are defined
+    notes_state = _rotate_to_notes(state)
+    a_ops, a_dag_ops = _dense_jw_operators(N)
 
-    # Build JW operators (in computational/notes basis)
-    a_ops = Vector{Matrix{ComplexF64}}(undef, N)
-    a_dag_ops = Vector{Matrix{ComplexF64}}(undef, N)
-    for n in 1:N
-        a, ad = jordan_wigner_transform_complex(n, N)
-        a_ops[n] = Matrix(a)
-        a_dag_ops[n] = Matrix(ad)
-    end
-
-    # Build h_k operator
     hk_op = _build_hk_operator(k, θ, N, a_ops, a_dag_ops)
+    hk_val = _expect_complex(hk_op, notes_state)
 
-    # Compute expectation value
-    hk_val = _expect_complex(hk_op, ψ_notes)
-
-    # Check imaginary part
-    if abs(imag(hk_val)) > 1e-8
-        @warn "measure_hk: significant imaginary part $(imag(hk_val)) for k=$k"
-    end
-
-    return real(hk_val)
-end
-
-function measure_hk(state::EDDensityMatrix, k, ham_params)
-    require_ising_fourier_observables(ham_params; observable="ED measure_hk mode observables")
-    N = ham_params.N
-    J = ham_params.params.J
-    h = ham_params.params.h
-    θ = theta_from_Jh(J, h)
-
-    # Rotate density matrix to notes basis
-    ρ_notes = _rotate_dm_to_notes(state)
-
-    # Build JW operators
-    a_ops = Vector{Matrix{ComplexF64}}(undef, N)
-    a_dag_ops = Vector{Matrix{ComplexF64}}(undef, N)
-    for n in 1:N
-        a, ad = jordan_wigner_transform_complex(n, N)
-        a_ops[n] = Matrix(a)
-        a_dag_ops[n] = Matrix(ad)
-    end
-
-    # Build h_k operator
-    hk_op = _build_hk_operator(k, θ, N, a_ops, a_dag_ops)
-
-    # Compute expectation value
-    hk_val = _expect_complex(hk_op, ρ_notes)
-
-    # Check imaginary part
     if abs(imag(hk_val)) > 1e-8
         @warn "measure_hk: significant imaginary part $(imag(hk_val)) for k=$k"
     end
@@ -509,35 +467,15 @@ function measure_all_mode_observables(state::Union{EDStateVector, EDDensityMatri
     h = ham_params.params.h
     θ = theta_from_Jh(J, h)
 
-    # Determine fermionic BC if not given
-    if isnothing(gF)
-        px = measure_state_parity(state, N)
-        sector = _reference_parity_sector_with_source(px)
-        parity = sector.parity
-        if sector.source === :reference
-            @warn "measure_all_mode_observables: state has no definite P_x parity " *
-                  "(⟨P_x⟩ = $px); using the P_x = $parity reference grid"
-        end
-        gF = fermionic_bc(ham_params.bc, parity)
-    end
+    gF = _measurement_fermionic_bc(
+        state, ham_params, "measure_all_mode_observables"; gF=gF)
 
     ks = allowed_k_indices(N, gF)
 
-    # Build JW operators once (shared across all k)
-    a_ops = Vector{Matrix{ComplexF64}}(undef, N)
-    a_dag_ops = Vector{Matrix{ComplexF64}}(undef, N)
-    for n in 1:N
-        a, ad = jordan_wigner_transform_complex(n, N)
-        a_ops[n] = Matrix(a)
-        a_dag_ops[n] = Matrix(ad)
-    end
-
-    # Rotate state to notes basis once
-    if state isa EDStateVector
-        notes_state = _rotate_state_to_notes(state)
-    else
-        notes_state = _rotate_dm_to_notes(state)
-    end
+    # Build JW operators and rotate the state to the notes basis once, then
+    # share both across all k.
+    a_ops, a_dag_ops = _dense_jw_operators(N)
+    notes_state = _rotate_to_notes(state)
 
     hk_values = Float64[]
     εk_values = mode_energies_Jh(ks, J, h, N)
