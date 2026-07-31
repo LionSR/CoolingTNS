@@ -119,17 +119,22 @@ end
 @testset "Bogoliubov Mode Observables" begin
 
     @testset "ED momentum distribution has one JW implementation" begin
-        ed_backend_text = read(joinpath(@__DIR__, "..", "src", "ed_backend.jl"), String)
+        # Asserted against the loaded module, not against `ed_backend.jl`'s source
+        # text: a resurrected definition binds the name wherever it is written and
+        # however it is spelled (`f(x) = ...`, `@eval`, a different file), and a
+        # grep for `"function jordan_wigner_transform("` sees none of that.
         stale_private_names = [
-            "JW_CACHE",
-            "function jordan_wigner_transform(",
-            "function momentum_state_overlap_ed(",
-            "CORRELATION_OP_CACHE",
-            "function get_correlation_operator(",
+            :JW_CACHE,
+            :jordan_wigner_transform,
+            :momentum_state_overlap_ed,
+            :CORRELATION_OP_CACHE,
+            :get_correlation_operator,
         ]
         for name in stale_private_names
-            @test !occursin(name, ed_backend_text)
+            @test !isdefined(CoolingTNS, name)
         end
+        # Guards the loop above against passing vacuously on renamed symbols.
+        @test isdefined(CoolingTNS, :jordan_wigner_transform_complex)
     end
 
     @testset "ED mode observables reject unsupported Fourier domains" begin

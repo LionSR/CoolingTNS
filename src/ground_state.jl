@@ -32,6 +32,17 @@ end
     find_ground_state(H_sys, backend::TNBackend, sites)
 
 Find ground state and energy gap using DMRG for tensor network backends.
+
+This is the low-budget end of the same DMRG protocol as
+[`compute_excitation_gaps`](@ref)`(ham_params, ::TNBackend)`: one excited state
+at `maxdim = 100`, restarted from the *same* `random_mps` draw `ψ₀` used for the
+ground state, just to set the single-Δ default detuning.
+`compute_excitation_gaps` runs the higher-budget variant -- `maxdim_excited = 200`
+and a second `random_mps` draw for the excited search, then warm-starting each
+level from the previous eigenvector -- because it builds an `R`-level ladder for
+multi-frequency cooling, where an error in level `n` mis-places a whole bath
+detuning. Both divergences are deliberate, not drift; note the differing
+`random_mps` draw counts mean the two routines also consume the RNG differently.
 """
 function find_ground_state(H_sys::MPO, backend::TNBackend, sites::Vector{<:Index})
     # Find ground state using DMRG

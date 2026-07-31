@@ -415,6 +415,29 @@ function require_nonempty_values(values, flag::AbstractString)
     error("$flag must contain at least one value")
 end
 
+"""
+    validate_trajectory_index(value, flag)
+
+Check that an explicit MCWF trajectory label is usable by
+`largeN_trajectory_seed`, which packs `(N, R, trajectory)` into one integer with
+`LARGE_N_TRAJECTORY_SEED_R_STRIDE` as the trajectory field width. A label at or
+above that stride would carry into the `R` field and silently collide with a
+different run's seed.
+
+Shared by `--trajectory-index` and `--trajectory-values`, which is why it sits
+here beside `require_unique_values` rather than inside `parse_args`.
+"""
+function validate_trajectory_index(value, flag::AbstractString)
+    value >= 1 ||
+        error("$flag must be positive")
+    value < LARGE_N_TRAJECTORY_SEED_R_STRIDE ||
+        error(
+            "$flag must be less than $(LARGE_N_TRAJECTORY_SEED_R_STRIDE) " *
+            "to match the stored trajectory seed rule"
+        )
+    return nothing
+end
+
 function parse_args(args; io=stdout)
     cfg = Dict{String,Any}(
         "Ns" => [64],
@@ -616,16 +639,6 @@ function parse_args(args; io=stdout)
         error("--mode-measurement-stride must be at least 1")
     if !cfg["measure_modes"] && cfg["mode_measurement_stride"] != 1
         error("--mode-measurement-stride requires --measure-modes")
-    end
-    validate_trajectory_index(value, flag) = begin
-        value >= 1 ||
-            error("$flag must be positive")
-        value < LARGE_N_TRAJECTORY_SEED_R_STRIDE ||
-            error(
-                "$flag must be less than $(LARGE_N_TRAJECTORY_SEED_R_STRIDE) " *
-                "to match the stored trajectory seed rule"
-            )
-        return nothing
     end
     if cfg["trajectory_index"] !== nothing && cfg["trajectory_values"] !== nothing
         error("--trajectory-index and --trajectory-values cannot be combined")
