@@ -64,6 +64,7 @@ export CoolingBackend, EDBackend, TNBackend
 export SimulationMethod, DensityMatrix, MonteCarloWavefunction
 export tn_method_maxdim, tn_trotter_maxdim
 export EvolutionMethod, ContinuousEvolution, TrotterEvolution
+export clear_ed_evolution_op_cache!, clear_ed_evolution_caches!
 # Export new parameter types and functions
 export CouplingParameters, SimulationParameters, CoolingResults
 export BasicCouplingParameters, MultiFrequencyCouplingParameters

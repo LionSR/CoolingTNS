@@ -4,6 +4,8 @@ using ITensors
 using ITensorMPS
 using Random
 
+@isdefined(quiet) || include("test_helpers.jl")
+
 function _ed_state_vector_to_mps(ψ_ed::CoolingTNS.EDStateVector, sites)
     N = length(sites)
     if ψ_ed.n_qubits != N
@@ -468,10 +470,10 @@ end
         problem_ed = setup_problem(EDBackend(), ham_params, coupling_params, sim_params)
         state_ed = setup_initial_state(problem_ed, sim_params, "theta", 0.0)
 
-        results_tn = redirect_stdout(devnull) do
+        results_tn = quiet() do
             run_cooling(problem_tn, state_tn, coupling_params, sim_params, ham_params; measure_modes=true)
         end
-        results_ed = redirect_stdout(devnull) do
+        results_ed = quiet() do
             run_cooling(problem_ed, state_ed, coupling_params, sim_params, ham_params; measure_modes=true)
         end
 
@@ -504,10 +506,10 @@ end
         @test abs(measure_state_parity(state_tn.state, N)) < 1e-10
         @test abs(measure_state_parity(state_ed.state, N)) < 1e-10
 
-        results_tn = redirect_stdout(devnull) do
+        results_tn = quiet() do
             run_cooling(problem_tn, state_tn, coupling_params, sim_params, ham_params; measure_modes=true)
         end
-        results_ed = redirect_stdout(devnull) do
+        results_ed = quiet() do
             run_cooling(problem_ed, state_ed, coupling_params, sim_params, ham_params; measure_modes=true)
         end
 
@@ -632,11 +634,11 @@ end
         state_ed = setup_initial_state(problem_ed, sim_params, "theta", 0.0)
 
         Random.seed!(1234)
-        results_tn = redirect_stdout(devnull) do
+        results_tn = quiet() do
             run_cooling(problem_tn, state_tn, coupling_params, sim_params, ham_params; measure_modes=true)
         end
         Random.seed!(1234)
-        results_ed = redirect_stdout(devnull) do
+        results_ed = quiet() do
             run_cooling(problem_ed, state_ed, coupling_params, sim_params, ham_params; measure_modes=true)
         end
 
@@ -671,7 +673,7 @@ end
 
         problem = setup_problem(TNBackend(), ham_params, coupling_params, sim_params)
         state = setup_initial_state(problem, sim_params, "theta", 0.0)
-        results = redirect_stdout(devnull) do
+        results = quiet() do
             run_cooling(
                 problem,
                 state,
@@ -715,7 +717,7 @@ end
 
         problem = setup_problem(TNBackend(), ham_params, coupling_params, sim_params)
         state = setup_initial_state(problem, sim_params, "theta", 0.0)
-        results = redirect_stdout(devnull) do
+        results = quiet() do
             run_cooling(
                 problem,
                 state,
@@ -768,7 +770,7 @@ end
 
         problem = setup_problem(EDBackend(), ham_params, coupling_params, sim_params)
         state = setup_initial_state(problem, sim_params, "theta", 0.0)
-        results = redirect_stdout(devnull) do
+        results = quiet() do
             run_cooling(
                 problem,
                 state,
@@ -816,10 +818,10 @@ end
         problem_ed = setup_problem(EDBackend(), ham_params, coupling_params, sim_params)
         state_ed = setup_initial_state(problem_ed, sim_params, "theta", 0.0)
 
-        results_tn = redirect_stdout(devnull) do
+        results_tn = quiet() do
             run_cooling(problem_tn, state_tn, coupling_params, sim_params, ham_params; measure_modes=true)
         end
-        results_ed = redirect_stdout(devnull) do
+        results_ed = quiet() do
             run_cooling(problem_ed, state_ed, coupling_params, sim_params, ham_params; measure_modes=true)
         end
 

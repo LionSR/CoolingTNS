@@ -308,8 +308,9 @@ if RUN_FULL_TESTS
     @test abs(prob_ed.e₀ - prob_tn.e₀) < 1e-3
     @test prob_tn.extra.coupling_params.delta == small_coupling.delta
 
-    # Initial energies should agree (same initial state type)
-    @test abs(results_ed[RESULT_ENERGY][1] - tn_E_avg[1]) < 0.5
+    # Index 1 is the pre-evolution measurement of identically-constructed
+    # states, so this is an equality up to summation order, not a tolerance.
+    @test abs(results_ed[RESULT_ENERGY][1] - tn_E_avg[1]) < 1e-8
 
     # ED DM should show cooling (deterministic)
     @test results_ed[RESULT_ENERGY][end] <= results_ed[RESULT_ENERGY][1] + 1e-10
@@ -317,9 +318,13 @@ if RUN_FULL_TESTS
     # TN MC average should also show cooling trend
     @test tn_E_avg[end] <= tn_E_avg[1] + 0.5  # Looser for MC average
 end
+end # RUN_FULL_TESTS
 
 # ============================================================================
 # Test 6: ED vs TN cross-backend (DM + Trotter)
+#
+# Not gated: N=3, both sides deterministic density matrices, seconds of work.
+# Test 5 above stays gated because it averages 20 stochastic TN trajectories.
 # ============================================================================
 @testset "Cross-Backend: ED vs TN (DM+Trotter)" begin
     small_N = 3
@@ -346,24 +351,31 @@ end
     println("    TN e₀ = $(prob_tn.e₀)")
     println("    Shared Δ = $(small_coupling.delta)")
 
+    # The per-step gap is genuine second-order TN Trotter error: TN splits each
+    # τ=0.1 sub-step, while ED "Trotter" exponentiates the full H per sub-step.
+    # Observed maximum on this configuration is ~1.3e-2 (step 3); the bound sits
+    # one order above it. Do not tighten this to a cross-backend-exactness
+    # figure — that is what `test_ed_tn_density_channel.jl` is for.
+    trotter_tol = 0.15
     for step in 1:length(results_ed[RESULT_ENERGY])
         E_ed = results_ed[RESULT_ENERGY][step]
         E_tn = results_tn[RESULT_ENERGY][step]
         println("    Step $step: ED E=$(round(E_ed, digits=6)), TN E=$(round(E_tn, digits=6)), diff=$(round(abs(E_ed-E_tn), digits=6))")
+        @test abs(E_ed - E_tn) < trotter_tol
     end
 
     # Ground state energies agree
     @test abs(prob_ed.e₀ - prob_tn.e₀) < 1e-3
     @test prob_tn.extra.coupling_params.delta == small_coupling.delta
 
-    # Initial energies agree
-    @test abs(results_ed[RESULT_ENERGY][1] - results_tn[RESULT_ENERGY][1]) < 0.5
+    # Index 1 is the pre-evolution measurement of identically-constructed
+    # states, so this is an equality up to summation order, not a tolerance.
+    @test abs(results_ed[RESULT_ENERGY][1] - results_tn[RESULT_ENERGY][1]) < 1e-8
 
     # Both should show cooling
     @test results_ed[RESULT_ENERGY][end] <= results_ed[RESULT_ENERGY][1] + 1e-10
     @test results_tn[RESULT_ENERGY][end] <= results_tn[RESULT_ENERGY][1] + 1e-10
 end
-end # RUN_FULL_TESTS
 
 # ============================================================================
 # Test 7: Physical invariants

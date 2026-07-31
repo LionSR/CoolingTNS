@@ -60,7 +60,9 @@ function _energy_metric(E::Real, E0::Real, N::Int, metric::Symbol)::Float64
 end
 
 function _maybe_clear_ed_cache!(backend)
-    backend isa EDBackend && empty!(CoolingTNS.EVOLUTION_OP_CACHE)
+    # Narrow on purpose: this scan reuses the eigendecompositions across its
+    # randomized times, so only the per-`t` operators are released.
+    backend isa EDBackend && clear_ed_evolution_op_cache!()
     return nothing
 end
 

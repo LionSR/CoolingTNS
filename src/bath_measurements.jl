@@ -47,12 +47,6 @@ function _bath_sample_magnetization(sample::Vector{Int}, N_bath::Int,
     return sum(sample_to_z.(sample)) / N_bath
 end
 
-function _single_site_mpo(sites::Vector{<:Index}, op_name::String, site::Int)
-    terms = OpSum()
-    terms += 1.0, op_name, site
-    return MPO(terms, sites)
-end
-
 # --- Tensor Network + Monte Carlo ---
 # For MPS Monte Carlo, bath magnetization comes from the sampled bath configuration
 function compute_bath_magnetization(::TNBackend, ::QuantumState{TNBackend,MonteCarloWavefunction,E}, 
@@ -91,13 +85,18 @@ end
 # For MPO, we need to compute expectation values differently
 function compute_bath_magnetization(::TNBackend, ::QuantumState{TNBackend,DensityMatrix,E},
                                   ρ_bath::MPO, sites_bath::Vector{<:Index}) where E
-    # Compute average magnetization of bath sites
+    # One `Σ_i Z_i` MPO and one `inner`, rather than an MPO and an `inner` per
+    # bath site. `MPO(::OpSum)` of single-site terms is exact at bond dimension
+    # 2, so this loses no accuracy — but it does move the N-term sum inside the
+    # tensor contraction, which reassociates it at the ~1 ulp level. Values
+    # written to `RESULT_BATH_MAGNETIZATION` differ from the per-site form in
+    # their last digits.
     N_bath = length(sites_bath)
 
-    total_mag = sum(eachindex(sites_bath); init=0.0) do i
-        z_op = _single_site_mpo(sites_bath, "Z", i)
-        real(inner(ρ_bath, z_op))
+    terms = OpSum()
+    for i in eachindex(sites_bath)
+        terms += 1.0, "Z", i
     end
 
-    return total_mag / N_bath
+    return real(inner(ρ_bath, MPO(terms, sites_bath))) / N_bath
 end

@@ -17,6 +17,8 @@ using CoolingTNS
 using CoolingTNS: EDStateVector, EDDensityMatrix, state_to_density_ed, pauli_z, pauli_x
 using LinearAlgebra
 
+@isdefined(quiet) || include("test_helpers.jl")
+
 # ============================================================================
 # Helper functions
 # ============================================================================
@@ -486,7 +488,7 @@ end
         ρ0 = state_to_density_ed(problem.ϕ₀)
         state0 = QuantumState(EDBackend(), DensityMatrix(), ContinuousEvolution(), ρ0)
 
-        results = redirect_stdout(devnull) do
+        results = quiet() do
             run_cooling(problem, state0, coupling_params, sim_params, ham_params)
         end
 
@@ -499,7 +501,7 @@ end
 
         ρ_sb = CoolingTNS.prepare_combined_state_ed(ρ0, N, coupling_params.coupling)
         state_sb = QuantumState(EDBackend(), DensityMatrix(), ContinuousEvolution(), ρ_sb)
-        results_sb = redirect_stdout(devnull) do
+        results_sb = quiet() do
             run_cooling(problem, state_sb, coupling_params, sim_params, ham_params)
         end
 
@@ -550,7 +552,7 @@ end
         ρ0 = state_to_density_ed(problem.ϕ₀)
         state0 = QuantumState(EDBackend(), DensityMatrix(), ContinuousEvolution(), ρ0)
 
-        results = redirect_stdout(devnull) do
+        results = quiet() do
             run_cooling(problem, state0, coupling_params, sim_params, ham_params)
         end
 
@@ -794,7 +796,7 @@ end
         problem = setup_problem(EDBackend(), ham_params, coupling_params, sim_params)
         state0 = setup_initial_state(problem, sim_params, "theta", 0.0)
 
-        results = redirect_stdout(devnull) do
+        results = quiet() do
             run_cooling(problem, state0, coupling_params, sim_params, ham_params; measure_modes=true)
         end
 

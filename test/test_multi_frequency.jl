@@ -696,29 +696,25 @@ using Random
             return nothing
         end
 
-        results_ed_match = redirect_stdout(devnull) do
-            redirect_stderr(devnull) do
-                CoolingTNS.run_cooling(
-                    problem_ed_match,
-                    CoolingTNS.setup_initial_state(problem_ed_match, sim_ed_match, "theta", -0.2),
-                    mf_match,
-                    sim_ed_match,
-                    ham_match;
-                    step_observer=capture_ed,
-                )
-            end
+        results_ed_match = quiet() do
+            CoolingTNS.run_cooling(
+                problem_ed_match,
+                CoolingTNS.setup_initial_state(problem_ed_match, sim_ed_match, "theta", -0.2),
+                mf_match,
+                sim_ed_match,
+                ham_match;
+                step_observer=capture_ed,
+            )
         end
-        results_tn_match = redirect_stdout(devnull) do
-            redirect_stderr(devnull) do
-                CoolingTNS.run_cooling(
-                    problem_tn_match,
-                    CoolingTNS.setup_initial_state(problem_tn_match, sim_tn_match, "theta", -0.2),
-                    mf_match,
-                    sim_tn_match,
-                    ham_match;
-                    step_observer=capture_tn,
-                )
-            end
+        results_tn_match = quiet() do
+            CoolingTNS.run_cooling(
+                problem_tn_match,
+                CoolingTNS.setup_initial_state(problem_tn_match, sim_tn_match, "theta", -0.2),
+                mf_match,
+                sim_tn_match,
+                ham_match;
+                step_observer=capture_tn,
+            )
         end
 
         @test isequal(
