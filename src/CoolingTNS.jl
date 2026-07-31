@@ -28,7 +28,9 @@ include("ed_backend.jl")
 include("mode_analysis.jl")          # Parameter mapping, dispersion, k-grid
 # Load order: every function body in dispersion.jl calls into mode_analysis.jl
 # (allowed_k_indices, theta_from_Jh, mode_energy_Jh, w_k_coefficient,
-# bogoliubov_angle), so it belongs after it and must not move back up.
+# bogoliubov_angle). Those are resolved at call time, so today the position is
+# readability rather than a hard requirement -- but adding any load-time
+# expression to dispersion.jl would make it one, which is why it sits here.
 include("dispersion.jl")             # Compatibility k-space helpers for plotting scripts
 include("ed_backend_complex_jw.jl")  # Complex JW (notes convention) — single source of truth
 include("tn_mode_observables.jl")    # MPS mode observables using split-string correlators
