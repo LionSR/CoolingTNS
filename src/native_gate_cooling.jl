@@ -281,45 +281,69 @@ end
     bsb_gate_count_and_depth(p) -> NamedTuple
 
 Native two-qubit gate count and entangling depth of one `bsb_collision_layers`
-block: two pair sublayers (N mutually-disjoint gates each, 1 sublayer each)
-sandwiching one chain sublayer pair (N-1 gates, 2 sublayers from odd/even
-edge-coloring) -- gates = 2N+(N-1) = 3N-1, depth = 1+2+1 = 4 for any N. Matches
-the collaborator note's N=5 numbers (14, 4).
+block, together with the per-step sublayer counts that schedule fires its two
+diagonal steps in: two pair sublayers (N mutually-disjoint gates each, 1
+sublayer each) sandwiching one chain step (N-1 gates, 2 sublayers from odd/even
+edge-coloring) -- gates = 2N+(N-1) = 3N-1 for any N, depth = 1+2+1 = 4 once the
+chain needs two colors, i.e. N ≥ 3 (at N = 2 the lone chain bond is a single
+sublayer, so the depth is 3). Matches the collaborator note's N=5 numbers
+(14, 4).
+
+`bsb_collision_layers` reads `pair_sublayers`/`chain_sublayers` straight from
+here -- exactly as `collision_layers` reads `sublayers_per_diag_step` from
+`gate_count_and_depth` -- so the depth reported here and the depolarizing-noise
+clock the schedule drives (`noise_passes`) are one computation, not two that
+happen to agree.
 """
 function bsb_gate_count_and_depth(p::NativeGateCircuitParams)
     chain = chain_gate_pairs(p.N)
     coupling = coupling_gate_pairs(p.N)
+    pair_sublayers = length(greedy_edge_coloring(coupling))
+    chain_sublayers = length(greedy_edge_coloring(chain))
     return (
         two_qubit_gates=2 * length(coupling) + length(chain),
-        entangling_depth=2 * length(greedy_edge_coloring(coupling)) +
-                         length(greedy_edge_coloring(chain)),
+        entangling_depth=2 * pair_sublayers + chain_sublayers,
+        pair_sublayers=pair_sublayers,
+        chain_sublayers=chain_sublayers,
     )
 end
 
 """
-Accumulate the exponent of `CP_ij(-θ) = exp(-iθ n_i n_j)` (Eq. \ref{eq:projector}/
-\ref{eq:compile} in `AlgoCool2026.tex` -- the *direct*, uncompensated native
-compilation of the target projector Hamiltonian's diagonal terms; see module
-docstring) into `phase` in place: `-θ` where both bits `i,j` are set, `0`
-otherwise. Used by `native_chain_diagonal`/`native_pair_diagonal` to sum many
-pairs' contributions with a single `O(2^nq)`-sized array and a single `cis.`
-at the end, instead of allocating a fresh `2^nq`-sized diagonal per pair and
-multiplying them together (prohibitive once `2^nq` and the pair count both
-grow -- this dominated the per-cycle cost at N≳10).
+    _accumulate_pair_diagonal!(d, weight, pairs)
 
-A zero angle returns immediately rather than sweeping all `2^nq` amplitudes to
-add zero. This is not a micro-optimization: `native_chain_diagonal` and
+Accumulate `weight·Σ n_i n_j` over `pairs` into the diagonal `d` in place: add
+`weight` to every entry whose basis label has both of a pair's bits set. Site
+`i` occupies bit `interleaved_bit_position(i)` -- a one-indexed label mapped to
+a zero-indexed bit -- so this serves the interleaved `2N`-qubit space and the
+system-only `N`-qubit space alike.
+
+The one place this file *accumulates* over the "both atoms excited" predicate;
+its three callers differ only in what they add there. `native_projector_diagonal`
+passes `weight = -θ`, the exponent of `CP_ij(-θ) = exp(-iθ n_i n_j)` --
+Eq. \ref{eq:projector}/\ref{eq:compile} in `AlgoCool2026.tex`, the *direct*,
+uncompensated native compilation of the target projector Hamiltonian's diagonal
+terms (see module docstring); the two projector Hamiltonians accumulate
+energies, `weight = J` or `g`. Summing every pair into one `O(2^nq)`-sized array
+(and, for the circuit, taking a single `cis.` at the end) is what keeps this
+affordable: a fresh `2^nq`-sized diagonal per pair, multiplied together,
+dominated the per-cycle cost at N≳10.
+
+A zero `weight` returns immediately rather than sweeping all `2^nq` entries to
+add nothing. This is not a micro-optimization: `native_chain_diagonal` and
 `native_pair_diagonal` deliberately zero out the *other* interaction family, so
 without the early-out every chain-only or pair-only step -- both of
 `bsb_collision_layers`' distinct diagonal constructions among them -- would pay
 a full exponential pass per edge of a family that contributes nothing.
 """
-function _accumulate_projector_phase!(phase::Vector{Float64}, θ::Float64, i::Int, j::Int, nq::Int)
-    iszero(θ) && return nothing
-    bi, bj = interleaved_bit_position(i), interleaved_bit_position(j)
-    for k in 0:(length(phase) - 1)
-        if ((k >> bi) & 1 == 1) && ((k >> bj) & 1 == 1)
-            phase[k + 1] -= θ
+function _accumulate_pair_diagonal!(d::Vector{Float64}, weight::Float64,
+                                    pairs::Vector{Tuple{Int,Int}})
+    iszero(weight) && return nothing
+    for (i, j) in pairs
+        bi, bj = interleaved_bit_position(i), interleaved_bit_position(j)
+        for k in 0:(length(d) - 1)
+            if ((k >> bi) & 1 == 1) && ((k >> bj) & 1 == 1)
+                d[k + 1] += weight
+            end
         end
     end
     return nothing
@@ -333,19 +357,15 @@ Diagonal of the native compilation of
 source of truth every ED diagonal step is built from, covering the chain-only
 (`pair_dt=0`), pair-only (`chain_dt=0`) and combined-slice cases with one
 `O(2^nq)` phase accumulator and one `cis.` at the end (see
-`_accumulate_projector_phase!` for why the accumulate-then-exponentiate order
+`_accumulate_pair_diagonal!` for why the accumulate-then-exponentiate order
 matters), rather than exponentiating each term separately and multiplying the
 resulting `2^nq`-sized diagonals together.
 """
 function native_projector_diagonal(p::NativeGateCircuitParams, chain_dt::Float64,
                                    pair_dt::Float64, nq::Int)
     phase = zeros(Float64, 1 << nq)
-    for (i, j) in chain_gate_pairs(p.N)
-        _accumulate_projector_phase!(phase, p.J * chain_dt, i, j, nq)
-    end
-    for (i, j) in coupling_gate_pairs(p.N)
-        _accumulate_projector_phase!(phase, p.g * pair_dt, i, j, nq)
-    end
+    _accumulate_pair_diagonal!(phase, -(p.J * chain_dt), chain_gate_pairs(p.N))
+    _accumulate_pair_diagonal!(phase, -(p.g * pair_dt), coupling_gate_pairs(p.N))
     return cis.(phase)
 end
 
@@ -446,8 +466,20 @@ function apply_single_site_rotation_x!(state::Vector{ComplexF64}, θ::Float64, s
     return state
 end
 
-"""Apply `exp(-i(θ/2)ΣX)` to `sites` of `state` in place, via sequential single-site rotations (exact, since they commute)."""
-function apply_global_x_rotation!(state::Vector{ComplexF64}, θ::Float64, sites::Vector{Int})
+"""
+    apply_x_rotation(state, θ, sites) -> state
+
+Apply the global `exp(-i(θ/2)ΣX)` pulse of a rotation layer to `sites` of
+`state`, dispatched on the state representation -- the only backend-specific
+ingredient of such a layer, which is what lets `apply_layer` carry the two
+rotation layers' actual difference (which register they pulse) once for both
+backends. Like `apply_layer`/`apply_collision`, and for the same reason, it is
+unmarked by `!` despite the ED method below overwriting its state vector in
+place: always use the returned value.
+
+ED: sequential single-site rotations, exact since they commute.
+"""
+function apply_x_rotation(state::Vector{ComplexF64}, θ::Float64, sites::Vector{Int})
     θ == 0.0 && return state
     for site in sites
         apply_single_site_rotation_x!(state, θ, site)
@@ -468,12 +500,23 @@ The two global-rotation layers are backend-independent (they carry only an
 angle, and `apply_layer` resolves them against whichever state representation
 it is handed). Only the diagonal step has a backend-specific realization:
 `DiagonalLayer` (ED, a dense `2^{2N}` diagonal) versus
-`NativeDiagonalGateLayer` (TN, contiguous-window gates). Which one a schedule
-emits is chosen by `native_diagonal_layer`, dispatched on the backend, so
-`collision_layers`/`bsb_collision_layers` themselves stay single, shared
-definitions.
+`NativeDiagonalGateLayer` (TN, contiguous-window gates), which share the
+`NativeDiagonalLayer` supertype below for everything that treats them alike.
+Which one a schedule emits is chosen by `native_diagonal_layer`, dispatched on
+the backend, so `collision_layers`/`bsb_collision_layers` themselves stay
+single, shared definitions.
 """
 abstract type CircuitLayer end
+
+"""
+Supertype of the diagonal step's two backend realizations, `DiagonalLayer` (ED)
+and `NativeDiagonalGateLayer` (TN). They are the same gate set fired in the same
+number of graph-colored hardware pulse sublayers, so everything that treats them
+alike -- the depolarizing-noise clock, `noise_passes`/`noise_sites` -- dispatches
+on this supertype and is written once, and the two backends cannot drift apart
+on the entangling depth they claim or the atoms they expose to noise.
+"""
+abstract type NativeDiagonalLayer <: CircuitLayer end
 
 """
 Native diagonal (entangling) phase layer; `phase` is a precomputed `2^nq`-length
@@ -483,7 +526,7 @@ schedule `gate_count_and_depth`/`bsb_gate_count_and_depth` count entangling
 depth by, so the depolarizing-noise clock (`noise_passes`) stays consistent
 with the reported depth.
 """
-struct DiagonalLayer <: CircuitLayer
+struct DiagonalLayer <: NativeDiagonalLayer
     phase::Vector{ComplexF64}
     sublayers::Int
 end
@@ -503,7 +546,7 @@ pure description of the circuit and never has to be rebuilt when the MPS's
 site indices change (they do -- `sample_bath!` consumes bath sites and
 `appendzeros_MPS` re-attaches fresh ones every cooling cycle).
 """
-struct NativeDiagonalGateLayer <: CircuitLayer
+struct NativeDiagonalGateLayer <: NativeDiagonalLayer
     windows::Vector{NativeDiagonalWindow}
     residual_phase::Float64
     sublayers::Int
@@ -522,12 +565,19 @@ end
 const CircuitLayerUnion =
     Union{DiagonalLayer,NativeDiagonalGateLayer,SystemRotationLayer,BathRotationLayer}
 
+"""Apply the ED diagonal step: scale every amplitude by its precomputed phase, in place."""
 apply_layer(state::Vector{ComplexF64}, layer::DiagonalLayer, sys_sites::Vector{Int}, bath_sites::Vector{Int}) =
     (state .*= layer.phase; state)
-apply_layer(state::Vector{ComplexF64}, layer::SystemRotationLayer, sys_sites::Vector{Int}, bath_sites::Vector{Int}) =
-    apply_global_x_rotation!(state, layer.θ, sys_sites)
-apply_layer(state::Vector{ComplexF64}, layer::BathRotationLayer, sys_sites::Vector{Int}, bath_sites::Vector{Int}) =
-    apply_global_x_rotation!(state, layer.θ, bath_sites)
+
+"""
+Apply a global rotation layer, for *either* backend: the layer contributes only
+its angle and its register, and `apply_x_rotation` resolves the rotation against
+whichever state representation it is handed.
+"""
+apply_layer(state, layer::SystemRotationLayer, sys_sites::Vector{Int}, bath_sites::Vector{Int}) =
+    apply_x_rotation(state, layer.θ, sys_sites)
+apply_layer(state, layer::BathRotationLayer, sys_sites::Vector{Int}, bath_sites::Vector{Int}) =
+    apply_x_rotation(state, layer.θ, bath_sites)
 
 """
     native_diagonal_layer(p, backend, chain_dt, pair_dt, residual_pulses, sublayers) -> CircuitLayer
@@ -564,13 +614,12 @@ end
     noise_passes(layer::CircuitLayer) -> Int
 
 Number of depolarizing passes `apply_collision` applies after `layer`: one per
-hardware pulse sublayer. A `DiagonalLayer` fires its gates in
-`layer.sublayers` graph-colored entangling sublayers (the unit
-`gate_count_and_depth` reports depth in), so it draws that many noise passes;
-each global rotation layer is a single pulse.
+hardware pulse sublayer. A diagonal layer (`NativeDiagonalLayer`, either
+backend's realization) fires its gates in `layer.sublayers` graph-colored
+entangling sublayers (the unit `gate_count_and_depth` reports depth in), so it
+draws that many noise passes; each global rotation layer is a single pulse.
 """
-noise_passes(layer::DiagonalLayer) = layer.sublayers
-noise_passes(layer::NativeDiagonalGateLayer) = layer.sublayers
+noise_passes(layer::NativeDiagonalLayer) = layer.sublayers
 noise_passes(::SystemRotationLayer) = 1
 noise_passes(::BathRotationLayer) = 1
 
@@ -584,8 +633,7 @@ single-qubit rotation pulses only its own register -- system and bath
 rotations act on disjoint atoms and must not double-noise each other's
 register.
 """
-noise_sites(::DiagonalLayer, registers) = registers.all
-noise_sites(::NativeDiagonalGateLayer, registers) = registers.all
+noise_sites(::NativeDiagonalLayer, registers) = registers.all
 noise_sites(::SystemRotationLayer, registers) = registers.sys
 noise_sites(::BathRotationLayer, registers) = registers.bath
 
@@ -594,7 +642,7 @@ noise_sites(::BathRotationLayer, registers) = registers.bath
 
 Symmetric r-slice Trotter decomposition of `exp[-iτ(H_X + H_D)]` compiled onto
 native gates: each slice is a Strang split `X(dt/2) - D(dt) - X(dt/2)`. Since
-`apply_global_x_rotation!` implements `exp(-i(θ/2)ΣX)`, the half-pulses need
+`apply_x_rotation` implements `exp(-i(θ/2)ΣX)`, the half-pulses need
 `θ = h·dt` for the system (H_X_sys = h·ΣX) and `θ = Δ·dt/2` for the bath
 (H_X_bath = (Δ/2)·ΣX), each being evaluated at physical time `dt/2`.
 
@@ -639,16 +687,17 @@ free/X term (contrast `collision_layers`): pair/2 -> chain(full τ) ->
 global-X(full τ) -> pair/2. Reverse-engineered from `native14_joint_basis()`
 in the collaborator's `reproduce_native_note.py`, which is not derivable from
 the note's prose alone. At N=5 this gives 14 native two-qubit gates, entangling
-depth 4 (`bsb_gate_count_and_depth`), matching the note's numbers exactly.
+depth 4, matching the note's numbers exactly -- and it takes each diagonal
+step's sublayer count from `bsb_gate_count_and_depth`, the single place that
+accounting lives, so the noise clock cannot drift from the reported depth.
 """
 function bsb_collision_layers(p::NativeGateCircuitParams, τ::Float64,
                               backend::CoolingBackend=EDBackend())
-    pair_sublayers = length(greedy_edge_coloring(coupling_gate_pairs(p.N)))
-    chain_sublayers = length(greedy_edge_coloring(chain_gate_pairs(p.N)))
-    half_pair = native_diagonal_layer(p, backend, 0.0, τ / 2, 0, pair_sublayers)
+    counts = bsb_gate_count_and_depth(p)
+    half_pair = native_diagonal_layer(p, backend, 0.0, τ / 2, 0, counts.pair_sublayers)
     return CircuitLayerUnion[
         half_pair,
-        native_diagonal_layer(p, backend, τ, 0.0, 0, chain_sublayers),
+        native_diagonal_layer(p, backend, τ, 0.0, 0, counts.chain_sublayers),
         SystemRotationLayer(2τ * p.h),
         BathRotationLayer(τ * p.Delta),
         half_pair,
@@ -815,17 +864,12 @@ function apply_layer(state::NativeGateMPS, layer::NativeDiagonalGateLayer,
     return _with_psi(state, psi, discarded)
 end
 
-"""Apply `exp(-i(θ/2)ΣX)` to `positions` of a TN state: single-site gates, so exact and bond-dimension-preserving."""
-function _apply_tn_x_rotation(state::NativeGateMPS, θ::Float64, positions::Vector{Int})
+"""TN method of `apply_x_rotation`: single-site gates, so exact and bond-dimension-preserving."""
+function apply_x_rotation(state::NativeGateMPS, θ::Float64, sites::Vector{Int})
     iszero(θ) && return state
-    gates = ITensor[native_x_rotation_gate(θ, state.sites[j]) for j in positions]
+    gates = ITensor[native_x_rotation_gate(θ, state.sites[j]) for j in sites]
     return _with_psi(state, apply(gates, state.psi; cutoff=state.cutoff, maxdim=state.maxdim))
 end
-
-apply_layer(state::NativeGateMPS, layer::SystemRotationLayer, sys_sites::Vector{Int}, bath_sites::Vector{Int}) =
-    _apply_tn_x_rotation(state, layer.θ, sys_sites)
-apply_layer(state::NativeGateMPS, layer::BathRotationLayer, sys_sites::Vector{Int}, bath_sites::Vector{Int}) =
-    _apply_tn_x_rotation(state, layer.θ, bath_sites)
 
 """
 The diagonal step is the one part of a schedule that is backend-specific
@@ -877,7 +921,7 @@ RNG) for a reproducible noisy run -- the default matches the previous,
 non-reproducible behavior.
 
 `nq` is redundant (it is always `n_qubits(p)`) and retained only so existing
-ED call sites keep working; it is validated against `p` rather than used, so a
+ED call sites keep working; it is validated against `p` before use, so a
 mismatched value is an error instead of silent nonsense. The ED state vector is
 overwritten in place, so callers that still need the input must pass a copy and
 always use the returned value.
@@ -1240,13 +1284,8 @@ so `H_S` here is a drop-in replacement for the old
 (`_measure_and_reset`'s `Tr(ρ_sys H_S)`, ground-state/fidelity diagnostics).
 """
 function native_projector_system_hamiltonian(N::Int, J::Float64, h::Float64)
-    dim = 1 << N
-    diagE = zeros(Float64, dim)
-    for i in 1:(N - 1)
-        for k in 0:(dim - 1)
-            (((k >> (i - 1)) & 1 == 1) && ((k >> i) & 1 == 1)) && (diagE[k + 1] += J)
-        end
-    end
+    diagE = zeros(Float64, 1 << N)
+    _accumulate_pair_diagonal!(diagE, J, [(i, i + 1) for i in 1:(N - 1)])
     H = spdiagm(0 => diagE)
     for i in 1:N
         H += h .* pauli_x(i, N)
@@ -1317,20 +1356,9 @@ see `exact_collision_operator`.
 """
 function native_projector_total_hamiltonian(N::Int, J::Float64, h::Float64, Delta::Float64, g::Float64)
     nq = 2N
-    dim = 1 << nq
-    diagE = zeros(Float64, dim)
-    for (i, j) in chain_gate_pairs(N)
-        bi, bj = interleaved_bit_position(i), interleaved_bit_position(j)
-        for k in 0:(dim - 1)
-            (((k >> bi) & 1 == 1) && ((k >> bj) & 1 == 1)) && (diagE[k + 1] += J)
-        end
-    end
-    for (i, j) in coupling_gate_pairs(N)
-        bi, bj = interleaved_bit_position(i), interleaved_bit_position(j)
-        for k in 0:(dim - 1)
-            (((k >> bi) & 1 == 1) && ((k >> bj) & 1 == 1)) && (diagE[k + 1] += g)
-        end
-    end
+    diagE = zeros(Float64, 1 << nq)
+    _accumulate_pair_diagonal!(diagE, J, chain_gate_pairs(N))
+    _accumulate_pair_diagonal!(diagE, g, coupling_gate_pairs(N))
     H = spdiagm(0 => ComplexF64.(diagE))
     for i in interleaved_system_sites(N)
         H += h .* pauli_x(i, nq)
@@ -1342,11 +1370,6 @@ function native_projector_total_hamiltonian(N::Int, J::Float64, h::Float64, Delt
 end
 native_projector_total_hamiltonian(p::NativeGateCircuitParams) =
     native_projector_total_hamiltonian(p.N, p.J, p.h, p.Delta, p.g)
-
-"""System Hamiltonian used when a trajectory driver is called without `H_S`: the
-collaborator note's own projector-Ising `H_S` (Eq. \ref{eq:model}), *not* the
-clean `IsingModel` -- see module docstring."""
-_default_system_hamiltonian(p::NativeGateCircuitParams) = native_projector_system_hamiltonian(p)
 
 """
     _run_native_gate_cycles(state, p, n_cycles, rng, propagate, H_S, bath, ground_state; kwargs...)
@@ -1406,7 +1429,9 @@ match (see the TN `_measure_and_reset` docstring for why, and note that the
 energy return above does not have this caveat).
 
 On ED, `H_S` should be `SparseMatrixCSC` (as returned by
-`construct_system_hamiltonian` for `EDBackend`) so the energy measurement
+`native_projector_system_hamiltonian(p, EDBackend())`, the default -- *not*
+`construct_system_hamiltonian`, which builds the clean-ZZ `IsingModel` this
+file deliberately does not target; see module docstring) so the energy measurement
 `Tr(ρ_sys H_S) = Σ_b M[:,b]'*(H_S*M[:,b])` stays O(N·4^N) (sparse H_S times
 dense M) rather than densifying to O(8^N).
 `ground_state::Union{Nothing,Vector}` enables the ground-state fidelity
@@ -1463,7 +1488,7 @@ function run_native_gate_trajectory(
         native_gate_initial_state(rng, p.N, backend; sys=initial_sys, bath=ColdReset()),
         p, n_cycles, rng,
         _native_gate_propagator(p, backend, layers_fn, noise_p, rng),
-        H_S === nothing ? _default_system_hamiltonian(p) : H_S,
+        H_S === nothing ? native_projector_system_hamiltonian(p, backend) : H_S,
         native_bath_reset_payload(reset_bath, p.N, backend), ground_state;
         randomized_tau=randomized_tau, tau_max=tau_max,
         compute_purity=compute_purity, diagnostics=diagnostics,
@@ -1580,7 +1605,7 @@ function run_exact_continuous_trajectory(
         native_gate_initial_state(rng, p.N, backend; sys=initial_sys, bath=ColdReset()),
         p, n_cycles, rng,
         (state, τ) -> _exact_collision_propagate(state, τ, evals, evecs),
-        H_S === nothing ? _default_system_hamiltonian(p) : H_S,
+        H_S === nothing ? native_projector_system_hamiltonian(p, backend) : H_S,
         native_bath_reset_payload(reset_bath, p.N, backend), ground_state;
         randomized_tau=randomized_tau, tau_max=tau_max, compute_purity=compute_purity,
     )
