@@ -65,14 +65,12 @@ function construct_system_bath_hamiltonian(ham_params::HamiltonianParameters,
     
     # Get system Hamiltonian on N qubits
     H_sys = construct_system_hamiltonian(ham_params, backend, N)
-    
-    # Initialize full Hamiltonian. Mixed couplings involving Y require the
-    # standard complex Pauli Y to be Hermitian.
-    H_sb = spzeros(ComplexF64, 2^N_total, 2^N_total)
-    
-    # Add system Hamiltonian terms with interleaved layout mapping
-    add_system_hamiltonian_ed!(H_sb, H_sys, N, N_total)
-    
+
+    # Seed the full Hamiltonian with H_sys ⊗ I_bath in the interleaved layout.
+    # The element type is ComplexF64 because mixed couplings involving Y require
+    # the standard complex Pauli Y to be Hermitian.
+    H_sb = embed_system_hamiltonian_ed(H_sys, N, N_total)
+
     # Add bath terms (at resonance with system gap if not specified).
     # Δ > 0, so the bath ground state is the eigenvalue -1 state of bath_op.
     Δ = @something coupling_params.delta compute_gap_ed(H_sys)
@@ -106,23 +104,44 @@ end
 # ============================================================================
 
 """
-    add_system_hamiltonian_ed!(H_sb, H_sys, N, N_total)
+    embed_system_hamiltonian_ed(H_sys, N, N_total) -> SparseMatrixCSC{ComplexF64,Int}
 
-Add system Hamiltonian terms to the full system+bath Hamiltonian.
-Embeds H_sys ⊗ I_bath by looping over all bath basis states.
+Embed `H_sys ⊗ I_bath` into the full interleaved system-bath basis, once per
+bath basis state.
+
+Built from a `findnz` triplet list rather than scalar `setindex!` into a sparse
+matrix: each such assignment is O(nnz) for CSC, so the old form was quadratic in
+the stored entries. `map_system_bath_to_full_basis_ed` is injective in
+`(system state, bath state)`, so no two triplets collide and `sparse` has
+nothing to sum — the assembled values are those of `H_sys` verbatim.
+
+`V` is widened to `ComplexF64` even though `findnz(H_sys)` yields `Float64`:
+mixed-Y couplings added by the caller need the Hermitian complex Pauli Y.
 """
-function add_system_hamiltonian_ed!(H_sb, H_sys, N, N_total)
-    N_bath = N
-    for bath_state in 0:(2^N_bath - 1)
-        for i in axes(H_sys, 1), j in axes(H_sys, 2)
-            val = H_sys[i,j]
-            if val != 0
-                full_i = map_system_bath_to_full_basis_ed(i-1, bath_state, N)
-                full_j = map_system_bath_to_full_basis_ed(j-1, bath_state, N)
-                H_sb[full_i+1, full_j+1] += val
-            end
+function embed_system_hamiltonian_ed(H_sys, N, N_total)
+    sys_rows, sys_cols, sys_vals = findnz(sparse(H_sys))
+    # Matching the old `val != 0` guard keeps explicitly-stored zeros out of the
+    # pattern, so `hash(H_sb)` — and therefore the `EVOLUTION_EIG_CACHE` key —
+    # is unchanged.
+    stored = findall(!iszero, sys_vals)
+
+    n_bath_states = 2^N
+    n_terms = length(stored) * n_bath_states
+    rows = Vector{Int}(undef, n_terms)
+    cols = Vector{Int}(undef, n_terms)
+    vals = Vector{ComplexF64}(undef, n_terms)
+
+    t = 0
+    for bath_state in 0:(n_bath_states - 1)
+        for k in stored
+            t += 1
+            rows[t] = map_system_bath_to_full_basis_ed(sys_rows[k] - 1, bath_state, N) + 1
+            cols[t] = map_system_bath_to_full_basis_ed(sys_cols[k] - 1, bath_state, N) + 1
+            vals[t] = sys_vals[k]
         end
     end
+
+    return sparse(rows, cols, vals, 2^N_total, 2^N_total)
 end
 
 """
