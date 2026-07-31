@@ -338,6 +338,35 @@ const EVOLUTION_EIG_CACHE = Dict{UInt64, Tuple{Vector{Float64}, Matrix{ComplexF6
 const MAX_EVOLUTION_OP_CACHE_SIZE = 64
 const EVOLUTION_OP_CACHE = Dict{Tuple{UInt64, Float64}, Matrix{ComplexF64}}()
 
+"""
+    clear_ed_evolution_op_cache!() -> Nothing
+
+Drop the cached `exp(-iHt)` operators, keeping the eigendecompositions they were
+built from.
+
+This is the narrow release: `EVOLUTION_EIG_CACHE` holds one dense `eigen` per
+distinct Hamiltonian and is the expensive half, so a caller sweeping many
+evolution times under a fixed set of Hamiltonians wants to free the `U(t)`
+matrices without paying to re-diagonalize.
+"""
+function clear_ed_evolution_op_cache!()
+    empty!(EVOLUTION_OP_CACHE)
+    return nothing
+end
+
+"""
+    clear_ed_evolution_caches!() -> Nothing
+
+Drop both ED evolution caches: the `exp(-iHt)` operators and the
+eigendecompositions. Use this when the Hamiltonians themselves are done with;
+use [`clear_ed_evolution_op_cache!`](@ref) when they are not.
+"""
+function clear_ed_evolution_caches!()
+    clear_ed_evolution_op_cache!()
+    empty!(EVOLUTION_EIG_CACHE)
+    return nothing
+end
+
 function _get_eigendecomp(H::AbstractMatrix)
     return get!(EVOLUTION_EIG_CACHE, hash(H)) do
         @assert ishermitian(H) "H must be Hermitian for eigendecomposition"
