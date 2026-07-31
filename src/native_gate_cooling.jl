@@ -1388,11 +1388,17 @@ the same random stream as before. (Its *numbers* shift by ~1e-16, from
 `native_projector_diagonal` now exponentiating a summed phase instead of
 multiplying separately exponentiated ones -- strictly better conditioned, but
 not bit-for-bit identical.)
+
+`tau_max` is **required**, here and on all three public entry points. It is the
+collision time itself -- `randomized_tau=false` uses it directly, `true` draws
+`rand(rng)*tau_max` -- so defaulting it to `0.0` meant a forgotten keyword ran
+zero-length collisions and returned a flat, physically meaningless energy series
+with no error raised. Omitting it now raises `UndefKeywordError` at the call.
 """
 function _run_native_gate_cycles(
     state, p::NativeGateCircuitParams, n_cycles::Int, rng::AbstractRNG, propagate,
     H_S, bath, ground_state;
-    randomized_tau::Bool=false, tau_max::Float64=0.0, compute_purity::Bool=false,
+    randomized_tau::Bool=false, tau_max::Float64, compute_purity::Bool=false,
     diagnostics::Union{Nothing,NativeGateTrajectoryDiagnostics}=nothing,
 )
     energies = zeros(n_cycles)
@@ -1478,7 +1484,7 @@ ED layers, so passing one on `TNBackend` raises `apply_layer`'s cross-backend
 function run_native_gate_trajectory(
     p::NativeGateCircuitParams, n_cycles::Int, rng::AbstractRNG, backend::EDBackend=EDBackend();
     H_S::Union{Nothing,AbstractMatrix}=nothing, noise_p::Float64=0.0,
-    randomized_tau::Bool=false, tau_max::Float64=0.0,
+    randomized_tau::Bool=false, tau_max::Float64,
     ground_state::Union{Nothing,Vector{ComplexF64}}=nothing,
     initial_sys::InitialSystemState=HotState(), reset_bath::ResetTarget=ColdReset(),
     layers_fn::Function=collision_layers, compute_purity::Bool=false,
@@ -1500,7 +1506,7 @@ function run_native_gate_trajectory(
     sites::Vector{<:Index};
     H_S::Union{Nothing,MPO}=nothing, noise_p::Float64=0.0,
     maxdim::Int=NATIVE_GATE_TN_MAXDIM, cutoff::Float64=NATIVE_GATE_TN_CUTOFF,
-    randomized_tau::Bool=false, tau_max::Float64=0.0,
+    randomized_tau::Bool=false, tau_max::Float64,
     ground_state::Union{Nothing,MPS}=nothing,
     initial_sys::InitialSystemState=HotState(), reset_bath::ResetTarget=ColdReset(),
     layers_fn::Function=collision_layers, compute_purity::Bool=false,
@@ -1592,7 +1598,7 @@ diagonalization.
 function run_exact_continuous_trajectory(
     p::NativeGateCircuitParams, n_cycles::Int, rng::AbstractRNG;
     H_S::Union{Nothing,AbstractMatrix}=nothing,
-    randomized_tau::Bool=false, tau_max::Float64=0.0,
+    randomized_tau::Bool=false, tau_max::Float64,
     ground_state::Union{Nothing,Vector{ComplexF64}}=nothing,
     initial_sys::InitialSystemState=HotState(), reset_bath::ResetTarget=ColdReset(),
     evals=nothing, evecs=nothing, compute_purity::Bool=false,
