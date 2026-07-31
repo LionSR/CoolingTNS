@@ -651,10 +651,10 @@ end
     bogoliubov_mode_coefficients(k, θ, N) -> (c2, s2, sc)
 
 Return the three Bogoliubov weights
-``(\\cos^2 varphi_k, \\sin^2 varphi_k, \\sin varphi_k \\cos varphi_k)``
-that build ``\\hat a_k^† \\hat a_k`` out of the Fourier bilinears
-``tilde a_k^† tilde a_k``, ``tilde a_{-k}^† tilde a_{-k}`` and the pairing term,
-with `varphi_k` the [`bogoliubov_angle`](@ref).
+``(cos²(varphi_k), sin²(varphi_k), sin(varphi_k) cos(varphi_k))``
+that build ``â†_k â_k`` out of the Fourier bilinears ``ã†_k ã_k``,
+``ã†_{-k} ã_{-k}`` and the pairing term.  Here ``varphi_k`` is the
+[`bogoliubov_angle`](@ref), not the momentum angle ``φ_k = 2πk/N``.
 
 Both the ED operator construction (`_build_hk_operator` in
 `ed_backend_complex_jw.jl`) and the TN correlator contraction
