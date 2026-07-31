@@ -47,34 +47,6 @@ function with_trotter_tau(sim_params::UnifiedSimulationParameters{S,E}, tau::Flo
 end
 
 # ============================================================================
-# Bath-Only Trotter Circuit (model-agnostic)
-# ============================================================================
-
-"""
-    build_trotter_circuit_bath_coupling(ham_params::HamiltonianParameters, backend::TNBackend, sites_sys, sites_bath, coupling_params, sim_params)
-
-Build Trotter circuit for just the bath coupling terms. Model-agnostic since bath coupling is independent of system Hamiltonian.
-"""
-function build_trotter_circuit_bath_coupling(ham_params::HamiltonianParameters, ::TNBackend,
-                                            sites_sys::Vector{<:Index}, sites_bath::Vector{<:Index},
-                                            coupling_params::CouplingParameters, sim_params::UnifiedSimulationParameters)
-    g, delta, coupling, tau = coupling_params.g, coupling_params.delta, coupling_params.coupling, sim_params.tau
-
-    bath_op = get_bath_operator(coupling)
-
-    gates = ITensor[]
-    for ind in eachindex(sites_sys)
-        s1, b1 = sites_sys[ind], sites_bath[ind]
-        hb = delta / 2 * op(bath_op, b1)
-        hsb = _tn_coupling_operator(s1, b1, coupling, g)
-        push!(gates, exp(-1.0im * tau / 2 * hb))
-        push!(gates, exp(-1.0im * tau / 2 * hsb))
-    end
-    append!(gates, reverse(gates))
-    return gates
-end
-
-# ============================================================================
 # Interleaved Trotter Circuit (for DM+Trotter on interleaved layout)
 # ============================================================================
 

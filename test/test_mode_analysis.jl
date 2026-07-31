@@ -528,7 +528,9 @@ end
 
     @testset "Complex JW uses canonical k-grid" begin
         source = read(joinpath(@__DIR__, "..", "src", "ed_backend_complex_jw.jl"), String)
-        @test !occursin(r"function\s+_allowed_k_indices\b", source)
+        # Form-independent: a private grid helper would bind this name however it
+        # were written, which a `function\s+_allowed_k_indices` regex would miss.
+        @test !isdefined(CoolingTNS, :_allowed_k_indices)
         @test occursin("allowed_k_indices(N, gF)", source)
     end
 

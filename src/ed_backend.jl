@@ -498,7 +498,11 @@ errors on the specified qubits.  Each qubit receives no error with probability
 for a reproducible trajectory; the default matches the previous behavior.
 """
 function apply_depolarizing_ed(ψ::EDStateVector, p::Float64, qubits::Vector{Int}, rng::AbstractRNG=Random.default_rng())
-    ψ_noisy_data = copy(ψ.data)
+    # No `copy` needed: the loop only ever *rebinds* `ψ_noisy_data` to a freshly
+    # allocated `op * ψ_noisy_data`, never mutates it in place, and
+    # `EDStateVector`'s `normalize` is likewise non-mutating -- so `ψ.data`
+    # cannot be reached by any write on this path.
+    ψ_noisy_data = ψ.data
 
     for q in qubits
         if rand(rng) < p

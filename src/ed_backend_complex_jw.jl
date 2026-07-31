@@ -309,8 +309,12 @@ function _build_fourier_ops(a_ops, a_dag_ops, k, N)
     akd = zeros(ComplexF64, dim, dim)
     for n in 1:N
         phase = exp(2π * im * k * n / N) / sqrt(N)
-        ak .+= phase * a_ops[n]
-        akd .+= conj(phase) * a_dag_ops[n]
+        # Dot-fused: `_dense_jw_operators` guarantees dense `Matrix{ComplexF64}`
+        # operands, so this is the same scalar multiply and the same add in the
+        # same order as the unfused form -- bitwise identical -- without
+        # materializing a 4^N temporary per term.
+        ak .+= phase .* a_ops[n]
+        akd .+= conj(phase) .* a_dag_ops[n]
     end
     return ak, akd
 end
@@ -424,7 +428,7 @@ function measure_hk(state::Union{EDStateVector, EDDensityMatrix}, k, ham_params)
     hk_op = _build_hk_operator(k, θ, N, a_ops, a_dag_ops)
     hk_val = _expect_complex(hk_op, notes_state)
 
-    if abs(imag(hk_val)) > 1e-8
+    if abs(imag(hk_val)) > MODE_OBSERVABLE_IMAG_TOL
         @warn "measure_hk: significant imaginary part $(imag(hk_val)) for k=$k"
     end
 
@@ -487,7 +491,7 @@ function measure_all_mode_observables(state::Union{EDStateVector, EDDensityMatri
         # Compute expectation value
         hk_val = _expect_complex(hk_op, notes_state)
 
-        if abs(imag(hk_val)) > 1e-8
+        if abs(imag(hk_val)) > MODE_OBSERVABLE_IMAG_TOL
             @warn "measure_all_mode_observables: significant imaginary part " *
                   "$(imag(hk_val)) for k=$k"
         end
