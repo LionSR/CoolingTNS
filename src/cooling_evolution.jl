@@ -69,17 +69,12 @@ function run_cooling(problem::CoolingProblem{B}, state::QuantumState{B,S,E},
         end
         
         # Process bath and update system state
-        state_and_bath_info = process_bath_and_update(problem, evolved_state, state, sim_params)
-        if state_and_bath_info isa Tuple
-            state, bath_info = state_and_bath_info
-        else
-            state = state_and_bath_info
-            bath_info = nothing
-        end
-        
+        state, bath_info = split_bath_update(
+            process_bath_and_update(problem, evolved_state, state, sim_params))
+
         # Perform measurements
         perform_measurements!(measurements, step, problem, state, ham_params, bath_info)
-        
+
         # Print progress
         if step % 10 == 0 || step == steps + 1
             print_cooling_status(step, measurements, ham_params, state)
@@ -264,13 +259,8 @@ function run_cooling_multi_freq(
         end
 
         # Process bath and update system state
-        state_and_bath_info = process_bath_and_update(problem, evolved_state, state, sim_params)
-        if state_and_bath_info isa Tuple
-            state, bath_info = state_and_bath_info
-        else
-            state = state_and_bath_info
-            bath_info = nothing
-        end
+        state, bath_info = split_bath_update(
+            process_bath_and_update(problem, evolved_state, state, sim_params))
 
         # Perform measurements
         perform_measurements!(measurements, step, problem, state, ham_params, bath_info)
@@ -375,6 +365,17 @@ function notify_step_observer(step_observer, info)
     return nothing
 end
 
+"""
+    split_bath_update(result) -> (state, bath_info)
+
+Normalize a `process_bath_and_update` return value for both cooling loops.
+Methods that report a bath diagnostic alongside the updated system state return
+`(state, bath_info)`; a method that returns the state alone is paired with a
+`nothing` diagnostic.
+"""
+split_bath_update(result::Tuple) = result
+split_bath_update(state) = (state, nothing)
+
 # Dispatch hook: allow run_cooling(..., mf_params::MultiFrequencyCouplingParameters, ...) to work.
 function run_cooling(
     problem::CoolingProblem{B},
@@ -411,6 +412,29 @@ evolve_cooling_step_dynamic(
 ) =
     error("evolve_cooling_step_dynamic not implemented for this backend/method combination")
 
+"""
+    _cached_or_build(build, problem, cache_name, key)
+
+Return `build()`, memoized in `problem.extra[cache_name]` under `key` whenever
+that entry is a dictionary. Multi-frequency cooling revisits a small set of
+detunings, so caching the system-bath Hamiltonian or Trotter circuit avoids
+rebuilding it on every cycle. Problems that carry no such cache (single-Δ runs,
+which never revisit a key) simply rebuild.
+"""
+function _cached_or_build(build, problem::CoolingProblem, cache_name::Symbol, key)
+    cache = get(problem.extra, cache_name, nothing)
+    cache isa AbstractDict || return build()
+    return get!(build, cache, key)
+end
+
+"""
+    _interleaved_step_gates_builder(problem, ham_params, sim_params, sites, coupling_params, cache_key_prefix=nothing)
+
+Return a `dt -> gates` builder for interleaved Trotter circuits whose sub-step
+`dt` differs from `sim_params.tau`. Built circuits are memoized in the problem's
+`:trotter_step_gates_cache`; `cache_key_prefix` (the bath detuning Δ for
+multi-frequency runs) keeps entries for different couplings distinct.
+"""
 function _interleaved_step_gates_builder(
     problem::CoolingProblem{TNBackend},
     ham_params,
@@ -419,27 +443,17 @@ function _interleaved_step_gates_builder(
     coupling_params::CouplingParameters,
     cache_key_prefix=nothing,
 )
-    cache = get(problem.extra, :trotter_step_gates_cache, nothing)
     return function (dt::Float64)
         key = cache_key_prefix === nothing ? dt : (cache_key_prefix, dt)
-        if cache isa AbstractDict
-            return get!(cache, key) do
-                build_trotter_circuit_interleaved(
-                    ham_params,
-                    problem.backend,
-                    sites,
-                    coupling_params,
-                    with_trotter_tau(sim_params, dt),
-                )
-            end
+        return _cached_or_build(problem, :trotter_step_gates_cache, key) do
+            build_trotter_circuit_interleaved(
+                ham_params,
+                problem.backend,
+                sites,
+                coupling_params,
+                with_trotter_tau(sim_params, dt),
+            )
         end
-        return build_trotter_circuit_interleaved(
-            ham_params,
-            problem.backend,
-            sites,
-            coupling_params,
-            with_trotter_tau(sim_params, dt),
-        )
     end
 end
 
@@ -460,12 +474,7 @@ function evolve_cooling_step_dynamic(
     δ = Float64(δ)
 
     # Cache H_step(Δ) since the Hamiltonian does not depend on the randomized time.
-    cache = get(problem.extra, :H_cache, nothing)
-    H_step = if cache isa AbstractDict
-        get!(cache, δ) do
-            construct_system_bath_hamiltonian(ham_params, problem.backend, sites, coupling_step)
-        end
-    else
+    H_step = _cached_or_build(problem, :H_cache, δ) do
         construct_system_bath_hamiltonian(ham_params, problem.backend, sites, coupling_step)
     end
 
@@ -488,12 +497,7 @@ function evolve_cooling_step_dynamic(
     δ === nothing && throw(ArgumentError("Multi-frequency Trotter evolution requires coupling_step.delta"))
     δ = Float64(δ)
 
-    cache = get(problem.extra, :gates_cache, nothing)
-    gates = if cache isa AbstractDict
-        get!(cache, δ) do
-            build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_step, sim_params)
-        end
-    else
+    gates = _cached_or_build(problem, :gates_cache, δ) do
         build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_step, sim_params)
     end
     step_gates = _interleaved_step_gates_builder(problem, ham_params, sim_params, sites, coupling_step, δ)
@@ -518,12 +522,7 @@ function evolve_cooling_step_dynamic(
     δ === nothing && throw(ArgumentError("Multi-frequency Trotter evolution requires coupling_step.delta"))
     δ = Float64(δ)
 
-    cache = get(problem.extra, :gates_cache, nothing)
-    gates = if cache isa AbstractDict
-        get!(cache, δ) do
-            build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_step, sim_params)
-        end
-    else
+    gates = _cached_or_build(problem, :gates_cache, δ) do
         build_trotter_circuit_interleaved(ham_params, problem.backend, sites, coupling_step, sim_params)
     end
     step_gates = _interleaved_step_gates_builder(problem, ham_params, sim_params, sites, coupling_step, δ)
@@ -549,18 +548,28 @@ function evolve_cooling_step_dynamic(
     δ = Float64(δ)
 
     # Cache H_step(Δ) since the Hamiltonian does not depend on the randomized time.
-    cache = get(problem.extra, :H_cache, nothing)
-    H_step = if cache isa AbstractDict
-        get!(cache, δ) do
-            construct_system_bath_hamiltonian(ham_params, problem.backend, 2 * ham_params.N, coupling_step)
-        end
-    else
+    H_step = _cached_or_build(problem, :H_cache, δ) do
         construct_system_bath_hamiltonian(ham_params, problem.backend, 2 * ham_params.N, coupling_step)
     end
 
-    tau = sim_params.evolution_method isa TrotterEvolution ? sim_params.tau : nothing
-    return evolve_cooling_step_ed(H_step, state_total, te_step, tau)
+    return evolve_cooling_step_ed(H_step, state_total, te_step, _ed_trotter_tau(sim_params))
 end
+
+"""
+    _ed_trotter_tau(sim_params) -> Nothing
+
+Continuous ED evolution has no sub-step: `evolve_cooling_step_ed` exponentiates
+the whole interval in one shot.
+"""
+_ed_trotter_tau(::UnifiedSimulationParameters{S,ContinuousEvolution}) where {S<:SimulationMethod} = nothing
+
+"""
+    _ed_trotter_tau(sim_params) -> Float64
+
+Trotter ED evolution splits the cooling interval into `sim_params.tau` sub-steps.
+"""
+_ed_trotter_tau(sim_params::UnifiedSimulationParameters{S,TrotterEvolution}) where {S<:SimulationMethod} =
+    sim_params.tau
 
 # ============================================================================
 # Helper Functions - Generic Interface
@@ -930,23 +939,16 @@ function _mark_failed_ising_mode_measurements!(measurements, step::Int)
     return true
 end
 
-# Helper for Bogoliubov mode-observable measurements ⟨h_k⟩ (Ising PBC/APBC)
-function add_mode_measurements!(measurements, problem::CoolingProblem{EDBackend},
-                                state::QuantumState{EDBackend}, steps, ham_params,
-                                mode_measurement_stride=nothing)
-    _add_ising_mode_measurement_slots!(
-        measurements,
-        problem,
-        state,
-        steps,
-        _measurement_ham_params(problem, ham_params),
-        mode_measurement_stride,
-    )
-end
+"""
+    add_mode_measurements!(measurements, problem, state, steps, ham_params, mode_measurement_stride=nothing)
 
-function add_mode_measurements!(measurements, problem::CoolingProblem{TNBackend},
-                                state::QuantumState{TNBackend}, steps, ham_params,
-                                mode_measurement_stride=nothing)
+Allocate Bogoliubov mode-observable slots ⟨h_k⟩ (Ising PBC/APBC) for a problem
+and state sharing one backend. Both the ED and TN backends implement a
+convention-matched Ising Fourier observable, so they share this slot layout.
+"""
+function add_mode_measurements!(measurements, problem::CoolingProblem{B},
+                                state::QuantumState{B}, steps, ham_params,
+                                mode_measurement_stride=nothing) where B<:CoolingBackend
     _add_ising_mode_measurement_slots!(
         measurements,
         problem,
@@ -988,19 +990,24 @@ end
 
 Compile results into the standard format. CoolingTNS represents simulation
 outputs as a `Dict{String,Any}` of measurement arrays; this copies the
-dictionary and adds lightweight metadata (e.g. `n_trajectories` for Monte
-Carlo runs).
+dictionary so callers cannot mutate the run's live measurement state. Methods
+that carry extra metadata add it on top of this copy.
 """
-function compile_results(measurements, sim_params)
+compile_results(measurements, sim_params) = copy(measurements)
+
+"""
+    compile_results(measurements, sim_params::UnifiedSimulationParameters{MonteCarloWavefunction})
+
+Compile Monte Carlo results, additionally recording `n_trajectories` for
+ensemble runs so downstream averaging knows how many trajectories were pooled.
+A single-trajectory run omits the key, matching the pre-ensemble file format.
+"""
+function compile_results(measurements,
+                         sim_params::UnifiedSimulationParameters{MonteCarloWavefunction})
     results = copy(measurements)
-    
-    # Add simulation metadata
-    if sim_params isa UnifiedSimulationParameters{MonteCarloWavefunction, E} where E
-        if sim_params.n_trajectories > 1
-            results[RESULT_N_TRAJECTORIES] = sim_params.n_trajectories
-        end
+    if sim_params.n_trajectories > 1
+        results[RESULT_N_TRAJECTORIES] = sim_params.n_trajectories
     end
-    
     return results
 end
 
@@ -1112,15 +1119,18 @@ function process_bath_and_update(problem::CoolingProblem{EDBackend}, ρ_evolved:
     return QuantumState(state.backend, state.sim_method, state.evolution_method, ρ_sys), bath_mag
 end
 
-# Evolution differs by tau
-function evolve_cooling_step(problem::CoolingProblem{EDBackend}, ρ_total::EDDensityMatrix, te::Float64,
-                           ::UnifiedSimulationParameters{DensityMatrix,ContinuousEvolution}, _)
-    return evolve_cooling_step_ed(problem.H_sys_bath, ρ_total, te, nothing)
-end
+"""
+    evolve_cooling_step(problem::CoolingProblem{EDBackend}, state_total, te, sim_params, ham_params)
 
-function evolve_cooling_step(problem::CoolingProblem{EDBackend}, ρ_total::EDDensityMatrix, te::Float64,
-                           sim_params::UnifiedSimulationParameters{DensityMatrix,TrotterEvolution}, _)
-    return evolve_cooling_step_ed(problem.H_sys_bath, ρ_total, te, sim_params.tau)
+Evolve an ED system-bath state for one cooling cycle under the problem's
+pre-built system-bath Hamiltonian. Both simulation methods and both evolution
+methods share this implementation; they differ only in the sub-step size chosen
+by `_ed_trotter_tau`, mirroring `evolve_cooling_step_dynamic` for ED.
+"""
+function evolve_cooling_step(problem::CoolingProblem{EDBackend},
+                           state_total::Union{EDStateVector,EDDensityMatrix}, te::Float64,
+                           sim_params::UnifiedSimulationParameters, _)
+    return evolve_cooling_step_ed(problem.H_sys_bath, state_total, te, _ed_trotter_tau(sim_params))
 end
 
 function apply_noise(ρ::EDDensityMatrix, ::CoolingProblem{EDBackend}, pe::Float64)
@@ -1146,22 +1156,11 @@ function process_bath_and_update(problem::CoolingProblem{EDBackend}, ψ_evolved:
     return QuantumState(state.backend, state.sim_method, state.evolution_method, ψ_sys), bath_outcomes
 end
 
-# Evolution differs by tau
-function evolve_cooling_step(problem::CoolingProblem{EDBackend}, ψ_total::EDStateVector, te::Float64,
-                           ::UnifiedSimulationParameters{MonteCarloWavefunction,ContinuousEvolution}, _)
-    return evolve_cooling_step_ed(problem.H_sys_bath, ψ_total, te, nothing)
-end
-
-function evolve_cooling_step(problem::CoolingProblem{EDBackend}, ψ_total::EDStateVector, te::Float64,
-                           sim_params::UnifiedSimulationParameters{MonteCarloWavefunction,TrotterEvolution}, _)
-    return evolve_cooling_step_ed(problem.H_sys_bath, ψ_total, te, sim_params.tau)
-end
-
 # --- ED Backend Measurements (unified) ---
 
 function perform_backend_measurements!(measurements, step::Int, problem::CoolingProblem{EDBackend},
                                      state::QuantumState{EDBackend,S,E}, ham_params, bath_info=nothing) where {S<:SimulationMethod, E<:EvolutionMethod}
-    perform_measurements_ed(measurements, step, state.state, problem.H_sys, problem.ϕ₀, ham_params, bath_info)
+    perform_measurements_ed!(measurements, step, state, problem.H_sys, problem.ϕ₀, ham_params, bath_info)
 end
 
 # --- Tensor Network + Monte Carlo + Trotter Evolution ---
@@ -1179,7 +1178,10 @@ function evolve_cooling_step(problem::CoolingProblem{TNBackend}, ψ_sb::MPS, te:
     end
     step_gates = _interleaved_step_gates_builder(problem, ham_params, sim_params, sites, coupling_params)
 
-    return evolve_state(ham_params, sim_params, problem.backend, problem.H_sys_bath, ψ_sb, te, sites;
+    # Trotter evolution consumes the `gates` keyword; pass the circuit positionally
+    # too, so this call reads identically to `evolve_cooling_step_dynamic` and no
+    # future reader mistakes `problem.H_sys_bath` for a Trotter input.
+    return evolve_state(ham_params, sim_params, problem.backend, interleaved_gates, ψ_sb, te, sites;
                         gates=interleaved_gates, step_gates=step_gates)
 end
 
