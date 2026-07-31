@@ -503,6 +503,61 @@ end
             @test norm(tn_vec - ψ_ed.data) < 1e-10
         end
 
+        @testset "TN Trotter gates reproduce the exact system-bath propagator" begin
+            # The N=1, J=h=0 test above exercises neither the ZZ chain nor the
+            # single-site system fields, so the model-dependent half of
+            # `build_trotter_circuit_interleaved` is unpinned there. Here J and
+            # the transverse/longitudinal fields are all nonzero, and one
+            # symmetric Trotter slice at small tau is compared against
+            # exp(-i H_sb tau) built by `construct_system_bath_hamiltonian`.
+            trotter_N = 2
+            trotter_sites = 2 * trotter_N
+            trotter_tau = 1e-3
+            # Not an eigenstate of the ZZ chain, the fields, or the coupling.
+            # Site i contributes bit i-1, so (Up, Dn, Dn, Up) is ED index 6.
+            trotter_labels = ["Up", "Dn", "Dn", "Up"]
+            trotter_ed_index = 6
+
+            models = [
+                CoolingTNS.IsingParameters(trotter_N, 1.1, -0.7),
+                CoolingTNS.NiIsingParameters(trotter_N, 1.1, -0.7, 0.35),
+            ]
+
+            for ham_params in models, coupling in ["XX", "XY"]
+                coupling_params = CoolingTNS.BasicCouplingParameters(
+                    coupling, 0.3, 1, trotter_tau, 0.45
+                )
+                sim_params = CoolingTNS.UnifiedSimulationParameters(
+                    CoolingTNS.MonteCarloWavefunction(),
+                    CoolingTNS.TrotterEvolution();
+                    tau=trotter_tau,
+                    Dmax=32,
+                    cutoff=1e-16,
+                )
+                sites_sb = siteinds("S=1/2", trotter_sites)
+
+                gates = CoolingTNS.build_trotter_circuit_interleaved(
+                    ham_params, CoolingTNS.TNBackend(), sites_sb, coupling_params, sim_params
+                )
+                ψ_tn = apply(
+                    gates, MPS(sites_sb, trotter_labels);
+                    cutoff=1e-16, maxdim=32, move_sites_back=true,
+                )
+                tn_vec = hamiltonian_test_mps_to_vector(ψ_tn, sites_sb)
+
+                H_sb = CoolingTNS.construct_system_bath_hamiltonian(
+                    ham_params, CoolingTNS.EDBackend(), trotter_sites, coupling_params
+                )
+                ψ_ed = CoolingTNS.evolve_ed(
+                    H_sb, CoolingTNS.product_state_ed(trotter_sites, trotter_ed_index), trotter_tau
+                )
+
+                # Second-order Trotter error is O(tau^3); dropping or mis-signing
+                # any single term would instead show up at O(tau) ~ 1e-3.
+                @test norm(tn_vec - ψ_ed.data) < 1e-6
+            end
+        end
+
         @testset "System terms agree in isolated and interleaved TN MPOs" begin
             backend = CoolingTNS.TNBackend()
             test_N = 3

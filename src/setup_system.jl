@@ -19,8 +19,6 @@ function setup_system(ham_params::HamiltonianParameters, backend::CoolingBackend
     error("setup_system not implemented for model $(typeof(ham_params.model)) and backend $(typeof(backend))")
 end
 
-# Removed duplicate method - use the one at line 52 instead
-
 # ============================================================================
 # Tensor Network Backend System Setup
 # ============================================================================
@@ -34,19 +32,13 @@ function setup_system(ham_params::HamiltonianParameters, backend::TNBackend, sit
     # Build system Hamiltonian using dispatch
     H_sys = construct_system_hamiltonian(ham_params, backend, sites)
     
-    # Find ground state and gap using dispatch
+    # Find ground state and gap using dispatch.
+    # The returned gap is the (positive) bath detuning Δ. Downstream system-bath
+    # setup chooses the bath Pauli with get_bath_operator(coupling), and the
+    # prepared bath state is its eigenvalue -1 state.
     e₀, ϕ₀, gap = find_ground_state(H_sys, backend, sites)
-    # Delta is positive. Downstream system-bath setup chooses the bath Pauli
-    # with get_bath_operator(coupling), and the prepared bath state is its
-    # eigenvalue -1 state.
-    Δ_dmrg = gap
 
-    return H_sys, Δ_dmrg, e₀, ϕ₀
-end
-
-# For backward compatibility with TN-only calls that pass sites instead of backend
-function setup_system(ham_params::HamiltonianParameters{M}, sites::Vector{<:Index}) where M<:HamiltonianModel
-    return setup_system(ham_params, TNBackend(), sites)
+    return H_sys, gap, e₀, ϕ₀
 end
 
 # ============================================================================
@@ -56,20 +48,17 @@ end
 """
     setup_system(ham_params::HamiltonianParameters, backend::EDBackend)
 
-Setup system for exact diagonalization backend using dense matrices.
+Setup system for exact diagonalization backend using sparse Pauli matrices.
 """
 function setup_system(ham_params::HamiltonianParameters, backend::EDBackend)
     # Build system Hamiltonian using dispatch
     H_sys = construct_system_hamiltonian(ham_params, backend, ham_params.N)
-    
-    # Find ground state and gap using dispatch
+
+    # Find ground state and gap using dispatch.
+    # The returned gap is the (positive) bath detuning Δ. Downstream system-bath
+    # setup chooses the bath Pauli with get_bath_operator(coupling), and the
+    # prepared bath state is its eigenvalue -1 state.
     e₀, ϕ₀, gap = find_ground_state(H_sys, backend)
-    # Delta is positive. Downstream system-bath setup chooses the bath Pauli
-    # with get_bath_operator(coupling), and the prepared bath state is its
-    # eigenvalue -1 state.
-    Δ_ed = gap
 
-    return H_sys, Δ_ed, e₀, ϕ₀
+    return H_sys, gap, e₀, ϕ₀
 end
-
-# Ground state computation now handled by ground_state.jl
