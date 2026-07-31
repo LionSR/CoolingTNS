@@ -1,11 +1,20 @@
 """
-    test_tn_trotter_consistency.jl
+    tn_trotter_consistency.jl
 
-Debug script to verify that MPS (MC+Trotter) and MPO (DM+Trotter) use
-the same Trotter decomposition and produce consistent results.
+Diagnostic comparing the two TN Trotter channels of the same cooling protocol:
+MC+Trotter on an MPS (trajectory-averaged) against DM+Trotter on an MPO
+(deterministic), with ED DM+Continuous as the exact reference.
 
-The key issue: MPS uses build_trotter_circuit_bath_coupling + TDVP for system terms,
-while MPO uses build_trotter_circuit_interleaved with all terms in the gates.
+Both channels are driven by the *same* circuit: `setup.jl` builds
+`build_trotter_circuit_interleaved` for `DensityMatrix`+`TrotterEvolution` and
+for `MonteCarloWavefunction`+`TrotterEvolution` alike, and both
+`evolve_cooling_step` methods in `cooling_evolution.jl` hand that circuit to the
+shared `evolve_state`. So a residual MC-vs-MPO gap here is trajectory noise or
+Trotter error, not two different decompositions.
+
+Test 1 checks the per-step agreement at fixed tau in units of the MC standard
+error; Test 2 sweeps tau and checks that both channels converge to the ED
+reference.
 """
 
 using CoolingTNS
@@ -160,6 +169,6 @@ for tau_test in [0.5, 0.2, 0.1, 0.05, 0.02]
 end
 
 println("\n" * "="^70)
-println("If MC and MPO disagree at small tau, it confirms different Trotter circuits.")
-println("Both should converge to ED as tau→0, but at different rates.")
+println("Both channels run the same interleaved circuit, so both should converge")
+println("to the ED reference as tau→0; a residual MC-MPO gap is trajectory noise.")
 println("="^70)
